@@ -8,6 +8,7 @@ import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.UserSportRepository;
 import com.backend.sporta.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +35,29 @@ public class AuthService {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    public AuthResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException("Email hoặc mật khẩu không đúng", 401));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new CustomException("Email hoặc mật khẩu không đúng", 401);
+        }
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .message("Đăng nhập thành công.")
+                .build();
+    }
+
     public void sendOtp(SendOtpRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException("Email này đã được sử dụng. Vui lòng đăng nhập.", 400);
+        }
         String otpCode = otpService.generateAndSaveOtp(request.getEmail());
         emailService.sendOtpEmail(request.getEmail(), otpCode);
     }
@@ -42,26 +65,14 @@ public class AuthService {
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
         otpService.verifyOtp(request.getEmail(), request.getOtp());
 
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
-
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
-            
-            return VerifyOtpResponse.builder()
-                    .isNewUser(false)
-                    .accessToken(accessToken)
-                    .message("Đăng nhập thành công.")
-                    .build();
-        } else {
-            String registrationToken = jwtTokenProvider.generateRegistrationToken(request.getEmail());
-            
-            return VerifyOtpResponse.builder()
-                    .isNewUser(true)
-                    .registrationToken(registrationToken)
-                    .message("Vui lòng hoàn tất thông tin đăng ký.")
-                    .build();
-        }
+        // Do chúng ta tách riêng Đăng nhập/Đăng ký, verifyOtp hiện tại chỉ dùng cho Đăng ký
+        String registrationToken = jwtTokenProvider.generateRegistrationToken(request.getEmail());
+        
+        return VerifyOtpResponse.builder()
+                .isNewUser(true)
+                .registrationToken(registrationToken)
+                .message("Mã xác thực chính xác. Vui lòng hoàn tất thông tin.")
+                .build();
     }
 
     @Transactional
@@ -79,6 +90,7 @@ public class AuthService {
         // Tạo User
         User user = User.builder()
                 .email(email)
+                .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .gender(request.getGender())
                 .dateOfBirth(request.getDateOfBirth())

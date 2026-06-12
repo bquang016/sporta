@@ -11,10 +11,13 @@ import java.util.List;
 
 @Data
 public class RegisterRequest {
-    @NotBlank(message = "Registration token is required")
+    @NotBlank(message = "Registration token không được để trống")
     private String registrationToken;
 
-    @NotBlank(message = "Full name is required")
+    @NotBlank(message = "Mật khẩu không được để trống")
+    private String password;
+
+    @NotBlank(message = "Họ tên không được để trống")
     private String fullName;
 
     @NotNull(message = "Gender is required")

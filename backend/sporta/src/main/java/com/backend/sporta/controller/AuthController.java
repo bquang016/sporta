@@ -1,6 +1,7 @@
 package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.AuthResponse;
+import com.backend.sporta.dto.LoginRequest;
 import com.backend.sporta.dto.RegisterRequest;
 import com.backend.sporta.dto.SendOtpRequest;
 import com.backend.sporta.dto.VerifyOtpRequest;
@@ -20,6 +21,12 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@Valid @RequestBody SendOtpRequest request) {
