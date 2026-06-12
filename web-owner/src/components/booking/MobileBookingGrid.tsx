@@ -9,6 +9,7 @@ import {
   MOCK_SLOTS
 } from './mockData';
 import { Modal } from '../ui/Modal';
+import { Dropdown } from '../ui/Dropdown';
 
 // We define SESSIONS with start times for scrolling
 const SESSIONS = {
@@ -527,8 +528,10 @@ export const MobileBookingGrid = () => {
                         <th 
                           key={time} 
                           id={`m-col-${time}`}
-                          className={`text-[9px] font-extrabold px-1 h-10 w-16 text-center border-r border-slate-800/40 ${
-                            isHour ? 'bg-slate-900 text-brand-yellow' : 'bg-slate-800 text-slate-300'
+                          className={`text-[9px] font-extrabold px-1 h-10 w-16 text-center border-r ${
+                            isHour 
+                              ? 'bg-slate-900 text-brand-yellow border-r-slate-500' 
+                              : 'bg-slate-800 text-slate-300 border-r-slate-700'
                           }`}
                         >
                           <div>{time.split(':')[0]}h</div>
@@ -569,8 +572,8 @@ export const MobileBookingGrid = () => {
                               colSpan={span}
                               onClick={() => handleCellClick(facility.id, time, status)}
                               className={`h-14 p-0 border-b border-slate-100 transition-all ${
-                                isHourBorder ? 'border-l border-l-slate-200' : ''
-                              } ${status === 'available' ? 'border-r border-r-slate-100 bg-slate-50/50 active:bg-emerald-500/10' : ''}`}
+                                isHourBorder ? 'border-l-2 border-l-slate-400/85' : ''
+                              } ${status === 'available' ? 'border-r border-r-slate-300 bg-slate-50/50 active:bg-emerald-500/10' : ''}`}
                             >
                               {status === 'available' ? (
                                 <div className="h-full w-full flex items-center justify-center cursor-pointer">
@@ -633,15 +636,14 @@ export const MobileBookingGrid = () => {
           {/* Chọn sân */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Chọn Sân</label>
-            <select
+            <Dropdown
+              options={MOCK_FACILITIES.map(f => ({
+                value: f.id,
+                label: `${f.name} (${f.type})`
+              }))}
               value={quickBookingData.facilityId}
-              onChange={(e) => setQuickBookingData({...quickBookingData, facilityId: e.target.value})}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none"
-            >
-              {MOCK_FACILITIES.map(f => (
-                <option key={f.id} value={f.id}>{f.name} ({f.type})</option>
-              ))}
-            </select>
+              onChange={(val) => setQuickBookingData({...quickBookingData, facilityId: val})}
+            />
           </div>
 
           {/* Tên khách hàng */}
@@ -661,27 +663,19 @@ export const MobileBookingGrid = () => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bắt đầu</label>
-              <select
+              <Dropdown
+                options={allTimes.map(t => ({ value: t, label: t }))}
                 value={quickBookingData.startTime}
-                onChange={(e) => setQuickBookingData({...quickBookingData, startTime: e.target.value})}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none"
-              >
-                {allTimes.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                onChange={(val) => setQuickBookingData({...quickBookingData, startTime: val})}
+              />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kết thúc</label>
-              <select
+              <Dropdown
+                options={allTimes.map(t => ({ value: t, label: t }))}
                 value={quickBookingData.endTime}
-                onChange={(e) => setQuickBookingData({...quickBookingData, endTime: e.target.value})}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none"
-              >
-                {allTimes.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                onChange={(val) => setQuickBookingData({...quickBookingData, endTime: val})}
+              />
             </div>
           </div>
 
