@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-export default function SocialRoute() {
+export default function ProfileRoute() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Cộng đồng Sporta</Text>
+      <Text style={styles.title}>Hồ sơ Cá nhân</Text>
     </View>
   );
 }

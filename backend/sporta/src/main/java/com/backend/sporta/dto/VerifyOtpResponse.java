@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class VerifyOtpResponse {
+    @com.fasterxml.jackson.annotation.JsonProperty("isNewUser")
     private boolean isNewUser;
     
     // Used if user is new, to pass to the registration form

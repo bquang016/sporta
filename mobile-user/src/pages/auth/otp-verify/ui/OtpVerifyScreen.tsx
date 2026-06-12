@@ -42,24 +42,39 @@ export function OtpVerifyScreen() {
       const response = await verifyOtp(email as string, otpCode);
       
       if (response.isNewUser) {
-        // User needs to complete registration
+        // Bỏ window.alert vì nó có thể làm đứt luồng JS trên Web
         if (Platform.OS !== 'web') {
           Alert.alert('Thành công', 'Xác thực OTP thành công!');
-        } else {
-          window.alert('Xác thực OTP thành công!');
         }
+        
+        // Đảm bảo params là string
         router.push({ 
           pathname: '/(auth)/personal-info', 
-          params: { registrationToken: response.registrationToken, email, password } 
+          params: { 
+            registrationToken: response.registrationToken, 
+            email: email as string, 
+            password: password as string 
+          } 
         });
       } else {
         // User exists, save access token and go home
-        await SecureStore.setItemAsync('accessToken', response.accessToken);
-        Alert.alert('Thành công', response.message);
+        if (Platform.OS === 'web') {
+          localStorage.setItem('accessToken', response.accessToken);
+        } else {
+          await SecureStore.setItemAsync('accessToken', response.accessToken);
+        }
+        
+        if (Platform.OS !== 'web') {
+          Alert.alert('Thành công', response.message);
+        }
         router.replace('/(tabs)');
       }
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Mã OTP không đúng hoặc đã hết hạn.');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Lỗi', error.message || 'Mã OTP không đúng hoặc đã hết hạn.');
+      } else {
+        window.alert('Lỗi: ' + (error.message || 'Mã OTP không đúng hoặc đã hết hạn.'));
+      }
     } finally {
       setLoading(false);
     }

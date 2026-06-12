@@ -25,11 +25,23 @@ export function LoginScreen() {
     setLoading(true);
     try {
       const response = await loginApi(email, password);
-      await SecureStore.setItemAsync('accessToken', response.accessToken);
-      Alert.alert('Thành công', response.message);
+      if (Platform.OS === 'web') {
+        localStorage.setItem('accessToken', response.accessToken);
+      } else {
+        await SecureStore.setItemAsync('accessToken', response.accessToken);
+      }
+      if (Platform.OS !== 'web') {
+        Alert.alert('Thành công', response.message);
+      } else {
+        window.alert(response.message);
+      }
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
+      } else {
+        window.alert('Lỗi: ' + (error.message || 'Email hoặc mật khẩu không đúng.'));
+      }
     } finally {
       setLoading(false);
     }

@@ -65,13 +65,25 @@ export function SportLevelScreen() {
       };
 
       const response = await registerUser(payload);
-      await SecureStore.setItemAsync('accessToken', response.accessToken);
+      if (Platform.OS === 'web') {
+        localStorage.setItem('accessToken', response.accessToken);
+      } else {
+        await SecureStore.setItemAsync('accessToken', response.accessToken);
+      }
       
-      Alert.alert('Thành công', 'Đăng ký hoàn tất!');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Thành công', 'Đăng ký hoàn tất!');
+      } else {
+        window.alert('Đăng ký hoàn tất!');
+      }
       router.replace('/(tabs)');
       
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra khi lưu thông tin.');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra khi lưu thông tin.');
+      } else {
+        window.alert('Lỗi: ' + (error.message || 'Có lỗi xảy ra khi lưu thông tin.'));
+      }
     } finally {
       setLoading(false);
     }

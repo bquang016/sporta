@@ -97,25 +97,13 @@ export function PersonalInfoScreen() {
             <MaterialCommunityIcons name="calendar-blank-outline" size={20} color="#666" />
           </TouchableOpacity>
           
-          {showDatePicker && Platform.OS !== 'web' && (
+          {showDatePicker && (
             <DateTimePicker
               value={dateOfBirth || new Date(2000, 0, 1)}
               mode="date"
               display="default"
               onChange={onChangeDate}
               maximumDate={new Date()}
-            />
-          )}
-          {showDatePicker && Platform.OS === 'web' && (
-            <input 
-              type="date"
-              style={{ padding: 10, marginTop: 10, borderRadius: 5, border: '1px solid #ccc' }}
-              onChange={(e) => {
-                setShowDatePicker(false);
-                if (e.target.value) {
-                  setDateOfBirth(new Date(e.target.value));
-                }
-              }}
             />
           )}
         </View>
