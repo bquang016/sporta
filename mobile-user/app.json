@@ -3,6 +3,7 @@
     "name": "mobile-user",
     "slug": "mobile-user",
     "version": "1.0.0",
+    "scheme": "sporta",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,7 +23,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "expo-router"
     ]
   }
 }
