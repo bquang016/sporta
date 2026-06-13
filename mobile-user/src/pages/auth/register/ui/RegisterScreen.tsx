@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { loginApi } from '../../../../shared/api/auth';
+import { sendOtp } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
 
-export function LoginScreen() {
+export function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     if (!email || !email.includes('@')) {
       Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
@@ -21,27 +22,21 @@ export function LoginScreen() {
       Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
       return;
     }
+    if (password !== confirmPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await loginApi(email, password);
-      if (Platform.OS === 'web') {
-        localStorage.setItem('accessToken', response.accessToken);
-      } else {
-        await SecureStore.setItemAsync('accessToken', response.accessToken);
-      }
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', response.message);
-      } else {
-        window.alert(response.message);
-      }
-      router.replace('/(tabs)');
+      await sendOtp(email);
+      // Pass email & password down to the next screens
+      router.push({ 
+        pathname: '/(auth)/otp-verify', 
+        params: { email, password } 
+      });
     } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Email hoặc mật khẩu không đúng.'));
-      }
+      Alert.alert('Lỗi', error.message || 'Email này đã tồn tại hoặc có lỗi xảy ra.');
     } finally {
       setLoading(false);
     }
@@ -52,19 +47,17 @@ export function LoginScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Đăng ký tài khoản</Text>
+      </View>
+
       <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoText}>Sporta</Text>
-          </View>
-        </View>
+        <Text style={styles.title}>Đăng ký tài khoản</Text>
+        <Text style={styles.subtitle}>Vui lòng đăng ký tài khoản để tiếp tục hành trình tập luyện</Text>
 
-        {/* Title */}
-        <Text style={styles.title}>Chào mừng quay trở lại</Text>
-        <Text style={styles.subtitle}>Vui lòng đăng nhập để tiếp tục hành trình tập luyện</Text>
-
-        {/* Form */}
         <View style={styles.formContainer}>
           <Text style={styles.label}>Email</Text>
           <View style={styles.inputContainer}>
@@ -96,47 +89,39 @@ export function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
-          </TouchableOpacity>
+          <Text style={styles.label}>Nhập lại mật khẩu</Text>
+          <View style={styles.inputContainer}>
+            <MaterialCommunityIcons name="lock-outline" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Xác nhận mật khẩu"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+              placeholderTextColor="#999"
+            />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+              <MaterialCommunityIcons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity 
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
-            onPress={handleLogin}
+            style={[styles.registerButton, loading && styles.registerButtonDisabled]} 
+            onPress={handleRegister}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#000" />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={styles.registerButtonText}>Register</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Divider */}
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>Hoặc đăng nhập với</Text>
-          <View style={styles.divider} />
-        </View>
-
-        {/* Social Buttons */}
-        <View style={styles.socialContainer}>
-          <TouchableOpacity style={styles.socialButton}>
-            <MaterialCommunityIcons name="google" size={20} color="#DB4437" />
-            <Text style={styles.socialButtonText}>Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
-            <MaterialCommunityIcons name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialButtonText}>Facebook</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Footer */}
         <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.footerLink}>Sign Up</Text>
+          <Text style={styles.footerText}>Đã có tài khoản? </Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+            <Text style={styles.footerLink}>Sign In</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -149,26 +134,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2A5C43',
+    marginLeft: 15,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
     justifyContent: 'center',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  logoBadge: {
-    backgroundColor: '#2A5C43',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  logoText: {
-    color: '#FFD700',
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
+    marginTop: -50,
   },
   title: {
     fontSize: 24,
@@ -211,72 +197,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  forgotPassword: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  forgotPasswordText: {
-    color: '#2A5C43',
-    fontWeight: '600',
-  },
-  loginButton: {
+  registerButton: {
     backgroundColor: '#FFCC00',
     borderRadius: 25,
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 15,
     shadowColor: '#FFCC00',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
   },
-  loginButtonDisabled: {
+  registerButtonDisabled: {
     opacity: 0.7,
   },
-  loginButtonText: {
+  registerButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#000',
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E0E0E0',
-  },
-  dividerText: {
-    marginHorizontal: 10,
-    color: '#2A5C43',
-    fontSize: 14,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 0.48,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 24,
-  },
-  socialButtonText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-  },
   footerContainer: {
     flexDirection: 'row',
-    marginTop: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
