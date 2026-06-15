@@ -1,5 +1,5 @@
-import HomeScreen from '../src/pages/home';
+import { Redirect } from 'expo-router';
 
-export default function HomeRoute() {
-  return <HomeScreen />;
+export default function AppEntry() {
+  return <Redirect href="/(auth)/login" />;
 }
