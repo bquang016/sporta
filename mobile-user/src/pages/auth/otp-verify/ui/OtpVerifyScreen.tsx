@@ -92,7 +92,7 @@ export function OtpVerifyScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/register')} style={styles.backButton}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Xác thực OTP</Text>
@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    zIndex: 10,
   },
   backButton: {
     padding: 5,

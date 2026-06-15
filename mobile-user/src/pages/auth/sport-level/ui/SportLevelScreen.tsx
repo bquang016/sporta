@@ -98,7 +98,7 @@ export function SportLevelScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} style={styles.backButton}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Sporta</Text>
@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 15,
+    zIndex: 10,
   },
   backButton: {
     padding: 5,
