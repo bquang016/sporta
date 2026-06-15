@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
 const BASE_URL = Platform.OS === 'android' 
-  ? 'http://10.0.2.2:8080/api/v1/auth' 
-  : 'http://localhost:8080/api/v1/auth';
+  ? 'http://10.0.2.2:8386/api/v1/auth' 
+  : 'http://localhost:8386/api/v1/auth';
 
 export const loginApi = async (email: string, password: string) => {
   const response = await fetch(`${BASE_URL}/login`, {
