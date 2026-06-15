@@ -18,7 +18,11 @@ public class DataSeeder implements CommandLineRunner {
             sportRepository.save(new Sport(null, "Bóng đá"));
             sportRepository.save(new Sport(null, "Cầu lông"));
             sportRepository.save(new Sport(null, "Pickleball"));
+            sportRepository.save(new Sport(null, "Bóng rổ"));
             System.out.println("Data Seeder: Đã thêm các môn thể thao mặc định vào database.");
+        } else if (sportRepository.count() == 3) {
+            sportRepository.save(new Sport(null, "Bóng rổ"));
+            System.out.println("Data Seeder: Đã thêm Bóng rổ vào database.");
         }
     }
 }
