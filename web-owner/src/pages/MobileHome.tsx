@@ -306,8 +306,10 @@ export const MobileHome = () => {
       `}</style>
 
       {/* ═══ GREETING & COMPLEX HEADER ═══ */}
-      <header className="px-5 pt-12 pb-6 bg-brand-emerald text-white rounded-b-[2rem] shadow-md relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-8 -mt-8 w-44 h-44 bg-white/5 rounded-full blur-2xl"></div>
+      <header className="px-5 pt-12 pb-6 bg-brand-emerald text-white rounded-b-[2rem] shadow-md relative z-20">
+        <div className="absolute inset-0 overflow-hidden rounded-b-[2rem] pointer-events-none">
+          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-44 h-44 bg-white/5 rounded-full blur-2xl"></div>
+        </div>
         
         <div className="flex justify-between items-center mb-6 relative z-10">
           <div>

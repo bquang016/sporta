@@ -48,7 +48,10 @@ export const MobileBookingGrid = () => {
     customerName: '',
     startTime: '08:00',
     endTime: '09:30',
-    status: 'booked' as SlotStatus
+    status: 'booked' as SlotStatus,
+    bookingType: 'regular' as 'regular' | 'matchmaking',
+    maxPlayers: 10,
+    skillLevel: 'Trung bình'
   });
 
   // Detail state
@@ -60,6 +63,9 @@ export const MobileBookingGrid = () => {
     status: SlotStatus;
     slotIds: string[];
     price: number;
+    bookingType?: 'regular' | 'matchmaking';
+    maxPlayers?: number;
+    skillLevel?: string;
   } | null>(null);
 
   // ─── HELPERS LẤY TRẠNG THÁI SLOT ──────────────────────────
@@ -194,7 +200,10 @@ export const MobileBookingGrid = () => {
         customerName: '',
         startTime: time,
         endTime: endT,
-        status: 'booked'
+        status: 'booked',
+        bookingType: 'regular',
+        maxPlayers: 10,
+        skillLevel: 'Trung bình'
       });
       setIsBookingModalOpen(true);
     } else {
@@ -224,12 +233,15 @@ export const MobileBookingGrid = () => {
 
         setSelectedBookingDetail({
           facility,
-          customerName: block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : 'Khách vãng lai'),
+          customerName: block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : (block.status === 'matchmaking' ? 'Trận ghép xé vé' : 'Khách vãng lai')),
           startTime: block.startTime,
           endTime: block.endTime,
           status: block.status,
           slotIds,
-          price: totalPrice
+          price: totalPrice,
+          bookingType: slot.bookingType || (block.status === 'matchmaking' ? 'matchmaking' : 'regular'),
+          maxPlayers: slot.maxPlayers,
+          skillLevel: slot.skillLevel
         });
         setIsDetailModalOpen(true);
       }
@@ -239,7 +251,7 @@ export const MobileBookingGrid = () => {
   // ─── XỬ LÝ ĐẶT SÂN NHANH ───────────────────────────────────
   const handleQuickBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickBookingData.customerName.trim() && quickBookingData.status !== 'maintenance') {
+    if (!quickBookingData.customerName.trim() && quickBookingData.status !== 'maintenance' && quickBookingData.bookingType !== 'matchmaking') {
       alert('Vui lòng nhập tên khách hàng hoặc tên đơn đặt!');
       return;
     }
@@ -277,8 +289,11 @@ export const MobileBookingGrid = () => {
         id: `mslot-${facilityId}-${t}-${Date.now()}`,
         facilityId,
         time: t,
-        status: quickBookingData.status,
-        customerName: name
+        status: quickBookingData.bookingType === 'matchmaking' ? 'matchmaking' : quickBookingData.status,
+        customerName: quickBookingData.bookingType === 'matchmaking' ? (quickBookingData.customerName.trim() || 'Trận ghép xé vé') : name,
+        bookingType: quickBookingData.bookingType,
+        maxPlayers: quickBookingData.bookingType === 'matchmaking' ? quickBookingData.maxPlayers : undefined,
+        skillLevel: quickBookingData.bookingType === 'matchmaking' ? quickBookingData.skillLevel : undefined
       });
     }
 
@@ -294,7 +309,10 @@ export const MobileBookingGrid = () => {
       customerName: '',
       startTime: '08:00',
       endTime: '09:30',
-      status: 'booked'
+      status: 'booked',
+      bookingType: 'regular',
+      maxPlayers: 10,
+      skillLevel: 'Trung bình'
     });
   };
 
@@ -350,6 +368,8 @@ export const MobileBookingGrid = () => {
         return 'bg-gradient-to-r from-emerald-600 to-teal-800 text-white font-bold shadow-sm border border-emerald-700/40 hover:brightness-105 transition-all';
       case 'pending':
         return 'bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 font-extrabold shadow-sm border border-amber-500/40 hover:brightness-105 transition-all';
+      case 'matchmaking':
+        return 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold shadow-sm border border-indigo-700/40 hover:brightness-105 transition-all';
       case 'maintenance':
         return 'bg-stripes-red text-red-800 font-bold border border-red-200 hover:brightness-105 transition-all';
       default:
@@ -581,8 +601,15 @@ export const MobileBookingGrid = () => {
                                 </div>
                               ) : (
                                 <div className={`h-10 mx-0.5 rounded-lg flex items-center justify-between px-1.5 gap-1 shadow-sm ${getMobileCellStyle(status)}`}>
-                                  <span className="text-[9px] font-black truncate leading-tight">
-                                    {getCompactText(slot?.customerName, status, span)}
+                                  {status === 'matchmaking' && (
+                                    <svg className="w-3.5 h-3.5 text-white/80 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                  )}
+                                  <span className="text-[9px] font-black truncate leading-tight flex-1">
+                                    {status === 'matchmaking' 
+                                      ? `Xé vé: ${slot?.customerName || 'Trận ghép'} (${slot?.maxPlayers}ng - ${slot?.skillLevel})`
+                                      : getCompactText(slot?.customerName, status, span)}
                                   </span>
                                   <span className="text-[7px] font-extrabold opacity-75 whitespace-nowrap bg-black/10 px-0.5 py-0.2 rounded">
                                     {span * 30}p
@@ -618,6 +645,10 @@ export const MobileBookingGrid = () => {
           <span className="text-[9px] font-bold text-slate-500">Đang giữ</span>
         </div>
         <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded bg-indigo-600 bg-gradient-to-r from-indigo-600 to-purple-600"></div>
+          <span className="text-[9px] font-bold text-slate-500">Xé vé</span>
+        </div>
+        <div className="flex items-center gap-1">
           <div className="w-2.5 h-2.5 rounded bg-red-500"></div>
           <span className="text-[9px] font-bold text-slate-500">Bảo trì</span>
         </div>
@@ -646,18 +677,63 @@ export const MobileBookingGrid = () => {
             />
           </div>
 
+          {/* Loại giờ */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Loại giờ</label>
+            <Dropdown
+              options={[
+                { value: 'regular', label: 'Giờ thường' },
+                { value: 'matchmaking', label: 'Xé vé' }
+              ]}
+              value={quickBookingData.bookingType}
+              onChange={(val) => setQuickBookingData({...quickBookingData, bookingType: val as 'regular' | 'matchmaking'})}
+            />
+          </div>
+
           {/* Tên khách hàng */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên khách hàng</label>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên khách hàng / Tên giải</label>
             <input
               type="text"
               placeholder="Nhập tên khách..."
               value={quickBookingData.customerName}
               onChange={(e) => setQuickBookingData({...quickBookingData, customerName: e.target.value})}
-              disabled={quickBookingData.status === 'maintenance'}
+              disabled={quickBookingData.status === 'maintenance' && quickBookingData.bookingType !== 'matchmaking'}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none disabled:bg-slate-100"
             />
           </div>
+
+          {/* Cấu hình trận đấu ghép xé vé */}
+          {quickBookingData.bookingType === 'matchmaking' && (
+            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200/50">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Số người tối đa</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="30"
+                  value={quickBookingData.maxPlayers}
+                  onChange={(e) => setQuickBookingData({...quickBookingData, maxPlayers: parseInt(e.target.value) || 10})}
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Trình độ</label>
+                <Dropdown
+                  options={[
+                    { value: 'Yếu', label: 'Yếu' },
+                    { value: 'Trung bình yếu', label: 'Trung bình yếu' },
+                    { value: 'Trung bình khá', label: 'Trung bình khá' },
+                    { value: 'Khá', label: 'Khá' },
+                    { value: 'Bán chuyên', label: 'Bán chuyên' },
+                    { value: 'Chuyên nghiệp', label: 'Chuyên nghiệp' }
+                  ]}
+                  value={quickBookingData.skillLevel}
+                  onChange={(val) => setQuickBookingData({...quickBookingData, skillLevel: val})}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Khung giờ */}
           <div className="grid grid-cols-2 gap-3">
@@ -680,44 +756,46 @@ export const MobileBookingGrid = () => {
           </div>
 
           {/* Trạng thái */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Trạng thái đặt</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setQuickBookingData({...quickBookingData, status: 'booked'})}
-                className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
-                  quickBookingData.status === 'booked' 
-                    ? 'bg-brand-emerald text-white border-brand-emerald' 
-                    : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                Đã đặt
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickBookingData({...quickBookingData, status: 'pending'})}
-                className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
-                  quickBookingData.status === 'pending' 
-                    ? 'bg-amber-400 text-amber-950 border-amber-400' 
-                    : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                Đang giữ
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickBookingData({...quickBookingData, status: 'maintenance', customerName: ''})}
-                className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
-                  quickBookingData.status === 'maintenance' 
-                    ? 'bg-red-500 text-white border-red-500' 
-                    : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                Bảo trì
-              </button>
+          {quickBookingData.bookingType === 'regular' && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Trạng thái đặt</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickBookingData({...quickBookingData, status: 'booked'})}
+                  className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                    quickBookingData.status === 'booked' 
+                      ? 'bg-brand-emerald text-white border-brand-emerald' 
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  Đã đặt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickBookingData({...quickBookingData, status: 'pending'})}
+                  className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                    quickBookingData.status === 'pending' 
+                      ? 'bg-amber-400 text-amber-950 border-amber-400' 
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  Đang giữ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickBookingData({...quickBookingData, status: 'maintenance', customerName: ''})}
+                  className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                    quickBookingData.status === 'maintenance' 
+                      ? 'bg-red-500 text-white border-red-500' 
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  Bảo trì
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Nút gửi */}
           <div className="pt-2">
@@ -746,6 +824,7 @@ export const MobileBookingGrid = () => {
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                 selectedBookingDetail.status === 'booked' ? 'bg-emerald-600 text-white' :
                 selectedBookingDetail.status === 'pending' ? 'bg-amber-400 text-amber-950' :
+                selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-600 text-white bg-gradient-to-br from-indigo-600 to-purple-600' :
                 'bg-red-500 text-white'
               }`}>
                 {selectedBookingDetail.status === 'booked' && (
@@ -753,6 +832,9 @@ export const MobileBookingGrid = () => {
                 )}
                 {selectedBookingDetail.status === 'pending' && (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                )}
+                {selectedBookingDetail.status === 'matchmaking' && (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                 )}
                 {selectedBookingDetail.status === 'maintenance' && (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" /></svg>
@@ -763,9 +845,10 @@ export const MobileBookingGrid = () => {
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-1 inline-block ${
                   selectedBookingDetail.status === 'booked' ? 'bg-emerald-100 text-emerald-800' :
                   selectedBookingDetail.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                  selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-100 text-indigo-800' :
                   'bg-red-100 text-red-800'
                 }`}>
-                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' : selectedBookingDetail.status === 'pending' ? 'Đang giữ' : 'Bảo trì'}
+                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' : selectedBookingDetail.status === 'pending' ? 'Đang giữ' : selectedBookingDetail.status === 'matchmaking' ? 'Xé vé' : 'Bảo trì'}
                 </span>
               </div>
             </div>
@@ -780,6 +863,18 @@ export const MobileBookingGrid = () => {
                 <span className="font-semibold text-slate-400">Thời gian</span>
                 <span className="font-black text-brand-emerald">{selectedBookingDetail.startTime} – {selectedBookingDetail.endTime}</span>
               </div>
+              {selectedBookingDetail.status === 'matchmaking' && (
+                <>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400">Số lượng người tối đa</span>
+                    <span className="font-black text-slate-800">{selectedBookingDetail.maxPlayers || 10} người</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400">Trình độ yêu cầu</span>
+                    <span className="font-black text-indigo-600">{selectedBookingDetail.skillLevel || 'Chưa cập nhật'}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="font-semibold text-slate-400">Giá thuê</span>
                 <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.facility.pricePerHour)}/h</span>
