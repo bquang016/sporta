@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-const BASE_URL = 'http://192.168.1.13:8386/api/v1/auth';
+const BASE_URL = `${process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.13:8386/api/v1'}/auth`;
 
 export const loginApi = async (email: string, password: string) => {
   const response = await fetch(`${BASE_URL}/login`, {
