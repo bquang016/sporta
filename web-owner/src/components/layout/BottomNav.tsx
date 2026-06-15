@@ -2,43 +2,88 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const BottomNav = () => {
+  const location = useLocation();
+  const paths = ['/', '/matrix', '/scan', '/facility', '/profile'];
+  
+  let activeIndex = paths.indexOf(location.pathname);
+  if (activeIndex === -1) {
+    if (location.pathname.startsWith('/matrix')) activeIndex = 1;
+    else if (location.pathname.startsWith('/scan')) activeIndex = 2;
+    else if (location.pathname.startsWith('/facility')) activeIndex = 3;
+    else if (location.pathname.startsWith('/profile')) activeIndex = 4;
+    else activeIndex = 0;
+  }
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-2 pb-safe pt-2 bg-white/95 backdrop-blur-[20px] border-t border-surface-variant safe-area-bottom">
-      <div className="flex justify-around items-center h-16">
-        <NavItem to="/" icon="home" label="Trang chủ" />
-        <NavItem to="/matrix" icon="calendar" label="Lịch" />
-        <NavItem to="/scan" icon="scan" label="Quét QR" isCenter />
-        <NavItem to="/facility" icon="facility" label="Sân bãi" />
-        <NavItem to="/profile" icon="profile" label="Hồ sơ" />
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-2 pb-safe pt-2 bg-white/95 backdrop-blur-[20px] border-t border-surface-variant safe-area-bottom shadow-[0_-8px_30px_rgba(0,0,0,0.06)]">
+      <div className="relative flex justify-around items-center h-16 max-w-md mx-auto">
+        {/* Sliding background pill indicator for normal tabs */}
+        {activeIndex !== -1 && activeIndex !== 2 && (
+          <div 
+            className="absolute top-2 bottom-3 rounded-2xl bg-brand-emerald/10 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
+            style={{
+              left: `calc(${(activeIndex * 20) + 1.5}%)`,
+              width: '17%',
+            }}
+          />
+        )}
+
+        {/* Sliding dot indicator at the bottom */}
+        {activeIndex !== -1 && activeIndex !== 2 && (
+          <div 
+            className="absolute bottom-0.5 h-1 w-1 bg-brand-emerald rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
+            style={{
+              left: `calc(${(activeIndex * 20) + 10}% - 2px)`,
+            }}
+          />
+        )}
+
+        <NavItem to="/" icon="home" label="Trang chủ" activeIndex={activeIndex} itemIndex={0} />
+        <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" activeIndex={activeIndex} itemIndex={1} />
+        <NavItem to="/scan" icon="scan" label="Quét QR" isCenter activeIndex={activeIndex} itemIndex={2} />
+        <NavItem to="/facility" icon="facility" label="Sân bãi" activeIndex={activeIndex} itemIndex={3} />
+        <NavItem to="/profile" icon="profile" label="Hồ sơ" activeIndex={activeIndex} itemIndex={4} />
       </div>
     </nav>
   );
 };
 
-const NavItem = ({ to, icon, label, isCenter }: { to: string, icon: string, label: string, isCenter?: boolean }) => {
-  const location = useLocation();
-  const isActive = location.pathname === to;
+const NavItem = ({ 
+  to, 
+  icon, 
+  label, 
+  isCenter, 
+  activeIndex, 
+  itemIndex 
+}: { 
+  to: string, 
+  icon: string, 
+  label: string, 
+  isCenter?: boolean,
+  activeIndex: number,
+  itemIndex: number
+}) => {
+  const isActive = activeIndex === itemIndex;
 
   if (isCenter) {
     return (
-      <Link to={to} className="flex flex-col items-center justify-center -mt-8">
-        <div className="bg-brand-yellow text-brand-emerald rounded-full w-14 h-14 flex items-center justify-center shadow-[0_8px_16px_rgba(6,78,59,0.15)]">
+      <Link to={to} className="flex flex-col items-center justify-center -mt-8 w-1/5 relative z-10 cursor-pointer">
+        <div className={`bg-brand-yellow text-brand-emerald rounded-full w-14 h-14 flex items-center justify-center shadow-[0_8px_16px_rgba(6,78,59,0.15)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isActive ? 'scale-110 rotate-90 bg-emerald-800 text-brand-yellow' : 'hover:scale-105 active:scale-95'}`}>
           <Icon name={icon} className="w-6 h-6" />
         </div>
-        <span className="text-[10px] mt-1 font-semibold text-brand-emerald tracking-wider">{label}</span>
+        <span className={`text-[10px] mt-1 font-bold tracking-wider transition-colors duration-200 ${isActive ? 'text-brand-emerald' : 'text-slate-500'}`}>{label}</span>
       </Link>
     );
   }
 
   return (
-    <Link to={to} className="flex flex-col items-center justify-center flex-1 py-1 relative">
-      <div className={`mb-1 transition-colors ${isActive ? 'text-brand-emerald' : 'text-outline'}`}>
-        <Icon name={icon} className="w-6 h-6" />
+    <Link to={to} className="flex flex-col items-center justify-center w-1/5 py-1 relative z-10 h-full cursor-pointer">
+      <div className={`mb-0.5 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isActive ? 'text-brand-emerald scale-115 -translate-y-1 font-bold' : 'text-outline hover:scale-105 active:scale-95'}`}>
+        <Icon name={icon} className="w-5.5 h-5.5" />
       </div>
-      <span className={`text-[10px] tracking-wider transition-colors ${isActive ? 'text-brand-emerald font-semibold' : 'text-outline font-medium'}`}>
+      <span className={`text-[9px] tracking-wider transition-colors duration-300 ${isActive ? 'text-brand-emerald font-black' : 'text-outline font-semibold'}`}>
         {label}
       </span>
-      {isActive && <div className="w-1 h-1 bg-brand-emerald rounded-full mt-1 absolute bottom-0" />}
     </Link>
   );
 };
