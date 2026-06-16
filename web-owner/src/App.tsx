@@ -7,28 +7,32 @@ import { ScanPage } from './pages/ScanPage'
 import { FacilityPage } from './pages/FacilityPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
-import { MobileLayout } from './components/layout/MobileLayout'
-import { DesktopLayout } from './components/layout/DesktopLayout'
+import { LoginPage } from './pages/LoginPage'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { useIsMobile } from './hooks/useIsMobile'
 
 function App() {
   const isMobile = useIsMobile();
-
-  const Layout = isMobile ? MobileLayout : DesktopLayout;
   const Home = isMobile ? MobileHome : DesktopHome;
 
   return (
-    <Layout>
-      <Routes>
+    <Routes>
+      {/* Public Route */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Home />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/scan" element={<ScanPage />} />
         <Route path="/facility" element={<FacilityPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+      </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 

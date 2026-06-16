@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '../ui/Tooltip';
+import { getLoggedInUser } from '../../utils/auth';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Bảng điều khiển',
@@ -19,6 +20,10 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
+
+  const loggedInUser = getLoggedInUser();
+  const userEmail = loggedInUser?.email || 'owner@sporta.vn';
+  const userInitials = userEmail.substring(0, 2).toUpperCase();
   
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Đơn đặt sân mới', desc: 'Khách Nguyễn Văn Hùng vừa đặt Sân Q7-1', time: 'Vừa xong', unread: true },
@@ -197,7 +202,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                   }}
                   className={`w-10 h-10 rounded-full bg-brand-emerald text-white hover:bg-emerald-900 transition-colors flex items-center justify-center font-bold shadow-sm active:scale-95 cursor-pointer relative focus:outline-none ${isProfileOpen ? 'ring-2 ring-brand-emerald/40' : ''}`}
                 >
-                  SA
+                  {userInitials}
                 </button>
 
                 {/* Profile Menu Dropdown (Admin text removed) */}
@@ -207,11 +212,11 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                     <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-40 overflow-hidden">
                       <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-brand-emerald text-white font-bold flex items-center justify-center text-lg shadow-sm">
-                          SA
+                          {userInitials}
                         </div>
                         <div className="min-w-0">
                           <h4 className="text-xs font-black text-slate-800 truncate">Sporta Arena</h4>
-                          <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">admin@sporta.vn</p>
+                          <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{userEmail}</p>
                           <span className="inline-block text-[8px] font-black uppercase text-brand-emerald bg-brand-emerald/10 px-1.5 py-0.5 rounded mt-1">
                             Chủ Sân
                           </span>
@@ -265,7 +270,8 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                           onClick={() => {
                             setIsProfileOpen(false);
                             if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) {
-                              alert("Đăng xuất thành công!");
+                              localStorage.removeItem('accessToken');
+                              navigate('/login');
                             }
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
