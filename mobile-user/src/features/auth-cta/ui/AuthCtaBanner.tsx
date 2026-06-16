@@ -10,23 +10,21 @@ interface AuthCtaBannerProps {
 export function AuthCtaBanner({ onLoginPress, onRegisterPress }: AuthCtaBannerProps) {
   return (
     <View style={styles.banner}>
-      {/* Absolute background blur circle */}
-      <View style={styles.backgroundCircle} />
       <View style={styles.content}>
         <Text style={styles.title}>Đăng nhập để trải nghiệm đầy đủ</Text>
         <Text style={styles.description}>
           Đặt sân nhanh hơn, tham gia cộng đồng và nhận ưu đãi độc quyền dành cho thành viên.
         </Text>
         <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[styles.button, styles.loginButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.loginButton]}
             onPress={onLoginPress}
             activeOpacity={0.8}
           >
             <Text style={styles.loginButtonText}>Đăng nhập</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.button, styles.registerButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.registerButton]}
             onPress={onRegisterPress}
             activeOpacity={0.8}
           >
@@ -45,15 +43,6 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     overflow: 'hidden',
     position: 'relative',
-  },
-  backgroundCircle: {
-    position: 'absolute',
-    right: -20,
-    bottom: -20,
-    width: 96,
-    height: 96,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   content: {
     gap: SPACING.md,
