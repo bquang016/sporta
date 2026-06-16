@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { sendOtp } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 
 export function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -11,6 +14,9 @@ export function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isFocusedEmail, setIsFocusedEmail] = useState(false);
+  const [isFocusedPassword, setIsFocusedPassword] = useState(false);
+  const [isFocusedConfirm, setIsFocusedConfirm] = useState(false);
   const router = useRouter();
 
   const handleRegister = async () => {
@@ -30,7 +36,6 @@ export function RegisterScreen() {
     setLoading(true);
     try {
       await sendOtp(email);
-      // Pass email & password down to the next screens
       router.push({ 
         pathname: '/(auth)/otp-verify', 
         params: { email, password } 
@@ -48,8 +53,11 @@ export function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
+        <TouchableOpacity 
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} 
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Đăng ký tài khoản</Text>
       </View>
@@ -60,8 +68,16 @@ export function RegisterScreen() {
 
         <View style={styles.formContainer}>
           <Text style={styles.label}>Email</Text>
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="email-outline" size={20} color="#666" style={styles.inputIcon} />
+          <View style={[
+            styles.inputContainer,
+            isFocusedEmail && styles.inputContainerFocused
+          ]}>
+            <MaterialCommunityIcons 
+              name="email-outline" 
+              size={20} 
+              color={isFocusedEmail ? COLORS.primary : COLORS.outline} 
+              style={styles.inputIcon} 
+            />
             <TextInput
               style={styles.input}
               placeholder="Nhập địa chỉ email"
@@ -69,59 +85,87 @@ export function RegisterScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.outline}
+              onFocus={() => setIsFocusedEmail(true)}
+              onBlur={() => setIsFocusedEmail(false)}
             />
           </View>
 
           <Text style={styles.label}>Mật khẩu</Text>
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color="#666" style={styles.inputIcon} />
+          <View style={[
+            styles.inputContainer,
+            isFocusedPassword && styles.inputContainerFocused
+          ]}>
+            <MaterialCommunityIcons 
+              name="lock-outline" 
+              size={20} 
+              color={isFocusedPassword ? COLORS.primary : COLORS.outline} 
+              style={styles.inputIcon} 
+            />
             <TextInput
               style={styles.input}
               placeholder="Nhập mật khẩu"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.outline}
+              onFocus={() => setIsFocusedPassword(true)}
+              onBlur={() => setIsFocusedPassword(false)}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
+              <MaterialCommunityIcons 
+                name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                size={20} 
+                color={COLORS.outline} 
+              />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.label}>Nhập lại mật khẩu</Text>
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color="#666" style={styles.inputIcon} />
+          <View style={[
+            styles.inputContainer,
+            isFocusedConfirm && styles.inputContainerFocused
+          ]}>
+            <MaterialCommunityIcons 
+              name="lock-outline" 
+              size={20} 
+              color={isFocusedConfirm ? COLORS.primary : COLORS.outline} 
+              style={styles.inputIcon} 
+            />
             <TextInput
               style={styles.input}
               placeholder="Xác nhận mật khẩu"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirmPassword}
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.outline}
+              onFocus={() => setIsFocusedConfirm(true)}
+              onBlur={() => setIsFocusedConfirm(false)}
             />
             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-              <MaterialCommunityIcons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
+              <MaterialCommunityIcons 
+                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
+                size={20} 
+                color={COLORS.outline} 
+              />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]} 
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.registerButtonText}>Register</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.submitContainer}>
+            <Button 
+              title="Đăng ký"
+              variant="primary"
+              size="lg"
+              loading={loading}
+              onPress={handleRegister}
+            />
+          </View>
         </View>
 
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>Đã có tài khoản? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.footerLink}>Sign In</Text>
+            <Text style={styles.footerLink}>Đăng nhập</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -132,7 +176,7 @@ export function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -147,8 +191,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2A5C43',
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    color: COLORS.primary,
     marginLeft: 15,
   },
   content: {
@@ -159,14 +204,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    color: COLORS.onSurface,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#348B71',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    fontWeight: TYPOGRAPHY.bodyMd.fontWeight,
+    color: COLORS.onSurfaceVariant,
     textAlign: 'center',
     marginBottom: 32,
     paddingHorizontal: 20,
@@ -176,19 +224,24 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    color: COLORS.onSurface,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default, // 8px
     paddingHorizontal: 12,
     height: 50,
     marginBottom: 15,
+    backgroundColor: COLORS.surface,
+  },
+  inputContainerFocused: {
+    borderColor: COLORS.primary, // Forest Green border on focus
   },
   inputIcon: {
     marginRight: 10,
@@ -196,28 +249,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurface,
   },
-  registerButton: {
-    backgroundColor: '#FFCC00',
-    borderRadius: 25,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
+  submitContainer: {
     marginTop: 15,
-    shadowColor: '#FFCC00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  registerButtonDisabled: {
-    opacity: 0.7,
-  },
-  registerButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
   },
   footerContainer: {
     flexDirection: 'row',
@@ -226,11 +262,13 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurfaceVariant,
   },
   footerLink: {
     fontSize: 14,
-    color: '#FFCC00',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
     fontWeight: 'bold',
+    color: COLORS.primary, // Forest Green for sign in link
   }
 });

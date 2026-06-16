@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Badge, Button } from '../../../shared/ui';
 
 export interface Facility {
@@ -63,8 +63,6 @@ export function FacilityCard({ facility, onPress, onBookPress }: FacilityCardPro
             size="sm"
             title="Đặt ngay"
             onPress={onBookPress}
-            style={styles.bookButton}
-            textStyle={styles.bookButtonText}
           />
         </View>
       </View>
@@ -74,17 +72,17 @@ export function FacilityCard({ facility, onPress, onBookPress }: FacilityCardPro
 
 const styles = StyleSheet.create({
   card: {
-    width: 288, // 72 * 4 in tailwind
+    width: 288,
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xxl,
+    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(191, 201, 195, 0.1)',
+    borderColor: COLORS.outlineVariant,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   imageContainer: {
     height: 160,
@@ -102,11 +100,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
   },
   content: {
     padding: SPACING.md,
@@ -118,8 +111,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   name: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
     fontSize: 18,
-    fontWeight: '600',
     color: COLORS.onSurface,
     flex: 1,
     marginRight: SPACING.xs,
@@ -130,8 +124,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   ratingText: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 12,
-    fontWeight: '600',
     color: COLORS.primary,
   },
   locationRow: {
@@ -140,6 +135,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   locationText: {
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     fontSize: 12,
     color: COLORS.outline,
   },
@@ -150,24 +146,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   price: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
     fontSize: 16,
-    fontWeight: '700',
     color: COLORS.primary,
   },
   priceUnit: {
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     fontSize: 12,
-    fontWeight: '400',
     color: COLORS.outline,
-  },
-  bookButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  bookButtonText: {
-    color: COLORS.onPrimary,
-    fontSize: 12,
-    fontWeight: '600',
   },
 });
