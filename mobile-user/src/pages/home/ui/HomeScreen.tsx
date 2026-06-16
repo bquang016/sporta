@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Avatar, Button, Card } from '../../../shared/ui';
 import { SearchBar } from '../../../features/search-bar';
 import { SportCategories } from '../../../features/sport-categories';
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     height: 64,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: COLORS.outlineVariant,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -236,8 +236,9 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   greeting: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
+    fontSize: TYPOGRAPHY.labelSm.fontSize,
     color: COLORS.outline,
   },
   locationContainer: {
@@ -247,8 +248,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   locationText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    fontSize: TYPOGRAPHY.labelMd.fontSize,
     color: COLORS.onSurface,
   },
   headerRight: {
@@ -257,8 +259,9 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   logoText: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
     fontSize: 20,
-    fontWeight: '800',
     color: COLORS.primary,
     letterSpacing: -1,
   },
@@ -278,7 +281,7 @@ const styles = StyleSheet.create({
   quickActionCard: {
     flex: 1,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xxl,
+    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
     minHeight: 100,
     justifyContent: 'center',
     gap: SPACING.xs,
@@ -289,17 +292,20 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   actionCardPrimary: {
-    backgroundColor: 'rgba(45, 106, 79, 0.1)',
+    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
   },
   actionCardGray: {
     backgroundColor: COLORS.surfaceContainerHigh,
   },
   actionCardTitle: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
     fontSize: 18,
-    fontWeight: '600',
     lineHeight: 22,
   },
   actionCardSubtitle: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 10,
     color: COLORS.onSurfaceVariant,
   },
@@ -312,8 +318,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.headlineLgMobile.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineLgMobile.fontWeight,
+    fontSize: TYPOGRAPHY.headlineLgMobile.fontSize,
     color: COLORS.onSurface,
   },
   seeMoreBtn: {
@@ -325,8 +332,9 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   filterDropdownText: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 12,
-    fontWeight: '700',
     color: COLORS.primary,
   },
   horizontalScroll: {

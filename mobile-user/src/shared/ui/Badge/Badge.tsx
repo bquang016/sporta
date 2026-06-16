@@ -7,7 +7,7 @@ import {
   TextStyle,
   StyleProp
 } from 'react-native';
-import { COLORS, BORDER_RADIUS } from '../../config/theme';
+import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
 
 export type BadgeVariant = 
   | 'success' 
@@ -78,54 +78,49 @@ const styles = StyleSheet.create({
 
   // Variants
   success: {
-    backgroundColor: 'rgba(45, 106, 79, 0.1)',
+    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
   },
   success_flat: {
     backgroundColor: COLORS.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
   },
   warning: {
-    backgroundColor: COLORS.secondaryContainer,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: 'rgba(250, 204, 21, 0.15)', // Accent Yellow at 15%
   },
   error: {
     backgroundColor: COLORS.errorContainer,
   },
   info: {
-    backgroundColor: 'rgba(0, 102, 204, 0.1)',
+    backgroundColor: 'rgba(0, 102, 204, 0.08)',
   },
   gold: {
     backgroundColor: 'rgba(115, 92, 0, 0.1)',
   },
   silver: {
-    backgroundColor: 'rgba(112, 121, 116, 0.1)',
+    backgroundColor: 'rgba(116, 120, 120, 0.1)',
   },
   full: {
-    backgroundColor: 'rgba(112, 121, 116, 0.2)',
+    backgroundColor: 'rgba(116, 120, 120, 0.2)',
   },
   default: {
-    backgroundColor: 'rgba(112, 121, 116, 0.1)',
+    backgroundColor: 'rgba(116, 120, 120, 0.1)',
   },
 
   // Text Base
   textBase: {
-    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
   },
 
   // Text Sizes
   text_sm: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.labelSm.fontSize - 1,
+    lineHeight: TYPOGRAPHY.labelSm.lineHeight - 1,
   },
   text_md: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.labelSm.fontSize,
+    lineHeight: TYPOGRAPHY.labelSm.lineHeight,
   },
 
   // Text Variants
@@ -133,10 +128,10 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   text_success_flat: {
-    color: '#2D6A4F',
+    color: COLORS.primary,
   },
   text_warning: {
-    color: COLORS.onSecondaryContainer,
+    color: COLORS.tertiary,
   },
   text_error: {
     color: COLORS.error,
@@ -145,7 +140,7 @@ const styles = StyleSheet.create({
     color: '#0066CC',
   },
   text_gold: {
-    color: COLORS.secondary,
+    color: COLORS.tertiary,
   },
   text_silver: {
     color: COLORS.outline,

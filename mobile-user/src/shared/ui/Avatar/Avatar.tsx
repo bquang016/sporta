@@ -9,7 +9,7 @@ import {
   StyleProp
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS } from '../../config/theme';
+import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
 
 export type AvatarSize = 'sm' | 'md' | 'lg' | number;
 
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(45, 106, 79, 0.1)',
+    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
     overflow: 'hidden',
   },
   image: {
@@ -103,7 +103,8 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   text: {
-    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
     color: COLORS.primary,
   },
 });
