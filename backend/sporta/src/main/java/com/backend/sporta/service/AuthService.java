@@ -2,6 +2,8 @@ package com.backend.sporta.service;
 
 import com.backend.sporta.dto.*;
 import com.backend.sporta.entity.*;
+import com.backend.sporta.enums.Gender;
+import com.backend.sporta.enums.Role;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
