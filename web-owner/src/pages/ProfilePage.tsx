@@ -2,22 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { getLoggedInUser } from '../utils/auth';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { useSystemStatus } from '../hooks/useSystemStatus';
 
 export const ProfilePage = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'info';
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const { isOnline, latency } = useSystemStatus(10000);
 
   const loggedInUser = getLoggedInUser();
   const userEmail = loggedInUser?.email || 'owner@sporta.vn';
   const userInitials = userEmail.substring(0, 2).toUpperCase();
 
   const handleLogout = () => {
-    if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) {
-      localStorage.removeItem('accessToken');
-      navigate('/login');
-    }
+    setIsLogoutModalOpen(true);
   };
 
   // State for forms
@@ -266,9 +268,11 @@ export const ProfilePage = () => {
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-100 last:border-none">
                 <span className="text-slate-400 font-semibold">Kết nối API</span>
-                <span className="font-bold text-emerald-600 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                  Trực tuyến (24ms)
+                <span className={`font-bold flex items-center gap-1 ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {isOnline && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  )}
+                  {isOnline ? `Trực tuyến${latency !== null ? ` (${latency}ms)` : ''}` : 'Ngoại tuyến'}
                 </span>
               </div>
             </div>
@@ -288,6 +292,32 @@ export const ProfilePage = () => {
           </div>
 
         </main>
+        <ConfirmModal
+          isOpen={isLogoutModalOpen}
+          onClose={() => setIsLogoutModalOpen(false)}
+          onConfirm={async () => {
+            const token = localStorage.getItem('accessToken');
+            try {
+              if (token) {
+                await fetch('http://localhost:8387/api/v1/auth/logout', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+              }
+            } catch (err) {
+              console.error('Logout error:', err);
+            }
+            localStorage.removeItem('accessToken');
+            navigate('/login');
+          }}
+          title="Xác nhận đăng xuất"
+          message="Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản lý chủ sân Sporta?"
+          confirmText="Đăng xuất"
+          cancelText="Hủy"
+          variant="logout"
+        />
       </div>
     );
   }
