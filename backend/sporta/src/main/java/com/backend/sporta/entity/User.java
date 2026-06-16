@@ -3,6 +3,9 @@ package com.backend.sporta.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import com.backend.sporta.enums.Gender;
+import com.backend.sporta.enums.Role;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 

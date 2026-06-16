@@ -1,6 +1,6 @@
 package com.backend.sporta.dto;
 
-import com.backend.sporta.entity.Gender;
+import com.backend.sporta.enums.Gender;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
