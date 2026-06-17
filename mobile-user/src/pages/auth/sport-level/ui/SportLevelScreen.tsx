@@ -5,6 +5,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { registerUser } from '../../../../shared/api/auth';
 import * as SecureStore from 'expo-secure-store';
 
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
+
 const SPORTS_LIST = [
   { id: 1, name: 'Bóng đá', icon: 'soccer' },
   { id: 2, name: 'Cầu lông', icon: 'badminton' },
@@ -35,7 +38,6 @@ export function SportLevelScreen() {
 
   const handleLevelChange = (sportId: number, levelId: string) => {
     if (sportLevels[sportId] === levelId) {
-      // Bỏ chọn nếu bấm lại vào level đang chọn
       setSelectedSports(selectedSports.filter(id => id !== sportId));
       const newLevels = { ...sportLevels };
       delete newLevels[sportId];
@@ -98,8 +100,11 @@ export function SportLevelScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
+        <TouchableOpacity 
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} 
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Sporta</Text>
         <View style={{width: 24}} />
@@ -140,7 +145,7 @@ export function SportLevelScreen() {
                       <MaterialCommunityIcons 
                         name={sport.icon as any} 
                         size={28} 
-                        color="#2A5C43" 
+                        color={COLORS.primary} 
                       />
                     </View>
                     <View style={styles.sportNameContainer}>
@@ -153,7 +158,7 @@ export function SportLevelScreen() {
                   <MaterialCommunityIcons 
                     name={isExpanded ? "chevron-up" : "chevron-down"} 
                     size={24} 
-                    color="#666" 
+                    color={COLORS.outline} 
                   />
                 </TouchableOpacity>
 
@@ -196,17 +201,13 @@ export function SportLevelScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+        <Button 
+          title="HOÀN TẤT HỒ SƠ"
+          variant="primary"
+          size="lg"
+          loading={loading}
           onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text style={styles.submitButtonText}>HOÀN TẤT HỒ SƠ</Text>
-          )}
-        </TouchableOpacity>
+        />
       </View>
     </View>
   );
@@ -215,7 +216,7 @@ export function SportLevelScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -231,8 +232,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '900',
-    color: '#2A5C43',
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    color: COLORS.primary,
   },
   progressContainer: {
     paddingHorizontal: 24,
@@ -240,13 +242,13 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: COLORS.outlineVariant,
     borderRadius: 2,
     marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#2A5C43',
+    backgroundColor: COLORS.primary,
     borderRadius: 2,
   },
   progressTextContainer: {
@@ -255,13 +257,15 @@ const styles = StyleSheet.create({
   },
   progressTextLeft: {
     fontSize: 10,
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
     fontWeight: 'bold',
-    color: '#666',
+    color: COLORS.outline,
   },
   progressTextRight: {
     fontSize: 10,
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
     fontWeight: 'bold',
-    color: '#2A5C43',
+    color: COLORS.primary,
   },
   content: {
     flex: 1,
@@ -269,14 +273,16 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: '900',
-    color: '#1A1A1A',
+    fontFamily: TYPOGRAPHY.headlineLg.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineLg.fontWeight,
+    color: COLORS.onSurface,
     marginBottom: 10,
     lineHeight: 40,
   },
   subtitle: {
     fontSize: 15,
-    color: '#4A4A4A',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurfaceVariant,
     marginBottom: 30,
     lineHeight: 22,
   },
@@ -284,20 +290,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sportCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: COLORS.outlineVariant,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   sportCardExpanded: {
-    borderColor: '#E0E0E0',
+    borderColor: COLORS.outline,
   },
   sportHeader: {
     flexDirection: 'row',
@@ -313,7 +319,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.surfaceContainerLow,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -323,13 +329,15 @@ const styles = StyleSheet.create({
   },
   sportName: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    color: COLORS.onSurface,
   },
   sportLevelLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#2A5C43',
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
+    color: COLORS.primary,
     marginTop: 4,
   },
   sportExpandedContent: {
@@ -337,7 +345,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   levelQuoteContainer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceContainerLow,
     padding: 15,
     borderRadius: 25,
     marginBottom: 20,
@@ -345,7 +353,8 @@ const styles = StyleSheet.create({
   },
   levelQuoteText: {
     fontSize: 13,
-    color: '#4B5563',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurfaceVariant,
     fontStyle: 'italic',
     textAlign: 'center',
   },
@@ -360,47 +369,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.outlineVariant,
     marginBottom: 10,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
   },
   levelTabActive: {
-    backgroundColor: '#2A5C43',
-    borderColor: '#2A5C43',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   levelTabText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    color: COLORS.onSurface,
   },
   levelTabTextActive: {
-    color: '#fff',
+    color: COLORS.onPrimary,
   },
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 30,
     paddingTop: 10,
-    backgroundColor: '#F8F9FA',
-  },
-  submitButton: {
-    backgroundColor: '#FFCC00',
-    borderRadius: 30,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FFCC00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#000',
-    letterSpacing: 1,
+    backgroundColor: COLORS.background,
   },
 });

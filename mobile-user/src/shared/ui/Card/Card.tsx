@@ -35,6 +35,7 @@ export function Card({
     styles.base,
     styles[variant],
     { padding: paddingVal },
+    onPress && styles.interactive,
     style,
   ];
 
@@ -60,17 +61,12 @@ export function Card({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: BORDER_RADIUS.xxl,
+    borderRadius: BORDER_RADIUS.default,
   },
   default: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(191, 201, 195, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: COLORS.outlineVariant,
   },
   outline: {
     backgroundColor: 'transparent',
@@ -79,5 +75,12 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
+  },
+  interactive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
 });

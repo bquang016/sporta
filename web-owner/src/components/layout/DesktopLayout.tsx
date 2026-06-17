@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '../ui/Tooltip';
 import { getLoggedInUser } from '../../utils/auth';
+import { ConfirmModal } from '../ui/ConfirmModal';
+import { useSystemStatus } from '../../hooks/useSystemStatus';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Bảng điều khiển',
@@ -20,6 +22,9 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const { isOnline, latency } = useSystemStatus(10000);
 
   const loggedInUser = getLoggedInUser();
   const userEmail = loggedInUser?.email || 'owner@sporta.vn';
@@ -122,12 +127,16 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="flex items-center gap-6">
             {/* System Status & Time */}
             <div className="hidden xl:flex items-center gap-4 text-xs font-semibold text-slate-500 border-r border-slate-100 pr-6">
-              <div className="flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full text-brand-emerald">
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${isOnline ? 'bg-emerald-50 text-brand-emerald' : 'bg-red-50 text-red-600'}`}>
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-emerald"></span>
+                  {isOnline && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? 'bg-brand-emerald' : 'bg-red-600'}`}></span>
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-wider">Hệ thống: Trực tuyến</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">
+                  Hệ thống: {isOnline ? `Trực tuyến${latency !== null ? ` (${latency}ms)` : ''}` : 'Ngoại tuyến'}
+                </span>
               </div>
               <span className="text-slate-400 font-black">{formattedDate}</span>
             </div>
@@ -269,10 +278,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                         <button 
                           onClick={() => {
                             setIsProfileOpen(false);
-                            if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) {
-                              localStorage.removeItem('accessToken');
-                              navigate('/login');
-                            }
+                            setIsLogoutModalOpen(true);
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
                         >
@@ -298,6 +304,33 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
         } flex-1 min-h-0 flex flex-col`}>
           {children}
         </div>
+
+        <ConfirmModal
+          isOpen={isLogoutModalOpen}
+          onClose={() => setIsLogoutModalOpen(false)}
+          onConfirm={async () => {
+            const token = localStorage.getItem('accessToken');
+            try {
+              if (token) {
+                await fetch('http://localhost:8387/api/v1/auth/logout', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+              }
+            } catch (err) {
+              console.error('Logout error:', err);
+            }
+            localStorage.removeItem('accessToken');
+            navigate('/login');
+          }}
+          title="Xác nhận đăng xuất"
+          message="Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản lý chủ sân Sporta?"
+          confirmText="Đăng xuất"
+          cancelText="Hủy"
+          variant="logout"
+        />
       </main>
     </div>
   );

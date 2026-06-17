@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface AuthCtaBannerProps {
   onLoginPress?: () => void;
@@ -38,8 +38,8 @@ export function AuthCtaBanner({ onLoginPress, onRegisterPress }: AuthCtaBannerPr
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: COLORS.primaryContainer,
-    borderRadius: BORDER_RADIUS.xxxl,
+    backgroundColor: COLORS.primary, // Forest Green background
+    borderRadius: BORDER_RADIUS.lg,  // 16px radius for large cards
     padding: SPACING.lg,
     overflow: 'hidden',
     position: 'relative',
@@ -49,12 +49,15 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   title: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
     fontSize: 20,
-    fontWeight: '700',
     color: COLORS.onPrimary,
   },
   description: {
-    fontSize: 14,
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    fontWeight: TYPOGRAPHY.bodyMd.fontWeight,
+    fontSize: TYPOGRAPHY.bodyMd.fontSize,
     color: COLORS.onPrimary,
     opacity: 0.8,
     lineHeight: 20,
@@ -67,17 +70,18 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     height: 44,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.default, // Standard 8px radius
     justifyContent: 'center',
     alignItems: 'center',
   },
   loginButton: {
-    backgroundColor: COLORS.secondaryContainer,
+    backgroundColor: COLORS.secondary, // Yellow brand Gold
   },
   loginButtonText: {
-    color: COLORS.onSecondaryContainer,
-    fontWeight: '700',
-    fontSize: 14,
+    color: COLORS.onSecondary, // Black text on yellow background
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    fontSize: TYPOGRAPHY.labelMd.fontSize,
   },
   registerButton: {
     borderWidth: 1,
@@ -86,7 +90,8 @@ const styles = StyleSheet.create({
   },
   registerButtonText: {
     color: COLORS.onPrimary,
-    fontWeight: '700',
-    fontSize: 14,
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    fontSize: TYPOGRAPHY.labelMd.fontSize,
   },
 });

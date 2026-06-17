@@ -26,7 +26,7 @@ export function SearchBar({ value, onChangeText, onFilterPress }: SearchBarProps
           onPress={onFilterPress} 
           activeOpacity={0.8}
         >
-          <MaterialIcons name="tune" size={20} color="#FFFFFF" />
+          <MaterialIcons name="tune" size={20} color={COLORS.onPrimary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceContainerLow,
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.md,
     height: 48,
@@ -67,8 +67,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 3,
+    elevation: 2,
   },
 });

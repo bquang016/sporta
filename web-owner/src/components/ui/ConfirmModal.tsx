@@ -10,7 +10,7 @@ interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'success' | 'danger' | 'warning';
+  variant?: 'success' | 'danger' | 'warning' | 'logout';
 }
 
 export const ConfirmModal = ({
@@ -51,6 +51,15 @@ export const ConfirmModal = ({
         </svg>
       ),
       confirmBtn: 'primary' as const
+    },
+    logout: {
+      bg: 'bg-red-50 text-red-600 border-red-100',
+      svg: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      ),
+      confirmBtn: 'primary' as const
     }
   };
 
@@ -72,7 +81,7 @@ export const ConfirmModal = ({
         }}
         className={`flex-1 font-bold py-2.5 px-4 rounded-xl text-sm transition-all focus:outline-none ${
           variant === 'success' ? 'bg-brand-emerald hover:bg-emerald-800 text-white' :
-          variant === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm' :
+          variant === 'danger' || variant === 'logout' ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm' :
           'bg-brand-yellow hover:bg-yellow-400 text-brand-emerald shadow-sm'
         }`}
       >
