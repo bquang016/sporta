@@ -38,6 +38,9 @@ public class AuthService {
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
+    private TokenBlacklistService tokenBlacklistService;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     public AuthResponse login(LoginRequest request) {
@@ -122,5 +125,15 @@ public class AuthService {
                 .accessToken(accessToken)
                 .message("Đăng ký thành công.")
                 .build();
+    }
+
+    public void logout(String authorizationHeader) {
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.substring(7);
+            if (jwtTokenProvider.validateToken(token)) {
+                java.util.Date expiration = jwtTokenProvider.getExpirationFromToken(token);
+                tokenBlacklistService.blacklistToken(token, expiration);
+            }
+        }
     }
 }
