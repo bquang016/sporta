@@ -159,10 +159,10 @@ export function MapScreen() {
 
       {/* Selected Venue Details (Bottom Sheet UI) */}
       {selectedPin && (
-        <Card variant="surface" style={styles.bottomCard}>
+        <Card variant="default" style={styles.bottomCard}>
           <View style={styles.bottomCardHeader}>
             <View style={styles.badgeWrapper}>
-              <Badge content={getSportName(selectedPin.sport)} variant="secondary" />
+              <Badge text={getSportName(selectedPin.sport)} variant="default" />
               <View style={styles.distanceBadge}>
                 <MaterialIcons name="directions-walk" size={14} color={COLORS.primary} />
                 <Text style={styles.distanceText}>{selectedPin.distance}</Text>
