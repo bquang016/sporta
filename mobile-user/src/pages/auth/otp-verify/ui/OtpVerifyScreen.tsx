@@ -58,10 +58,18 @@ export function OtpVerifyScreen() {
         });
       } else {
         // User exists, save access token and go home
+        const emailStr = email as string;
+        const username = emailStr ? emailStr.split('@')[0] : 'user';
+        const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
+        
         if (Platform.OS === 'web') {
           localStorage.setItem('accessToken', response.accessToken);
+          localStorage.setItem('userEmail', emailStr);
+          localStorage.setItem('userName', capitalizedUsername);
         } else {
           await SecureStore.setItemAsync('accessToken', response.accessToken);
+          await SecureStore.setItemAsync('userEmail', emailStr);
+          await SecureStore.setItemAsync('userName', capitalizedUsername);
         }
         
         if (Platform.OS !== 'web') {
@@ -185,6 +193,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     textAlign: 'center',
     color: '#333',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   resendContainer: {
     alignItems: 'center',

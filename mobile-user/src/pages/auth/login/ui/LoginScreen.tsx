@@ -30,10 +30,17 @@ export function LoginScreen() {
     setLoading(true);
     try {
       const response = await loginApi(email, password);
+      const username = email.split('@')[0];
+      const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
+      
       if (Platform.OS === 'web') {
         localStorage.setItem('accessToken', response.accessToken);
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', capitalizedUsername);
       } else {
         await SecureStore.setItemAsync('accessToken', response.accessToken);
+        await SecureStore.setItemAsync('userEmail', email);
+        await SecureStore.setItemAsync('userName', capitalizedUsername);
       }
       if (Platform.OS !== 'web') {
         Alert.alert('Thành công', response.message);
@@ -251,6 +258,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     color: COLORS.onSurface,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   forgotPassword: {
     alignItems: 'flex-end',
