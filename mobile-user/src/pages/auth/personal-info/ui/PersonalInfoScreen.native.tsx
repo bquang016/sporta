@@ -19,7 +19,7 @@ export function PersonalInfoScreen() {
       return;
     }
 
-    const formattedDob = dateOfBirth.toISOString().split('T')[0];
+    const formattedDob = `${dateOfBirth.getFullYear()}-${(dateOfBirth.getMonth() + 1).toString().padStart(2, '0')}-${dateOfBirth.getDate().toString().padStart(2, '0')}`;
 
     router.push({
       pathname: '/(auth)/sport-level',

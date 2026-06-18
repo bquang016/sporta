@@ -75,8 +75,12 @@ export function SportLevelScreen() {
       const response = await registerUser(payload);
       if (Platform.OS === 'web') {
         localStorage.setItem('accessToken', response.accessToken);
+        localStorage.setItem('userEmail', email as string);
+        localStorage.setItem('userName', fullName as string);
       } else {
         await SecureStore.setItemAsync('accessToken', response.accessToken);
+        await SecureStore.setItemAsync('userEmail', email as string);
+        await SecureStore.setItemAsync('userName', fullName as string);
       }
       
       if (Platform.OS !== 'web') {

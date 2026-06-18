@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Avatar, Button, Card } from '../../../shared/ui';
@@ -19,30 +20,30 @@ const NEARBY_FACILITIES: Facility[] = [
     rating: 4.8,
     location: 'Cầu Giấy',
     distance: '1.2km',
-    price: '300k',
+    price: '350k',
     status: '🟢 Còn chỗ tối nay',
     statusType: 'success',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAq-tAHmpVpmiMDrZCrWpMXMTdBpiwfcupc53mMrzwvT1FOHxU0AH9ft-_O-cmFyZWA-YZbbCSJVAvl-Vxtudy7wAL22hdB8joDeYHO_BlD6lv1k7-s6FCJHw8Pz8K4h9QJKq50M8TooPNDgtDc3BrreMNeLdK9HQK303C7jocY9NWXk7oQ656wQH1URb-9Q6Gr3kymX-jfBEyvM-kl2oEyeSN9-RQ4zaxVPMonmx3Tstn--C711m2ZyefEBDdoYk_dYjpUDmdGxcQ',
+    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRI_WbsF_oyNYiLMb9oK7Dm3y6w39BRYXwgKn4BIuRp7CQ9vb-2NUDL_Fi2bYTm1AGCX8AkcWgfKPcjwP9ba_vXQ--Ro7V-RZMOzvRKSIz3YF985plPNcZoJ2CUCgNb_OMUB6q5yYYbUEd6gxEcPZzhNrQWwrc956zxXGydvPDXN6mk8L-5wHs7UtYzZbtQ8_zlH90kYKNbQ0KgcAto4dmTlMzNATIjHtfNvaokJY_yshJWhunjucTicKeRKwqNyRMG3SHJdgmKMw',
   },
   {
     id: 'dong-da-club',
-    name: 'CLB Đống Đa',
-    rating: 4.9,
+    name: 'Nhà thi đấu Trung tâm',
+    rating: 4.5,
     location: 'Đống Đa',
     distance: '2.5km',
-    price: '120k',
+    price: '500k',
     status: '🟡 Sắp hết chỗ',
     statusType: 'warning',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCFiiAmFOeiD-HFzd-kWzojRqPjfpefxijnnDWwA-ZAtbHHhLYiy1wJZwvogILl6UwexNkrV9RkD-k6zkFfYKJ2kC3SFWl9IYvLkw_qI1dImnVdgYl4aRWxx3JBlYNPnqLL6SJ2j-81o6gSbQmoHQxZ371H_RKmPx9EwkrbT_5TBkNFGIyfGcm6BvJuT2j9Dc8sovqxpETq6LrbslUPoXmA3f1cZc2THnHsNZbZcRfkjKl6oTo1DWeMa6S24UEPZpaYTyMISwub5Yk',
+    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9VjV_Boq-m-L6DQCrUi4TuqXv4ziB_UMEyaSBpCC06D-VhJMf8k0VKDy7cFwJjwZzWqF5MObMpDYZ0bFGvZg3GEbKCaxJc_-K_Sxn3ZAX506_WXTQHUHoeNB75WPXy_R8yDDxK1a4TRDnwUFxwW3GizSR5XXOzrAcdysQLwWOgGUWkiMv9Fsl5Rmi44-ntayXHeMh66KzQzRGm5EN0qgehvk2-x43HOXiUnNotg3zUP9LfRD4u7kT4EcyjgydihqR3aGqF9yEmCo',
   },
 ];
 
 const HOT_MATCHES: Match[] = [
   {
     id: 'match-1',
-    title: 'Giao lưu Sân Mỹ Đình',
-    time: '19:00 - Hôm nay',
-    elo: 'VÀNG',
+    title: 'Sân Green Field',
+    time: '18:00 - 20:00 • Hôm nay',
+    elo: 'Vàng',
     eloType: 'gold',
     sportIcon: 'sports-soccer',
     joinedCount: 7,
@@ -52,9 +53,9 @@ const HOT_MATCHES: Match[] = [
   },
   {
     id: 'match-2',
-    title: 'Bóng rổ Sân Bách Khoa',
-    time: '20:30 - Ngày mai',
-    elo: 'BẠC',
+    title: 'Hoop Heaven Park',
+    time: '20:30 - 22:30 • Hôm nay',
+    elo: 'Bạc',
     eloType: 'silver',
     sportIcon: 'sports-basketball',
     joinedCount: 12,
@@ -66,6 +67,39 @@ const HOT_MATCHES: Match[] = [
 
 export function HomeScreen() {
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userName, setUserName] = useState('Khách');
+
+  const checkAuth = async () => {
+    try {
+      let token = '';
+      let name = '';
+      if (Platform.OS === 'web') {
+        token = localStorage.getItem('accessToken') || '';
+        name = localStorage.getItem('userName') || '';
+      } else {
+        token = await SecureStore.getItemAsync('accessToken') || '';
+        name = await SecureStore.getItemAsync('userName') || '';
+      }
+
+      if (token) {
+        setIsAuthenticated(true);
+        setUserName(name || 'Thành viên');
+      } else {
+        setIsAuthenticated(false);
+        setUserName('Khách');
+      }
+    } catch (e) {
+      setIsAuthenticated(false);
+      setUserName('Khách');
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      checkAuth();
+    }, [])
+  );
 
   const handleFacilityPress = (id: string) => {
     router.push(`/booking/${id}`);
@@ -76,7 +110,66 @@ export function HomeScreen() {
   };
 
   const handleRegisterPress = () => {
-    router.push('/(auth)/login'); // Or signup page if available
+    router.push('/(auth)/register');
+  };
+
+  const handleAvatarPress = () => {
+    if (isAuthenticated) {
+      if (Platform.OS === 'web') {
+        const confirmLogout = window.confirm(`Xin chào, ${userName}! Bạn có muốn đăng xuất tài khoản không?`);
+        if (confirmLogout) {
+          handleLogout();
+        }
+      } else {
+        Alert.alert(
+          'Tài khoản',
+          `Xin chào, ${userName}! Bạn có muốn đăng xuất không?`,
+          [
+            { text: 'Hủy', style: 'cancel' },
+            { text: 'Đăng xuất', style: 'destructive', onPress: handleLogout }
+          ]
+        );
+      }
+    } else {
+      if (Platform.OS === 'web') {
+        const confirmLogin = window.confirm('Bạn chưa đăng nhập. Bạn có muốn đăng nhập không?');
+        if (confirmLogin) {
+          handleLoginPress();
+        }
+      } else {
+        Alert.alert(
+          'Đăng nhập',
+          'Bạn chưa đăng nhập. Bạn có muốn đăng nhập ngay?',
+          [
+            { text: 'Hủy', style: 'cancel' },
+            { text: 'Đăng nhập', onPress: handleLoginPress }
+          ]
+        );
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+      } else {
+        await SecureStore.deleteItemAsync('accessToken');
+        await SecureStore.deleteItemAsync('userName');
+        await SecureStore.deleteItemAsync('userEmail');
+      }
+      setIsAuthenticated(false);
+      setUserName('Khách');
+      if (Platform.OS !== 'web') {
+        Alert.alert('Thành công', 'Đăng xuất thành công!');
+      } else {
+        window.alert('Đăng xuất thành công!');
+      }
+    } catch (error) {
+      console.log('Error logging out:', error);
+    }
   };
 
   return (
@@ -86,9 +179,15 @@ export function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Avatar size="md" fallbackIcon="person" />
+          <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
+            <Avatar 
+              size="md" 
+              source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null} 
+              fallbackIcon="person" 
+            />
+          </TouchableOpacity>
           <View>
-            <Text style={styles.greeting}>Xin chào, Khách!</Text>
+            <Text style={styles.greeting}>Xin chào, {userName}!</Text>
             <View style={styles.locationContainer}>
               <MaterialIcons name="location-on" size={14} color={COLORS.primary} />
               <Text style={styles.locationText}>Hà Nội</Text>
@@ -98,12 +197,17 @@ export function HomeScreen() {
         
         <View style={styles.headerRight}>
           <Text style={styles.logoText}>SPORTA</Text>
-          <Button 
-            variant="ghost"
-            icon="notifications"
-            style={styles.notificationButton}
-            onPress={() => console.log('Notification pressed')}
-          />
+          <View style={{ position: 'relative' }}>
+            <Button 
+              variant="ghost"
+              icon="notifications"
+              style={styles.notificationButton}
+              onPress={() => console.log('Notification pressed')}
+            />
+            {isAuthenticated && (
+              <View style={styles.notificationBadge} />
+            )}
+          </View>
         </View>
       </View>
       
@@ -122,29 +226,55 @@ export function HomeScreen() {
           onCategorySelect={(id) => console.log('Select category:', id)} 
         />
         
-        {/* Auth CTA Banner */}
-        <AuthCtaBanner 
-          onLoginPress={handleLoginPress} 
-          onRegisterPress={handleRegisterPress} 
-        />
+        {/* Auth CTA Banner (Only show if guest) */}
+        {!isAuthenticated && (
+          <AuthCtaBanner 
+            onLoginPress={handleLoginPress} 
+            onRegisterPress={handleRegisterPress} 
+          />
+        )}
         
         {/* Quick Action Cards */}
         <View style={styles.quickActionsGrid}>
           <Card 
             variant="ghost"
-            style={[styles.quickActionCard, styles.actionCardPrimary]}
+            style={[
+              styles.quickActionCard, 
+              isAuthenticated ? styles.actionCardAuthPrimary : styles.actionCardPrimary
+            ]}
             onPress={() => console.log('Book now')}
           >
-            <MaterialIcons name="event-available" size={24} color={COLORS.primary} />
+            <MaterialIcons 
+              name="event-available" 
+              size={24} 
+              color={isAuthenticated ? COLORS.onPrimary : COLORS.primary} 
+            />
             <View>
-              <Text style={[styles.actionCardTitle, { color: COLORS.primary }]}>Đặt sân ngay</Text>
-              <Text style={[styles.actionCardSubtitle, { color: 'rgba(45, 106, 79, 0.7)' }]}>Giữ chỗ tức thì</Text>
+              <Text 
+                style={[
+                  styles.actionCardTitle, 
+                  { color: isAuthenticated ? COLORS.onPrimary : COLORS.primary }
+                ]}
+              >
+                Đặt sân ngay
+              </Text>
+              <Text 
+                style={[
+                  styles.actionCardSubtitle, 
+                  { color: isAuthenticated ? `${COLORS.onPrimary}B3` : `${COLORS.primary}B3` }
+                ]}
+              >
+                Giữ chỗ tức thì
+              </Text>
             </View>
           </Card>
           
           <Card 
             variant="ghost"
-            style={[styles.quickActionCard, styles.actionCardGray]}
+            style={[
+              styles.quickActionCard, 
+              isAuthenticated ? styles.actionCardAuthOutline : styles.actionCardGray
+            ]}
             onPress={() => console.log('Match matching')}
           >
             <MaterialIcons name="groups" size={24} color={COLORS.primary} />
@@ -187,7 +317,9 @@ export function HomeScreen() {
         {/* Hot Matches Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trận đấu hot</Text>
+            <Text style={styles.sectionTitle}>
+              {isAuthenticated ? 'Sân Chơi Xé Vé' : 'Trận đấu hot'}
+            </Text>
             <Button
               variant="ghost"
               title="Lọc"
@@ -236,21 +368,17 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   greeting: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: TYPOGRAPHY.labelSm.fontSize,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    marginTop: 2,
+    gap: SPACING.xs,
+    marginTop: SPACING.xs,
   },
   locationText: {
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
-    fontSize: TYPOGRAPHY.labelMd.fontSize,
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurface,
   },
   headerRight: {
@@ -259,11 +387,8 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   logoText: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
-    fontSize: 20,
+    ...TYPOGRAPHY.headlineMd,
     color: COLORS.primary,
-    letterSpacing: -1,
   },
   notificationButton: {
     padding: SPACING.xs,
@@ -271,7 +396,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: SPACING.marginMobile,
     paddingTop: SPACING.md,
-    paddingBottom: 100, // Increased to avoid overlap with absolute positioned bottom tab bar
+    paddingBottom: 104, // Multiple of 8 (13 * 8)
     gap: SPACING.marginMobile,
   },
   quickActionsGrid: {
@@ -282,31 +407,46 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
-    minHeight: 100,
+    minHeight: 104, // Multiple of 8
     justifyContent: 'center',
     gap: SPACING.xs,
-    shadowColor: '#000',
+    shadowColor: COLORS.onSurface,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
   },
   actionCardPrimary: {
-    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
+    backgroundColor: `${COLORS.primary}1A`, // Forest Green at 10% opacity
   },
   actionCardGray: {
     backgroundColor: COLORS.surfaceContainerHigh,
   },
+  actionCardAuthPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  actionCardAuthOutline: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 2,
+    borderColor: `${COLORS.outline}26`, // 15% opacity outline
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: SPACING.xs,
+    right: SPACING.xs,
+    width: SPACING.base,
+    height: SPACING.base,
+    backgroundColor: COLORS.error,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.surface,
+  },
   actionCardTitle: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
-    fontSize: 18,
-    lineHeight: 22,
+    ...TYPOGRAPHY.bodyLg,
+    fontWeight: '600',
   },
   actionCardSubtitle: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: 10,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurfaceVariant,
   },
   section: {
@@ -318,9 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontFamily: TYPOGRAPHY.headlineLgMobile.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineLgMobile.fontWeight,
-    fontSize: TYPOGRAPHY.headlineLgMobile.fontSize,
+    ...TYPOGRAPHY.headlineLgMobile,
     color: COLORS.onSurface,
   },
   seeMoreBtn: {
@@ -332,9 +470,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   filterDropdownText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: 12,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.primary,
   },
   horizontalScroll: {
@@ -342,7 +478,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   cardContainer: {
-    marginVertical: 4, // prevent shadow cropping
+    marginVertical: SPACING.xs, // Prevent shadow cropping
   },
   matchList: {
     gap: SPACING.sm,
