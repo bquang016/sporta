@@ -16,15 +16,15 @@ export function AuthCtaBanner({ onLoginPress, onRegisterPress }: AuthCtaBannerPr
           Đặt sân nhanh hơn, tham gia cộng đồng và nhận ưu đãi độc quyền dành cho thành viên.
         </Text>
         <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[styles.button, styles.loginButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.loginButton]}
             onPress={onLoginPress}
             activeOpacity={0.8}
           >
             <Text style={styles.loginButtonText}>Đăng nhập</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.button, styles.registerButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.registerButton]}
             onPress={onRegisterPress}
             activeOpacity={0.8}
           >
@@ -44,7 +44,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-
   content: {
     gap: SPACING.md,
     zIndex: 1,

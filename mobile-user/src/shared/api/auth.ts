@@ -2,7 +2,6 @@ import { Platform } from 'react-native';
 
 const getBaseUrl = () => {
   if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-  if (Platform.OS === 'android') return 'http://10.0.2.2:8387/api/v1';
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
   return 'http://localhost:8387/api/v1';
 };
