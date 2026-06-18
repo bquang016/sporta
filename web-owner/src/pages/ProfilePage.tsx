@@ -4,6 +4,8 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { getLoggedInUser } from '../utils/auth';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { useSystemStatus } from '../hooks/useSystemStatus';
+import logoMain from '../assets/logo/light/logo-main_1024x1024px.svg';
+import logoSvg from '../assets/logo/light/logo-main_40x40px_small.svg';
 
 export const ProfilePage = () => {
   const isMobile = useIsMobile();
@@ -104,8 +106,8 @@ export const ProfilePage = () => {
               <h1 className="text-xl font-black tracking-tight mt-0.5">Hồ sơ tài khoản</h1>
             </div>
             
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm">
-              <span className="font-bold text-sm text-brand-yellow">{userInitials}</span>
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm overflow-hidden p-1">
+              <img src={logoSvg} alt="Sporta Logo" className="w-full h-full object-contain" />
             </div>
           </div>
         </header>
@@ -355,8 +357,8 @@ export const ProfilePage = () => {
         </div>
         
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-brand-yellow text-primary font-black text-2xl flex items-center justify-center shadow-md border-4 border-white/10">
-            SA
+          <div className="w-20 h-20 rounded-full bg-white text-primary font-black text-2xl flex items-center justify-center shadow-md border-4 border-white/10 p-2 overflow-hidden">
+            <img src={logoMain} alt="Sporta Logo" className="w-full h-full object-contain" />
           </div>
           <div className="text-center md:text-left space-y-1">
             <span className="inline-block text-[9px] bg-brand-yellow text-primary px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider shadow-xs">
@@ -399,8 +401,8 @@ export const ProfilePage = () => {
         {activeTab === 'info' && (
           <form onSubmit={handleProfileSave} className="space-y-6">
             <div className="flex flex-col md:flex-row items-center gap-6 pb-6 border-b border-slate-200/60">
-              <div className="w-16 h-16 rounded-full bg-brand-emerald text-white font-black text-xl flex items-center justify-center shadow-md border-4 border-white relative group">
-                SA
+              <div className="w-16 h-16 rounded-full bg-white text-white font-black text-xl flex items-center justify-center shadow-md border-4 border-white relative group overflow-hidden p-1.5">
+                <img src={logoMain} alt="Sporta Logo" className="w-full h-full object-contain" />
               </div>
               <div className="text-center md:text-left space-y-1">
                 <h3 className="text-xs font-black text-slate-800">Ảnh đại diện cụm sân</h3>

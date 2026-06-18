@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { Dropdown } from '../components/ui/Dropdown';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import logoSvg from '../assets/logo/light/logo-main_40x40px_small.svg';
 
 // ═══ TYPES ═══
 type ComplexId = 'all' | 'q7' | 'tb' | 'bt';
@@ -317,8 +318,8 @@ export const MobileHome = () => {
             <h1 className="text-xl font-black tracking-tight mt-0.5">Bảng điều khiển</h1>
           </div>
           
-          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm">
-            <span className="font-bold text-sm text-brand-yellow">SA</span>
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm overflow-hidden p-1">
+            <img src={logoSvg} alt="Sporta Logo" className="w-full h-full object-contain" />
           </div>
         </div>
 

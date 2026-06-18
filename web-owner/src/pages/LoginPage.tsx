@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import logoHorizontal from '../assets/logo/light/logo-horizontal_1600x400px.svg';
+import logoVertical from '../assets/logo/light/logo-vertical_1200x1500.svg';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -97,13 +99,8 @@ export const LoginPage = () => {
 
         {/* ── Logo ── */}
         <div className="relative z-10 flex items-center gap-2.5">
-          <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-xl bg-brand-yellow text-primary font-black flex items-center justify-center text-lg lg:text-xl shadow-[0_4px_16px_rgba(250,204,21,0.3)]">
-            S
-          </div>
-          <div>
-            <span className="text-xl lg:text-2xl font-black tracking-tight text-brand-yellow leading-none">Sporta</span>
-            <span className="text-[8px] lg:text-[9px] text-white/40 font-bold uppercase tracking-widest block mt-px">Owner Portal</span>
-          </div>
+          <img src={logoHorizontal} alt="Sporta Logo" className="h-10 lg:h-12 w-auto object-contain" />
+          <span className="text-[8px] lg:text-[9px] text-white/40 font-bold uppercase tracking-widest block self-end pb-1">Owner Portal</span>
         </div>
 
         {/* ── Hero text ── */}
@@ -115,6 +112,11 @@ export const LoginPage = () => {
           <p className="hidden lg:block text-sm text-white/50 max-w-md font-medium leading-relaxed mt-3">
             Hệ thống đặt sân tự động, quét mã QR check‑in siêu tốc và theo dõi dòng tiền thời gian thực dành riêng cho đối tác Sporta.
           </p>
+        </div>
+
+        {/* ── Vertical Logo Banner (Desktop only) ── */}
+        <div className="relative z-10 hidden lg:flex items-center justify-center my-6 flex-1 max-h-[320px] overflow-hidden rounded-2xl bg-white/5 border border-white/10 p-4">
+          <img src={logoVertical} alt="Sporta Vertical Poster" className="max-h-full max-w-full object-contain rounded-xl hover:scale-105 transition-transform duration-500" />
         </div>
 
         {/* ── Feature cards — CHỈ HIỆN TRÊN DESKTOP ── */}
