@@ -35,18 +35,18 @@ export default function TabsLayout() {
       <Tabs.Screen 
         name="index" 
         options={{ 
-          title: 'Trang chủ',
+          title: 'Landing page',
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="home" size={24} color={color} />
           )
         }} 
       />
       <Tabs.Screen 
-        name="bookings" 
+        name="map" 
         options={{ 
-          title: 'Lịch đặt',
+          title: 'Bản đồ',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="event-available" size={24} color={color} />
+            <MaterialIcons name="map" size={24} color={color} />
           )
         }} 
       />
@@ -60,12 +60,33 @@ export default function TabsLayout() {
         }} 
       />
       <Tabs.Screen 
+        name="clubs" 
+        options={{ 
+          title: 'Câu lạc bộ',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="shield" size={24} color={color} />
+          )
+        }} 
+      />
+      <Tabs.Screen 
+        name="profile" 
+        options={{ 
+          title: 'Hồ sơ cá nhân',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="person" size={24} color={color} />
+          )
+        }} 
+      />
+      <Tabs.Screen 
+        name="bookings" 
+        options={{ 
+          href: null,
+        }} 
+      />
+      <Tabs.Screen 
         name="wallet" 
         options={{ 
-          title: 'Ví cá nhân',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="account-balance-wallet" size={24} color={color} />
-          )
+          href: null,
         }} 
       />
     </Tabs>
