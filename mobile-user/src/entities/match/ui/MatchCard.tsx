@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Avatar, Badge, Button } from '../../../shared/ui';
 
 export interface Match {
@@ -82,13 +82,11 @@ export function MatchCard({ match, onPress, onJoinPress }: MatchCardProps) {
           />
         </View>
         <Button 
-          variant="secondary"
+          variant="primary"
           size="sm"
           title={isFull ? 'Đã đầy' : 'Tham gia ngay'}
           disabled={isFull}
           onPress={onJoinPress}
-          style={isFull ? styles.disabledButton : styles.joinButton}
-          textStyle={isFull ? styles.disabledButtonText : styles.joinButtonText}
         />
       </View>
     </TouchableOpacity>
@@ -99,14 +97,14 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xxl,
+    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
     borderWidth: 1,
-    borderColor: 'rgba(191, 201, 195, 0.1)',
+    borderColor: COLORS.outlineVariant,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
     marginBottom: SPACING.sm,
   },
   headerRow: {
@@ -118,8 +116,8 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: BORDER_RADIUS.xl,
-    backgroundColor: 'rgba(45, 106, 79, 0.1)',
+    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -129,8 +127,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
     fontSize: 16,
-    fontWeight: '600',
     color: COLORS.onSurface,
   },
   timeContainer: {
@@ -139,6 +138,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   timeText: {
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     fontSize: 14,
     color: COLORS.outline,
   },
@@ -151,13 +151,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   progressText: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 12,
-    fontWeight: '600',
     color: COLORS.onSurfaceVariant,
   },
   slotsText: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 12,
-    fontWeight: '700',
   },
   slotsAvailable: {
     color: COLORS.primary,
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceContainerLow,
     borderRadius: BORDER_RADIUS.full,
     overflow: 'hidden',
   },
@@ -204,34 +206,8 @@ const styles = StyleSheet.create({
   },
   moreAvatarText: {
     color: COLORS.onPrimary,
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 10,
-    fontWeight: '700',
-  },
-  joinButton: {
-    backgroundColor: COLORS.secondaryContainer,
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  joinButtonText: {
-    color: COLORS.onSecondaryContainer,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  disabledButton: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.xl,
-  },
-  disabledButtonText: {
-    color: COLORS.outline,
-    fontWeight: '700',
-    fontSize: 12,
   },
 });
