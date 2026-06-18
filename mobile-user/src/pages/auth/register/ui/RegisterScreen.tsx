@@ -251,6 +251,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     color: COLORS.onSurface,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   submitContainer: {
     marginTop: 15,

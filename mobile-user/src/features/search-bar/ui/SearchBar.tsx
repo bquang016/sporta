@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 
@@ -55,6 +55,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.onSurface,
     paddingRight: 40, // Space for the tune button on the right
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   filterButton: {
     position: 'absolute',
