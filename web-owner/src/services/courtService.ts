@@ -13,6 +13,22 @@ export interface CourtImageDto {
   imageUrl: string;
 }
 
+export interface VenueResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  location: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueRequest {
+  name: string;
+  location: string;
+  description: string;
+}
+
 export interface CourtResponse {
   id: string;
   ownerId: string;
@@ -26,6 +42,9 @@ export interface CourtResponse {
   location: string;
   sportId: number;
   sportName: string;
+  venueId: string | null;
+  venueName: string | null;
+  rejectionReason: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   detailImages: CourtImageDto[];
   createdAt: string;
@@ -41,6 +60,7 @@ export interface CourtRequest {
   closingTime: string;
   location: string;
   sportId: number;
+  venueId: string | null;
   detailImages: string[];
 }
 
@@ -101,6 +121,28 @@ export const courtService = {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Cập nhật trạng thái giả lập thất bại');
+    return res.json();
+  },
+
+  async getVenues(): Promise<VenueResponse[]> {
+    const res = await fetch(`${BASE_URL}/owner/venues`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Không thể lấy danh sách cụm sân');
+    return res.json();
+  },
+
+  async createVenue(data: VenueRequest): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: null }));
+      throw new Error(err.message || 'Lỗi khi tạo cụm sân mới');
+    }
     return res.json();
   }
 };

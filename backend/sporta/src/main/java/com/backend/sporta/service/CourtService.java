@@ -13,6 +13,8 @@ import com.backend.sporta.repository.CourtImageRepository;
 import com.backend.sporta.repository.CourtRepository;
 import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.SportRepository;
+import com.backend.sporta.entity.Venue;
+import com.backend.sporta.repository.VenueRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,9 @@ public class CourtService {
 
     @Autowired
     private SportRepository sportRepository;
+
+    @Autowired
+    private VenueRepository venueRepository;
 
     public List<CourtResponse> getCourtsByOwnerEmail(String email) {
         return courtRepository.findByOwnerUserEmail(email).stream()
@@ -62,6 +67,12 @@ public class CourtService {
         Sport sport = sportRepository.findById(request.getSportId())
                 .orElseThrow(() -> new CustomException("Môn thể thao không tồn tại: " + request.getSportId(), 404));
 
+        Venue venue = null;
+        if (request.getVenueId() != null && !request.getVenueId().trim().isEmpty()) {
+            venue = venueRepository.findById(UUID.fromString(request.getVenueId()))
+                    .orElseThrow(() -> new CustomException("Cụm sân không tồn tại", 404));
+        }
+
         Court court = Court.builder()
                 .owner(owner)
                 .name(request.getName())
@@ -72,6 +83,7 @@ public class CourtService {
                 .closingTime(request.getClosingTime())
                 .location(request.getLocation())
                 .sport(sport)
+                .venue(venue)
                 .status(CourtStatus.PENDING) // Default is pending approval
                 .build();
 
@@ -104,6 +116,12 @@ public class CourtService {
         Sport sport = sportRepository.findById(request.getSportId())
                 .orElseThrow(() -> new CustomException("Môn thể thao không tồn tại: " + request.getSportId(), 404));
 
+        Venue venue = null;
+        if (request.getVenueId() != null && !request.getVenueId().trim().isEmpty()) {
+            venue = venueRepository.findById(UUID.fromString(request.getVenueId()))
+                    .orElseThrow(() -> new CustomException("Cụm sân không tồn tại", 404));
+        }
+
         court.setName(request.getName());
         court.setPrice(request.getPrice());
         court.setDescription(request.getDescription());
@@ -112,6 +130,7 @@ public class CourtService {
         court.setClosingTime(request.getClosingTime());
         court.setLocation(request.getLocation());
         court.setSport(sport);
+        court.setVenue(venue);
 
         if (court.getStatus() == CourtStatus.REJECTED) {
             court.setStatus(CourtStatus.PENDING);
@@ -169,6 +188,9 @@ public class CourtService {
                 .location(court.getLocation())
                 .sportId(court.getSport().getId())
                 .sportName(court.getSport().getName())
+                .venueId(court.getVenue() != null ? court.getVenue().getId() : null)
+                .venueName(court.getVenue() != null ? court.getVenue().getName() : null)
+                .rejectionReason(court.getRejectionReason())
                 .status(court.getStatus())
                 .detailImages(images)
                 .createdAt(court.getCreatedAt())

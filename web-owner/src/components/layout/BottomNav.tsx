@@ -9,7 +9,7 @@ export const BottomNav = () => {
   if (activeIndex === -1) {
     if (location.pathname.startsWith('/matrix')) activeIndex = 1;
     else if (location.pathname.startsWith('/scan')) activeIndex = 2;
-    else if (location.pathname.startsWith('/facility')) activeIndex = 3;
+    else if (location.pathname.startsWith('/facility') || location.pathname.startsWith('/venues')) activeIndex = 3;
     else if (location.pathname.startsWith('/profile')) activeIndex = 4;
     else activeIndex = 0;
   }
