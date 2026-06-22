@@ -59,7 +59,6 @@ export function RegisterScreen() {
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Đăng ký tài khoản</Text>
       </View>
 
       <View style={styles.content}>
