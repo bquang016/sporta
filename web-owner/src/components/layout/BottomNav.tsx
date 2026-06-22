@@ -3,13 +3,13 @@ import { Link, useLocation } from 'react-router-dom';
 
 export const BottomNav = () => {
   const location = useLocation();
-  const paths = ['/', '/matrix', '/scan', '/facility', '/profile'];
+  const paths = ['/', '/matrix', '/scan', '/operations', '/profile'];
   
   let activeIndex = paths.indexOf(location.pathname);
   if (activeIndex === -1) {
     if (location.pathname.startsWith('/matrix')) activeIndex = 1;
     else if (location.pathname.startsWith('/scan')) activeIndex = 2;
-    else if (location.pathname.startsWith('/facility') || location.pathname.startsWith('/venues')) activeIndex = 3;
+    else if (location.pathname.startsWith('/operations')) activeIndex = 3;
     else if (location.pathname.startsWith('/profile')) activeIndex = 4;
     else activeIndex = 0;
   }
@@ -41,7 +41,7 @@ export const BottomNav = () => {
         <NavItem to="/" icon="home" label="Trang chủ" activeIndex={activeIndex} itemIndex={0} />
         <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" activeIndex={activeIndex} itemIndex={1} />
         <NavItem to="/scan" icon="scan" label="Quét QR" isCenter activeIndex={activeIndex} itemIndex={2} />
-        <NavItem to="/facility" icon="facility" label="Sân bãi" activeIndex={activeIndex} itemIndex={3} />
+        <NavItem to="/operations" icon="facility" label="Vận hành" activeIndex={activeIndex} itemIndex={3} />
         <NavItem to="/profile" icon="profile" label="Hồ sơ" activeIndex={activeIndex} itemIndex={4} />
       </div>
     </nav>

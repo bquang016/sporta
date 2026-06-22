@@ -11,8 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/': 'Bảng điều khiển',
   '/matrix': 'Quản lý lịch',
   '/scan': 'Quét mã QR',
-  '/facility': 'Quản lý sân',
-  '/venues': 'Quản lý cụm sân',
+  '/operations': 'Quản lý vận hành',
   '/profile': 'Hồ sơ tài khoản',
   '/settings': 'Cài đặt hệ thống',
 };
@@ -84,16 +83,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <NavItem to="/" icon="home" label="Bảng điều khiển" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/scan" icon="scan" label="Quét mã QR" isCollapsed={isSidebarCollapsed} />
-          <NavGroup 
-            label="Quản lý sân" 
-            icon="facility" 
-            isCollapsed={isSidebarCollapsed}
-            isActive={location.pathname === '/facility' || location.pathname === '/venues'}
-            items={[
-              { to: '/facility', label: 'Danh sách sân' },
-              { to: '/venues', label: 'Quản lý cụm sân' }
-            ]}
-          />
+          <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/settings" icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
         </nav>
         

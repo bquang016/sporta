@@ -1,5 +1,6 @@
 package com.backend.sporta.entity;
 
+import com.backend.sporta.enums.VenueStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -13,6 +14,11 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Venue {
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'ACTIVE'")
+    @Builder.Default
+    private VenueStatus status = VenueStatus.ACTIVE;
 
     @Id
     @GeneratedValue

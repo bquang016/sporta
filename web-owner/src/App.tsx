@@ -4,8 +4,8 @@ import { MobileHome } from './pages/MobileHome'
 import { DesktopHome } from './pages/DesktopHome'
 import { MatrixPage } from './pages/MatrixPage'
 import { ScanPage } from './pages/ScanPage'
-import { FacilityPage } from './pages/FacilityPage'
-import { VenuePage } from './pages/VenuePage'
+import { OperationsPage } from './pages/OperationsPage'
+import { OperationsProvider } from './hooks/useOperationsState'
 import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { LoginPage } from './pages/LoginPage'
@@ -26,8 +26,11 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/scan" element={<ScanPage />} />
-        <Route path="/facility" element={<FacilityPage />} />
-        <Route path="/venues" element={<VenuePage />} />
+        <Route path="/operations" element={
+          <OperationsProvider>
+            <OperationsPage />
+          </OperationsProvider>
+        } />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

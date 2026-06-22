@@ -8,6 +8,19 @@ const getHeaders = () => {
   };
 };
 
+const handleResponse = async (res: Response, defaultError: string) => {
+  if (res.status === 403) {
+    localStorage.removeItem('accessToken');
+    window.location.href = '/login';
+    throw new Error('Phiên đăng nhập đã hết hạn');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: null }));
+    throw new Error(err.message || defaultError);
+  }
+  return res.json();
+};
+
 export interface CourtImageDto {
   id: number;
   imageUrl: string;
@@ -19,6 +32,7 @@ export interface VenueResponse {
   name: string;
   location: string;
   description: string;
+  status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED';
   createdAt: string;
   updatedAt: string;
 }
@@ -70,8 +84,7 @@ export const courtService = {
       method: 'GET',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Không thể lấy danh sách sân bãi');
-    return res.json();
+    return handleResponse(res, 'Không thể lấy danh sách sân bãi');
   },
 
   async registerCourt(data: CourtRequest): Promise<CourtResponse> {
@@ -80,11 +93,7 @@ export const courtService = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: null }));
-      throw new Error(err.message || 'Lỗi khi đăng ký sân bãi mới');
-    }
-    return res.json();
+    return handleResponse(res, 'Lỗi khi đăng ký sân bãi mới');
   },
 
   async updateCourt(id: string, data: CourtRequest): Promise<CourtResponse> {
@@ -93,11 +102,7 @@ export const courtService = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: null }));
-      throw new Error(err.message || 'Lỗi khi cập nhật sân bãi');
-    }
-    return res.json();
+    return handleResponse(res, 'Lỗi khi cập nhật sân bãi');
   },
 
   async uploadImage(file: File, type: 'avatar' | 'court_cover' | 'court_detail' | 'general'): Promise<string> {
@@ -120,8 +125,7 @@ export const courtService = {
       method: 'PUT',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Cập nhật trạng thái giả lập thất bại');
-    return res.json();
+    return handleResponse(res, 'Cập nhật trạng thái giả lập thất bại');
   },
 
   async getVenues(): Promise<VenueResponse[]> {
@@ -129,8 +133,7 @@ export const courtService = {
       method: 'GET',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Không thể lấy danh sách cụm sân');
-    return res.json();
+    return handleResponse(res, 'Không thể lấy danh sách cụm sân');
   },
 
   async createVenue(data: VenueRequest): Promise<VenueResponse> {
@@ -139,10 +142,23 @@ export const courtService = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: null }));
-      throw new Error(err.message || 'Lỗi khi tạo cụm sân mới');
-    }
-    return res.json();
+    return handleResponse(res, 'Lỗi khi tạo cụm sân mới');
+  },
+
+  async updateVenueStatus(id: string, status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED'): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/status?status=${status}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Không thể cập nhật trạng thái cụm sân');
+  },
+
+  async updateVenue(id: string, data: VenueRequest): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res, 'Lỗi khi cập nhật thông tin cụm sân');
   }
 };
