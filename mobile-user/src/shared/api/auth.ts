@@ -75,3 +75,20 @@ export const registerUser = async (data: any) => {
 
   return response.json();
 };
+
+export const googleLoginApi = async (idToken: string) => {
+  const response = await fetch(`${BASE_URL}/google-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ idToken }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Xác thực Google thất bại');
+  }
+
+  return response.json();
+};

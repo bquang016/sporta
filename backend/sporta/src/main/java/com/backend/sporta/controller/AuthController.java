@@ -6,6 +6,8 @@ import com.backend.sporta.dto.RegisterRequest;
 import com.backend.sporta.dto.SendOtpRequest;
 import com.backend.sporta.dto.VerifyOtpRequest;
 import com.backend.sporta.dto.VerifyOtpResponse;
+import com.backend.sporta.dto.GoogleLoginRequest;
+import com.backend.sporta.dto.GoogleLoginResponse;
 import com.backend.sporta.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +45,12 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google-login")
+    public ResponseEntity<GoogleLoginResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        GoogleLoginResponse response = authService.googleLogin(request);
         return ResponseEntity.ok(response);
     }
 

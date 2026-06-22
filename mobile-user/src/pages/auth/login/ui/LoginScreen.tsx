@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { loginApi } from '../../../../shared/api/auth';
+import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+
+WebBrowser.maybeCompleteAuthSession();
 
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { CustomInput } from '../../../../shared/ui/CustomInput';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -16,6 +21,75 @@ export function LoginScreen() {
   const [isFocusedEmail, setIsFocusedEmail] = useState(false);
   const [isFocusedPassword, setIsFocusedPassword] = useState(false);
   const router = useRouter();
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
+    webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
+  });
+
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      if (id_token) {
+        handleBackendGoogleLogin(id_token);
+      }
+    } else if (response?.type === 'error') {
+      const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
+      if (Platform.OS === 'web') {
+        window.alert('Lỗi đăng nhập Google: ' + errorMsg);
+      } else {
+        Alert.alert('Lỗi đăng nhập Google', errorMsg);
+      }
+    }
+  }, [response]);
+
+  const handleBackendGoogleLogin = async (idToken: string) => {
+    setLoading(true);
+    try {
+      const response = await googleLoginApi(idToken);
+      if (response.isNewUser) {
+        const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
+        router.push({
+          pathname: '/(auth)/personal-info',
+          params: {
+            registrationToken: response.registrationToken,
+            email: response.email,
+            password: dummyPassword,
+            fullName: response.fullName
+          }
+        });
+      } else {
+        if (Platform.OS === 'web') {
+          localStorage.setItem('accessToken', response.accessToken);
+          localStorage.setItem('userEmail', response.email);
+          localStorage.setItem('userName', response.fullName);
+        } else {
+          await SecureStore.setItemAsync('accessToken', response.accessToken);
+          await SecureStore.setItemAsync('userEmail', response.email);
+          await SecureStore.setItemAsync('userName', response.fullName);
+        }
+        if (Platform.OS !== 'web') {
+          Alert.alert('Thành công', response.message);
+        } else {
+          window.alert(response.message);
+        }
+        router.replace('/(tabs)');
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
+      } else {
+        window.alert('Lỗi xác thực: ' + (error.message || 'Xác thực Google thất bại.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    promptAsync();
+  };
 
   const handleLogin = async () => {
     if (!email || !email.includes('@')) {
@@ -157,7 +231,7 @@ export function LoginScreen() {
           <Button 
             variant="outline"
             style={styles.socialButton}
-            onPress={() => console.log('Google login')}
+            onPress={handleGoogleLogin}
             icon={<MaterialCommunityIcons name="google" size={18} color="#DB4437" />}
             title="Google"
           />

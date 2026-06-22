@@ -8,9 +8,20 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sporta.user",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.109569873589-fs4k7g16ql0vg9j6vqj297k67blfvr7l"
+            ]
+          }
+        ]
+      }
     },
     "android": {
+      "package": "com.sporta.user",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,7 +37,9 @@
       "expo-router",
       "expo-asset",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }
