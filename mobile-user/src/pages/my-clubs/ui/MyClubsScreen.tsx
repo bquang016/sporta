@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,28 +15,17 @@ const SPORTS = [
   { id: 'pickleball', name: 'Pickleball', value: 'Pickleball' },
 ];
 
-export function ClubsScreen() {
+export function MyClubsScreen() {
   const router = useRouter();
   const { clubs, joinedIds } = useClubs();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState('all');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  const filteredClubs = clubs.filter(club => {
-    // 1. Show only clubs that user can join (not yet joined)
-    const isJoined = joinedIds.includes(club.id);
-    if (isJoined) return false;
+  // Filter only clubs that user has joined
+  const joinedClubs = clubs.filter(club => joinedIds.includes(club.id));
 
-    // 2. Filter by search query
-    const matchesSearch = club.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          club.sport.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          club.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    // 3. Filter by selected sport
+  const filteredJoinedClubs = joinedClubs.filter(club => {
     const sportObj = SPORTS.find(s => s.id === selectedSport);
-    const matchesSport = selectedSport === 'all' || (sportObj && club.sport === sportObj.value);
-
-    return matchesSearch && matchesSport;
+    return selectedSport === 'all' || (sportObj && club.sport === sportObj.value);
   });
 
   const getActivityBadgeVariant = (level: string) => {
@@ -49,65 +38,31 @@ export function ClubsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header wrapper to color the status bar and notch area white */}
-      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Câu lạc bộ</Text>
-          <Button
-            variant="ghost"
-            icon="add-circle-outline"
-            title="Tạo CLB"
-            textStyle={styles.createBtnText}
-            style={styles.createBtn}
-            onPress={() => console.log('Create new club')}
-          />
-        </View>
-      </SafeAreaView>
-
-      {/* Search and Filters Section */}
-      <View style={styles.filterSection}>
-        {/* My Clubs section above search bar */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Custom Header with Back Button */}
+      <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.myClubsCard} 
-          activeOpacity={0.9} 
-          onPress={() => router.push('/my-clubs')}
+          style={styles.backButton} 
+          activeOpacity={0.7} 
+          onPress={() => router.back()}
         >
-          <View style={styles.myClubsLeft}>
-            <View style={styles.myClubsIconContainer}>
-              <MaterialIcons name="shield" size={24} color={COLORS.primary} />
-            </View>
-            <View>
-              <Text style={styles.myClubsTitle}>Câu lạc bộ của tôi</Text>
-              <Text style={styles.myClubsSub}>Xem {joinedIds.length} câu lạc bộ bạn đã tham gia</Text>
-            </View>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color={COLORS.primary} />
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+          Câu lạc bộ của tôi
+        </Text>
+        <Button
+          variant="ghost"
+          icon="add-circle-outline"
+          title="Tạo CLB"
+          textStyle={styles.createBtnText}
+          style={styles.createBtn}
+          onPress={() => router.push('/create-club')}
+        />
+      </View>
 
-        {/* Search Bar at the top of filter section */}
-        <View style={[
-          styles.searchContainer,
-          isSearchFocused && styles.searchContainerFocused
-        ]}>
-          <MaterialIcons name="search" size={20} color={COLORS.outline} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm tên CLB hoặc môn thể thao..."
-            placeholderTextColor={COLORS.outline}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Sports filter chips */}
+      {/* Sports Filter Section */}
+      <View style={styles.filterSection}>
         <View style={styles.chipsOuterContainer}>
           <ScrollView 
             horizontal 
@@ -141,14 +96,14 @@ export function ClubsScreen() {
 
       {/* Clubs List */}
       <ScrollView contentContainerStyle={styles.scrollList} showsVerticalScrollIndicator={false}>
-        {filteredClubs.length > 0 ? (
-          filteredClubs.map((club) => (
+        {filteredJoinedClubs.length > 0 ? (
+          filteredJoinedClubs.map((club) => (
             <Card 
               key={club.id} 
               variant="default" 
               style={styles.clubCard}
               onPress={() => router.push({
-                pathname: '/club-detail-explore/[id]',
+                pathname: '/club-detail-joined/[id]',
                 params: { id: club.id }
               })}
             >
@@ -192,18 +147,32 @@ export function ClubsScreen() {
               </View>
             </Card>
           ))
-        ) : (
+        ) : joinedClubs.length > 0 ? (
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="group-off" size={48} color={COLORS.outline} />
+            <MaterialIcons name="group-off" size={64} color={COLORS.outline} />
+            <Text style={styles.emptyTitle}>Không tìm thấy câu lạc bộ</Text>
             <Text style={styles.emptyText}>
-              {joinedIds.length === clubs.length 
-                ? 'Bạn đã tham gia tất cả các câu lạc bộ!'
-                : 'Không tìm thấy câu lạc bộ phù hợp'}
+              Thử đổi bộ lọc môn thể thao khác để tìm câu lạc bộ bạn đã tham gia.
             </Text>
           </View>
-        )}
+        ) : (
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="group-off" size={64} color={COLORS.outline} />
+            <Text style={styles.emptyTitle}>Chưa tham gia câu lạc bộ nào</Text>
+            <Text style={styles.emptyText}>
+              Hãy khám phá các câu lạc bộ thể thao tuyệt vời xung quanh bạn để bắt đầu giao lưu luyện tập.
+            </Text>
+            <Button
+              variant="primary"
+              title="Khám phá ngay"
+              icon="search"
+              style={styles.exploreBtn}
+              onPress={() => router.back()}
+            />
+          </View>
+        ) }
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -211,9 +180,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  headerSafeArea: {
-    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: 'row',
@@ -225,8 +191,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(6, 78, 59, 0.1)',
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
   headerTitle: {
-    fontSize: 20,
+    position: 'absolute',
+    left: 60,
+    right: 80,
+    textAlign: 'center',
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.primary,
     fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
@@ -240,66 +217,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
-  filterSection: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.base,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(6, 78, 59, 0.1)',
-    gap: SPACING.base,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.default,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.2)',
-    paddingHorizontal: SPACING.sm,
-    height: 44,
-    gap: SPACING.base,
-  },
-  searchContainerFocused: {
-    borderColor: COLORS.primary,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    padding: 0,
-  },
-  chipsOuterContainer: {
-    marginHorizontal: -SPACING.marginMobile,
-  },
-  chipsContainer: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingBottom: SPACING.base,
-    gap: SPACING.base,
-  },
-  sportChip: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.xl,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  sportChipActive: {
-    backgroundColor: COLORS.secondaryContainer,
-  },
-  sportChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-  },
-  sportChipTextActive: {
-    color: COLORS.onSecondaryContainer,
-  },
   scrollList: {
     padding: SPACING.marginMobile,
-    paddingBottom: 90, // Avoid overlap with bottom tabs
+    paddingBottom: SPACING.xl,
     gap: SPACING.md,
   },
   clubCard: {
@@ -400,16 +320,6 @@ const styles = StyleSheet.create({
   detailsBtnText: {
     color: COLORS.primary,
     fontSize: 13,
-  },
-  emptyContainer: {
-    paddingVertical: SPACING.xl * 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.base,
-  },
-  emptyText: {
-    color: COLORS.outline,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
   },
   // Modal Details Styles
   modalOverlay: {
@@ -521,47 +431,68 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: BORDER_RADIUS.default,
   },
-  myClubsCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyContainer: {
+    paddingVertical: SPACING.xl * 2,
+    paddingHorizontal: SPACING.lg,
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.15)',
-    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
-    padding: SPACING.md,
-    // Add subtle shadow for premium look
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  myClubsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  myClubsIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'rgba(6, 78, 59, 0.1)',
     justifyContent: 'center',
-    alignItems: 'center',
+    gap: SPACING.base,
   },
-  myClubsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    marginTop: SPACING.base,
   },
-  myClubsSub: {
+  emptyText: {
+    color: COLORS.onSurfaceVariant,
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.base,
+  },
+  exploreBtn: {
+    width: '80%',
+    borderRadius: BORDER_RADIUS.default,
+  },
+  filterSection: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingTop: SPACING.base,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(6, 78, 59, 0.1)',
+    gap: SPACING.base,
+  },
+  chipsOuterContainer: {
+    marginHorizontal: -SPACING.marginMobile,
+  },
+  chipsContainer: {
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: SPACING.base,
+    gap: SPACING.base,
+  },
+  sportChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  sportChipActive: {
+    backgroundColor: COLORS.secondaryContainer,
+  },
+  sportChipText: {
     fontSize: 12,
+    fontWeight: '600',
     color: COLORS.onSurfaceVariant,
     fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    marginTop: 2,
+  },
+  sportChipTextActive: {
+    color: COLORS.onSecondaryContainer,
   },
 });
 
-export default ClubsScreen;
+export default MyClubsScreen;
