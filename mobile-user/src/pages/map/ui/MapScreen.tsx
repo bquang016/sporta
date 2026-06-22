@@ -74,7 +74,7 @@ export function MapScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
-          <Button variant="ghost" icon="tune" style={styles.filterButton} onPress={() => {}} />
+          <Button variant="ghost" icon="tune" style={styles.filterButton} onPress={() => { }} />
         </View>
       </SafeAreaView>
 
@@ -115,7 +115,7 @@ export function MapScreen() {
         <View style={[styles.mapStreet, { left: '35%', top: 0, bottom: 0, width: 14 }]} />
         <View style={[styles.mapStreet, { left: '75%', top: 0, bottom: 0, width: 10 }]} />
         <View style={[styles.mapStreet, { left: '15%', top: '30%', bottom: 0, width: 8, transform: [{ rotate: '45deg' }] }]} />
-        
+
         {/* Map Parks (Green spaces Mockup) */}
         <View style={[styles.mapPark, { top: '10%', left: '10%', width: 80, height: 60 }]} />
         <View style={[styles.mapPark, { top: '45%', right: '10%', width: 70, height: 80 }]} />
@@ -175,7 +175,7 @@ export function MapScreen() {
               <Text style={styles.ratingText}>{selectedPin.rating}</Text>
             </View>
           </View>
-          
+
           <Text style={styles.venueName}>{selectedPin.name}</Text>
           <Text style={styles.venuePrice}>
             Giá thuê: <Text style={styles.venuePriceVal}>{selectedPin.price}</Text>
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.sm,
     height: 44,
     gap: SPACING.base,

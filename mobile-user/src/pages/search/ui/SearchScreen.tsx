@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
@@ -79,11 +79,22 @@ const DEFAULT_FILTERS: FilterState = {
 
 export function SearchScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ openFilter?: string }>();
+
   const [searchText, setSearchText] = useState('');
   const [isFilterVisible, setFilterVisible] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
+  // Mở modal nếu Home yêu cầu
+  useEffect(() => {
+    if (params.openFilter === 'true') {
+      const timer = setTimeout(() => {
+        setFilterVisible(true);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [params.openFilter]); // Lắng nghe sự thay đổi của params
   // AND filtering logic
   const filteredFacilities = useMemo(() => {
     return MOCK_FACILITIES.filter(facility => {
@@ -142,13 +153,13 @@ export function SearchScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
+
           <View style={styles.searchWrapper}>
             <SearchBar
-              autoFocus={true}
+              autoFocus={false} // TẮT HOÀN TOÀN AUTOFOCUS CHỐNG LAG
               value={searchText}
               onChangeText={setSearchText}
-              onFilterPress={() => console.log('Open Filter Modal')}
-              isFakeInput={true}
+              onFilterPress={() => setFilterVisible(true)}
             />
             {activeFilterCount > 0 && (
               <View style={styles.filterBadge}>

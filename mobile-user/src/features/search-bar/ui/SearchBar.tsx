@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Platform, Text } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface SearchBarProps {
   value?: string;
   onChangeText?: (text: string) => void;
   onFilterPress?: () => void;
-  onPress?: () => void;
-  isFakeInput?: boolean;
+  onPress?: () => void; // Nếu có onPress, nó sẽ tự hiểu là nút bấm
   autoFocus?: boolean;
 }
 
@@ -17,54 +16,50 @@ export function SearchBar({
   onChangeText,
   onFilterPress,
   onPress,
-  isFakeInput = true,
   autoFocus = false
 }: SearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
-  if (isFakeInput) {
-    return (
-      <View style={styles.container}>
+
+  const borderStyle = {
+    borderColor: isFocused ? 'rgba(6, 78, 59, 1)' : 'rgba(6, 78, 59, 0.2)'
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.searchContainer, borderStyle]}>
+
+        {/* VÙNG NHẬP LIỆU (HOẶC NÚT BẤM) */}
         <TouchableOpacity
-          style={[styles.searchContainer]}
-          activeOpacity={0.8}
+          style={styles.inputTouchArea}
+          activeOpacity={onPress ? 0.8 : 1}
           onPress={onPress}
         >
           <MaterialIcons name="search" size={24} color={COLORS.outline} style={styles.searchIcon} />
 
-          <Text style={styles.input} numberOfLines={1}>
-            Tìm sân, trận đấu hoặc câu lạc bộ...
-          </Text>
-
-          <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.8}>
-            <MaterialIcons name="tune" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Khóa pointerEvents nếu đang làm nút bấm để TouchableOpacity nhận sự kiện */}
+          <View style={styles.inputWrapper} pointerEvents={onPress ? 'none' : 'auto'}>
+            <TextInput
+              style={styles.input}
+              placeholder="Tìm sân, trận đấu hoặc câu lạc bộ..."
+              placeholderTextColor={COLORS.outlineVariant}
+              value={value}
+              onChangeText={onChangeText}
+              autoFocus={autoFocus}
+              editable={!onPress} // Khóa không cho nhập nếu đây là nút bấm (ở Home)
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+            />
+          </View>
         </TouchableOpacity>
+
+        {/* NÚT FILTER SONG SONG */}
+        <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.8}>
+          <MaterialIcons name="tune" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+
       </View>
-    );
-  }
-  return (
-    <View style={styles.searchContainer}>
-      <MaterialIcons name="search" size={20} color={COLORS.outline} style={styles.searchIcon} />
-      <TextInput
-        style={styles.input}
-        placeholder="Tìm sân, trận đấu hoặc câu lạc bộ..."
-        placeholderTextColor={COLORS.outlineVariant}
-        value={value}
-        onChangeText={onChangeText}
-        autoFocus={autoFocus}
-        onFocus={() => setIsFocused(true)} // Khi focus thì viền đâm lên
-        onBlur={() => setIsFocused(false)} // Khi bỏ focus thì viền mờ đi
-      />
-      <TouchableOpacity
-        style={styles.filterButton}
-        onPress={onFilterPress}
-        activeOpacity={0.8}
-      >
-        <MaterialIcons name="tune" size={20} color={COLORS.onPrimary} />
-      </TouchableOpacity>
     </View>
   );
-
 }
 
 const styles = StyleSheet.create({
@@ -74,25 +69,34 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     height: 48,
     position: 'relative',
+  },
+  inputTouchArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: '100%',
   },
   searchIcon: {
     marginRight: SPACING.sm,
   },
+  inputWrapper: {
+    flex: 1,
+    height: '100%',
+  },
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 14,
+    ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurface,
-    paddingRight: 40, // Space for the tune button on the right
+    paddingRight: 48, // Chừa chỗ cho nút filter
     ...Platform.select({
-      web: {
-        outlineStyle: 'none',
-      } as any,
+      web: { outlineStyle: 'none' } as any,
     }),
   },
   filterButton: {
@@ -100,14 +104,9 @@ const styles = StyleSheet.create({
     right: 4,
     width: 40,
     height: 40,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#064E3B',
     borderRadius: BORDER_RADIUS.full,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
   },
 });

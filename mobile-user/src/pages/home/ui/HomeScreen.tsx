@@ -220,9 +220,10 @@ export function HomeScreen() {
       >
         {/* Search Bar */}
         <SearchBar
-          isFakeInput={true}
           onPress={() => router.push('/search')}
-          onFilterPress={() => console.log('Open Filter Modal')}
+          onFilterPress={() => {
+            router.push({ pathname: '/search', params: { openFilter: 'true' } });
+          }}
         />
 
         {/* Sport Categories */}
@@ -251,7 +252,7 @@ export function HomeScreen() {
             <MaterialIcons
               name="event-available"
               size={24}
-              color={isAuthenticated ? COLORS.onPrimary : COLORS.primary}
+              color={isAuthenticated ? COLORS.secondary : COLORS.primary}
             />
             <View>
               <Text
