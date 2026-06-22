@@ -218,7 +218,9 @@ export function HomeScreen() {
       >
         {/* Search Bar */}
         <SearchBar 
-          onFilterPress={() => console.log('Open Filter Modal')} 
+          editable={false}
+          onPress={() => router.push('/search')}
+          onFilterPress={() => router.push('/search')} 
         />
         
         {/* Sport Categories */}
@@ -242,7 +244,7 @@ export function HomeScreen() {
               styles.quickActionCard, 
               isAuthenticated ? styles.actionCardAuthPrimary : styles.actionCardPrimary
             ]}
-            onPress={() => console.log('Book now')}
+            onPress={() => router.push('/search')}
           >
             <MaterialIcons 
               name="event-available" 
