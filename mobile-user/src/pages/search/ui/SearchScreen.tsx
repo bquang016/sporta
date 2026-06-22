@@ -107,7 +107,7 @@ export function SearchScreen() {
       if (appliedFilters.rating > 0 && facility.rating < appliedFilters.rating) {
         return false;
       }
-      
+
       return true;
     });
   }, [searchText, appliedFilters]);
@@ -133,8 +133,8 @@ export function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header Section */}
@@ -143,11 +143,12 @@ export function SearchScreen() {
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
           <View style={styles.searchWrapper}>
-            <SearchBar 
+            <SearchBar
+              autoFocus={true}
               value={searchText}
               onChangeText={setSearchText}
-              onFilterPress={() => setFilterVisible(true)}
-              autoFocus
+              onFilterPress={() => console.log('Open Filter Modal')}
+              isFakeInput={true}
             />
             {activeFilterCount > 0 && (
               <View style={styles.filterBadge}>
@@ -165,8 +166,8 @@ export function SearchScreen() {
             contentContainerStyle={styles.listContainer}
             renderItem={({ item }) => (
               <View style={styles.cardWrapper}>
-                <FacilityCard 
-                  facility={item} 
+                <FacilityCard
+                  facility={item}
                   style={styles.fullWidthCard}
                   onPress={() => router.push(`/booking/${item.id}`)}
                   onBookPress={() => router.push(`/booking/${item.id}`)}
@@ -179,16 +180,16 @@ export function SearchScreen() {
             <MaterialIcons name="search-off" size={64} color={COLORS.outlineVariant} />
             <Text style={styles.emptyTitle}>Không tìm thấy kết quả</Text>
             <Text style={styles.emptyDesc}>Không tìm thấy sân phù hợp. Vui lòng thử thay đổi bộ lọc!</Text>
-            <Button 
-              title="Xóa bộ lọc" 
-              variant="primary" 
-              style={styles.clearBtn} 
-              onPress={handleClearFilters} 
+            <Button
+              title="Xóa bộ lọc"
+              variant="primary"
+              style={styles.clearBtn}
+              onPress={handleClearFilters}
             />
           </View>
         )}
 
-        <FilterModal 
+        <FilterModal
           visible={isFilterVisible}
           onClose={() => setFilterVisible(false)}
           filters={filters}

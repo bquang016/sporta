@@ -175,15 +175,15 @@ export function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
-            <Avatar 
-              size="md" 
-              source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null} 
-              fallbackIcon="person" 
+            <Avatar
+              size="md"
+              source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null}
+              fallbackIcon="person"
             />
           </TouchableOpacity>
           <View>
@@ -194,11 +194,11 @@ export function HomeScreen() {
             </View>
           </View>
         </View>
-        
+
         <View style={styles.headerRight}>
           <Text style={styles.logoText}>SPORTA</Text>
           <View style={{ position: 'relative' }}>
-            <Button 
+            <Button
               variant="ghost"
               icon="notifications"
               style={styles.notificationButton}
@@ -210,59 +210,59 @@ export function HomeScreen() {
           </View>
         </View>
       </View>
-      
+
       {/* Scrollable Content */}
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Search Bar */}
-        <SearchBar 
-          editable={false}
+        <SearchBar
+          isFakeInput={true}
           onPress={() => router.push('/search')}
-          onFilterPress={() => router.push('/search')} 
+          onFilterPress={() => console.log('Open Filter Modal')}
         />
-        
+
         {/* Sport Categories */}
-        <SportCategories 
-          onCategorySelect={(id) => console.log('Select category:', id)} 
+        <SportCategories
+          onCategorySelect={(id) => console.log('Select category:', id)}
         />
-        
+
         {/* Auth CTA Banner (Only show if guest) */}
         {!isAuthenticated && (
-          <AuthCtaBanner 
-            onLoginPress={handleLoginPress} 
-            onRegisterPress={handleRegisterPress} 
+          <AuthCtaBanner
+            onLoginPress={handleLoginPress}
+            onRegisterPress={handleRegisterPress}
           />
         )}
-        
+
         {/* Quick Action Cards */}
         <View style={styles.quickActionsGrid}>
-          <Card 
+          <Card
             variant="ghost"
             style={[
-              styles.quickActionCard, 
+              styles.quickActionCard,
               isAuthenticated ? styles.actionCardAuthPrimary : styles.actionCardPrimary
             ]}
             onPress={() => router.push('/search')}
           >
-            <MaterialIcons 
-              name="event-available" 
-              size={24} 
-              color={isAuthenticated ? COLORS.onPrimary : COLORS.primary} 
+            <MaterialIcons
+              name="event-available"
+              size={24}
+              color={isAuthenticated ? COLORS.onPrimary : COLORS.primary}
             />
             <View>
-              <Text 
+              <Text
                 style={[
-                  styles.actionCardTitle, 
+                  styles.actionCardTitle,
                   { color: isAuthenticated ? COLORS.onPrimary : COLORS.primary }
                 ]}
               >
                 Đặt sân ngay
               </Text>
-              <Text 
+              <Text
                 style={[
-                  styles.actionCardSubtitle, 
+                  styles.actionCardSubtitle,
                   { color: isAuthenticated ? `${COLORS.onPrimary}B3` : `${COLORS.primary}B3` }
                 ]}
               >
@@ -270,11 +270,11 @@ export function HomeScreen() {
               </Text>
             </View>
           </Card>
-          
-          <Card 
+
+          <Card
             variant="ghost"
             style={[
-              styles.quickActionCard, 
+              styles.quickActionCard,
               isAuthenticated ? styles.actionCardAuthOutline : styles.actionCardGray
             ]}
             onPress={() => console.log('Match matching')}
@@ -286,7 +286,7 @@ export function HomeScreen() {
             </View>
           </Card>
         </View>
-        
+
         {/* Nearby Venues Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -298,16 +298,16 @@ export function HomeScreen() {
               onPress={() => console.log('See more')}
             />
           </View>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalScroll}
             decelerationRate="fast"
           >
             {NEARBY_FACILITIES.map((facility) => (
               <View key={facility.id} style={styles.cardContainer}>
-                <FacilityCard 
-                  facility={facility} 
+                <FacilityCard
+                  facility={facility}
                   onPress={() => handleFacilityPress(facility.id)}
                   onBookPress={() => handleFacilityPress(facility.id)}
                 />
@@ -315,7 +315,7 @@ export function HomeScreen() {
             ))}
           </ScrollView>
         </View>
-        
+
         {/* Hot Matches Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -332,12 +332,12 @@ export function HomeScreen() {
               onPress={() => console.log('Open Filter dropdown')}
             />
           </View>
-          
+
           <View style={styles.matchList}>
             {HOT_MATCHES.map((match) => (
-              <MatchCard 
-                key={match.id} 
-                match={match} 
+              <MatchCard
+                key={match.id}
+                match={match}
                 onPress={() => console.log('View match detail:', match.id)}
                 onJoinPress={() => console.log('Join match:', match.id)}
               />

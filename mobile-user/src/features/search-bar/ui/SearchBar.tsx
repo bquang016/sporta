@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 
@@ -8,12 +8,41 @@ interface SearchBarProps {
   onChangeText?: (text: string) => void;
   onFilterPress?: () => void;
   onPress?: () => void;
-  editable?: boolean;
+  isFakeInput?: boolean;
   autoFocus?: boolean;
 }
 
-export function SearchBar({ value, onChangeText, onFilterPress, onPress, editable = true, autoFocus = false }: SearchBarProps) {
-  const content = (
+export function SearchBar({
+  value,
+  onChangeText,
+  onFilterPress,
+  onPress,
+  isFakeInput = true,
+  autoFocus = false
+}: SearchBarProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  if (isFakeInput) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity
+          style={[styles.searchContainer]}
+          activeOpacity={0.8}
+          onPress={onPress}
+        >
+          <MaterialIcons name="search" size={24} color={COLORS.outline} style={styles.searchIcon} />
+
+          <Text style={styles.input} numberOfLines={1}>
+            Tìm sân, trận đấu hoặc câu lạc bộ...
+          </Text>
+
+          <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.8}>
+            <MaterialIcons name="tune" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  return (
     <View style={styles.searchContainer}>
       <MaterialIcons name="search" size={20} color={COLORS.outline} style={styles.searchIcon} />
       <TextInput
@@ -22,13 +51,13 @@ export function SearchBar({ value, onChangeText, onFilterPress, onPress, editabl
         placeholderTextColor={COLORS.outlineVariant}
         value={value}
         onChangeText={onChangeText}
-        editable={editable}
         autoFocus={autoFocus}
-        pointerEvents={editable ? 'auto' : 'none'}
+        onFocus={() => setIsFocused(true)} // Khi focus thì viền đâm lên
+        onBlur={() => setIsFocused(false)} // Khi bỏ focus thì viền mờ đi
       />
-      <TouchableOpacity 
-        style={styles.filterButton} 
-        onPress={onFilterPress} 
+      <TouchableOpacity
+        style={styles.filterButton}
+        onPress={onFilterPress}
         activeOpacity={0.8}
       >
         <MaterialIcons name="tune" size={20} color={COLORS.onPrimary} />
@@ -36,17 +65,6 @@ export function SearchBar({ value, onChangeText, onFilterPress, onPress, editabl
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      {onPress ? (
-        <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
-          {content}
-        </TouchableOpacity>
-      ) : (
-        content
-      )}
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
