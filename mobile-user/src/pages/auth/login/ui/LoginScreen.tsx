@@ -4,18 +4,14 @@ import { useRouter } from 'expo-router';
 import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 
-let GoogleSignin: any = null;
-if (Platform.OS !== 'web') {
-  try {
-    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-  } catch (error) {
-    console.warn('Google Sign-in native module is not available (normal in Expo Go):', error);
-  }
-}
+WebBrowser.maybeCompleteAuthSession();
 
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { CustomInput } from '../../../../shared/ui/CustomInput';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,32 +22,30 @@ export function LoginScreen() {
   const [isFocusedPassword, setIsFocusedPassword] = useState(false);
   const router = useRouter();
 
-  React.useEffect(() => {
-    if (GoogleSignin) {
-      GoogleSignin.configure({
-        webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747pbnt.apps.googleusercontent.com',
-      });
-    }
-  }, []);
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
+    webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
+  });
 
-  const handleGoogleLogin = async () => {
-    if (!GoogleSignin) {
-      if (Platform.OS === 'web') {
-        window.alert('Đăng nhập Google bằng SDK native không khả dụng trên trình duyệt web.');
-      } else {
-        Alert.alert('Không hỗ trợ', 'Đăng nhập Google không khả dụng trên thiết bị này (yêu cầu thiết bị thật hoặc máy ảo và Development Build).');
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      if (id_token) {
+        handleBackendGoogleLogin(id_token);
       }
-      return;
+    } else if (response?.type === 'error') {
+      const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
+      if (Platform.OS === 'web') {
+        window.alert('Lỗi đăng nhập Google: ' + errorMsg);
+      } else {
+        Alert.alert('Lỗi đăng nhập Google', errorMsg);
+      }
     }
+  }, [response]);
+
+  const handleBackendGoogleLogin = async (idToken: string) => {
     setLoading(true);
     try {
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken || userInfo.idToken;
-      if (!idToken) {
-        throw new Error('Không nhận được ID Token từ Google.');
-      }
-      
       const response = await googleLoginApi(idToken);
       if (response.isNewUser) {
         const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
@@ -83,17 +77,18 @@ export function LoginScreen() {
       }
     } catch (error: any) {
       console.error(error);
-      // SIGN_IN_CANCELLED might be a string or number depending on the platform/library. We also cover standard cancellation error.
-      if (error.code !== 'SIGN_IN_CANCELLED' && error.message !== 'Sign in action cancelled') {
-        if (Platform.OS !== 'web') {
-          Alert.alert('Lỗi đăng nhập Google', error.message || 'Có lỗi xảy ra.');
-        } else {
-          window.alert('Lỗi đăng nhập Google: ' + (error.message || 'Có lỗi xảy ra.'));
-        }
+      if (Platform.OS !== 'web') {
+        Alert.alert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
+      } else {
+        window.alert('Lỗi xác thực: ' + (error.message || 'Xác thực Google thất bại.'));
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    promptAsync();
   };
 
   const handleLogin = async () => {

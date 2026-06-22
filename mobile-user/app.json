@@ -38,8 +38,8 @@
       "expo-asset",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "@react-native-google-signin/google-signin",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }
