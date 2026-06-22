@@ -173,43 +173,45 @@ export function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
-            <Avatar
-              size="md"
-              source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null}
-              fallbackIcon="person"
-            />
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.greeting}>Xin chào, {userName}!</Text>
-            <View style={styles.locationContainer}>
-              <MaterialIcons name="location-on" size={14} color={COLORS.primary} />
-              <Text style={styles.locationText}>Hà Nội</Text>
+      {/* Header wrapper to color the status bar and notch area white */}
+      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
+              <Avatar
+                size="md"
+                source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null}
+                fallbackIcon="person"
+              />
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.greeting}>Xin chào, {userName}!</Text>
+              <View style={styles.locationContainer}>
+                <MaterialIcons name="location-on" size={14} color={COLORS.primary} />
+                <Text style={styles.locationText}>Hà Nội</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerRight}>
+            <Text style={styles.logoText}>SPORTA</Text>
+            <View style={{ position: 'relative' }}>
+              <Button
+                variant="ghost"
+                icon="notifications"
+                style={styles.notificationButton}
+                onPress={() => console.log('Notification pressed')}
+              />
+              {isAuthenticated && (
+                <View style={styles.notificationBadge} />
+              )}
             </View>
           </View>
         </View>
-
-        <View style={styles.headerRight}>
-          <Text style={styles.logoText}>SPORTA</Text>
-          <View style={{ position: 'relative' }}>
-            <Button
-              variant="ghost"
-              icon="notifications"
-              style={styles.notificationButton}
-              onPress={() => console.log('Notification pressed')}
-            />
-            {isAuthenticated && (
-              <View style={styles.notificationBadge} />
-            )}
-          </View>
-        </View>
-      </View>
+      </SafeAreaView>
 
       {/* Scrollable Content */}
       <ScrollView
@@ -345,7 +347,7 @@ export function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -353,6 +355,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  headerSafeArea: {
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: 'row',

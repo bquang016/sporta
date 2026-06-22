@@ -55,26 +55,28 @@ export function MapScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Search Header */}
-      <View style={styles.searchHeader}>
-        <View style={styles.searchContainer}>
-          <MaterialIcons name="search" size={20} color={COLORS.outline} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm kiếm sân vận động, CLB..."
-            placeholderTextColor={COLORS.outline}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
-            </TouchableOpacity>
-          ) : null}
+    <View style={styles.container}>
+      {/* Header wrapper to color the status bar and notch area white */}
+      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.searchHeader}>
+          <View style={styles.searchContainer}>
+            <MaterialIcons name="search" size={20} color={COLORS.outline} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm sân vận động, CLB..."
+              placeholderTextColor={COLORS.outline}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <Button variant="ghost" icon="tune" style={styles.filterButton} onPress={() => {}} />
         </View>
-        <Button variant="ghost" icon="tune" style={styles.filterButton} onPress={() => {}} />
-      </View>
+      </SafeAreaView>
 
       {/* Category List */}
       <View style={styles.categoryWrapper}>
@@ -197,7 +199,7 @@ export function MapScreen() {
           </View>
         </Card>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -205,6 +207,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  headerSafeArea: {
+    backgroundColor: COLORS.surface,
   },
   searchHeader: {
     flexDirection: 'row',

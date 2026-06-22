@@ -49,11 +49,21 @@ export function ClubsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Câu lạc bộ</Text>
-      </View>
+    <View style={styles.container}>
+      {/* Header wrapper to color the status bar and notch area white */}
+      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Câu lạc bộ</Text>
+          <Button
+            variant="ghost"
+            icon="add-circle-outline"
+            title="Tạo CLB"
+            textStyle={styles.createBtnText}
+            style={styles.createBtn}
+            onPress={() => console.log('Create new club')}
+          />
+        </View>
+      </SafeAreaView>
 
       {/* Search and Filters Section */}
       <View style={styles.filterSection}>
@@ -193,7 +203,7 @@ export function ClubsScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -201,6 +211,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  headerSafeArea: {
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: 'row',
