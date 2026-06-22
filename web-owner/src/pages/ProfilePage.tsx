@@ -1,16 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { getLoggedInUser } from '../utils/auth';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { useSystemStatus } from '../hooks/useSystemStatus';
+import logoMain from '../assets/logo/light/logo-main_1024x1024px.svg';
+import logoSvg from '../assets/logo/light/logo-main_40x40px_small.svg';
 
 export const ProfilePage = () => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'info';
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const { isOnline, latency } = useSystemStatus(10000);
+
+  const loggedInUser = getLoggedInUser();
+  const userEmail = loggedInUser?.email || 'owner@sporta.vn';
+  const userInitials = userEmail.substring(0, 2).toUpperCase();
+
+  const handleLogout = () => {
+    setIsLogoutModalOpen(true);
+  };
 
   // State for forms
   const [profileData, setProfileData] = useState({
     name: 'Nguyễn Quang Huy',
-    email: 'admin@sporta.vn',
+    email: userEmail,
     phone: '0987 654 321',
     role: 'Chủ sân',
     facilityName: 'Sporta Arena Quận 7',
@@ -89,8 +106,8 @@ export const ProfilePage = () => {
               <h1 className="text-xl font-black tracking-tight mt-0.5">Hồ sơ tài khoản</h1>
             </div>
             
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm">
-              <span className="font-bold text-sm text-brand-yellow">SA</span>
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm overflow-hidden p-1">
+              <img src={logoSvg} alt="Sporta Logo" className="w-full h-full object-contain" />
             </div>
           </div>
         </header>
@@ -238,7 +255,71 @@ export const ProfilePage = () => {
               </form>
             )}
           </div>
+
+          {/* Detailed System Status Card to prevent empty layout feeling */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-200/60 shadow-sm space-y-3 relative overflow-hidden">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Trạng thái hệ thống</h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 last:border-none">
+                <span className="text-slate-400 font-semibold">Vai trò</span>
+                <span className="font-black text-slate-700 bg-brand-emerald/10 text-brand-emerald px-2 py-0.5 rounded text-[10px] uppercase">Chủ sân</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 last:border-none">
+                <span className="text-slate-400 font-semibold">Thiết bị</span>
+                <span className="font-bold text-slate-700">Ứng dụng di động</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100 last:border-none">
+                <span className="text-slate-400 font-semibold">Kết nối API</span>
+                <span className={`font-bold flex items-center gap-1 ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {isOnline && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  )}
+                  {isOnline ? `Trực tuyến${latency !== null ? ` (${latency}ms)` : ''}` : 'Ngoại tuyến'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Gorgeous Red Logout Button for Mobile View */}
+          <div className="pt-2">
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100/80 border border-red-200 text-red-600 font-black text-xs py-3.5 rounded-2xl active:scale-98 transition-all cursor-pointer shadow-xs animate-fadeIn"
+            >
+              <svg className="w-4.5 h-4.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Đăng xuất tài khoản</span>
+            </button>
+          </div>
+
         </main>
+        <ConfirmModal
+          isOpen={isLogoutModalOpen}
+          onClose={() => setIsLogoutModalOpen(false)}
+          onConfirm={async () => {
+            const token = localStorage.getItem('accessToken');
+            try {
+              if (token) {
+                await fetch('http://localhost:8387/api/v1/auth/logout', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+              }
+            } catch (err) {
+              console.error('Logout error:', err);
+            }
+            localStorage.removeItem('accessToken');
+            navigate('/login');
+          }}
+          title="Xác nhận đăng xuất"
+          message="Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản lý chủ sân Sporta?"
+          confirmText="Đăng xuất"
+          cancelText="Hủy"
+          variant="logout"
+        />
       </div>
     );
   }
@@ -276,8 +357,8 @@ export const ProfilePage = () => {
         </div>
         
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-brand-yellow text-primary font-black text-2xl flex items-center justify-center shadow-md border-4 border-white/10">
-            SA
+          <div className="w-20 h-20 rounded-full bg-white text-primary font-black text-2xl flex items-center justify-center shadow-md border-4 border-white/10 p-2 overflow-hidden">
+            <img src={logoMain} alt="Sporta Logo" className="w-full h-full object-contain" />
           </div>
           <div className="text-center md:text-left space-y-1">
             <span className="inline-block text-[9px] bg-brand-yellow text-primary px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider shadow-xs">
@@ -320,8 +401,8 @@ export const ProfilePage = () => {
         {activeTab === 'info' && (
           <form onSubmit={handleProfileSave} className="space-y-6">
             <div className="flex flex-col md:flex-row items-center gap-6 pb-6 border-b border-slate-200/60">
-              <div className="w-16 h-16 rounded-full bg-brand-emerald text-white font-black text-xl flex items-center justify-center shadow-md border-4 border-white relative group">
-                SA
+              <div className="w-16 h-16 rounded-full bg-white text-white font-black text-xl flex items-center justify-center shadow-md border-4 border-white relative group overflow-hidden p-1.5">
+                <img src={logoMain} alt="Sporta Logo" className="w-full h-full object-contain" />
               </div>
               <div className="text-center md:text-left space-y-1">
                 <h3 className="text-xs font-black text-slate-800">Ảnh đại diện cụm sân</h3>

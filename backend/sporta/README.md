@@ -17,7 +17,7 @@ Thực thi lệnh sau để biên dịch và chạy ứng dụng:
 `./mvnw spring-boot:run`
 (Hoặc chạy trực tiếp file `ApiApplication.java` thông qua IDE).
 
-Máy chủ API sẽ hoạt động tại: `http://localhost:8080`
+Máy chủ API sẽ hoạt động tại: `http://localhost:8387`
 
 ## 3. Lưu Ý Đặc Biệt Về PostgreSQL
 

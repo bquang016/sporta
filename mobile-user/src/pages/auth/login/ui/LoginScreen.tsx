@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { loginApi } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isFocusedEmail, setIsFocusedEmail] = useState(false);
+  const [isFocusedPassword, setIsFocusedPassword] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -25,10 +30,17 @@ export function LoginScreen() {
     setLoading(true);
     try {
       const response = await loginApi(email, password);
+      const username = email.split('@')[0];
+      const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
+      
       if (Platform.OS === 'web') {
         localStorage.setItem('accessToken', response.accessToken);
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', capitalizedUsername);
       } else {
         await SecureStore.setItemAsync('accessToken', response.accessToken);
+        await SecureStore.setItemAsync('userEmail', email);
+        await SecureStore.setItemAsync('userName', capitalizedUsername);
       }
       if (Platform.OS !== 'web') {
         Alert.alert('Thành công', response.message);
@@ -67,8 +79,16 @@ export function LoginScreen() {
         {/* Form */}
         <View style={styles.formContainer}>
           <Text style={styles.label}>Email</Text>
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="email-outline" size={20} color="#666" style={styles.inputIcon} />
+          <View style={[
+            styles.inputContainer,
+            isFocusedEmail && styles.inputContainerFocused
+          ]}>
+            <MaterialCommunityIcons 
+              name="email-outline" 
+              size={20} 
+              color={isFocusedEmail ? COLORS.primary : COLORS.outline} 
+              style={styles.inputIcon} 
+            />
             <TextInput
               style={styles.input}
               placeholder="Nhập địa chỉ email"
@@ -76,23 +96,39 @@ export function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.outline}
+              onFocus={() => setIsFocusedEmail(true)}
+              onBlur={() => setIsFocusedEmail(false)}
             />
           </View>
 
           <Text style={styles.label}>Mật khẩu</Text>
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color="#666" style={styles.inputIcon} />
+          <View style={[
+            styles.inputContainer,
+            isFocusedPassword && styles.inputContainerFocused
+          ]}>
+            <MaterialCommunityIcons 
+              name="lock-outline" 
+              size={20} 
+              color={isFocusedPassword ? COLORS.primary : COLORS.outline} 
+              style={styles.inputIcon} 
+            />
             <TextInput
               style={styles.input}
               placeholder="Nhập mật khẩu"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.outline}
+              onFocus={() => setIsFocusedPassword(true)}
+              onBlur={() => setIsFocusedPassword(false)}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#666" />
+              <MaterialCommunityIcons 
+                name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                size={20} 
+                color={COLORS.outline} 
+              />
             </TouchableOpacity>
           </View>
 
@@ -100,20 +136,16 @@ export function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+          <Button 
+            title="Đăng nhập"
+            variant="primary"
+            size="lg"
+            loading={loading}
             onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
-            )}
-          </TouchableOpacity>
+          />
         </View>
 
-        {/* Divider */}
+		{/* Divider */}
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
           <Text style={styles.dividerText}>Hoặc đăng nhập với</Text>
@@ -122,21 +154,27 @@ export function LoginScreen() {
 
         {/* Social Buttons */}
         <View style={styles.socialContainer}>
-          <TouchableOpacity style={styles.socialButton}>
-            <MaterialCommunityIcons name="google" size={20} color="#DB4437" />
-            <Text style={styles.socialButtonText}>Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
-            <MaterialCommunityIcons name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialButtonText}>Facebook</Text>
-          </TouchableOpacity>
+          <Button 
+            variant="outline"
+            style={styles.socialButton}
+            onPress={() => console.log('Google login')}
+            icon={<MaterialCommunityIcons name="google" size={18} color="#DB4437" />}
+            title="Google"
+          />
+          <Button 
+            variant="outline"
+            style={styles.socialButton}
+            onPress={() => console.log('Facebook login')}
+            icon={<MaterialCommunityIcons name="facebook" size={18} color="#4267B2" />}
+            title="Facebook"
+          />
         </View>
         
         {/* Footer */}
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>Chưa có tài khoản? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.footerLink}>Sign Up</Text>
+            <Text style={styles.footerLink}>Đăng ký</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -147,7 +185,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
@@ -159,27 +197,31 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logoBadge: {
-    backgroundColor: '#2A5C43',
+    backgroundColor: COLORS.primary, // Green Forest Green
     paddingHorizontal: 24,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.default, // Standard 8px
   },
   logoText: {
-    color: '#FFD700',
+    color: COLORS.secondary, // Yellow brand Gold
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: TYPOGRAPHY.headlineLgMobile.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineLgMobile.fontWeight,
     fontStyle: 'italic',
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    color: COLORS.onSurface,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#348B71',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    fontWeight: TYPOGRAPHY.bodyMd.fontWeight,
+    color: COLORS.onSurfaceVariant,
     textAlign: 'center',
     marginBottom: 32,
     paddingHorizontal: 20,
@@ -189,19 +231,24 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    color: COLORS.onSurface,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default, // 8px
     paddingHorizontal: 12,
     height: 50,
     marginBottom: 15,
+    backgroundColor: COLORS.surface,
+  },
+  inputContainerFocused: {
+    borderColor: COLORS.primary, // Forest Green border on focus
   },
   inputIcon: {
     marginRight: 10,
@@ -209,35 +256,22 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurface,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   forgotPassword: {
     alignItems: 'flex-end',
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: '#2A5C43',
-    fontWeight: '600',
-  },
-  loginButton: {
-    backgroundColor: '#FFCC00',
-    borderRadius: 25,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FFCC00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  loginButtonDisabled: {
-    opacity: 0.7,
-  },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
+    color: COLORS.primary, // Green link
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
   },
   dividerContainer: {
     flexDirection: 'row',
@@ -247,11 +281,13 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: COLORS.outlineVariant,
   },
   dividerText: {
     marginHorizontal: 10,
-    color: '#2A5C43',
+    color: COLORS.primary,
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
     fontSize: 14,
   },
   socialContainer: {
@@ -259,20 +295,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     flex: 0.48,
     height: 48,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 24,
-  },
-  socialButtonText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default,
   },
   footerContainer: {
     flexDirection: 'row',
@@ -282,11 +308,13 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurfaceVariant,
   },
   footerLink: {
     fontSize: 14,
-    color: '#FFCC00',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
     fontWeight: 'bold',
+    color: COLORS.primary, // Forest Green for sign up link
   }
 });

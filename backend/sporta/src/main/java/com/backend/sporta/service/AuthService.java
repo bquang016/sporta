@@ -2,6 +2,8 @@ package com.backend.sporta.service;
 
 import com.backend.sporta.dto.*;
 import com.backend.sporta.entity.*;
+import com.backend.sporta.enums.Gender;
+import com.backend.sporta.enums.Role;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
@@ -34,6 +36,9 @@ public class AuthService {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -120,5 +125,15 @@ public class AuthService {
                 .accessToken(accessToken)
                 .message("Đăng ký thành công.")
                 .build();
+    }
+
+    public void logout(String authorizationHeader) {
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.substring(7);
+            if (jwtTokenProvider.validateToken(token)) {
+                java.util.Date expiration = jwtTokenProvider.getExpirationFromToken(token);
+                tokenBlacklistService.blacklistToken(token, expiration);
+            }
+        }
     }
 }

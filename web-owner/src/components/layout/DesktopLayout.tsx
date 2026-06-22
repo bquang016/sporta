@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '../ui/Tooltip';
+import { getLoggedInUser } from '../../utils/auth';
+import { ConfirmModal } from '../ui/ConfirmModal';
+import { useSystemStatus } from '../../hooks/useSystemStatus';
+import logoHorizontal from '../../assets/logo/light/logo-horizontal_1600x400px.svg';
+import logoSvg from '../../assets/logo/light/logo-main_40x40px_small.svg';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Bảng điều khiển',
@@ -19,6 +24,13 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(3);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const { isOnline, latency } = useSystemStatus(10000);
+
+  const loggedInUser = getLoggedInUser();
+  const userEmail = loggedInUser?.email || 'owner@sporta.vn';
+  const userInitials = userEmail.substring(0, 2).toUpperCase();
   
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Đơn đặt sân mới', desc: 'Khách Nguyễn Văn Hùng vừa đặt Sân Q7-1', time: 'Vừa xong', unread: true },
@@ -47,12 +59,22 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
         }`}
       >
         {/* Sidebar Header */}
-        <div className={`p-6 pb-2 transition-all duration-300 ${isSidebarCollapsed ? 'text-center px-2' : ''}`}>
-          <h1 className="text-2xl font-black tracking-tight text-brand-yellow">
-            {isSidebarCollapsed ? 'S' : 'Sporta'}
-          </h1>
-          {!isSidebarCollapsed && (
-            <p className="text-[10px] text-on-primary/70 mt-1 font-bold uppercase tracking-widest">Dành Cho Chủ Sân</p>
+        <div className={`py-6 px-4 transition-all duration-300 ${isSidebarCollapsed ? 'text-center px-2 flex justify-center' : 'flex flex-col items-start gap-1'}`}>
+          {isSidebarCollapsed ? (
+            <img 
+              src={logoSvg} 
+              alt="Sporta Logo" 
+              className="w-10 h-10 object-contain hover:scale-110 transition-transform duration-200" 
+            />
+          ) : (
+            <div className="flex flex-col gap-1 w-full">
+              <img 
+                src={logoHorizontal} 
+                alt="Sporta Logo" 
+                className="h-10 w-auto object-contain max-w-[180px]" 
+              />
+              <p className="text-[9px] text-on-primary/60 font-bold uppercase tracking-widest pl-1 mt-0.5">Dành Cho Chủ Sân</p>
+            </div>
           )}
         </div>
         
@@ -117,12 +139,16 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="flex items-center gap-6">
             {/* System Status & Time */}
             <div className="hidden xl:flex items-center gap-4 text-xs font-semibold text-slate-500 border-r border-slate-100 pr-6">
-              <div className="flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full text-brand-emerald">
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${isOnline ? 'bg-emerald-50 text-brand-emerald' : 'bg-red-50 text-red-600'}`}>
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-emerald"></span>
+                  {isOnline && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? 'bg-brand-emerald' : 'bg-red-600'}`}></span>
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-wider">Hệ thống: Trực tuyến</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">
+                  Hệ thống: {isOnline ? `Trực tuyến${latency !== null ? ` (${latency}ms)` : ''}` : 'Ngoại tuyến'}
+                </span>
               </div>
               <span className="text-slate-400 font-black">{formattedDate}</span>
             </div>
@@ -197,7 +223,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                   }}
                   className={`w-10 h-10 rounded-full bg-brand-emerald text-white hover:bg-emerald-900 transition-colors flex items-center justify-center font-bold shadow-sm active:scale-95 cursor-pointer relative focus:outline-none ${isProfileOpen ? 'ring-2 ring-brand-emerald/40' : ''}`}
                 >
-                  SA
+                  {userInitials}
                 </button>
 
                 {/* Profile Menu Dropdown (Admin text removed) */}
@@ -207,11 +233,11 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                     <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-40 overflow-hidden">
                       <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-brand-emerald text-white font-bold flex items-center justify-center text-lg shadow-sm">
-                          SA
+                          {userInitials}
                         </div>
                         <div className="min-w-0">
                           <h4 className="text-xs font-black text-slate-800 truncate">Sporta Arena</h4>
-                          <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">admin@sporta.vn</p>
+                          <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{userEmail}</p>
                           <span className="inline-block text-[8px] font-black uppercase text-brand-emerald bg-brand-emerald/10 px-1.5 py-0.5 rounded mt-1">
                             Chủ Sân
                           </span>
@@ -264,9 +290,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                         <button 
                           onClick={() => {
                             setIsProfileOpen(false);
-                            if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) {
-                              alert("Đăng xuất thành công!");
-                            }
+                            setIsLogoutModalOpen(true);
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
                         >
@@ -292,6 +316,33 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
         } flex-1 min-h-0 flex flex-col`}>
           {children}
         </div>
+
+        <ConfirmModal
+          isOpen={isLogoutModalOpen}
+          onClose={() => setIsLogoutModalOpen(false)}
+          onConfirm={async () => {
+            const token = localStorage.getItem('accessToken');
+            try {
+              if (token) {
+                await fetch('http://localhost:8387/api/v1/auth/logout', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+              }
+            } catch (err) {
+              console.error('Logout error:', err);
+            }
+            localStorage.removeItem('accessToken');
+            navigate('/login');
+          }}
+          title="Xác nhận đăng xuất"
+          message="Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản lý chủ sân Sporta?"
+          confirmText="Đăng xuất"
+          cancelText="Hủy"
+          variant="logout"
+        />
       </main>
     </div>
   );

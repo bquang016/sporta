@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 export interface Category {
   id: string;
@@ -61,13 +61,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'rgba(45, 106, 79, 0.1)',
+    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
     justifyContent: 'center',
     alignItems: 'center',
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
+    fontSize: TYPOGRAPHY.labelSm.fontSize,
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
   },

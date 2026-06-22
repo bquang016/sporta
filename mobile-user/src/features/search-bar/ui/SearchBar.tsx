@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 
@@ -26,7 +26,7 @@ export function SearchBar({ value, onChangeText, onFilterPress }: SearchBarProps
           onPress={onFilterPress} 
           activeOpacity={0.8}
         >
-          <MaterialIcons name="tune" size={20} color="#FFFFFF" />
+          <MaterialIcons name="tune" size={20} color={COLORS.onPrimary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceContainerLow,
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.md,
     height: 48,
@@ -55,6 +55,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.onSurface,
     paddingRight: 40, // Space for the tune button on the right
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   filterButton: {
     position: 'absolute',
@@ -67,8 +72,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 3,
+    elevation: 2,
   },
 });

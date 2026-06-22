@@ -58,10 +58,18 @@ export function OtpVerifyScreen() {
         });
       } else {
         // User exists, save access token and go home
+        const emailStr = email as string;
+        const username = emailStr ? emailStr.split('@')[0] : 'user';
+        const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
+        
         if (Platform.OS === 'web') {
           localStorage.setItem('accessToken', response.accessToken);
+          localStorage.setItem('userEmail', emailStr);
+          localStorage.setItem('userName', capitalizedUsername);
         } else {
           await SecureStore.setItemAsync('accessToken', response.accessToken);
+          await SecureStore.setItemAsync('userEmail', emailStr);
+          await SecureStore.setItemAsync('userName', capitalizedUsername);
         }
         
         if (Platform.OS !== 'web') {
@@ -92,7 +100,7 @@ export function OtpVerifyScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/register')} style={styles.backButton}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Xác thực OTP</Text>
@@ -149,6 +157,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    zIndex: 10,
   },
   backButton: {
     padding: 5,
@@ -184,6 +193,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     textAlign: 'center',
     color: '#333',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   resendContainer: {
     alignItems: 'center',

@@ -10,7 +10,7 @@ import {
   StyleProp
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -61,9 +61,8 @@ export function Button({
     if (React.isValidElement(icon)) return icon;
 
     // Get color based on variant and disabled state
-    let iconColor = COLORS.onPrimary;
-    if (variant === 'secondary') iconColor = COLORS.onSecondaryContainer;
-    else if (variant === 'outline' || variant === 'text' || variant === 'ghost') {
+    let iconColor = COLORS.onSecondary;
+    if (variant === 'secondary' || variant === 'outline' || variant === 'text' || variant === 'ghost') {
       iconColor = isButtonDisabled ? COLORS.outline : COLORS.primary;
     }
 
@@ -90,9 +89,7 @@ export function Button({
           size="small" 
           color={
             variant === 'primary' 
-              ? COLORS.onPrimary 
-              : variant === 'secondary'
-              ? COLORS.onSecondaryContainer
+              ? COLORS.onSecondary 
               : COLORS.primary
           } 
         />
@@ -123,23 +120,20 @@ const styles = StyleSheet.create({
   
   // Variants
   primary: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.secondary, // Yellow Accent
+    borderRadius: BORDER_RADIUS.default,
   },
   secondary: {
-    backgroundColor: COLORS.secondaryContainer,
-    borderRadius: BORDER_RADIUS.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.primary, // Green outline
+    borderRadius: BORDER_RADIUS.default,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.default,
   },
   text: {
     backgroundColor: 'transparent',
@@ -148,7 +142,7 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.default,
   },
 
   // Disabled Variants
@@ -156,9 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.outlineVariant,
   },
   secondaryDisabled: {
-    backgroundColor: '#F3F4F6',
-    elevation: 0,
-    shadowOpacity: 0,
+    borderColor: COLORS.outlineVariant,
   },
   outlineDisabled: {
     borderColor: COLORS.outlineVariant,
@@ -182,16 +174,17 @@ const styles = StyleSheet.create({
 
   // Text Base
   textBase: {
-    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
     textAlign: 'center',
   },
 
   // Text Variants
   text_primary: {
-    color: COLORS.onPrimary,
+    color: COLORS.onSecondary, // Black text on yellow background
   },
   text_secondary: {
-    color: COLORS.onSecondaryContainer,
+    color: COLORS.primary, // Green text on outline
   },
   text_outline: {
     color: COLORS.primary,
@@ -222,12 +215,15 @@ const styles = StyleSheet.create({
 
   // Text Sizes
   text_sm: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.labelSm.fontSize,
+    lineHeight: TYPOGRAPHY.labelSm.lineHeight,
   },
   text_md: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.labelMd.fontSize,
+    lineHeight: TYPOGRAPHY.labelMd.lineHeight,
   },
   text_lg: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.labelMd.fontSize + 2,
+    lineHeight: TYPOGRAPHY.labelMd.lineHeight + 2,
   },
 });
