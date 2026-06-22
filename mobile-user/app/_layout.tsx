@@ -9,6 +9,8 @@ import {
   HankenGrotesk_800ExtraBold 
 } from '@expo-google-fonts/hanken-grotesk';
 
+import { Platform } from 'react-native';
+
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -20,6 +22,19 @@ export default function RootLayout() {
     'HankenGrotesk-Bold': HankenGrotesk_700Bold,
     'HankenGrotesk-ExtraBold': HankenGrotesk_800ExtraBold,
   });
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.textContent = `
+        input::-ms-reveal,
+        input::-ms-clear {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   useEffect(() => {
     if (loaded || error) {

@@ -134,13 +134,13 @@ export function ClubsScreen() {
           filteredClubs.map((club) => {
             const isJoined = joinedClubs.includes(club.id);
             return (
-              <Card key={club.id} variant="surface" style={styles.clubCard}>
+              <Card key={club.id} variant="default" style={styles.clubCard}>
                 <View style={styles.cardHeader}>
-                  <Avatar size="md" fallbackIcon={club.sportIcon} style={styles.avatar} />
+                  <Avatar size="md" fallbackIcon={club.sportIcon as any} style={styles.avatar} />
                   <View style={styles.headerInfo}>
                     <Text style={styles.clubName}>{club.name}</Text>
                     <View style={styles.badges}>
-                      <Badge content={club.sport} variant="secondary" />
+                      <Badge text={club.sport} variant="default" />
                       <View style={styles.memberBadge}>
                         <MaterialIcons name="people" size={14} color={COLORS.onSurfaceVariant} />
                         <Text style={styles.memberText}>
