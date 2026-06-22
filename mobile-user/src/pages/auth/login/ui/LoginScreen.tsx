@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { loginApi } from '../../../../shared/api/auth';
+import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+
+let GoogleSignin: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+  } catch (error) {
+    console.warn('Google Sign-in native module is not available (normal in Expo Go):', error);
+  }
+}
 
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
@@ -16,6 +25,76 @@ export function LoginScreen() {
   const [isFocusedEmail, setIsFocusedEmail] = useState(false);
   const [isFocusedPassword, setIsFocusedPassword] = useState(false);
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (GoogleSignin) {
+      GoogleSignin.configure({
+        webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747pbnt.apps.googleusercontent.com',
+      });
+    }
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    if (!GoogleSignin) {
+      if (Platform.OS === 'web') {
+        window.alert('Đăng nhập Google bằng SDK native không khả dụng trên trình duyệt web.');
+      } else {
+        Alert.alert('Không hỗ trợ', 'Đăng nhập Google không khả dụng trên thiết bị này (yêu cầu thiết bị thật hoặc máy ảo và Development Build).');
+      }
+      return;
+    }
+    setLoading(true);
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken || userInfo.idToken;
+      if (!idToken) {
+        throw new Error('Không nhận được ID Token từ Google.');
+      }
+      
+      const response = await googleLoginApi(idToken);
+      if (response.isNewUser) {
+        const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
+        router.push({
+          pathname: '/(auth)/personal-info',
+          params: {
+            registrationToken: response.registrationToken,
+            email: response.email,
+            password: dummyPassword,
+            fullName: response.fullName
+          }
+        });
+      } else {
+        if (Platform.OS === 'web') {
+          localStorage.setItem('accessToken', response.accessToken);
+          localStorage.setItem('userEmail', response.email);
+          localStorage.setItem('userName', response.fullName);
+        } else {
+          await SecureStore.setItemAsync('accessToken', response.accessToken);
+          await SecureStore.setItemAsync('userEmail', response.email);
+          await SecureStore.setItemAsync('userName', response.fullName);
+        }
+        if (Platform.OS !== 'web') {
+          Alert.alert('Thành công', response.message);
+        } else {
+          window.alert(response.message);
+        }
+        router.replace('/(tabs)');
+      }
+    } catch (error: any) {
+      console.error(error);
+      // SIGN_IN_CANCELLED might be a string or number depending on the platform/library. We also cover standard cancellation error.
+      if (error.code !== 'SIGN_IN_CANCELLED' && error.message !== 'Sign in action cancelled') {
+        if (Platform.OS !== 'web') {
+          Alert.alert('Lỗi đăng nhập Google', error.message || 'Có lỗi xảy ra.');
+        } else {
+          window.alert('Lỗi đăng nhập Google: ' + (error.message || 'Có lỗi xảy ra.'));
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !email.includes('@')) {
@@ -157,7 +236,7 @@ export function LoginScreen() {
           <Button 
             variant="outline"
             style={styles.socialButton}
-            onPress={() => console.log('Google login')}
+            onPress={handleGoogleLogin}
             icon={<MaterialCommunityIcons name="google" size={18} color="#DB4437" />}
             title="Google"
           />

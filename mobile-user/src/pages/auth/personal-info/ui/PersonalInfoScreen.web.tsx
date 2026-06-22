@@ -6,9 +6,9 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/c
 
 export function PersonalInfoScreen() {
   const router = useRouter();
-  const { registrationToken, email, password } = useLocalSearchParams();
+  const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
 
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState(typeof initialFullName === 'string' ? initialFullName : '');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
 

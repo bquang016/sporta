@@ -15,9 +15,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.Collections;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class AuthService {
+
+    @Value("${google.client.id}")
+    private String googleClientId;
 
     @Autowired
     private UserRepository userRepository;
@@ -125,6 +134,55 @@ public class AuthService {
                 .accessToken(accessToken)
                 .message("Đăng ký thành công.")
                 .build();
+    }
+
+    public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
+        try {
+            NetHttpTransport transport = new NetHttpTransport();
+            GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+            if (idToken == null) {
+                throw new CustomException("Xác thực Google thất bại.", 400);
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String fullName = (String) payload.get("name");
+
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                if (user.getStatus() != UserStatus.ACTIVE) {
+                    throw new CustomException("Tài khoản của bạn đã bị khóa.", 403);
+                }
+                String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
+                return GoogleLoginResponse.builder()
+                        .isNewUser(false)
+                        .accessToken(accessToken)
+                        .email(email)
+                        .fullName(user.getFullName())
+                        .message("Đăng nhập Google thành công.")
+                        .build();
+            } else {
+                String registrationToken = jwtTokenProvider.generateRegistrationToken(email);
+                return GoogleLoginResponse.builder()
+                        .isNewUser(true)
+                        .registrationToken(registrationToken)
+                        .email(email)
+                        .fullName(fullName)
+                        .message("Tài khoản chưa tồn tại. Vui lòng hoàn tất thông tin.")
+                        .build();
+            }
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CustomException("Có lỗi xảy ra khi xác thực Google: " + e.getMessage(), 500);
+        }
     }
 
     public void logout(String authorizationHeader) {
