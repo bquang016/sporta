@@ -34,5 +34,7 @@ public class CourtRequest {
     @NotNull(message = "Môn thể thao không được để trống")
     private Long sportId;
 
+    private String venueId;
+
     private List<String> detailImages;
 }
