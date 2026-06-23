@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { courtService, type VenueResponse, type CourtResponse } from '../services/courtService';
+import { courtService } from '../features/venue/services/courtService';
+import type { VenueResponse, CourtResponse } from '../features/venue/types';
 
 export interface SimulatedBooking {
   id: string;

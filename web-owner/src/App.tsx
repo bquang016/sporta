@@ -1,10 +1,10 @@
 // Sporta Owner App Routing
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { MobileHome } from './pages/MobileHome'
-import { DesktopHome } from './pages/DesktopHome'
+import { MobileDashboardPage } from './features/dashboard/pages/MobileDashboardPage'
+import { DesktopDashboardPage } from './features/dashboard/pages/DesktopDashboardPage'
 import { MatrixPage } from './pages/MatrixPage'
 import { ScanPage } from './pages/ScanPage'
-import { OperationsPage } from './pages/OperationsPage'
+import { OperationsPage } from './features/venue/pages/OperationsPage'
 import { OperationsProvider } from './hooks/useOperationsState'
 import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -14,7 +14,7 @@ import { useIsMobile } from './hooks/useIsMobile'
 
 function App() {
   const isMobile = useIsMobile();
-  const Home = isMobile ? MobileHome : DesktopHome;
+  const Home = isMobile ? MobileDashboardPage : DesktopDashboardPage;
 
   return (
     <Routes>
