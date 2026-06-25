@@ -15,19 +15,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button, Card, Badge } from '../../../shared/ui';
+import { Button } from '../../../shared/ui';
 import { useClubs } from '../../../entities/club';
+import { CoverPickerModal, CoverItem } from './components/CoverPickerModal';
+import { AvatarPickerModal, AvatarItem } from './components/AvatarPickerModal';
 
 // Mock Cover Images (Gradients and free Unsplash URLs)
-const MOCK_COVERS = [
-  { id: 'cover-1', name: 'Bóng đá sân cỏ', url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=60', color: '#064E3B' },
-  { id: 'cover-2', name: 'Bóng rổ rực lửa', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=60', color: '#B45309' },
+const MOCK_COVERS: CoverItem[] = [
+  { id: 'cover-1', name: 'Bóng đá sân cỏ', url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=60', color: COLORS.primary },
+  { id: 'cover-2', name: 'Bóng rổ rực lửa', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=60', color: COLORS.amber },
   { id: 'cover-3', name: 'Cầu lông năng động', url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=60', color: '#1E3A8A' },
-  { id: 'cover-4', name: 'Pickleball nhiệt huyết', url: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=60', color: '#0D9488' }
+  { id: 'cover-4', name: 'Pickleball nhiệt huyết', url: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=60', color: COLORS.pickleball }
 ];
 
 // Mock Avatar Images
-const MOCK_AVATARS = [
+const MOCK_AVATARS: AvatarItem[] = [
   { id: 'avatar-1', name: 'Hải âu', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80', icon: 'sports-soccer' },
   { id: 'avatar-2', name: 'Chiến binh', url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80', icon: 'sports-basketball' },
   { id: 'avatar-3', name: 'Bồ câu', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', icon: 'sports-cricket' },
@@ -174,7 +176,7 @@ export function CreateClubScreen() {
             >
               <Image source={{ uri: selectedCover.url }} style={styles.coverImage} />
               <View style={styles.coverOverlay}>
-                <MaterialIcons name="photo-camera" size={20} color="#FFFFFF" />
+                <MaterialIcons name="photo-camera" size={20} color={COLORS.white} />
                 <Text style={styles.changeCoverText}>Đổi ảnh bìa</Text>
               </View>
             </TouchableOpacity>
@@ -187,7 +189,7 @@ export function CreateClubScreen() {
             >
               <Image source={{ uri: selectedAvatar.url }} style={styles.avatarImage} />
               <View style={styles.avatarOverlay}>
-                <MaterialIcons name="photo-camera" size={16} color="#FFFFFF" />
+                <MaterialIcons name="photo-camera" size={16} color={COLORS.white} />
               </View>
             </TouchableOpacity>
           </View>
@@ -430,73 +432,27 @@ export function CreateClubScreen() {
         </View>
       </Modal>
 
-      {/* Cover Image Picker Modal */}
-      <Modal
+      {/* Reusable Cover Picker Modal */}
+      <CoverPickerModal 
         visible={isCoverModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsCoverModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn ảnh bìa mẫu</Text>
-              <TouchableOpacity onPress={() => setIsCoverModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalGrid}>
-              {MOCK_COVERS.map((cover) => (
-                <TouchableOpacity
-                  key={cover.id}
-                  style={styles.coverThumbnailContainer}
-                  onPress={() => {
-                    setSelectedCover(cover);
-                    setIsCoverModalVisible(false);
-                  }}
-                >
-                  <Image source={{ uri: cover.url }} style={styles.coverThumbnail} />
-                  <Text style={styles.thumbnailLabel}>{cover.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setIsCoverModalVisible(false)}
+        covers={MOCK_COVERS}
+        onSelectCover={(cover) => {
+          setSelectedCover(cover);
+          setIsCoverModalVisible(false);
+        }}
+      />
 
-      {/* Avatar Picker Modal */}
-      <Modal
+      {/* Reusable Avatar Picker Modal */}
+      <AvatarPickerModal 
         visible={isAvatarModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsAvatarModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn ảnh đại diện mẫu</Text>
-              <TouchableOpacity onPress={() => setIsAvatarModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalGridAvatars}>
-              {MOCK_AVATARS.map((avatar) => (
-                <TouchableOpacity
-                  key={avatar.id}
-                  style={styles.avatarThumbnailContainer}
-                  onPress={() => {
-                    setSelectedAvatar(avatar);
-                    setIsAvatarModalVisible(false);
-                  }}
-                >
-                  <Image source={{ uri: avatar.url }} style={styles.avatarThumbnail} />
-                  <Text style={styles.thumbnailLabel}>{avatar.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setIsAvatarModalVisible(false)}
+        avatars={MOCK_AVATARS}
+        onSelectAvatar={(avatar) => {
+          setSelectedAvatar(avatar);
+          setIsAvatarModalVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -514,7 +470,7 @@ const styles = StyleSheet.create({
     height: 56,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(6, 78, 59, 0.1)',
+    borderBottomColor: COLORS.primaryOpacity10,
   },
   backButton: {
     width: 40,
@@ -528,10 +484,9 @@ const styles = StyleSheet.create({
     left: 60,
     right: 60,
     textAlign: 'center',
+    ...TYPOGRAPHY.headlineMd,
     fontSize: 18,
-    fontWeight: 'bold',
     color: COLORS.primary,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
   },
   headerPlaceholder: {
     width: 40,
@@ -557,21 +512,20 @@ const styles = StyleSheet.create({
   },
   coverOverlay: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: COLORS.blackOpacity50,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.base + 2,
     paddingVertical: SPACING.xs + 2,
     borderRadius: BORDER_RADIUS.xl,
-    gap: 4,
+    gap: SPACING.xs,
   },
   changeCoverText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
+    ...TYPOGRAPHY.labelSm,
     fontSize: 10,
-    fontWeight: '600',
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
   },
   avatarPickerContainer: {
     position: 'absolute',
@@ -579,12 +533,12 @@ const styles = StyleSheet.create({
     left: SPACING.marginMobile,
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: BORDER_RADIUS.full,
     borderWidth: 3,
     borderColor: COLORS.surface,
     backgroundColor: COLORS.surfaceContainer,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -601,7 +555,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: COLORS.blackOpacity30,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -613,10 +567,8 @@ const styles = StyleSheet.create({
     gap: SPACING.base,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '700',
     color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    ...TYPOGRAPHY.labelMd,
   },
   required: {
     color: COLORS.error,
@@ -624,13 +576,13 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.2)',
+    borderColor: COLORS.primaryOpacity20,
     borderRadius: BORDER_RADIUS.default,
     paddingHorizontal: SPACING.sm,
     height: 48,
-    fontSize: 14,
     color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
   },
   inputFocused: {
     borderColor: COLORS.primary,
@@ -645,8 +597,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
-    fontSize: 12,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    ...TYPOGRAPHY.labelSm,
     marginTop: -4,
   },
   sportsGrid: {
@@ -664,19 +615,17 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.default,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.12)',
+    borderColor: COLORS.primaryOpacity12,
     gap: SPACING.base,
   },
   sportChipActive: {
-    backgroundColor: 'rgba(6, 78, 59, 0.05)',
+    backgroundColor: COLORS.primaryOpacity05,
     borderColor: COLORS.primary,
     borderWidth: 1.5,
   },
   sportChipText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    ...TYPOGRAPHY.labelMd,
   },
   sportChipTextActive: {
     color: COLORS.primary,
@@ -692,7 +641,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: BORDER_RADIUS.default,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.2)',
+    borderColor: COLORS.primaryOpacity20,
     backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
@@ -705,24 +654,24 @@ const styles = StyleSheet.create({
     width: 60,
     height: 40,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.2)',
+    borderColor: COLORS.primaryOpacity20,
     borderRadius: BORDER_RADIUS.default,
     backgroundColor: COLORS.surface,
     textAlign: 'center',
-    fontSize: 16,
+    ...TYPOGRAPHY.bodyMd,
+    fontFamily: 'HankenGrotesk-SemiBold',
     fontWeight: '600',
     color: COLORS.onSurface,
     padding: 0,
   },
   counterSuffix: {
-    fontSize: 14,
     color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
   },
   helperText: {
-    fontSize: 12,
     color: COLORS.outline,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    ...TYPOGRAPHY.labelSm,
   },
   privacyContainer: {
     flexDirection: 'row',
@@ -732,13 +681,13 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.12)',
+    borderColor: COLORS.primaryOpacity12,
     borderRadius: BORDER_RADIUS.default,
     padding: SPACING.sm,
     gap: SPACING.xs,
   },
   privacyCardActive: {
-    backgroundColor: 'rgba(6, 78, 59, 0.05)',
+    backgroundColor: COLORS.primaryOpacity05,
     borderColor: COLORS.primary,
     borderWidth: 1.5,
   },
@@ -748,20 +697,18 @@ const styles = StyleSheet.create({
     gap: SPACING.base,
   },
   privacyTitle: {
-    fontSize: 14,
-    fontWeight: '700',
     color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    ...TYPOGRAPHY.labelMd,
   },
   privacyTitleActive: {
     color: COLORS.primary,
     fontWeight: '700',
   },
   privacyDesc: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 11,
-    color: COLORS.onSurfaceVariant,
     lineHeight: 16,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    color: COLORS.onSurfaceVariant,
     marginTop: SPACING.xs,
   },
   submitBtn: {
@@ -769,93 +716,9 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: BORDER_RADIUS.default,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: BORDER_RADIUS.lg,
-    borderTopRightRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl,
-    maxHeight: '60%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(6, 78, 59, 0.1)',
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-  },
-  modalGrid: {
-    paddingVertical: SPACING.md,
-    gap: SPACING.md,
-  },
-  modalGridAvatars: {
-    paddingVertical: SPACING.md,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md,
-    justifyContent: 'space-between',
-  },
-  coverThumbnailContainer: {
-    width: '100%',
-    height: 100,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.12)',
-  },
-  coverThumbnail: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  avatarThumbnailContainer: {
-    width: '45%',
-    aspectRatio: 1,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.12)',
-    paddingTop: SPACING.base,
-  },
-  avatarThumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    resizeMode: 'cover',
-  },
-  thumbnailLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    marginTop: 4,
-    textAlign: 'center',
-    position: 'absolute',
-    bottom: 6,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    paddingVertical: 2,
-  },
   alertModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.blackOpacity50,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
@@ -867,7 +730,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -877,17 +740,16 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   alertModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   alertModalMessage: {
-    fontSize: 14,
     color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: SPACING.lg,

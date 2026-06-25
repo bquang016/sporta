@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Avatar, Button, Badge } from '../../../shared/ui';
-import { useClubs } from '../../../entities/club';
+import { Button, Card } from '../../../shared/ui';
+import { useClubs, ClubDetailHeader } from '../../../entities/club';
 
 export function ClubDetailExploreScreen() {
   const router = useRouter();
@@ -58,83 +58,39 @@ export function ClubDetailExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Custom Header with Back Button */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          activeOpacity={0.7} 
-          onPress={() => router.back()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-          Chi tiết câu lạc bộ
-        </Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      
+      {/* Header wrapper to color the status bar and notch area white */}
+      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            activeOpacity={0.7} 
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+            {club.name}
+          </Text>
+          <View style={styles.headerPlaceholder} />
+        </View>
+      </SafeAreaView>
 
       {/* Main Content */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Cover Photo */}
-        <View style={styles.coverContainer}>
-          {club.coverImage ? (
-            <Image source={{ uri: club.coverImage }} style={styles.coverImage} />
-          ) : (
-            <View style={[styles.coverImage, { backgroundColor: COLORS.primary }]} />
-          )}
-        </View>
+        {/* Reusable Club detail header */}
+        <ClubDetailHeader club={club} />
 
-        {/* Avatar overlapping cover */}
-        <View style={styles.avatarContainer}>
-          <Avatar 
-            size={80} 
-            source={club.avatarImage} 
-            fallbackIcon={club.sportIcon as any}
-            style={styles.avatar}
-          />
-        </View>
-
-        {/* Info Section */}
+        {/* Bio / Description */}
         <View style={styles.infoSection}>
-          <Text style={styles.clubName}>{club.name}</Text>
-          
-          {/* Badges row */}
-          <View style={styles.badgesRow}>
-            <Badge text={club.sport} variant="success" />
-            <Badge 
-              text={club.isPrivate ? 'Riêng tư (Private)' : 'Công khai (Public)'} 
-              variant={club.isPrivate ? 'warning' : 'info'} 
-            />
-            <Badge text={club.activityLevel || 'Mới thành lập'} variant="default" />
-          </View>
-
-          {/* Location & Members Details */}
-          <View style={styles.metaContainer}>
-            <View style={styles.metaRow}>
-              <MaterialIcons name="location-on" size={20} color={COLORS.primary} style={styles.metaIcon} />
-              <View style={styles.metaContent}>
-                <Text style={styles.metaLabel}>Khu vực hoạt động</Text>
-                <Text style={styles.metaValue}>{club.area || 'Chưa cập nhật khu vực'}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.metaRow}>
-              <MaterialIcons name="people" size={20} color={COLORS.primary} style={styles.metaIcon} />
-              <View style={styles.metaContent}>
-                <Text style={styles.metaLabel}>Thành viên hiện tại</Text>
-                <Text style={styles.metaValue}>
-                  {club.members} / {club.maxMembers} thành viên (Tối đa {club.maxMembers})
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Bio / Description */}
-          <Text style={styles.sectionTitle}>Giới thiệu câu lạc bộ</Text>
-          <Text style={styles.description}>
-            {club.description || 'Không có mô tả chi tiết cho câu lạc bộ này.'}
-          </Text>
+          <Card variant="outline" style={styles.bioCard}>
+            <Text style={styles.sectionTitle}>Giới thiệu câu lạc bộ</Text>
+            <Text style={styles.description}>
+              {club.description || 'Không có mô tả chi tiết cho câu lạc bộ này.'}
+            </Text>
+          </Card>
         </View>
       </ScrollView>
 
@@ -181,7 +137,7 @@ export function ClubDetailExploreScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -190,15 +146,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  headerSafeArea: {
+    backgroundColor: COLORS.surface,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.marginMobile,
-    height: 56,
+    height: 64,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(6, 78, 59, 0.1)',
+    borderBottomColor: COLORS.outlineVariant,
   },
   backButton: {
     width: 40,
@@ -212,10 +171,9 @@ const styles = StyleSheet.create({
     left: 60,
     right: 60,
     textAlign: 'center',
+    ...TYPOGRAPHY.headlineMd,
     fontSize: 18,
-    fontWeight: 'bold',
     color: COLORS.primary,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
   },
   headerPlaceholder: {
     width: 40,
@@ -223,103 +181,34 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  coverContainer: {
-    height: 180,
-    width: '100%',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  avatarContainer: {
-    alignItems: 'flex-start',
-    paddingLeft: SPACING.marginMobile,
-    marginTop: -40,
-    zIndex: 10,
-  },
-  avatar: {
-    borderWidth: 3,
-    borderColor: COLORS.surface,
-    backgroundColor: COLORS.surfaceContainer,
-  },
   infoSection: {
     paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
     paddingBottom: SPACING.xl * 2,
   },
-  clubName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    marginBottom: 8,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.base,
-    marginBottom: SPACING.md,
-  },
-  metaContainer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.default,
-    padding: SPACING.md,
-    gap: SPACING.md,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
-    marginBottom: SPACING.md,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  metaIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'rgba(6, 78, 59, 0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    textAlign: 'center',
-    lineHeight: 36,
-  },
-  metaContent: {
-    flex: 1,
-  },
-  metaLabel: {
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-  },
-  metaValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    marginTop: 2,
+  bioCard: {
+    backgroundColor: COLORS.primaryOpacity05,
+    borderColor: COLORS.primaryOpacity15,
+    borderRadius: BORDER_RADIUS.lg,
   },
   sectionTitle: {
+    ...TYPOGRAPHY.labelMd,
     fontSize: 16,
-    fontWeight: '700',
     color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
     marginBottom: SPACING.base,
     marginTop: 0,
   },
   description: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 14,
     color: COLORS.onSurfaceVariant,
     lineHeight: 22,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    marginBottom: SPACING.lg,
+    marginBottom: 0,
   },
   footer: {
     padding: SPACING.marginMobile,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(6, 78, 59, 0.08)',
+    borderTopColor: COLORS.primaryOpacity08,
   },
   actionBtn: {
     width: '100%',
@@ -334,9 +223,8 @@ const styles = StyleSheet.create({
     gap: SPACING.base,
   },
   errorText: {
-    fontSize: 16,
+    ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
   },
   errorBtn: {
     marginTop: SPACING.md,
@@ -344,7 +232,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.blackOpacity50,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
@@ -356,7 +244,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -366,17 +254,16 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   alertModalTitle: {
+    ...TYPOGRAPHY.headlineMd,
     fontSize: 18,
-    fontWeight: 'bold',
     color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   alertModalMessage: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 14,
     color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: SPACING.lg,
