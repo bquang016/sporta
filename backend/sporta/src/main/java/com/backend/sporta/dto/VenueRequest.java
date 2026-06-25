@@ -15,5 +15,9 @@ public class VenueRequest {
     @NotBlank(message = "Vị trí không được để trống")
     private String location;
 
+    private Double latitude;
+
+    private Double longitude;
+
     private String description;
 }

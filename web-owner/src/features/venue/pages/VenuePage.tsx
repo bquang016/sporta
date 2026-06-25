@@ -19,6 +19,10 @@ export const VenuePage = () => {
     setVenueName,
     venueLocation,
     setVenueLocation,
+    venueLatitude,
+    setVenueLatitude,
+    venueLongitude,
+    setVenueLongitude,
     venueDescription,
     setVenueDescription,
     venueValidationErrors,
@@ -28,6 +32,10 @@ export const VenuePage = () => {
     setEditVenueName,
     editVenueLocation,
     setEditVenueLocation,
+    editVenueLatitude,
+    setEditVenueLatitude,
+    editVenueLongitude,
+    setEditVenueLongitude,
     editVenueDescription,
     setEditVenueDescription,
     isStatusModalOpen,
@@ -138,6 +146,10 @@ export const VenuePage = () => {
         setName={setVenueName}
         location={venueLocation}
         setLocation={setVenueLocation}
+        latitude={venueLatitude}
+        setLatitude={setVenueLatitude}
+        longitude={venueLongitude}
+        setLongitude={setVenueLongitude}
         description={venueDescription}
         setDescription={setVenueDescription}
         validationErrors={venueValidationErrors}
@@ -154,6 +166,10 @@ export const VenuePage = () => {
         setName={setEditVenueName}
         location={editVenueLocation}
         setLocation={setEditVenueLocation}
+        latitude={editVenueLatitude}
+        setLatitude={setEditVenueLatitude}
+        longitude={editVenueLongitude}
+        setLongitude={setEditVenueLongitude}
         description={editVenueDescription}
         setDescription={setEditVenueDescription}
         submitLabel="Luu thay doi"

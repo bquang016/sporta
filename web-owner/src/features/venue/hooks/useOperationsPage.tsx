@@ -24,6 +24,9 @@ export const useOperationsPage = () => {
     resolveBooking,
   } = useOperations();
 
+  const activeVenue = venues.find(v => v.id === selectedVenueId) || venues[0];
+  const activeVenueId = activeVenue?.id;
+
   // Local UI States
   const [mobileScreen, setMobileScreen] = useState<'list' | 'detail'>('list');
   const [activeTab, setActiveTab] = useState<'facilities' | 'overview'>('facilities');
@@ -58,11 +61,15 @@ export const useOperationsPage = () => {
   // Create venue form states
   const [newVenueName, setNewVenueName] = useState('');
   const [newVenueLocation, setNewVenueLocation] = useState('');
+  const [newVenueLatitude, setNewVenueLatitude] = useState<number | undefined>(undefined);
+  const [newVenueLongitude, setNewVenueLongitude] = useState<number | undefined>(undefined);
   const [newVenueDescription, setNewVenueDescription] = useState('');
 
   // Edit venue form states
   const [editVenueName, setEditVenueName] = useState('');
   const [editVenueLocation, setEditVenueLocation] = useState('');
+  const [editVenueLatitude, setEditVenueLatitude] = useState<number | undefined>(undefined);
+  const [editVenueLongitude, setEditVenueLongitude] = useState<number | undefined>(undefined);
   const [editVenueDescription, setEditVenueDescription] = useState('');
 
   // Surcharge states
@@ -76,6 +83,265 @@ export const useOperationsPage = () => {
   // Confirmation flow states for venue status
   const [pendingVenueStatus, setPendingVenueStatus] = useState<'ACTIVE' | 'MAINTENANCE' | 'CLOSED' | null>(null);
   const [isConfirmStatusModalOpen, setIsConfirmStatusModalOpen] = useState(false);
+
+  // --- NEW COURT FORM STATES & AUTO-SAVE DRAFT ---
+  const [isAddingCourt, setIsAddingCourt] = useState(false);
+  const [newCourtName, setNewCourtName] = useState('');
+  const [newCourtSportId, setNewCourtSportId] = useState('1');
+  const [newCourtPrice, setNewCourtPrice] = useState('100000');
+  const [newCourtOpeningTime, setNewCourtOpeningTime] = useState('06:00');
+  const [newCourtClosingTime, setNewCourtClosingTime] = useState('22:00');
+  const [newCourtLocation, setNewCourtLocation] = useState('');
+  const [newCourtDescription, setNewCourtDescription] = useState('');
+  const [newCourtCoverImage, setNewCourtCoverImage] = useState('');
+  const [newCourtDetailImages, setNewCourtDetailImages] = useState<string[]>([]);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
+  const [isConfirmDeleteDraftOpen, setIsConfirmDeleteDraftOpen] = useState(false);
+  const [newCourtValidationErrors, setNewCourtValidationErrors] = useState<Record<string, string>>({});
+  const [hasDraft, setHasDraft] = useState(false);
+  const [uploadingNewCover, setUploadingNewCover] = useState(false);
+  const [uploadingNewDetail, setUploadingNewDetail] = useState(false);
+
+  // Save draft to localStorage
+  useEffect(() => {
+    if (!isAddingCourt) return;
+
+    const draft = {
+      name: newCourtName,
+      sportId: newCourtSportId,
+      price: newCourtPrice,
+      openingTime: newCourtOpeningTime,
+      closingTime: newCourtClosingTime,
+      location: newCourtLocation,
+      description: newCourtDescription,
+      coverImage: newCourtCoverImage,
+      detailImages: newCourtDetailImages,
+      venueId: activeVenueId
+    };
+
+    const hasData = newCourtName.trim() || 
+                    newCourtPrice !== '100000' || 
+                    newCourtLocation.trim() || 
+                    newCourtDescription.trim() || 
+                    newCourtCoverImage || 
+                    newCourtDetailImages.length > 0;
+
+    if (hasData) {
+      localStorage.setItem('sporta_court_draft', JSON.stringify(draft));
+      setHasDraft(true);
+    } else {
+      localStorage.removeItem('sporta_court_draft');
+      setHasDraft(false);
+    }
+  }, [
+    isAddingCourt,
+    newCourtName,
+    newCourtSportId,
+    newCourtPrice,
+    newCourtOpeningTime,
+    newCourtClosingTime,
+    newCourtLocation,
+    newCourtDescription,
+    newCourtCoverImage,
+    newCourtDetailImages,
+    activeVenueId
+  ]);
+
+  // Check if draft exists on mount or active venue change
+  useEffect(() => {
+    const rawDraft = localStorage.getItem('sporta_court_draft');
+    if (rawDraft) {
+      try {
+        const parsed = JSON.parse(rawDraft);
+        const hasData = parsed.name?.trim() || 
+                        parsed.location?.trim() || 
+                        parsed.coverImage || 
+                        (parsed.detailImages && parsed.detailImages.length > 0);
+        setHasDraft(!!hasData);
+      } catch {
+        setHasDraft(false);
+      }
+    } else {
+      setHasDraft(false);
+    }
+  }, [activeVenueId]);
+
+  const newCourtFromDraft = (draft: any) => {
+    setNewCourtName(draft.name || '');
+    setNewCourtSportId(draft.sportId || '1');
+    setNewCourtPrice(draft.price || '100000');
+    setNewCourtOpeningTime(draft.openingTime || '06:00');
+    setNewCourtClosingTime(draft.closingTime || '22:00');
+    setNewCourtLocation(draft.location || activeVenue?.location || '');
+    setNewCourtDescription(draft.description || '');
+    setNewCourtCoverImage(draft.coverImage || '');
+    setNewCourtDetailImages(draft.detailImages || []);
+    setTermsAccepted(false);
+    setNewCourtValidationErrors({});
+  };
+
+  const initCleanAddCourt = () => {
+    setNewCourtName('');
+    setNewCourtSportId('1');
+    setNewCourtPrice('100000');
+    setNewCourtOpeningTime('06:00');
+    setNewCourtClosingTime('22:00');
+    setNewCourtLocation(activeVenue?.location || '');
+    setNewCourtDescription('');
+    setNewCourtCoverImage('');
+    setNewCourtDetailImages([]);
+    setTermsAccepted(false);
+    setNewCourtValidationErrors({});
+  };
+
+  const handleStartAddCourt = () => {
+    const rawDraft = localStorage.getItem('sporta_court_draft');
+    if (rawDraft) {
+      try {
+        const parsed = JSON.parse(rawDraft);
+        newCourtFromDraft(parsed);
+      } catch {
+        initCleanAddCourt();
+      }
+    } else {
+      initCleanAddCourt();
+    }
+    setIsAddingCourt(true);
+  };
+
+  const handleCancelAddCourt = () => {
+    setIsAddingCourt(false);
+  };
+
+  const handleRestoreDraft = () => {
+    const rawDraft = localStorage.getItem('sporta_court_draft');
+    if (rawDraft) {
+      try {
+        const parsed = JSON.parse(rawDraft);
+        newCourtFromDraft(parsed);
+        setIsAddingCourt(true);
+      } catch {
+        showToast('error', 'Không thể khôi phục đơn nháp');
+      }
+    }
+  };
+
+  const handleClearDraft = () => {
+    localStorage.removeItem('sporta_court_draft');
+    setHasDraft(false);
+    initCleanAddCourt();
+  };
+
+  const validateNewCourt = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!newCourtName.trim()) {
+      errors.name = 'Tên sân không được để trống';
+    } else if (newCourtName.length < 3) {
+      errors.name = 'Tên sân phải có ít nhất 3 ký tự';
+    }
+
+    const priceNum = parseFloat(newCourtPrice);
+    if (!newCourtPrice || isNaN(priceNum) || priceNum <= 0) {
+      errors.price = 'Giá thuê phải là số dương lớn hơn 0';
+    }
+
+    if (!newCourtLocation.trim()) {
+      errors.location = 'Địa chỉ vị trí sân không được để trống';
+    }
+
+    if (!newCourtCoverImage) {
+      errors.coverImage = 'Vui lòng cung cấp/tải lên ảnh bìa cho sân';
+    }
+
+    const openParts = newCourtOpeningTime.split(':').map(Number);
+    const closeParts = newCourtClosingTime.split(':').map(Number);
+    const openMinutes = openParts[0] * 60 + openParts[1];
+    const closeMinutes = closeParts[0] * 60 + closeParts[1];
+
+    if (closeMinutes <= openMinutes) {
+      errors.time = 'Giờ đóng cửa phải nằm sau giờ mở cửa';
+    }
+
+    if (!termsAccepted) {
+      errors.terms = 'Bạn phải đồng ý với Chính sách & Điều khoản để tiếp tục';
+    }
+
+    setNewCourtValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmitNewCourt = () => {
+    if (!validateNewCourt()) {
+      showToast('warning', 'Vui lòng kiểm tra lại thông tin đơn đăng ký');
+      return;
+    }
+    setIsConfirmSubmitOpen(true);
+  };
+
+  const handleConfirmSubmitNewCourt = async () => {
+    const payload: CourtRequest = {
+      name: newCourtName,
+      price: parseFloat(newCourtPrice),
+      description: newCourtDescription,
+      coverImage: newCourtCoverImage,
+      openingTime: newCourtOpeningTime,
+      closingTime: newCourtClosingTime,
+      location: newCourtLocation,
+      sportId: parseInt(newCourtSportId),
+      venueId: activeVenueId || null,
+      detailImages: newCourtDetailImages
+    };
+
+    try {
+      await courtService.registerCourt(payload);
+      showToast('success', 'Gửi đơn đăng ký sân mới thành công (Đang chờ duyệt)!');
+      localStorage.removeItem('sporta_court_draft');
+      setHasDraft(false);
+      setIsAddingCourt(false);
+      initCleanAddCourt();
+      await refreshData();
+    } catch (err: any) {
+      showToast('error', err.message || 'Lỗi khi gửi đơn đăng ký sân mới');
+    } finally {
+      setIsConfirmSubmitOpen(false);
+    }
+  };
+
+  const uploadNewCoverFile = async (file: File) => {
+    try {
+      setUploadingNewCover(true);
+      const url = await courtService.uploadImage(file, 'court_cover');
+      setNewCourtCoverImage(url);
+      showToast('success', 'Tải ảnh bìa lên Cloudflare R2 thành công!');
+    } catch {
+      showToast('error', 'Lỗi khi upload ảnh bìa');
+    } finally {
+      setUploadingNewCover(false);
+    }
+  };
+
+  const uploadNewDetailFiles = async (files: FileList) => {
+    try {
+      setUploadingNewDetail(true);
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const url = await courtService.uploadImage(files[i], 'court_detail');
+        uploadedUrls.push(url);
+      }
+      setNewCourtDetailImages(prev => [...prev, ...uploadedUrls]);
+      showToast('success', `Đã upload ${files.length} ảnh chi tiết lên R2!`);
+    } catch {
+      showToast('error', 'Lỗi khi upload ảnh chi tiết');
+    } finally {
+      setUploadingNewDetail(false);
+    }
+  };
+
+  const handleRemoveNewDetailImage = (index: number) => {
+    setNewCourtDetailImages(prev => prev.filter((_, idx) => idx !== index));
+  };
 
   // Helper: Format currency 100000 -> 100.000 VND
   const formatVND = (amount: number) => {
@@ -102,9 +368,6 @@ export const useOperationsPage = () => {
     { value: 'MAINTENANCE', label: 'Bảo trì',     icon: <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" /> },
     { value: 'CLOSED',      label: 'Đóng cửa',   icon: <span className="w-2.5 h-2.5 rounded-full bg-red-500 block" /> },
   ];
-
-  const activeVenue = venues.find(v => v.id === selectedVenueId) || venues[0];
-  const activeVenueId = activeVenue?.id;
 
   const activeCourts = courts.filter(c => c.venueId === activeVenueId);
   const filteredVenues = venues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -216,10 +479,12 @@ export const useOperationsPage = () => {
         return;
       }
       try {
-        await createVenueInfo(newVenueName, newVenueLocation, newVenueDescription);
+        await createVenueInfo(newVenueName, newVenueLocation, newVenueDescription, newVenueLatitude, newVenueLongitude);
         setIsCreateVenueModalOpen(false);
         setNewVenueName('');
         setNewVenueLocation('');
+        setNewVenueLatitude(undefined);
+        setNewVenueLongitude(undefined);
         setNewVenueDescription('');
         showToast('success', 'Đã tạo cụm sân mới thành công!');
       } catch (err: any) {
@@ -232,6 +497,8 @@ export const useOperationsPage = () => {
       if (!target) return;
       setEditVenueName(target.name);
       setEditVenueLocation(target.location);
+      setEditVenueLatitude(target.latitude);
+      setEditVenueLongitude(target.longitude);
       setEditVenueDescription(target.description || '');
       if (venueId) setSelectedVenueId(venueId);
       setIsEditVenueModalOpen(true);
@@ -243,7 +510,7 @@ export const useOperationsPage = () => {
         return;
       }
       try {
-        await updateVenueInfo(activeVenueId!, editVenueName, editVenueLocation, editVenueDescription);
+        await updateVenueInfo(activeVenueId!, editVenueName, editVenueLocation, editVenueDescription, editVenueLatitude, editVenueLongitude);
         setIsEditVenueModalOpen(false);
         showToast('success', 'Đã cập nhật thông tin cụm sân thành công!');
       } catch (err: any) {
@@ -251,8 +518,8 @@ export const useOperationsPage = () => {
       }
     };
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) setSelectedCourtIds(activeCourts.map(c => c.id));
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) setSelectedCourtIds(activeCourts.map(c => c.id));
     else setSelectedCourtIds([]);
   };
 
@@ -443,6 +710,10 @@ export const useOperationsPage = () => {
     setNewVenueName,
     newVenueLocation,
     setNewVenueLocation,
+    newVenueLatitude,
+    setNewVenueLatitude,
+    newVenueLongitude,
+    setNewVenueLongitude,
     newVenueDescription,
     setNewVenueDescription,
 
@@ -451,6 +722,10 @@ export const useOperationsPage = () => {
     setEditVenueName,
     editVenueLocation,
     setEditVenueLocation,
+    editVenueLatitude,
+    setEditVenueLatitude,
+    editVenueLongitude,
+    setEditVenueLongitude,
     editVenueDescription,
     setEditVenueDescription,
 
@@ -514,5 +789,48 @@ export const useOperationsPage = () => {
     handleRemoveDetailImage,
     handleSaveCourtConfig,
     handleResolveBooking,
+
+    // --- NEW COURT FORM / DRAFT EXPORTS ---
+    isAddingCourt,
+    setIsAddingCourt,
+    newCourtName,
+    setNewCourtName,
+    newCourtSportId,
+    setNewCourtSportId,
+    newCourtPrice,
+    setNewCourtPrice,
+    newCourtOpeningTime,
+    setNewCourtOpeningTime,
+    newCourtClosingTime,
+    setNewCourtClosingTime,
+    newCourtLocation,
+    setNewCourtLocation,
+    newCourtDescription,
+    setNewCourtDescription,
+    newCourtCoverImage,
+    setNewCourtCoverImage,
+    newCourtDetailImages,
+    setNewCourtDetailImages,
+    termsAccepted,
+    setTermsAccepted,
+    isTermsModalOpen,
+    setIsTermsModalOpen,
+    isConfirmSubmitOpen,
+    setIsConfirmSubmitOpen,
+    isConfirmDeleteDraftOpen,
+    setIsConfirmDeleteDraftOpen,
+    newCourtValidationErrors,
+    hasDraft,
+    uploadingNewCover,
+    uploadingNewDetail,
+    handleStartAddCourt,
+    handleCancelAddCourt,
+    handleRestoreDraft,
+    handleClearDraft,
+    handleSubmitNewCourt,
+    handleConfirmSubmitNewCourt,
+    uploadNewCoverFile,
+    uploadNewDetailFiles,
+    handleRemoveNewDetailImage,
   };
 };

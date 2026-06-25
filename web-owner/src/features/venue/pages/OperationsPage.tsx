@@ -11,6 +11,8 @@ import { VenueFormModal } from '../components/VenueFormModal';
 import { VenueStatusModal } from '../components/VenueStatusModal';
 import { VenueRowMenu } from '../components/operations/VenueRowMenu';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+import { Modal } from '../../../components/ui/Modal';
+import { AddCourtSubScreen } from '../components/operations/AddCourtSubScreen';
 
 export const OperationsPage = () => {
   const isMobile = useIsMobile();
@@ -75,6 +77,10 @@ export const OperationsPage = () => {
     setNewVenueName,
     newVenueLocation,
     setNewVenueLocation,
+    newVenueLatitude,
+    setNewVenueLatitude,
+    newVenueLongitude,
+    setNewVenueLongitude,
     newVenueDescription,
     setNewVenueDescription,
 
@@ -83,6 +89,10 @@ export const OperationsPage = () => {
     setEditVenueName,
     editVenueLocation,
     setEditVenueLocation,
+    editVenueLatitude,
+    setEditVenueLatitude,
+    editVenueLongitude,
+    setEditVenueLongitude,
     editVenueDescription,
     setEditVenueDescription,
 
@@ -139,9 +149,116 @@ export const OperationsPage = () => {
     handleRemoveDetailImage,
     handleSaveCourtConfig,
     handleResolveBooking,
+
+    // --- NEW COURT FORM / DRAFT STATE ---
+    isAddingCourt,
+    setIsAddingCourt,
+    newCourtName,
+    setNewCourtName,
+    newCourtSportId,
+    setNewCourtSportId,
+    newCourtPrice,
+    setNewCourtPrice,
+    newCourtOpeningTime,
+    setNewCourtOpeningTime,
+    newCourtClosingTime,
+    setNewCourtClosingTime,
+    newCourtLocation,
+    setNewCourtLocation,
+    newCourtDescription,
+    setNewCourtDescription,
+    newCourtCoverImage,
+    setNewCourtCoverImage,
+    newCourtDetailImages,
+    setNewCourtDetailImages,
+    termsAccepted,
+    setTermsAccepted,
+    isTermsModalOpen,
+    setIsTermsModalOpen,
+    isConfirmSubmitOpen,
+    setIsConfirmSubmitOpen,
+    isConfirmDeleteDraftOpen,
+    setIsConfirmDeleteDraftOpen,
+    newCourtValidationErrors,
+    hasDraft,
+    uploadingNewCover,
+    uploadingNewDetail,
+    handleStartAddCourt,
+    handleCancelAddCourt,
+    handleRestoreDraft,
+    handleClearDraft,
+    handleSubmitNewCourt,
+    handleConfirmSubmitNewCourt,
+    uploadNewCoverFile,
+    uploadNewDetailFiles,
+    handleRemoveNewDetailImage,
   } = useOperationsPage();
 
-    // ── LOADING / EMPTY STATES ──────────────────────────────────────────────────
+  // --- DRAGGING STATE FOR CHAT-BUBBLE POPUP ---
+  const [dragPos, setDragPos] = React.useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const dragStart = React.useRef({ x: 0, y: 0 });
+
+  React.useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setDragPos({ x: dx, y: dy });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      // Snap back horizontally to right margin (x: 0), but keep vertical offset (y)
+      setDragPos(prev => ({ x: 0, y: prev.y }));
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const dx = e.touches[0].clientX - dragStart.current.x;
+      const dy = e.touches[0].clientY - dragStart.current.y;
+      setDragPos({ x: dx, y: dy });
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      setDragPos(prev => ({ x: 0, y: prev.y }));
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging]);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    // Only drag on left click
+    if (e.button !== 0) return;
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX - dragPos.x,
+      y: e.clientY - dragPos.y
+    };
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) return;
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.touches[0].clientX - dragPos.x,
+      y: e.touches[0].clientY - dragPos.y
+    };
+  };
+
+  // ── LOADING / EMPTY STATES ──────────────────────────────────────────────────
 
     if (loading) {
       return (
@@ -188,6 +305,10 @@ export const OperationsPage = () => {
             setName={setNewVenueName}
             location={newVenueLocation}
             setLocation={setNewVenueLocation}
+            latitude={newVenueLatitude}
+            setLatitude={setNewVenueLatitude}
+            longitude={newVenueLongitude}
+            setLongitude={setNewVenueLongitude}
             description={newVenueDescription}
             setDescription={setNewVenueDescription}
             submitLabel="Tạo cụm sân"
@@ -209,7 +330,46 @@ export const OperationsPage = () => {
       {/* MOBILE DRILL-DOWN LAYOUT */}
       {isMobile ? (
         <div className="flex flex-col flex-1">
-          {mobileScreen === 'list' ? (
+          {isAddingCourt ? (
+            <AddCourtSubScreen
+              onClose={handleCancelAddCourt}
+              onSubmit={handleSubmitNewCourt}
+              name={newCourtName}
+              setName={setNewCourtName}
+              sportId={newCourtSportId}
+              setSportId={setNewCourtSportId}
+              price={newCourtPrice}
+              setPrice={setNewCourtPrice}
+              openingTime={newCourtOpeningTime}
+              setOpeningTime={setNewCourtOpeningTime}
+              closingTime={newCourtClosingTime}
+              setClosingTime={setNewCourtClosingTime}
+              location={newCourtLocation}
+              setLocation={setNewCourtLocation}
+              description={newCourtDescription}
+              setDescription={setNewCourtDescription}
+              coverImage={newCourtCoverImage}
+              setCoverImage={setNewCourtCoverImage}
+              detailImages={newCourtDetailImages}
+              termsAccepted={termsAccepted}
+              setTermsAccepted={setTermsAccepted}
+              onOpenTerms={() => setIsTermsModalOpen(true)}
+              uploadingCover={uploadingNewCover}
+              uploadingDetail={uploadingNewDetail}
+              validationErrors={newCourtValidationErrors}
+              TIME_OPTIONS={hourDropdownOptions}
+              SPORT_OPTIONS={[
+                { value: '1', label: 'Bóng đá' },
+                { value: '2', label: 'Cầu lông' },
+                { value: '3', label: 'Pickleball' },
+                { value: '4', label: 'Bóng rổ' }
+              ]}
+              onUploadCover={uploadNewCoverFile}
+              onUploadDetail={uploadNewDetailFiles}
+              onRemoveDetailImage={handleRemoveNewDetailImage}
+              formatVND={formatVND}
+            />
+          ) : mobileScreen === 'list' ? (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm space-y-3">
                 <div className="flex justify-between items-center">
@@ -301,9 +461,20 @@ export const OperationsPage = () => {
                 />
               </div>
 
-              <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm">
-                <h2 className="text-base font-black text-slate-800">{activeVenue.name}</h2>
-                <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">{activeVenue.location}</p>
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm flex justify-between items-center gap-4">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-black text-slate-800 truncate">{activeVenue.name}</h2>
+                  <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5 truncate">{activeVenue.location}</p>
+                </div>
+                <button
+                  onClick={handleStartAddCourt}
+                  className="bg-brand-emerald text-white text-[10px] font-black px-3.5 py-2 rounded-xl active:scale-95 shadow-sm border-b-2 border-emerald-950 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <svg className="w-3 h-3 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Thêm sân
+                </button>
               </div>
 
               {actionRequiredBookings.length > 0 && (
@@ -400,18 +571,67 @@ export const OperationsPage = () => {
           />
 
           {/* MAIN CONTENT AREA */}
-          <section className="flex-1 bg-white border border-slate-200/60 rounded-3xl shadow-sm p-6 flex flex-col min-w-0">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100 select-none flex-shrink-0">
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-black text-slate-800 tracking-tight">{activeVenue.name}</h1>
+          {isAddingCourt ? (
+            <AddCourtSubScreen
+              onClose={handleCancelAddCourt}
+              onSubmit={handleSubmitNewCourt}
+              name={newCourtName}
+              setName={setNewCourtName}
+              sportId={newCourtSportId}
+              setSportId={setNewCourtSportId}
+              price={newCourtPrice}
+              setPrice={setNewCourtPrice}
+              openingTime={newCourtOpeningTime}
+              setOpeningTime={setNewCourtOpeningTime}
+              closingTime={newCourtClosingTime}
+              setClosingTime={setNewCourtClosingTime}
+              location={newCourtLocation}
+              setLocation={setNewCourtLocation}
+              description={newCourtDescription}
+              setDescription={setNewCourtDescription}
+              coverImage={newCourtCoverImage}
+              setCoverImage={setNewCourtCoverImage}
+              detailImages={newCourtDetailImages}
+              termsAccepted={termsAccepted}
+              setTermsAccepted={setTermsAccepted}
+              onOpenTerms={() => setIsTermsModalOpen(true)}
+              uploadingCover={uploadingNewCover}
+              uploadingDetail={uploadingNewDetail}
+              validationErrors={newCourtValidationErrors}
+              TIME_OPTIONS={hourDropdownOptions}
+              SPORT_OPTIONS={[
+                { value: '1', label: 'Bóng đá' },
+                { value: '2', label: 'Cầu lông' },
+                { value: '3', label: 'Pickleball' },
+                { value: '4', label: 'Bóng rổ' }
+              ]}
+              onUploadCover={uploadNewCoverFile}
+              onUploadDetail={uploadNewDetailFiles}
+              onRemoveDetailImage={handleRemoveNewDetailImage}
+              formatVND={formatVND}
+            />
+          ) : (
+            <section className="flex-1 bg-white border border-slate-200/60 rounded-3xl shadow-sm p-6 flex flex-col min-w-0">
+              {/* Header */}
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100 select-none flex-shrink-0">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-black text-slate-800 tracking-tight">{activeVenue.name}</h1>
+                  </div>
+                  <p className="text-xs text-slate-450 font-bold leading-normal truncate" title={activeVenue.location}>
+                    Địa chỉ: {activeVenue.location}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-450 font-bold leading-normal truncate" title={activeVenue.location}>
-                  Địa chỉ: {activeVenue.location}
-                </p>
+                <button
+                  onClick={handleStartAddCourt}
+                  className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 border-b-2 border-emerald-950 flex-shrink-0"
+                >
+                  <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Thêm sân mới
+                </button>
               </div>
-            </div>
 
             {/* Warning Alert */}
             {actionRequiredBookings.length > 0 && (
@@ -493,6 +713,7 @@ export const OperationsPage = () => {
               </div>
             )}
           </section>
+          )}
         </div>
       )}
 
@@ -561,6 +782,10 @@ export const OperationsPage = () => {
           setName={setNewVenueName}
           location={newVenueLocation}
           setLocation={setNewVenueLocation}
+          latitude={newVenueLatitude}
+          setLatitude={setNewVenueLatitude}
+          longitude={newVenueLongitude}
+          setLongitude={setNewVenueLongitude}
           description={newVenueDescription}
           setDescription={setNewVenueDescription}
           submitLabel="Tạo cụm sân"
@@ -573,9 +798,13 @@ export const OperationsPage = () => {
           onSubmit={handleEditVenue}
           title="Chỉnh sửa thông tin cụm sân"
           name={editVenueName}
-          setName={setNewVenueName}
+          setName={setEditVenueName}
           location={editVenueLocation}
           setLocation={setEditVenueLocation}
+          latitude={editVenueLatitude}
+          setLatitude={setEditVenueLatitude}
+          longitude={editVenueLongitude}
+          setLongitude={setEditVenueLongitude}
           description={editVenueDescription}
           setDescription={setEditVenueDescription}
           submitLabel="Lưu thay đổi"
@@ -612,6 +841,120 @@ export const OperationsPage = () => {
             : `Bạn có chắc chắn muốn chuyển cụm sân "${activeVenue?.name || ''}" sang trạng thái bảo trì? Toàn bộ sân bãi bên trong sẽ tạm ngưng nhận khách đặt lịch mới.`
         }
       />
+
+      {/* CHAT-BUBBLE STYLE DRAFT POPUP */}
+      {hasDraft && !isAddingCourt && (
+        <div 
+          className="fixed bottom-6 right-6 z-[90] flex flex-col items-end font-sans select-none"
+          onMouseDown={handleDragStart}
+          onTouchStart={handleTouchStart}
+          style={{
+            transform: `translate(${dragPos.x}px, ${dragPos.y}px)`,
+            transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+        >
+          {/* Speech-bubble tooltip showing above the chat icon */}
+          <div className="bg-slate-800 text-white text-[10px] font-bold px-3.5 py-2 rounded-xl shadow-lg mb-2 relative animate-bounce border border-slate-700">
+            <span>Bạn có 1 đơn nháp!</span>
+            <div className="w-2.5 h-2.5 bg-slate-800 rotate-45 absolute bottom-[-4px] right-5 border-r border-b border-slate-700" />
+          </div>
+
+          {/* Floating Chat Icon Container */}
+          <div className="relative">
+            {/* Close 'X' Button overlayed on top of the icon */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsConfirmDeleteDraftOpen(true);
+              }}
+              className="absolute -top-1.5 -right-1.5 z-10 w-5.5 h-5.5 bg-red-500 hover:bg-red-650 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white hover:scale-105 active:scale-95 transition-all text-[8px] font-black cursor-pointer"
+              title="Xóa đơn nháp"
+            >
+              ✕
+            </button>
+
+            {/* Main Chat Icon Button */}
+            <button
+              onClick={handleRestoreDraft}
+              className="w-14 h-14 bg-brand-emerald hover:bg-emerald-900 text-white rounded-full flex items-center justify-center shadow-[0_12px_32px_rgba(0,53,39,0.3)] transition-all hover:scale-105 active:scale-95 cursor-pointer relative group border-2 border-white animate-fadeIn"
+            >
+              {/* Pulsing notification badge (top-left) */}
+              <span className="absolute top-0.5 left-0.5 flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-yellow opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-brand-yellow border-2 border-white"></span>
+              </span>
+
+              {/* Pencil/Doc Icon */}
+              <svg className="w-6 h-6 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Draft Modal */}
+      <ConfirmModal
+        isOpen={isConfirmDeleteDraftOpen}
+        onClose={() => setIsConfirmDeleteDraftOpen(false)}
+        onConfirm={handleClearDraft}
+        title="Xóa đơn đăng ký nháp"
+        message="Bạn có chắc chắn muốn xóa đơn đăng ký nháp này? Tất cả các thông tin đã điền sẽ bị mất vĩnh viễn và không thể khôi phục."
+        confirmText="Xóa nháp"
+        cancelText="Giữ lại"
+        variant="danger"
+      />
+
+      {/* Confirm Submit Registration Modal */}
+      <ConfirmModal
+        isOpen={isConfirmSubmitOpen}
+        onClose={() => setIsConfirmSubmitOpen(false)}
+        onConfirm={handleConfirmSubmitNewCourt}
+        title="Xác nhận gửi đơn đăng ký"
+        message={`Bạn có chắc chắn muốn gửi đơn đăng ký cho sân "${newCourtName}"? Đơn sẽ được gửi tới Admin để phê duyệt trước khi đi vào hoạt động.`}
+        confirmText="Gửi đơn"
+        cancelText="Hủy"
+        variant="success"
+      />
+
+      {/* Terms & Conditions Modal */}
+      <Modal
+        isOpen={isTermsModalOpen}
+        onClose={() => setIsTermsModalOpen(false)}
+        title="Điều khoản & Điều kiện Đăng ký Sân bãi"
+        maxWidth="md"
+        footer={
+          <button
+            type="button"
+            onClick={() => setIsTermsModalOpen(false)}
+            className="bg-brand-emerald hover:bg-emerald-900 text-white px-5 py-2.5 rounded-xl font-extrabold text-xs cursor-pointer active:scale-95 transition-all"
+          >
+            Đồng ý và đóng
+          </button>
+        }
+      >
+        <div className="space-y-4 text-xs font-bold text-slate-655 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+          <p className="text-slate-800 font-black">Khi đăng ký sân bãi mới trên Sporta, bạn đồng ý tuân thủ các chính sách sau:</p>
+          <ol className="list-decimal pl-4 space-y-2">
+            <li>
+              <span className="text-slate-850 font-black">Tính chính xác của thông tin:</span> Toàn bộ thông tin cung cấp bao gồm tên sân, giá thuê, địa chỉ vị trí và hình ảnh tải lên phải đúng với thực tế.
+            </li>
+            <li>
+              <span className="text-slate-850 font-black">Thời gian kiểm duyệt:</span> Đơn đăng ký sân mới sẽ được Admin hệ thống xem xét và phê duyệt trong vòng 24 - 48 giờ làm việc.
+            </li>
+            <li>
+              <span className="text-slate-850 font-black">Tiêu chuẩn hình ảnh:</span> Ảnh bìa và ảnh chi tiết sân bãi phải là ảnh thực tế, rõ nét, không chứa nội dung phản cảm hoặc quảng cáo thương hiệu khác ngoài sân bãi của bạn.
+            </li>
+            <li>
+              <span className="text-slate-850 font-black">Quy định về giá:</span> Mức giá niêm yết là giá thuê tính theo giờ, đã bao gồm các dịch vụ cơ bản đi kèm theo thoả thuận.
+            </li>
+            <li>
+              <span className="text-slate-850 font-black">Trách nhiệm pháp lý:</span> Chủ sân chịu hoàn toàn trách nhiệm trước pháp luật về tính hợp pháp trong hoạt động kinh doanh sân thể thao của mình.
+            </li>
+          </ol>
+        </div>
+      </Modal>
     </div>
   );
 };

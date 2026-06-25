@@ -35,6 +35,8 @@ public class OwnerVenueController {
                 request.getName(),
                 request.getLocation(),
                 request.getDescription(),
+                request.getLatitude(),
+                request.getLongitude(),
                 email
         );
         return ResponseEntity.ok(response);
@@ -59,6 +61,8 @@ public class OwnerVenueController {
                 request.getName(),
                 request.getLocation(),
                 request.getDescription(),
+                request.getLatitude(),
+                request.getLongitude(),
                 email
         );
         return ResponseEntity.ok(response);

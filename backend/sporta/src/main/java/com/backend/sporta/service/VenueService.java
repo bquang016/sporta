@@ -28,7 +28,7 @@ public class VenueService {
     }
 
     @Transactional
-    public Venue createVenue(String name, String location, String description, String email) {
+    public Venue createVenue(String name, String location, String description, Double latitude, Double longitude, String email) {
         Owner owner = ownerRepository.findByUserEmail(email)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin chủ sở hữu", 404));
 
@@ -36,6 +36,8 @@ public class VenueService {
                 .owner(owner)
                 .name(name)
                 .location(location)
+                .latitude(latitude)
+                .longitude(longitude)
                 .description(description)
                 .build();
 
@@ -57,7 +59,7 @@ public class VenueService {
     }
 
     @Transactional
-    public Venue updateVenue(UUID id, String name, String location, String description, String email) {
+    public Venue updateVenue(UUID id, String name, String location, String description, Double latitude, Double longitude, String email) {
         Venue venue = venueRepository.findById(id)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin cụm sân", 404));
 
@@ -68,6 +70,8 @@ public class VenueService {
 
         venue.setName(name);
         venue.setLocation(location);
+        venue.setLatitude(latitude);
+        venue.setLongitude(longitude);
         venue.setDescription(description);
         return venueRepository.save(venue);
     }

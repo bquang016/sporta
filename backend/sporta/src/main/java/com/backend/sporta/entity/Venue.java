@@ -35,6 +35,12 @@ public class Venue {
     @Column(name = "location", nullable = false)
     private String location;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 

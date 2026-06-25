@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { Checkbox } from '../components/ui/Checkbox';
 import logoHorizontal from '../assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoVertical from '../assets/logo/light/logo-vertical_1200x1500.svg';
 
@@ -271,10 +272,11 @@ export const LoginPage = () => {
                 </div>
 
                 {/* Remember */}
-                <div className="flex items-center gap-2 px-0.5">
-                  <input id="remember" type="checkbox" className="w-4 h-4 accent-brand-emerald rounded border-slate-300 cursor-pointer" />
-                  <label htmlFor="remember" className="text-[10px] font-bold text-slate-500 select-none cursor-pointer">Ghi nhớ đăng nhập</label>
-                </div>
+                <Checkbox
+                  id="remember"
+                  label="Ghi nhớ đăng nhập"
+                  labelClassName="text-[10px] font-bold text-slate-500 select-none cursor-pointer"
+                />
 
                 {/* Submit button */}
                 <button

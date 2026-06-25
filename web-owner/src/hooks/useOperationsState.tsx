@@ -30,8 +30,8 @@ interface OperationsContextType {
   // Venue Actions
   setSelectedVenueId: (id: string | null) => void;
   changeVenueStatus: (venueId: string, status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED') => Promise<void>;
-  updateVenueInfo: (id: string, name: string, location: string, description: string) => Promise<void>;
-  createVenueInfo: (name: string, location: string, description: string) => Promise<void>;
+  updateVenueInfo: (id: string, name: string, location: string, description: string, latitude?: number, longitude?: number) => Promise<void>;
+  createVenueInfo: (name: string, location: string, description: string, latitude?: number, longitude?: number) => Promise<void>;
   
   // Court/Facility Actions
   toggleCourtStatus: (courtId: string) => void;
@@ -195,9 +195,9 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   // Update Venue details
-  const updateVenueInfo = async (id: string, name: string, location: string, description: string) => {
+  const updateVenueInfo = async (id: string, name: string, location: string, description: string, latitude?: number, longitude?: number) => {
     try {
-      const updated = await courtService.updateVenue(id, { name, location, description });
+      const updated = await courtService.updateVenue(id, { name, location, description, latitude, longitude });
       setVenues(prev => prev.map(v => v.id === id ? updated : v));
     } catch (err: any) {
       console.error(err);
@@ -206,9 +206,9 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   // Create new Venue
-  const createVenueInfo = async (name: string, location: string, description: string) => {
+  const createVenueInfo = async (name: string, location: string, description: string, latitude?: number, longitude?: number) => {
     try {
-      const created = await courtService.createVenue({ name, location, description });
+      const created = await courtService.createVenue({ name, location, description, latitude, longitude });
       setVenues(prev => [...prev, created]);
       setSelectedVenueId(created.id);
     } catch (err: any) {

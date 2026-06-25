@@ -10,6 +10,8 @@ export interface VenueResponse {
   location: string;
   description: string;
   status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED';
+  latitude?: number;
+  longitude?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +20,8 @@ export interface VenueRequest {
   name: string;
   location: string;
   description: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface CourtResponse {

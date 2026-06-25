@@ -19,6 +19,8 @@ export const useVenueOperations = () => {
   const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
   const [venueName, setVenueName] = useState('');
   const [venueLocation, setVenueLocation] = useState('');
+  const [venueLatitude, setVenueLatitude] = useState<number | undefined>(undefined);
+  const [venueLongitude, setVenueLongitude] = useState<number | undefined>(undefined);
   const [venueDescription, setVenueDescription] = useState('');
   const [venueValidationErrors, setVenueValidationErrors] = useState<Record<string, string>>({});
 
@@ -27,6 +29,8 @@ export const useVenueOperations = () => {
   const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
   const [editVenueName, setEditVenueName] = useState('');
   const [editVenueLocation, setEditVenueLocation] = useState('');
+  const [editVenueLatitude, setEditVenueLatitude] = useState<number | undefined>(undefined);
+  const [editVenueLongitude, setEditVenueLongitude] = useState<number | undefined>(undefined);
   const [editVenueDescription, setEditVenueDescription] = useState('');
 
   // Modal States - Status
@@ -77,6 +81,8 @@ export const useVenueOperations = () => {
   const handleOpenVenueCreate = () => {
     setVenueName('');
     setVenueLocation('');
+    setVenueLatitude(undefined);
+    setVenueLongitude(undefined);
     setVenueDescription('');
     setVenueValidationErrors({});
     setIsVenueModalOpen(true);
@@ -89,6 +95,8 @@ export const useVenueOperations = () => {
       const created = await courtService.createVenue({
         name: venueName,
         location: venueLocation,
+        latitude: venueLatitude,
+        longitude: venueLongitude,
         description: venueDescription
       });
       setVenues(prev => [...prev, created]);
@@ -103,6 +111,8 @@ export const useVenueOperations = () => {
     setEditingVenueId(venue.id);
     setEditVenueName(venue.name);
     setEditVenueLocation(venue.location);
+    setEditVenueLatitude(venue.latitude);
+    setEditVenueLongitude(venue.longitude);
     setEditVenueDescription(venue.description || '');
     setIsEditVenueModalOpen(true);
   };
@@ -116,6 +126,8 @@ export const useVenueOperations = () => {
       const updated = await courtService.updateVenue(editingVenueId!, {
         name: editVenueName,
         location: editVenueLocation,
+        latitude: editVenueLatitude,
+        longitude: editVenueLongitude,
         description: editVenueDescription,
       });
       setVenues(prev => prev.map(v => v.id === editingVenueId ? updated : v));
@@ -137,7 +149,7 @@ export const useVenueOperations = () => {
       const updated = await courtService.updateVenueStatus(targetVenueId, status);
       setVenues(prev => prev.map(v => v.id === targetVenueId ? updated : v));
       setIsStatusModalOpen(false);
-      const label = status === 'ACTIVE' ? 'Hoat dong' : status === 'MAINTENANCE' ? 'Bao tri' : 'Dong cua';
+      const label = status === 'ACTIVE' ? 'Hoạt động' : status === 'MAINTENANCE' ? 'Bảo trì' : 'Đóng cửa';
       showToast('success', `Da chuyen trang thai cum san thanh: ${label}`);
     } catch (err: any) {
       showToast('error', err.message || 'Loi khi cap nhat trang thai cum san');
@@ -162,6 +174,10 @@ export const useVenueOperations = () => {
     setVenueName,
     venueLocation,
     setVenueLocation,
+    venueLatitude,
+    setVenueLatitude,
+    venueLongitude,
+    setVenueLongitude,
     venueDescription,
     setVenueDescription,
     venueValidationErrors,
@@ -171,6 +187,10 @@ export const useVenueOperations = () => {
     setEditVenueName,
     editVenueLocation,
     setEditVenueLocation,
+    editVenueLatitude,
+    setEditVenueLatitude,
+    editVenueLongitude,
+    setEditVenueLongitude,
     editVenueDescription,
     setEditVenueDescription,
     isStatusModalOpen,

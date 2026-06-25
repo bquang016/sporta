@@ -28,7 +28,7 @@ export const BookingQueueModal = ({
           <div className="space-y-1 text-xs">
             <h4 className="font-black text-red-800 uppercase tracking-tight">Quy tac huy dat lich khan cap</h4>
             <p className="leading-relaxed font-bold">
-              Do cum san bi chuyen sang trang thai <strong>Dong cua khan cap (CLOSED)</strong>, he thong da ngat tu dong toan bo lich trinh.
+              Do cum san bi chuyen sang trang thai <strong>Đóng cửa khan cap (CLOSED)</strong>, he thong da ngat tu dong toan bo lich trinh.
               Chu san can lien he cac khach hang ben duoi de tien hanh boi hoan tien mat, tang diem Sporta doi lich, hoac thao luan roi lich.
             </p>
           </div>
