@@ -1,36 +1,32 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Registration — Step Progress Indicator (Email/OTP page only)
+// Setup Wizard — Step Progress Indicator (5 steps, horizontal)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { RegistrationStep } from '../types';
+import type { SetupStep } from '../types';
+import { SETUP_STEPS } from '../types';
 
-interface StepIndicatorProps {
-  currentStep: RegistrationStep;
+interface SetupStepIndicatorProps {
+  currentStep: SetupStep;
+  onStepClick?: (step: SetupStep) => void;
 }
 
-const STEPS = [
-  { key: 'email' as const, label: 'Xác thực Email', altKey: 'otp' as const },
-  { key: 'success' as const, label: 'Hoàn tất' },
-];
-
-export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
-  const getStepIndex = (step: RegistrationStep): number => {
-    if (step === 'email' || step === 'otp') return 0;
-    return 1; // success
-  };
-
-  const activeIndex = getStepIndex(currentStep);
+export const SetupStepIndicator = ({ currentStep, onStepClick }: SetupStepIndicatorProps) => {
+  const activeIndex = SETUP_STEPS.findIndex((s) => s.key === currentStep);
 
   return (
-    <div className="flex items-center justify-center gap-0 w-full mb-5 lg:mb-7">
-      {STEPS.map((step, i) => {
+    <div className="flex items-center justify-center gap-0 w-full">
+      {SETUP_STEPS.map((step, i) => {
         const isCompleted = i < activeIndex;
         const isActive = i === activeIndex;
+        const isClickable = isCompleted && onStepClick;
 
         return (
           <div key={step.key} className="flex items-center flex-1 last:flex-initial">
             {/* Step circle + label */}
-            <div className="flex flex-col items-center gap-1.5 min-w-[60px]">
+            <div
+              className={`flex flex-col items-center gap-1.5 min-w-[48px] ${isClickable ? 'cursor-pointer' : ''}`}
+              onClick={() => isClickable && onStepClick(step.key)}
+            >
               <div
                 className={`
                   w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center
@@ -53,7 +49,7 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
               </div>
               <span
                 className={`
-                  text-[8px] lg:text-[9px] font-black uppercase tracking-wider text-center leading-tight
+                  text-[7px] lg:text-[8px] font-black uppercase tracking-wider text-center leading-tight
                   ${isActive ? 'text-brand-emerald' : isCompleted ? 'text-brand-emerald/60' : 'text-slate-400'}
                 `}
               >
@@ -62,8 +58,8 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
             </div>
 
             {/* Connector line */}
-            {i < STEPS.length - 1 && (
-              <div className="flex-1 mx-2 lg:mx-3">
+            {i < SETUP_STEPS.length - 1 && (
+              <div className="flex-1 mx-1.5 lg:mx-2">
                 <div
                   className={`
                     h-[2px] rounded-full transition-all duration-500

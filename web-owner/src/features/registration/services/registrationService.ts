@@ -8,6 +8,7 @@ import type {
   RegisterOwnerResponse,
   PersonalInfo,
   VenueInfo,
+  SubCourt,
 } from '../types';
 
 const API_BASE = 'http://localhost:8387/api/v1/auth';
@@ -59,14 +60,15 @@ export async function verifyOtp(
  * Submit owner registration data.
  * POST /api/v1/auth/register-owner
  *
- * NOTE: This endpoint may need to be created on the backend.
- * Currently sends a JSON payload; file uploads (images) will be
- * handled via multipart/form-data once the backend supports it.
+ * Sends multipart/form-data with all registration info including
+ * CCCD images, venue images, amenities, and court pricing.
  */
 export async function registerOwner(
   registrationToken: string,
   personalInfo: PersonalInfo,
-  venueInfo: VenueInfo
+  venueInfo: VenueInfo,
+  amenities: string[],
+  courts: SubCourt[]
 ): Promise<RegisterOwnerResponse> {
   const formData = new FormData();
 
@@ -77,15 +79,30 @@ export async function registerOwner(
   formData.append('fullName', personalInfo.fullName);
   formData.append('idNumber', personalInfo.idNumber);
 
+  // CCCD images
+  if (personalInfo.idFrontImage) {
+    formData.append('idFrontImage', personalInfo.idFrontImage);
+  }
+  if (personalInfo.idBackImage) {
+    formData.append('idBackImage', personalInfo.idBackImage);
+  }
+
   // Venue info
   formData.append('venueName', venueInfo.venueName);
   formData.append('province', venueInfo.province);
   formData.append('district', venueInfo.district);
   formData.append('ward', venueInfo.ward);
+  formData.append('description', venueInfo.description);
   formData.append('sportTypes', JSON.stringify(venueInfo.sportTypes));
   formData.append('subCourtCount', String(venueInfo.subCourtCount));
 
-  // Attach image files
+  // Amenities
+  formData.append('amenities', JSON.stringify(amenities));
+
+  // Courts with pricing
+  formData.append('courts', JSON.stringify(courts));
+
+  // Attach venue image files
   venueInfo.images.forEach((file) => {
     formData.append('images', file);
   });

@@ -1,21 +1,30 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Registration Feature — Custom Hook
+// Registration Feature — Custom Hook (Email + OTP only)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { RegistrationStep, PersonalInfo, VenueInfo } from '../types';
+import { useNavigate, useLocation } from 'react-router-dom';
+import type { RegistrationStep } from '../types';
 import * as registrationService from '../services/registrationService';
 
 const OTP_COUNTDOWN_SECONDS = 60;
 
 export function useRegistration() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // ── Step navigation ──
-  const [currentStep, setCurrentStep] = useState<RegistrationStep>('email');
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>(() => {
+    // Check if we're returning from setup with success
+    if (location.state && (location.state as any).success) {
+      return 'success';
+    }
+    return 'email';
+  });
 
   // ── Email & OTP state ──
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
-  const [registrationToken, setRegistrationToken] = useState('');
 
   // ── Countdown timer ──
   const [countdown, setCountdown] = useState(0);
@@ -25,21 +34,12 @@ export function useRegistration() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // ── Form data ──
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
-    fullName: '',
-    idNumber: '',
-  });
-
-  const [venueInfo, setVenueInfo] = useState<VenueInfo>({
-    venueName: '',
-    province: '',
-    district: '',
-    ward: '',
-    sportTypes: [],
-    subCourtCount: 1,
-    images: [],
-  });
+  // ── Clear success state from URL ──
+  useEffect(() => {
+    if (location.state && (location.state as any).success) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // ── Cleanup countdown on unmount ──
   useEffect(() => {
@@ -107,7 +107,7 @@ export function useRegistration() {
     }
   }, [email, startCountdown]);
 
-  // ── Step 1b: Verify OTP ──
+  // ── Step 1b: Verify OTP → Redirect to Setup page ──
   const handleVerifyOtp = useCallback(async () => {
     setErrorMsg('');
     const otpCode = otp.join('');
@@ -120,65 +120,20 @@ export function useRegistration() {
     setIsLoading(true);
     try {
       const res = await registrationService.verifyOtp(email, otpCode);
-      setRegistrationToken(res.registrationToken);
-      setCurrentStep('info');
+      // Redirect to the full-width setup page with the registration token
+      navigate('/register/setup', {
+        state: {
+          registrationToken: res.registrationToken,
+          email: email,
+        },
+        replace: true,
+      });
     } catch (err: any) {
       setErrorMsg(err.message || 'Mã OTP không chính xác.');
     } finally {
       setIsLoading(false);
     }
-  }, [email, otp]);
-
-  // ── Step 2: Submit registration ──
-  const handleSubmitRegistration = useCallback(async () => {
-    setErrorMsg('');
-
-    // Validate personal info
-    if (!personalInfo.fullName.trim()) {
-      setErrorMsg('Vui lòng nhập họ và tên.');
-      return;
-    }
-    if (!personalInfo.idNumber.trim()) {
-      setErrorMsg('Vui lòng nhập số CCCD/CMND.');
-      return;
-    }
-
-    // Validate venue info
-    if (!venueInfo.venueName.trim()) {
-      setErrorMsg('Vui lòng nhập tên cụm sân.');
-      return;
-    }
-    if (!venueInfo.province.trim()) {
-      setErrorMsg('Vui lòng nhập Tỉnh/Thành phố.');
-      return;
-    }
-    if (!venueInfo.district.trim()) {
-      setErrorMsg('Vui lòng nhập Quận/Huyện.');
-      return;
-    }
-    if (!venueInfo.ward.trim()) {
-      setErrorMsg('Vui lòng nhập Phường/Xã.');
-      return;
-    }
-    if (venueInfo.sportTypes.length === 0) {
-      setErrorMsg('Vui lòng chọn ít nhất một loại sân.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await registrationService.registerOwner(
-        registrationToken,
-        personalInfo,
-        venueInfo
-      );
-      setCurrentStep('success');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Không thể gửi hồ sơ đăng ký.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [registrationToken, personalInfo, venueInfo]);
+  }, [email, otp, navigate]);
 
   // ── Go back to previous step ──
   const goBack = useCallback(() => {
@@ -186,9 +141,6 @@ export function useRegistration() {
     if (currentStep === 'otp') {
       setCurrentStep('email');
       setOtp(Array(6).fill(''));
-    } else if (currentStep === 'info') {
-      // Don't allow going back from info to OTP (token already issued)
-      // Could go back to email if needed
     }
   }, [currentStep]);
 
@@ -200,21 +152,16 @@ export function useRegistration() {
     countdown,
     isLoading,
     errorMsg,
-    personalInfo,
-    venueInfo,
 
     // Setters
     setEmail,
     setOtp,
     setErrorMsg,
-    setPersonalInfo,
-    setVenueInfo,
 
     // Actions
     handleSendOtp,
     handleResendOtp,
     handleVerifyOtp,
-    handleSubmitRegistration,
     goBack,
   };
 }

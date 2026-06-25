@@ -10,6 +10,9 @@ import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.UserSportRepository;
 import com.backend.sporta.repository.VenueRepository;
+import com.backend.sporta.repository.VenueAmenityRepository;
+import com.backend.sporta.repository.CourtRepository;
+import com.backend.sporta.repository.CourtPricingRepository;
 import com.backend.sporta.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +51,15 @@ public class AuthService {
 
     @Autowired
     private VenueRepository venueRepository;
+
+    @Autowired
+    private VenueAmenityRepository venueAmenityRepository;
+
+    @Autowired
+    private CourtRepository courtRepository;
+
+    @Autowired
+    private CourtPricingRepository courtPricingRepository;
 
     @Autowired
     private FileStorageService fileStorageService;
@@ -159,6 +171,11 @@ public class AuthService {
             String ward,
             String sportTypes,
             int subCourtCount,
+            String description,
+            String amenitiesJson,
+            String courtsJson,
+            org.springframework.web.multipart.MultipartFile idFrontImage,
+            org.springframework.web.multipart.MultipartFile idBackImage,
             org.springframework.web.multipart.MultipartFile[] images) {
 
         // 1. Validate registration token
@@ -184,16 +201,28 @@ public class AuthService {
                 .build();
         user = userRepository.save(user);
 
-        // 4. Create Owner
+        // 4. Upload CCCD images
+        String idFrontUrl = null;
+        String idBackUrl = null;
+        if (idFrontImage != null && !idFrontImage.isEmpty()) {
+            idFrontUrl = fileStorageService.uploadFile(idFrontImage, "cccd");
+        }
+        if (idBackImage != null && !idBackImage.isEmpty()) {
+            idBackUrl = fileStorageService.uploadFile(idBackImage, "cccd");
+        }
+
+        // 5. Create Owner
         Owner owner = Owner.builder()
                 .user(user)
                 .fullName(fullName)
                 .idNumber(idNumber)
+                .idFrontImage(idFrontUrl)
+                .idBackImage(idBackUrl)
                 .phoneNumber("") // will be updated later
                 .build();
         owner = ownerRepository.save(owner);
 
-        // 5. Upload images
+        // 6. Upload venue images
         java.util.List<String> imageUrls = new java.util.ArrayList<>();
         if (images != null && images.length > 0) {
             for (org.springframework.web.multipart.MultipartFile file : images) {
@@ -213,7 +242,7 @@ public class AuthService {
             throw new CustomException("Lỗi khi xử lý hình ảnh đăng ký.", 500);
         }
 
-        // 6. Create Venue (status=PENDING_APPROVAL)
+        // 7. Create Venue (status=PENDING_APPROVAL)
         Venue venue = Venue.builder()
                 .owner(owner)
                 .name(venueName)
@@ -225,9 +254,79 @@ public class AuthService {
                 .sportTypes(sportTypes)
                 .subCourtCount(subCourtCount)
                 .registrationImages(imagesJson)
+                .description(description)
                 .status(com.backend.sporta.enums.VenueStatus.PENDING_APPROVAL)
                 .build();
-        venueRepository.save(venue);
+        venue = venueRepository.save(venue);
+
+        // 8. Create VenueAmenity records
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            java.util.List<String> amenityKeys = mapper.readValue(amenitiesJson,
+                    mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
+            for (String key : amenityKeys) {
+                VenueAmenity amenity = VenueAmenity.builder()
+                        .venue(venue)
+                        .amenityKey(key)
+                        .build();
+                venueAmenityRepository.save(amenity);
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // Ignore if amenities JSON is invalid — not critical
+        }
+
+        // 9. Create Courts and CourtPricing
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            java.util.List<java.util.Map<String, Object>> courtsList = mapper.readValue(courtsJson,
+                    mapper.getTypeFactory().constructCollectionType(java.util.List.class, java.util.Map.class));
+            
+            for (java.util.Map<String, Object> courtData : courtsList) {
+                String courtName = (String) courtData.getOrDefault("name", "Sân " + (courtsList.indexOf(courtData) + 1));
+                String courtSportType = (String) courtData.getOrDefault("sportType", "");
+
+                // Find Sport entity
+                Sport sport = sportRepository.findAll().stream()
+                        .filter(s -> s.getName().equalsIgnoreCase(courtSportType))
+                        .findFirst()
+                        .orElse(sportRepository.findAll().isEmpty() ? null : sportRepository.findAll().get(0));
+
+                if (sport == null) {
+                    continue; // Skip if no sport found
+                }
+
+                Court court = Court.builder()
+                        .owner(owner)
+                        .venue(venue)
+                        .name(courtName)
+                        .price(0.0) // Default price, real pricing is in CourtPricing
+                        .openingTime("05:00")
+                        .closingTime("22:00")
+                        .location(venue.getLocation())
+                        .sport(sport)
+                        .status(com.backend.sporta.enums.CourtStatus.PENDING)
+                        .build();
+                court = courtRepository.save(court);
+
+                // Create pricing slots
+                @SuppressWarnings("unchecked")
+                java.util.List<java.util.Map<String, Object>> pricingSlots = 
+                        (java.util.List<java.util.Map<String, Object>>) courtData.getOrDefault("pricingSlots", java.util.Collections.emptyList());
+                
+                for (java.util.Map<String, Object> slot : pricingSlots) {
+                    CourtPricing pricing = CourtPricing.builder()
+                            .court(court)
+                            .slotLabel((String) slot.getOrDefault("label", ""))
+                            .startTime((String) slot.getOrDefault("startTime", ""))
+                            .endTime((String) slot.getOrDefault("endTime", ""))
+                            .price(((Number) slot.getOrDefault("price", 0)).doubleValue())
+                            .build();
+                    courtPricingRepository.save(pricing);
+                }
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // Ignore if courts JSON is invalid — not critical
+        }
 
         return RegisterOwnerResponse.builder()
                 .message("Hồ sơ đã được gửi thành công. Chúng tôi sẽ liên hệ với bạn sớm nhất.")

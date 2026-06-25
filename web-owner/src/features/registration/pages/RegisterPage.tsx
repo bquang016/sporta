@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Registration Feature — Main Page
+// Registration Feature — Main Page (Email + OTP + Success only)
 // Layout mirrors LoginPage: branding panel (left) + form panel (right)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -9,14 +9,10 @@ import { useRegistration } from '../hooks/useRegistration';
 import { StepIndicator } from '../components/StepIndicator';
 import { EmailStep } from '../components/EmailStep';
 import { OtpStep } from '../components/OtpStep';
-import { InfoStep } from '../components/InfoStep';
 import { SuccessStep } from '../components/SuccessStep';
 
 export const RegisterPage = () => {
   const reg = useRegistration();
-
-  /* ── Determine if we need a scrollable form (info step is long) ── */
-  const isScrollable = reg.currentStep === 'info';
 
   /* ================================================================
    *  RENDER
@@ -128,11 +124,8 @@ export const RegisterPage = () => {
        *  Mobile: flex-1, center content
        * ═══════════════════════════════════════════════════════════ */}
       <div
-        className={`
-          flex-1 flex flex-col items-center bg-surface-container-low relative
-          px-5 py-4 lg:px-16 lg:py-8 min-h-0
-          ${isScrollable ? 'overflow-y-auto matrix-scroll' : 'justify-center overflow-hidden'}
-        `}
+        className="flex-1 flex flex-col items-center justify-center bg-surface-container-low relative
+                   px-5 py-4 lg:px-16 lg:py-8 min-h-0 overflow-hidden"
       >
         {/* ── Decorative: subtle glow blobs ── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -141,10 +134,12 @@ export const RegisterPage = () => {
         </div>
 
         {/* ── Form wrapper ── */}
-        <div className={`w-full relative z-10 ${isScrollable ? 'max-w-[520px] py-4' : 'max-w-[400px]'}`}>
+        <div className="w-full max-w-[400px] relative z-10">
 
-          {/* ── Step indicator ── */}
-          <StepIndicator currentStep={reg.currentStep} />
+          {/* ── Step indicator (only for email/otp) ── */}
+          {reg.currentStep !== 'success' && (
+            <StepIndicator currentStep={reg.currentStep} />
+          )}
 
           {/* ── Form Card ── */}
           <div className="bg-white rounded-2xl lg:rounded-3xl border border-slate-200/80 shadow-md overflow-hidden">
@@ -172,18 +167,6 @@ export const RegisterPage = () => {
                   onResend={reg.handleResendOtp}
                   onBack={reg.goBack}
                   countdown={reg.countdown}
-                  isLoading={reg.isLoading}
-                  errorMsg={reg.errorMsg}
-                />
-              )}
-
-              {reg.currentStep === 'info' && (
-                <InfoStep
-                  personalInfo={reg.personalInfo}
-                  onPersonalInfoChange={reg.setPersonalInfo}
-                  venueInfo={reg.venueInfo}
-                  onVenueInfoChange={reg.setVenueInfo}
-                  onSubmit={reg.handleSubmitRegistration}
                   isLoading={reg.isLoading}
                   errorMsg={reg.errorMsg}
                 />

@@ -33,6 +33,12 @@ public class Owner {
     @Column(name = "id_number")
     private String idNumber;
 
+    @Column(name = "id_front_image", columnDefinition = "TEXT")
+    private String idFrontImage; // URL ảnh CCCD mặt trước
+
+    @Column(name = "id_back_image", columnDefinition = "TEXT")
+    private String idBackImage; // URL ảnh CCCD mặt sau
+
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 

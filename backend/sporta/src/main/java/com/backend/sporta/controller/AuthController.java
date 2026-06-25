@@ -60,11 +60,17 @@ public class AuthController {
             @RequestParam("ward") String ward,
             @RequestParam("sportTypes") String sportTypes,
             @RequestParam("subCourtCount") int subCourtCount,
+            @RequestParam(value = "description", required = false, defaultValue = "") String description,
+            @RequestParam(value = "amenities", required = false, defaultValue = "[]") String amenities,
+            @RequestParam(value = "courts", required = false, defaultValue = "[]") String courts,
+            @RequestParam(value = "idFrontImage", required = false) org.springframework.web.multipart.MultipartFile idFrontImage,
+            @RequestParam(value = "idBackImage", required = false) org.springframework.web.multipart.MultipartFile idBackImage,
             @RequestParam(value = "images", required = false) org.springframework.web.multipart.MultipartFile[] images) {
         
         RegisterOwnerResponse response = authService.registerOwner(
                 registrationToken, fullName, idNumber, venueName, province, 
-                district, ward, sportTypes, subCourtCount, images);
+                district, ward, sportTypes, subCourtCount, description,
+                amenities, courts, idFrontImage, idBackImage, images);
         return ResponseEntity.ok(response);
     }
 
