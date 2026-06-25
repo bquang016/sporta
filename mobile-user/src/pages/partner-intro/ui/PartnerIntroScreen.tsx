@@ -1,18 +1,23 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ImageBackground, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ImageBackground, Platform, Dimensions, LayoutAnimation, UIManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui';
 import { Card } from '../../../shared/ui/Card';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export function PartnerIntroScreen() {
   const router = useRouter();
+  const [showMore, setShowMore] = useState(false);
 
   return (
     <ScrollView style={styles.container} bounces={false} showsVerticalScrollIndicator={false}>
       {/* Hero Section */}
-      <View style={styles.heroContainer}>
+      <View style={[styles.heroContainer, !showMore && { minHeight: Dimensions.get('window').height }]}>
         <ImageBackground 
           source={{ uri: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=1000' }} 
           style={styles.heroBackground}
@@ -49,21 +54,29 @@ export function PartnerIntroScreen() {
               style={styles.heroButtonPrimary}
             />
             
-            <Button 
-              title="Tìm hiểu thêm" 
-              variant="outline" 
-              icon={<MaterialCommunityIcons name="arrow-down" size={20} color={COLORS.onPrimary} />}
-              iconPosition="right"
-              style={styles.heroButtonOutline}
-              textStyle={styles.heroButtonOutlineText}
-            />
+            {!showMore && (
+              <Button 
+                title="Tìm hiểu thêm" 
+                variant="outline" 
+                icon={<MaterialCommunityIcons name="arrow-down" size={20} color={COLORS.onPrimary} />}
+                iconPosition="right"
+                style={styles.heroButtonOutline}
+                textStyle={styles.heroButtonOutlineText}
+                onPress={() => {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setShowMore(true);
+                }}
+              />
+            )}
           </View>
         </View>
       </View>
 
-      {/* Why Choose Sporta */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tại sao chọn Sporta?</Text>
+      {showMore && (
+        <>
+          {/* Why Choose Sporta */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tại sao chọn Sporta?</Text>
         <Text style={styles.sectionSubtitle}>Giải pháp đột phá giúp quản lý sân hiệu quả và chuyên nghiệp hơn.</Text>
 
         <View style={styles.featuresGrid}>
@@ -157,6 +170,8 @@ export function PartnerIntroScreen() {
         </View>
         <Text style={styles.footerContact}>Liên hệ hợp tác</Text>
       </View>
+        </>
+      )}
 
     </ScrollView>
   );
