@@ -8,6 +8,7 @@ import com.backend.sporta.dto.VerifyOtpRequest;
 import com.backend.sporta.dto.VerifyOtpResponse;
 import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
+import com.backend.sporta.dto.RegisterOwnerResponse;
 import com.backend.sporta.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,25 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/register-owner", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RegisterOwnerResponse> registerOwner(
+            @RequestParam("registrationToken") String registrationToken,
+            @RequestParam("fullName") String fullName,
+            @RequestParam("idNumber") String idNumber,
+            @RequestParam("venueName") String venueName,
+            @RequestParam("province") String province,
+            @RequestParam("district") String district,
+            @RequestParam("ward") String ward,
+            @RequestParam("sportTypes") String sportTypes,
+            @RequestParam("subCourtCount") int subCourtCount,
+            @RequestParam(value = "images", required = false) org.springframework.web.multipart.MultipartFile[] images) {
+        
+        RegisterOwnerResponse response = authService.registerOwner(
+                registrationToken, fullName, idNumber, venueName, province, 
+                district, ward, sportTypes, subCourtCount, images);
         return ResponseEntity.ok(response);
     }
 

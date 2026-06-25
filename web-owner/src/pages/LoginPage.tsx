@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import logoHorizontal from '../assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoVertical from '../assets/logo/light/logo-vertical_1200x1500.svg';
@@ -333,6 +333,12 @@ export const LoginPage = () => {
             <a href="mailto:support@sporta.vn" className="text-brand-emerald font-black hover:underline">
               Liên hệ hỗ trợ
             </a>
+          </div>
+          <div className="mt-2 text-center text-[10px] text-slate-400 font-semibold">
+            Chưa có tài khoản?{' '}
+            <Link to="/register" className="text-brand-emerald font-black hover:underline">
+              Đăng ký ngay
+            </Link>
           </div>
         </div>
       </div>

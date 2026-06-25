@@ -27,8 +27,11 @@ public class Owner {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number")
     private String phoneNumber;
+
+    @Column(name = "id_number")
+    private String idNumber;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;

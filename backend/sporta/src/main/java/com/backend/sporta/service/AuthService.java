@@ -5,10 +5,13 @@ import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.Gender;
 import com.backend.sporta.enums.Role;
 import com.backend.sporta.exception.CustomException;
+import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.UserSportRepository;
+import com.backend.sporta.repository.VenueRepository;
 import com.backend.sporta.security.JwtTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,15 @@ public class AuthService {
 
     @Autowired
     private OtpService otpService;
+
+    @Autowired
+    private OwnerRepository ownerRepository;
+
+    @Autowired
+    private VenueRepository venueRepository;
+
+    @Autowired
+    private FileStorageService fileStorageService;
 
     @Autowired
     private EmailService emailService;
@@ -133,6 +145,92 @@ public class AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .message("Đăng ký thành công.")
+                .build();
+    }
+
+    @Transactional
+    public RegisterOwnerResponse registerOwner(
+            String registrationToken,
+            String fullName,
+            String idNumber,
+            String venueName,
+            String province,
+            String district,
+            String ward,
+            String sportTypes,
+            int subCourtCount,
+            org.springframework.web.multipart.MultipartFile[] images) {
+
+        // 1. Validate registration token
+        if (!jwtTokenProvider.validateToken(registrationToken)) {
+            throw new CustomException("Registration token không hợp lệ hoặc đã hết hạn.", 400);
+        }
+
+        String email = jwtTokenProvider.getEmailFromToken(registrationToken);
+
+        // 2. Check if email already exists
+        if (userRepository.existsByEmail(email)) {
+            throw new CustomException("Email này đã được sử dụng.", 400);
+        }
+
+        // 3. Create User (role=OWNER, status=PENDING_APPROVAL)
+        User user = User.builder()
+                .email(email)
+                // Use a random password for pending owners. They will reset it upon approval.
+                .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
+                .fullName(fullName)
+                .role(Role.OWNER)
+                .status(UserStatus.PENDING_APPROVAL)
+                .build();
+        user = userRepository.save(user);
+
+        // 4. Create Owner
+        Owner owner = Owner.builder()
+                .user(user)
+                .fullName(fullName)
+                .idNumber(idNumber)
+                .phoneNumber("") // will be updated later
+                .build();
+        owner = ownerRepository.save(owner);
+
+        // 5. Upload images
+        java.util.List<String> imageUrls = new java.util.ArrayList<>();
+        if (images != null && images.length > 0) {
+            for (org.springframework.web.multipart.MultipartFile file : images) {
+                if (!file.isEmpty()) {
+                    String url = fileStorageService.uploadFile(file, "owner_registration");
+                    imageUrls.add(url);
+                }
+            }
+        }
+        
+        // Convert URLs list to JSON string for saving
+        String imagesJson = "[]";
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            imagesJson = mapper.writeValueAsString(imageUrls);
+        } catch (Exception e) {
+            throw new CustomException("Lỗi khi xử lý hình ảnh đăng ký.", 500);
+        }
+
+        // 6. Create Venue (status=PENDING_APPROVAL)
+        Venue venue = Venue.builder()
+                .owner(owner)
+                .name(venueName)
+                // Use full address as location temporarily
+                .location(ward + ", " + district + ", " + province)
+                .province(province)
+                .district(district)
+                .ward(ward)
+                .sportTypes(sportTypes)
+                .subCourtCount(subCourtCount)
+                .registrationImages(imagesJson)
+                .status(com.backend.sporta.enums.VenueStatus.PENDING_APPROVAL)
+                .build();
+        venueRepository.save(venue);
+
+        return RegisterOwnerResponse.builder()
+                .message("Hồ sơ đã được gửi thành công. Chúng tôi sẽ liên hệ với bạn sớm nhất.")
                 .build();
     }
 
