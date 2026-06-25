@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,16 +11,26 @@ export function MyClubsScreen() {
   const router = useRouter();
   const { clubs, joinedIds } = useClubs();
   const [selectedSport, setSelectedSport] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Filter only clubs that user has joined
   const joinedClubs = clubs.filter(club => joinedIds.includes(club.id));
 
   const filteredJoinedClubs = joinedClubs.filter(club => {
-    return selectedSport === 'all' || 
+    // Filter by search query
+    const matchesSearch = club.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          club.sport.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          club.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Filter by selected sport
+    const matchesSport = selectedSport === 'all' || 
       (selectedSport === 'football' && club.sport === 'Bóng đá') ||
       (selectedSport === 'basketball' && club.sport === 'Bóng rổ') ||
       (selectedSport === 'badminton' && club.sport === 'Cầu lông') ||
       (selectedSport === 'pickleball' && club.sport === 'Pickleball');
+
+    return matchesSearch && matchesSport;
   });
 
   return (
@@ -54,6 +64,28 @@ export function MyClubsScreen() {
 
       {/* Sports Filter Section */}
       <View style={styles.filterSection}>
+        {/* Search Bar */}
+        <View style={[
+          styles.searchContainer,
+          isSearchFocused && styles.searchContainerFocused
+        ]}>
+          <MaterialIcons name="search" size={20} color={COLORS.outline} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm tên CLB hoặc môn thể thao..."
+            placeholderTextColor={COLORS.outline}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
         <SportsFilter 
           selectedSport={selectedSport} 
           onSelectSport={setSelectedSport} 
@@ -182,6 +214,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.outlineVariant,
     gap: SPACING.base,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.default,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity20,
+    paddingHorizontal: SPACING.sm,
+    height: 44,
+    gap: SPACING.base,
+  },
+  searchContainerFocused: {
+    borderColor: COLORS.primary,
+  },
+  searchInput: {
+    flex: 1,
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
+    color: COLORS.onSurface,
+    padding: 0,
   },
 });
 
