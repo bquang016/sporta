@@ -3,9 +3,11 @@ package com.backend.sporta.service;
 import com.backend.sporta.dto.*;
 import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.Gender;
+import com.backend.sporta.enums.RegistrationStatus;
 import com.backend.sporta.enums.Role;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.OwnerRepository;
+import com.backend.sporta.repository.OwnerRegistrationRepository;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.UserSportRepository;
@@ -20,8 +22,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.Collections;
+import java.util.UUID;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -50,6 +54,9 @@ public class AuthService {
     private OwnerRepository ownerRepository;
 
     @Autowired
+    private OwnerRegistrationRepository ownerRegistrationRepository;
+
+    @Autowired
     private VenueRepository venueRepository;
 
     @Autowired
@@ -76,6 +83,10 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  LOGIN
+    // ═══════════════════════════════════════════════════════════════════════════
+
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Email hoặc mật khẩu không đúng", 401));
@@ -89,16 +100,29 @@ public class AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .message("Đăng nhập thành công.")
+                .mustChangePassword(user.isMustChangePassword())
                 .build();
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  SEND OTP
+    // ═══════════════════════════════════════════════════════════════════════════
 
     public void sendOtp(SendOtpRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException("Email này đã được sử dụng. Vui lòng đăng nhập.", 400);
         }
+        // Check if a pending registration already exists for this email
+        if (ownerRegistrationRepository.existsByEmailAndStatus(request.getEmail(), RegistrationStatus.PENDING)) {
+            throw new CustomException("Đơn đăng ký của bạn đang chờ duyệt. Vui lòng đợi kết quả xét duyệt.", 400);
+        }
         String otpCode = otpService.generateAndSaveOtp(request.getEmail());
         emailService.sendOtpEmail(request.getEmail(), otpCode);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  VERIFY OTP
+    // ═══════════════════════════════════════════════════════════════════════════
 
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
         otpService.verifyOtp(request.getEmail(), request.getOtp());
@@ -112,6 +136,10 @@ public class AuthService {
                 .message("Mã xác thực chính xác. Vui lòng hoàn tất thông tin.")
                 .build();
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  REGISTER (Player — kept for future use)
+    // ═══════════════════════════════════════════════════════════════════════════
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -160,6 +188,10 @@ public class AuthService {
                 .build();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  REGISTER OWNER — Saves to staging table only (NO User/Owner created)
+    // ═══════════════════════════════════════════════════════════════════════════
+
     @Transactional
     public RegisterOwnerResponse registerOwner(
             String registrationToken,
@@ -185,21 +217,15 @@ public class AuthService {
 
         String email = jwtTokenProvider.getEmailFromToken(registrationToken);
 
-        // 2. Check if email already exists
+        // 2. Check if email already exists in users table
         if (userRepository.existsByEmail(email)) {
             throw new CustomException("Email này đã được sử dụng.", 400);
         }
 
-        // 3. Create User (role=OWNER, status=PENDING_APPROVAL)
-        User user = User.builder()
-                .email(email)
-                // Use a random password for pending owners. They will reset it upon approval.
-                .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
-                .fullName(fullName)
-                .role(Role.OWNER)
-                .status(UserStatus.PENDING_APPROVAL)
-                .build();
-        user = userRepository.save(user);
+        // 3. Check if a pending registration already exists
+        if (ownerRegistrationRepository.existsByEmailAndStatus(email, RegistrationStatus.PENDING)) {
+            throw new CustomException("Đơn đăng ký của bạn đang chờ duyệt.", 400);
+        }
 
         // 4. Upload CCCD images
         String idFrontUrl = null;
@@ -211,18 +237,7 @@ public class AuthService {
             idBackUrl = fileStorageService.uploadFile(idBackImage, "cccd");
         }
 
-        // 5. Create Owner
-        Owner owner = Owner.builder()
-                .user(user)
-                .fullName(fullName)
-                .idNumber(idNumber)
-                .idFrontImage(idFrontUrl)
-                .idBackImage(idBackUrl)
-                .phoneNumber("") // will be updated later
-                .build();
-        owner = ownerRepository.save(owner);
-
-        // 6. Upload venue images
+        // 5. Upload venue images
         java.util.List<String> imageUrls = new java.util.ArrayList<>();
         if (images != null && images.length > 0) {
             for (org.springframework.web.multipart.MultipartFile file : images) {
@@ -232,8 +247,8 @@ public class AuthService {
                 }
             }
         }
-        
-        // Convert URLs list to JSON string for saving
+
+        // Convert URLs list to JSON string
         String imagesJson = "[]";
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -242,27 +257,96 @@ public class AuthService {
             throw new CustomException("Lỗi khi xử lý hình ảnh đăng ký.", 500);
         }
 
-        // 7. Create Venue (status=PENDING_APPROVAL)
-        Venue venue = Venue.builder()
-                .owner(owner)
-                .name(venueName)
-                // Use full address as location temporarily
-                .location(ward + ", " + district + ", " + province)
+        // 6. Save to staging table (owner_registrations) — NOT creating User/Owner/Venue
+        OwnerRegistration registration = OwnerRegistration.builder()
+                .email(email)
+                .fullName(fullName)
+                .idNumber(idNumber)
+                .idFrontImage(idFrontUrl)
+                .idBackImage(idBackUrl)
+                .venueName(venueName)
                 .province(province)
                 .district(district)
                 .ward(ward)
                 .sportTypes(sportTypes)
                 .subCourtCount(subCourtCount)
-                .registrationImages(imagesJson)
                 .description(description)
+                .registrationImages(imagesJson)
+                .amenitiesJson(amenitiesJson)
+                .courtsJson(courtsJson)
+                .status(RegistrationStatus.PENDING)
+                .build();
+
+        ownerRegistrationRepository.save(registration);
+
+        return RegisterOwnerResponse.builder()
+                .message("Hồ sơ đã được gửi thành công. Chúng tôi sẽ xét duyệt và liên hệ với bạn qua email sớm nhất.")
+                .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  APPROVE OWNER REGISTRATION — Admin approves, creates User/Owner/Venue/Court
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void approveOwnerRegistration(UUID registrationId) {
+        OwnerRegistration reg = ownerRegistrationRepository.findById(registrationId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy đơn đăng ký.", 404));
+
+        if (reg.getStatus() != RegistrationStatus.PENDING) {
+            throw new CustomException("Đơn đăng ký đã được xử lý trước đó.", 400);
+        }
+
+        // Double-check email not taken
+        if (userRepository.existsByEmail(reg.getEmail())) {
+            throw new CustomException("Email này đã được sử dụng bởi tài khoản khác.", 400);
+        }
+
+        // 1. Generate random password
+        String rawPassword = generateRandomPassword(8);
+
+        // 2. Create User (role=OWNER, status=ACTIVE, mustChangePassword=true)
+        User user = User.builder()
+                .email(reg.getEmail())
+                .password(passwordEncoder.encode(rawPassword))
+                .fullName(reg.getFullName())
+                .role(Role.OWNER)
+                .status(UserStatus.ACTIVE)
+                .mustChangePassword(true)
+                .build();
+        user = userRepository.save(user);
+
+        // 3. Create Owner
+        Owner owner = Owner.builder()
+                .user(user)
+                .fullName(reg.getFullName())
+                .idNumber(reg.getIdNumber())
+                .idFrontImage(reg.getIdFrontImage())
+                .idBackImage(reg.getIdBackImage())
+                .phoneNumber("") // will be updated later
+                .build();
+        owner = ownerRepository.save(owner);
+
+        // 4. Create Venue
+        Venue venue = Venue.builder()
+                .owner(owner)
+                .name(reg.getVenueName())
+                .location(reg.getWard() + ", " + reg.getDistrict() + ", " + reg.getProvince())
+                .province(reg.getProvince())
+                .district(reg.getDistrict())
+                .ward(reg.getWard())
+                .sportTypes(reg.getSportTypes())
+                .subCourtCount(reg.getSubCourtCount())
+                .registrationImages(reg.getRegistrationImages())
+                .description(reg.getDescription())
                 .status(com.backend.sporta.enums.VenueStatus.PENDING_APPROVAL)
                 .build();
         venue = venueRepository.save(venue);
 
-        // 8. Create VenueAmenity records
+        // 5. Create VenueAmenity records
         try {
             ObjectMapper mapper = new ObjectMapper();
-            java.util.List<String> amenityKeys = mapper.readValue(amenitiesJson,
+            java.util.List<String> amenityKeys = mapper.readValue(reg.getAmenitiesJson(),
                     mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
             for (String key : amenityKeys) {
                 VenueAmenity amenity = VenueAmenity.builder()
@@ -275,10 +359,10 @@ public class AuthService {
             // Ignore if amenities JSON is invalid — not critical
         }
 
-        // 9. Create Courts and CourtPricing
+        // 6. Create Courts and CourtPricing
         try {
             ObjectMapper mapper = new ObjectMapper();
-            java.util.List<java.util.Map<String, Object>> courtsList = mapper.readValue(courtsJson,
+            java.util.List<java.util.Map<String, Object>> courtsList = mapper.readValue(reg.getCourtsJson(),
                     mapper.getTypeFactory().constructCollectionType(java.util.List.class, java.util.Map.class));
             
             for (java.util.Map<String, Object> courtData : courtsList) {
@@ -299,7 +383,7 @@ public class AuthService {
                         .owner(owner)
                         .venue(venue)
                         .name(courtName)
-                        .price(0.0) // Default price, real pricing is in CourtPricing
+                        .price(0.0)
                         .openingTime("05:00")
                         .closingTime("22:00")
                         .location(venue.getLocation())
@@ -328,10 +412,72 @@ public class AuthService {
             // Ignore if courts JSON is invalid — not critical
         }
 
-        return RegisterOwnerResponse.builder()
-                .message("Hồ sơ đã được gửi thành công. Chúng tôi sẽ liên hệ với bạn sớm nhất.")
-                .build();
+        // 7. Update registration status
+        reg.setStatus(RegistrationStatus.APPROVED);
+        ownerRegistrationRepository.save(reg);
+
+        // 8. Send email with account credentials
+        emailService.sendAccountApprovedEmail(reg.getEmail(), rawPassword);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  REJECT OWNER REGISTRATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void rejectOwnerRegistration(UUID registrationId, String reason) {
+        OwnerRegistration reg = ownerRegistrationRepository.findById(registrationId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy đơn đăng ký.", 404));
+
+        if (reg.getStatus() != RegistrationStatus.PENDING) {
+            throw new CustomException("Đơn đăng ký đã được xử lý trước đó.", 400);
+        }
+
+        reg.setStatus(RegistrationStatus.REJECTED);
+        reg.setRejectionReason(reason != null ? reason : "");
+        ownerRegistrationRepository.save(reg);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  CHANGE PASSWORD (First login or voluntary)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void changePassword(String authorizationHeader, ChangePasswordRequest request) {
+        // Validate confirm password matches
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new CustomException("Mật khẩu xác nhận không khớp.", 400);
+        }
+
+        // Extract user from JWT
+        String token = extractToken(authorizationHeader);
+        if (token == null || !jwtTokenProvider.validateToken(token)) {
+            throw new CustomException("Token không hợp lệ.", 401);
+        }
+
+        String email = jwtTokenProvider.getEmailFromToken(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
+
+        // Verify current password
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new CustomException("Mật khẩu hiện tại không chính xác.", 400);
+        }
+
+        // Ensure new password is different from current
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new CustomException("Mật khẩu mới phải khác mật khẩu hiện tại.", 400);
+        }
+
+        // Update password and clear the mustChangePassword flag
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  GOOGLE LOGIN
+    // ═══════════════════════════════════════════════════════════════════════════
 
     public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
         try {
@@ -382,6 +528,10 @@ public class AuthService {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  LOGOUT
+    // ═══════════════════════════════════════════════════════════════════════════
+
     public void logout(String authorizationHeader) {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String token = authorizationHeader.substring(7);
@@ -390,5 +540,50 @@ public class AuthService {
                 tokenBlacklistService.blacklistToken(token, expiration);
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  PRIVATE HELPERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    private String extractToken(String authorizationHeader) {
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
+    }
+
+    /**
+     * Generate a random password with uppercase, lowercase, and digits.
+     */
+    private String generateRandomPassword(int length) {
+        String upperChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        String lowerChars = "abcdefghjkmnpqrstuvwxyz";
+        String digits = "23456789";
+        String allChars = upperChars + lowerChars + digits;
+
+        SecureRandom random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+
+        // Ensure at least one of each type
+        sb.append(upperChars.charAt(random.nextInt(upperChars.length())));
+        sb.append(lowerChars.charAt(random.nextInt(lowerChars.length())));
+        sb.append(digits.charAt(random.nextInt(digits.length())));
+
+        // Fill the rest
+        for (int i = 3; i < length; i++) {
+            sb.append(allChars.charAt(random.nextInt(allChars.length())));
+        }
+
+        // Shuffle the result
+        char[] passwordArray = sb.toString().toCharArray();
+        for (int i = passwordArray.length - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            char temp = passwordArray[i];
+            passwordArray[i] = passwordArray[j];
+            passwordArray[j] = temp;
+        }
+
+        return new String(passwordArray);
     }
 }

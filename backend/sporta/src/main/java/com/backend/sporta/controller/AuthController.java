@@ -1,6 +1,7 @@
 package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.AuthResponse;
+import com.backend.sporta.dto.ChangePasswordRequest;
 import com.backend.sporta.dto.LoginRequest;
 import com.backend.sporta.dto.RegisterRequest;
 import com.backend.sporta.dto.SendOtpRequest;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -84,6 +86,37 @@ public class AuthController {
     public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         authService.logout(authHeader);
         return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công và phiên làm việc đã được xóa."));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  CHANGE PASSWORD (First-login forced change or voluntary)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(authHeader, request);
+        return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  ADMIN — Approve / Reject Owner Registration
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @PostMapping("/admin/approve-registration/{id}")
+    public ResponseEntity<?> approveRegistration(@PathVariable UUID id) {
+        authService.approveOwnerRegistration(id);
+        return ResponseEntity.ok(Map.of("message", "Đơn đăng ký đã được duyệt thành công. Email thông báo đã được gửi."));
+    }
+
+    @PostMapping("/admin/reject-registration/{id}")
+    public ResponseEntity<?> rejectRegistration(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.getOrDefault("reason", "") : "";
+        authService.rejectOwnerRegistration(id, reason);
+        return ResponseEntity.ok(Map.of("message", "Đơn đăng ký đã bị từ chối."));
     }
 
     @GetMapping("/ping")

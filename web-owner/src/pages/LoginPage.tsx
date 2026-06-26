@@ -36,7 +36,7 @@ export const LoginPage = () => {
       const response = await fetch('http://localhost:8387/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
 
       const data = await response.json();
@@ -54,7 +54,13 @@ export const LoginPage = () => {
       }
 
       localStorage.setItem('accessToken', data.accessToken);
-      navigate('/', { replace: true });
+
+      // Check if user must change password on first login
+      if (data.mustChangePassword) {
+        navigate('/change-password', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi kết nối máy chủ. Vui lòng thử lại sau.');
     } finally {
