@@ -7,10 +7,8 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
-    private String accessToken;
+@NoArgsConstructor
+public class RegisterOwnerResponse {
     private String message;
-    private boolean mustChangePassword;
 }

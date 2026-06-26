@@ -1,6 +1,7 @@
 package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.AuthResponse;
+import com.backend.sporta.dto.ChangePasswordRequest;
 import com.backend.sporta.dto.LoginRequest;
 import com.backend.sporta.dto.RegisterRequest;
 import com.backend.sporta.dto.SendOtpRequest;
@@ -8,6 +9,7 @@ import com.backend.sporta.dto.VerifyOtpRequest;
 import com.backend.sporta.dto.VerifyOtpResponse;
 import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
+import com.backend.sporta.dto.RegisterOwnerResponse;
 import com.backend.sporta.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -48,6 +51,31 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "/register-owner", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RegisterOwnerResponse> registerOwner(
+            @RequestParam("registrationToken") String registrationToken,
+            @RequestParam("fullName") String fullName,
+            @RequestParam("idNumber") String idNumber,
+            @RequestParam("venueName") String venueName,
+            @RequestParam("province") String province,
+            @RequestParam("district") String district,
+            @RequestParam("ward") String ward,
+            @RequestParam("sportTypes") String sportTypes,
+            @RequestParam("subCourtCount") int subCourtCount,
+            @RequestParam(value = "description", required = false, defaultValue = "") String description,
+            @RequestParam(value = "amenities", required = false, defaultValue = "[]") String amenities,
+            @RequestParam(value = "courts", required = false, defaultValue = "[]") String courts,
+            @RequestParam(value = "idFrontImage", required = false) org.springframework.web.multipart.MultipartFile idFrontImage,
+            @RequestParam(value = "idBackImage", required = false) org.springframework.web.multipart.MultipartFile idBackImage,
+            @RequestParam(value = "images", required = false) org.springframework.web.multipart.MultipartFile[] images) {
+        
+        RegisterOwnerResponse response = authService.registerOwner(
+                registrationToken, fullName, idNumber, venueName, province, 
+                district, ward, sportTypes, subCourtCount, description,
+                amenities, courts, idFrontImage, idBackImage, images);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/google-login")
     public ResponseEntity<GoogleLoginResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         GoogleLoginResponse response = authService.googleLogin(request);
@@ -58,6 +86,37 @@ public class AuthController {
     public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         authService.logout(authHeader);
         return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công và phiên làm việc đã được xóa."));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  CHANGE PASSWORD (First-login forced change or voluntary)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(authHeader, request);
+        return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  ADMIN — Approve / Reject Owner Registration
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @PostMapping("/admin/approve-registration/{id}")
+    public ResponseEntity<?> approveRegistration(@PathVariable UUID id) {
+        authService.approveOwnerRegistration(id);
+        return ResponseEntity.ok(Map.of("message", "Đơn đăng ký đã được duyệt thành công. Email thông báo đã được gửi."));
+    }
+
+    @PostMapping("/admin/reject-registration/{id}")
+    public ResponseEntity<?> rejectRegistration(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.getOrDefault("reason", "") : "";
+        authService.rejectOwnerRegistration(id, reason);
+        return ResponseEntity.ok(Map.of("message", "Đơn đăng ký đã bị từ chối."));
     }
 
     @GetMapping("/ping")

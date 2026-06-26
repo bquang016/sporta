@@ -4,6 +4,8 @@ import com.backend.sporta.enums.VenueStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -32,11 +34,33 @@ public class Venue {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "location", nullable = false)
+    @Column(name = "location")
     private String location;
+
+    @Column(name = "province")
+    private String province;
+
+    @Column(name = "district")
+    private String district;
+
+    @Column(name = "ward")
+    private String ward;
+
+    @Column(name = "sport_types", columnDefinition = "TEXT")
+    private String sportTypes;
+
+    @Column(name = "sub_court_count")
+    private Integer subCourtCount;
+
+    @Column(name = "registration_images", columnDefinition = "TEXT")
+    private String registrationImages;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<VenueAmenity> amenities = new ArrayList<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

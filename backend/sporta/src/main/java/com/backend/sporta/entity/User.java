@@ -45,6 +45,10 @@ public class User {
     @Column(nullable = false)
     private UserStatus status;
 
+    @Column(name = "must_change_password", nullable = false)
+    @Builder.Default
+    private boolean mustChangePassword = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

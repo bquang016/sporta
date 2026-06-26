@@ -9,6 +9,9 @@ import { OperationsProvider } from './hooks/useOperationsState'
 import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './features/registration/pages/RegisterPage'
+import { SetupPage } from './features/registration/pages/SetupPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { useIsMobile } from './hooks/useIsMobile'
 
@@ -20,6 +23,9 @@ function App() {
     <Routes>
       {/* Public Route */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register/setup" element={<SetupPage />} />
+      <Route path="/change-password" element={<ChangePasswordPage />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
