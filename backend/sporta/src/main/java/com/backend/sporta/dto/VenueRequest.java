@@ -2,6 +2,7 @@ package com.backend.sporta.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import java.util.List;
 
 @Getter
 @Setter
@@ -20,4 +21,16 @@ public class VenueRequest {
     private Double longitude;
 
     private String description;
+
+    private String openingTime;
+
+    private String closingTime;
+
+    private Integer shiftDurationMinutes;
+
+    private Long sportId;
+
+    private String coverImage;
+
+    private List<String> detailImages;
 }

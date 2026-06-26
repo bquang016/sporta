@@ -31,14 +31,7 @@ public class OwnerVenueController {
     @PostMapping
     public ResponseEntity<Venue> createVenue(@Valid @RequestBody VenueRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Venue response = venueService.createVenue(
-                request.getName(),
-                request.getLocation(),
-                request.getDescription(),
-                request.getLatitude(),
-                request.getLongitude(),
-                email
-        );
+        Venue response = venueService.createVenue(request, email);
         return ResponseEntity.ok(response);
     }
 
@@ -56,15 +49,7 @@ public class OwnerVenueController {
             @PathVariable("id") UUID id,
             @Valid @RequestBody VenueRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Venue response = venueService.updateVenue(
-                id,
-                request.getName(),
-                request.getLocation(),
-                request.getDescription(),
-                request.getLatitude(),
-                request.getLongitude(),
-                email
-        );
+        Venue response = venueService.updateVenue(id, request, email);
         return ResponseEntity.ok(response);
     }
 }

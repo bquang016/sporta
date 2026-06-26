@@ -19,6 +19,7 @@ interface OperationsFacilitiesTabProps {
   };
   formatVND: (n: number) => string;
   isMobile?: boolean;
+  sportName?: string;
 }
 
 export const OperationsFacilitiesTab = ({
@@ -29,7 +30,8 @@ export const OperationsFacilitiesTab = ({
   handleOpenEditCourt,
   getCourtDetails,
   formatVND,
-  isMobile = false
+  isMobile = false,
+  sportName
 }: OperationsFacilitiesTabProps) => {
   if (isMobile) {
     return (
@@ -73,7 +75,7 @@ export const OperationsFacilitiesTab = ({
                 <div className="space-y-1 pr-6 select-none">
                   <h4 className="font-black text-slate-800 text-sm">{details.name}</h4>
                   <div className="flex gap-1.5 items-center">
-                    <span className="text-[9px] bg-slate-100 border text-slate-550 px-2 py-0.5 rounded font-black uppercase">{court.sportName}</span>
+                    <span className="text-[9px] bg-slate-100 border text-slate-550 px-2 py-0.5 rounded font-black uppercase">{sportName || 'Thể thao'}</span>
                     {details.surcharge > 0 && (
                       <span className="text-[9px] bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded font-black">+{formatVND(details.surcharge)}</span>
                     )}
@@ -158,7 +160,7 @@ export const OperationsFacilitiesTab = ({
                     <div className="space-y-0.5">
                       <span className="font-extrabold text-slate-800 text-xs">{details.name}</span>
                       <div className="flex gap-2 items-center">
-                        <span className="text-[9px] bg-slate-100 border text-slate-500 px-1.5 py-0.5 rounded leading-none select-none">{court.sportName}</span>
+                        <span className="text-[9px] bg-slate-100 border text-slate-550 px-1.5 py-0.5 rounded leading-none select-none">{sportName || 'Thể thao'}</span>
                         {details.surcharge > 0 && (
                           <span className="text-[9px] bg-amber-50 border border-amber-200 text-amber-600 px-1.5 py-0.5 rounded leading-none select-none">
                             + Phu thu: {formatVND(details.surcharge)}

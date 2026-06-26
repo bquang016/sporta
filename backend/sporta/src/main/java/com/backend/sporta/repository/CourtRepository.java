@@ -9,6 +9,6 @@ import java.util.UUID;
 
 @Repository
 public interface CourtRepository extends JpaRepository<Court, UUID> {
-    List<Court> findByOwnerId(UUID ownerId);
-    List<Court> findByOwnerUserEmail(String email);
+    List<Court> findByVenueOwnerId(UUID ownerId);
+    List<Court> findByVenueOwnerUserEmail(String email);
 }

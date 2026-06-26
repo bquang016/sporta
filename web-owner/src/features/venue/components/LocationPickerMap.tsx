@@ -17,13 +17,16 @@ interface LocationPickerMapProps {
   initialAddress?: string;
   onChange?: (data: { lat: number; lng: number; address: string }) => void;
   onClose?: () => void;
+  /** When true, fills the parent container's height instead of using a fixed height */
+  fullHeight?: boolean;
 }
 
 export const LocationPickerMap = ({
   initialLocation,
   initialAddress = '',
   onChange,
-  onClose
+  onClose,
+  fullHeight = false
 }: LocationPickerMapProps) => {
   const {
     suggestions,
@@ -270,7 +273,11 @@ export const LocationPickerMap = ({
   };
 
   return (
-    <div className="relative w-full h-[450px] md:h-[500px] bg-slate-100 rounded-3xl overflow-hidden shadow-lg border border-slate-200 flex flex-col">
+    <div className={`relative w-full bg-slate-100 overflow-hidden flex flex-col ${
+      fullHeight
+        ? 'h-full rounded-none shadow-none border-0'
+        : 'h-[450px] md:h-[500px] rounded-3xl shadow-lg border border-slate-200'
+    }`}>
       {/* Autocomplete Search input */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="relative flex items-center bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 px-4 py-3">

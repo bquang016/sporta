@@ -1,4 +1,4 @@
-export interface CourtImageDto {
+export interface VenueImageDto {
   id: number;
   imageUrl: string;
 }
@@ -12,6 +12,15 @@ export interface VenueResponse {
   status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED';
   latitude?: number;
   longitude?: number;
+  openingTime?: string;
+  closingTime?: string;
+  sport?: {
+    id: number;
+    name: string;
+  };
+  coverImage?: string;
+  images?: VenueImageDto[];
+  shiftDurationMinutes: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +31,12 @@ export interface VenueRequest {
   description: string;
   latitude?: number;
   longitude?: number;
+  openingTime: string;
+  closingTime: string;
+  sportId: number;
+  coverImage: string;
+  detailImages: string[];
+  shiftDurationMinutes: number;
 }
 
 export interface CourtResponse {
@@ -30,18 +45,9 @@ export interface CourtResponse {
   ownerName: string;
   name: string;
   price: number;
-  description: string;
-  coverImage: string;
-  openingTime: string;
-  closingTime: string;
-  location: string;
-  sportId: number;
-  sportName: string;
-  venueId: string | null;
-  venueName: string | null;
-  rejectionReason: string | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  detailImages: CourtImageDto[];
+  venueId: string;
+  venueName: string;
+  status: 'ACTIVE' | 'MAINTENANCE';
   createdAt: string;
   updatedAt: string;
 }
@@ -49,12 +55,6 @@ export interface CourtResponse {
 export interface CourtRequest {
   name: string;
   price: number;
-  description: string;
-  coverImage: string;
-  openingTime: string;
-  closingTime: string;
-  location: string;
-  sportId: number;
-  venueId: string | null;
-  detailImages: string[];
+  venueId: string;
+  status: 'ACTIVE' | 'MAINTENANCE';
 }
