@@ -6,9 +6,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 export function PersonalInfoScreen() {
   const router = useRouter();
-  const { registrationToken, email, password } = useLocalSearchParams();
+  const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
 
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState(typeof initialFullName === 'string' ? initialFullName : '');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');

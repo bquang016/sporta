@@ -9,6 +9,8 @@ import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.CourtImage;
 import com.backend.sporta.enums.CourtStatus;
 import com.backend.sporta.repository.SportRepository;
+import com.backend.sporta.entity.Venue;
+import com.backend.sporta.repository.VenueRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.CourtRepository;
@@ -37,6 +39,9 @@ public class DataSeeder implements CommandLineRunner {
 
     @Autowired
     private CourtImageRepository courtImageRepository;
+
+    @Autowired
+    private VenueRepository venueRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -76,6 +81,44 @@ public class DataSeeder implements CommandLineRunner {
             ownerProfile = ownerRepository.save(ownerProfile);
             System.out.println("Data Seeder: Đã tạo thông tin hồ sơ Owner chi tiết liên kết tài khoản.");
 
+            // Seed Venues for this Owner
+            Venue venueCauGiay = null;
+            Venue venueQuan7 = null;
+            Venue venueBaDinh = null;
+            if (venueRepository.count() == 0 && ownerProfile != null) {
+                venueCauGiay = Venue.builder()
+                        .owner(ownerProfile)
+                        .name("Cụm sân Cầu Giấy")
+                        .location("15 Dịch Vọng Hậu, Cầu Giấy, Hà Nội")
+                        .description("Tổ hợp thể thao Cầu Giấy với 4 sân bóng đá mini và 6 sân cầu lông.")
+                        .build();
+                venueCauGiay = venueRepository.save(venueCauGiay);
+
+                venueQuan7 = Venue.builder()
+                        .owner(ownerProfile)
+                        .name("Cụm sân Quận 7")
+                        .location("45 Nguyễn Văn Linh, Tân Phong, Quận 7, TP. Hồ Chí Minh")
+                        .description("Cụm sân Pickleball trong nhà hiện đại và cao cấp nhất khu vực Nam Sài Gòn.")
+                        .build();
+                venueQuan7 = venueRepository.save(venueQuan7);
+
+                venueBaDinh = Venue.builder()
+                        .owner(ownerProfile)
+                        .name("Cụm sân Ba Đình")
+                        .location("34 Hoàng Hoa Thám, Ba Đình, Hà Nội")
+                        .description("Khu phức hợp thể thao ngoài trời Ba Đình.")
+                        .build();
+                venueBaDinh = venueRepository.save(venueBaDinh);
+                System.out.println("Data Seeder: Đã tạo các cụm sân (Venue) mẫu.");
+            } else if (ownerProfile != null) {
+                java.util.List<Venue> venues = venueRepository.findByOwnerUserEmail("owner@sporta.vn");
+                for (Venue v : venues) {
+                    if (v.getName().equals("Cụm sân Cầu Giấy")) venueCauGiay = v;
+                    if (v.getName().equals("Cụm sân Quận 7")) venueQuan7 = v;
+                    if (v.getName().equals("Cụm sân Ba Đình")) venueBaDinh = v;
+                }
+            }
+
             // Seed Courts for this Owner
             Sport bongDa = sportRepository.findByName("Bóng đá").orElse(null);
             Sport cauLong = sportRepository.findByName("Cầu lông").orElse(null);
@@ -94,6 +137,7 @@ public class DataSeeder implements CommandLineRunner {
                             .closingTime("23:00")
                             .location("15 Dịch Vọng Hậu, Cầu Giấy, Hà Nội")
                             .sport(bongDa)
+                            .venue(venueCauGiay)
                             .status(CourtStatus.APPROVED)
                             .build();
                     court1 = courtRepository.save(court1);
@@ -114,6 +158,7 @@ public class DataSeeder implements CommandLineRunner {
                             .closingTime("22:00")
                             .location("45 Nguyễn Văn Linh, Tân Phong, Quận 7, TP. Hồ Chí Minh")
                             .sport(pickleball)
+                            .venue(venueQuan7)
                             .status(CourtStatus.APPROVED)
                             .build();
                     court2 = courtRepository.save(court2);
@@ -121,7 +166,7 @@ public class DataSeeder implements CommandLineRunner {
                     courtImageRepository.save(CourtImage.builder().court(court2).imageUrl("https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600&auto=format&fit=crop").build());
                 }
 
-                // Court 3: Cầu lông
+                // Court 3: Cầu lông (Pending)
                 if (cauLong != null) {
                     Court court3 = Court.builder()
                             .owner(ownerProfile)
@@ -133,11 +178,33 @@ public class DataSeeder implements CommandLineRunner {
                             .closingTime("22:00")
                             .location("88 Khuất Duy Tiến, Thanh Xuân, Hà Nội")
                             .sport(cauLong)
+                            .venue(venueCauGiay)
                             .status(CourtStatus.PENDING)
                             .build();
                     court3 = courtRepository.save(court3);
 
                     courtImageRepository.save(CourtImage.builder().court(court3).imageUrl("https://images.unsplash.com/photo-1521537634581-0dccd2ece234?q=80&w=600&auto=format&fit=crop").build());
+                }
+
+                // Court 4: Cầu lông (Rejected with reason)
+                if (cauLong != null) {
+                    Court court4 = Court.builder()
+                            .owner(ownerProfile)
+                            .name("Sân Cầu Lông Sporta Ba Đình")
+                            .price(90000.0)
+                            .description("Sân cầu lông thảm chuyên dụng nằm trong cụm sân Ba Đình.")
+                            .coverImage("https://images.unsplash.com/photo-1613918431201-f2f27ddc5ca7?q=80&w=600&auto=format&fit=crop")
+                            .openingTime("06:00")
+                            .closingTime("22:00")
+                            .location("34 Hoàng Hoa Thám, Ba Đình, Hà Nội")
+                            .sport(cauLong)
+                            .venue(venueBaDinh)
+                            .status(CourtStatus.REJECTED)
+                            .rejectionReason("Ảnh bìa mờ, địa chỉ không khớp thực tế. Vui lòng cập nhật lại hình ảnh rõ nét của sân.")
+                            .build();
+                    court4 = courtRepository.save(court4);
+
+                    courtImageRepository.save(CourtImage.builder().court(court4).imageUrl("https://images.unsplash.com/photo-1521537634581-0dccd2ece234?q=80&w=600&auto=format&fit=crop").build());
                 }
                 System.out.println("Data Seeder: Đã thêm các sân bãi mẫu.");
             }

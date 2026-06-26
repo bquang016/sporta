@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '../ui/Tooltip';
 import { getLoggedInUser } from '../../utils/auth';
@@ -11,7 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/': 'Bảng điều khiển',
   '/matrix': 'Quản lý lịch',
   '/scan': 'Quét mã QR',
-  '/facility': 'Quản lý sân',
+  '/operations': 'Quản lý vận hành',
   '/profile': 'Hồ sơ tài khoản',
   '/settings': 'Cài đặt hệ thống',
 };
@@ -83,7 +83,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <NavItem to="/" icon="home" label="Bảng điều khiển" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/scan" icon="scan" label="Quét mã QR" isCollapsed={isSidebarCollapsed} />
-          <NavItem to="/facility" icon="facility" label="Quản lý sân" isCollapsed={isSidebarCollapsed} />
+          <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/settings" icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
         </nav>
         
@@ -393,9 +393,107 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>;
     case 'facility':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>;
+    case 'venue':
+      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+    case 'dot':
+      return <svg className={className} fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" /></svg>;
     case 'settings':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
     default:
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
   }
+};
+
+const NavGroup = ({ 
+  label, 
+  icon, 
+  isCollapsed, 
+  isActive, 
+  items 
+}: { 
+  label: string, 
+  icon: string, 
+  isCollapsed: boolean, 
+  isActive: boolean, 
+  items: { to: string, label: string }[] 
+}) => {
+  const [isOpen, setIsOpen] = useState(isActive);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (isActive) {
+      setIsOpen(true);
+    }
+  }, [isActive]);
+
+  if (isCollapsed) {
+    return (
+      <div className="space-y-1">
+        {items.map((item, idx) => {
+          const isItemActive = location.pathname === item.to;
+          return (
+            <Tooltip key={idx} content={`${label} - ${item.label}`} position="right">
+              <Link 
+                to={item.to} 
+                className={`flex items-center justify-center p-3 w-12 mx-auto rounded-xl transition-all duration-300 ${
+                  isItemActive 
+                    ? 'bg-white/10 text-brand-yellow font-semibold' 
+                    : 'text-white/70 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <Icon name={idx === 0 ? 'facility' : 'venue'} className="w-5 h-5 flex-shrink-0" />
+              </Link>
+            </Tooltip>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 text-left cursor-pointer ${
+          isActive 
+            ? 'bg-white/5 text-brand-yellow font-semibold' 
+            : 'text-white/70 hover:bg-white/5 hover:text-white'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <Icon name={icon} className="w-5 h-5 flex-shrink-0" />
+          <span className="text-sm font-semibold">{label}</span>
+        </div>
+        <svg 
+          className={`w-4 h-4 transition-transform duration-200 text-white/50 ${isOpen ? 'rotate-180 text-brand-yellow' : ''}`} 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="pl-6 space-y-1 mt-1 border-l border-white/10 ml-6 flex flex-col">
+          {items.map((item, idx) => {
+            const isItemActive = location.pathname === item.to;
+            return (
+              <Link
+                key={idx}
+                to={item.to}
+                className={`flex items-center px-4 py-2 text-xs rounded-lg transition-all duration-200 cursor-pointer ${
+                  isItemActive
+                    ? 'text-brand-yellow font-black bg-white/5'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };

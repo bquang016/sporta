@@ -24,6 +24,9 @@ public class CourtResponse {
     private String location;
     private Long sportId;
     private String sportName;
+    private UUID venueId;
+    private String venueName;
+    private String rejectionReason;
     private CourtStatus status;
     private List<CourtImageDto> detailImages;
     private LocalDateTime createdAt;

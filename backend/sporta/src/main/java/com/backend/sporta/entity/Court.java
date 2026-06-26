@@ -51,6 +51,13 @@ public class Court {
     @JoinColumn(name = "sport_id", nullable = false)
     private Sport sport;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "venue_id", nullable = true)
+    private Venue venue;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private CourtStatus status;

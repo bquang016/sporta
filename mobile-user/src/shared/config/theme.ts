@@ -42,6 +42,58 @@ export const COLORS = {
   // Custom brand helpers
   brandGreen: '#064E3B',
   brandGold: '#FACC15',
+
+  // Opacity variations for brand green (primary)
+  primaryOpacity05: 'rgba(6, 78, 59, 0.05)',
+  primaryOpacity06: 'rgba(6, 78, 59, 0.06)',
+  primaryOpacity08: 'rgba(6, 78, 59, 0.08)',
+  primaryOpacity10: 'rgba(6, 78, 59, 0.1)',
+  primaryOpacity12: 'rgba(6, 78, 59, 0.12)',
+  primaryOpacity15: 'rgba(6, 78, 59, 0.15)',
+  primaryOpacity20: 'rgba(6, 78, 59, 0.2)',
+  primaryOpacity30: 'rgba(6, 78, 59, 0.3)',
+  primaryOpacity40: 'rgba(6, 78, 59, 0.4)',
+
+  // Opacity variations for brand gold (secondary)
+  secondaryOpacity10: 'rgba(250, 204, 21, 0.1)',
+  secondaryOpacity15: 'rgba(250, 204, 21, 0.15)',
+  secondaryOpacity20: 'rgba(250, 204, 21, 0.2)',
+
+  // Neutral black opacity overlay
+  blackOpacity30: 'rgba(0, 0, 0, 0.3)',
+  blackOpacity50: 'rgba(0, 0, 0, 0.5)',
+  blackOpacity60: 'rgba(0, 0, 0, 0.6)',
+  
+  // Custom white opacity
+  whiteOpacity70: 'rgba(255, 255, 255, 0.7)',
+
+  // Feedback opacities
+  successOpacity10: 'rgba(16, 185, 129, 0.1)',
+  errorOpacity08: 'rgba(239, 68, 68, 0.08)',
+  errorOpacity10: 'rgba(239, 68, 68, 0.1)',
+  grayOpacity10: 'rgba(107, 114, 128, 0.1)',
+  grayOpacity20: 'rgba(116, 120, 120, 0.2)',
+
+  // Custom brand / sport specific colors
+  sportTeal: '#0D9488',
+  pickleball: '#0D9488',
+  
+  // Custom status text colors
+  successText: '#10B981',
+  errorText: '#EF4444',
+  grayText: '#6B7280',
+  
+  // Warning/amber colors
+  amber: '#B45309',
+  amberStar: '#D97706',
+  amberOpacity10: 'rgba(180, 83, 9, 0.1)',
+  blackOpacity05: 'rgba(0, 0, 0, 0.05)',
+  blackOpacity15: 'rgba(0, 0, 0, 0.15)',
+  blackOpacity20: 'rgba(0, 0, 0, 0.2)',
+  
+  // Generic colors for clean mapping
+  white: '#FFFFFF',
+  shadowBlack: '#000000',
 };
 
 export const SPACING = {

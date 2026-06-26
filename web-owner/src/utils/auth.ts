@@ -22,6 +22,13 @@ export const getLoggedInUser = () => {
   if (!token) return null;
   const payload = parseJwt(token);
   if (!payload) return null;
+
+  // Check token expiration
+  if (payload.exp && payload.exp * 1000 < Date.now()) {
+    localStorage.removeItem('accessToken');
+    return null;
+  }
+
   return {
     email: payload.sub || payload.email,
     userId: payload.userId,
