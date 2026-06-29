@@ -1,7 +1,7 @@
-import { AdminLayout } from "./components/layout/AdminLayout";
-import { Dashboard } from "./pages/Dashboard/Dashboard";
-import { FacilityAuditing } from "./pages/Facilities/FacilityAuditing";
-import { UserManagement } from "./pages/Users/UserManagement";
+import { AdminLayout } from "@/components/layout/AdminLayout";
+import { Dashboard } from "@/pages/Dashboard/Dashboard";
+import { FacilityAuditing } from "@/pages/Facilities/FacilityAuditing";
+import { UserManagement } from "@/pages/Users/UserManagement";
 
 function App() {
   const renderContent = (currentTab: string) => {

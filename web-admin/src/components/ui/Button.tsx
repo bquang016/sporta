@@ -6,16 +6,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-export const Button = ({
-  children,
-  variant = 'primary',
-  size = 'md',
+export const Button = ({ 
+  children, 
+  variant = 'primary', 
+  size = 'md', 
   fullWidth = false,
   className = '',
-  ...props
+  ...props 
 }: ButtonProps) => {
   const baseStyles = "inline-flex items-center justify-center font-semibold rounded-xl transition-colors focus:outline-none";
-
+  
   const variants = {
     primary: "bg-brand-yellow text-brand-emerald hover:bg-yellow-400 active:bg-yellow-500",
     secondary: "bg-brand-emerald text-white hover:bg-emerald-800 active:bg-emerald-900",
