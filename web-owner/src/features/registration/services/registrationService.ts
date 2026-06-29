@@ -61,13 +61,12 @@ export async function verifyOtp(
  * POST /api/v1/auth/register-owner
  *
  * Sends multipart/form-data with all registration info including
- * CCCD images, venue images, amenities, and court pricing.
+ * CCCD images, venue images, and court pricing.
  */
 export async function registerOwner(
   registrationToken: string,
   personalInfo: PersonalInfo,
   venueInfo: VenueInfo,
-  amenities: string[],
   courts: SubCourt[]
 ): Promise<RegisterOwnerResponse> {
   const formData = new FormData();
@@ -95,9 +94,6 @@ export async function registerOwner(
   formData.append('description', venueInfo.description);
   formData.append('sportTypes', JSON.stringify(venueInfo.sportTypes));
   formData.append('subCourtCount', String(venueInfo.subCourtCount));
-
-  // Amenities
-  formData.append('amenities', JSON.stringify(amenities));
 
   // Courts with pricing
   formData.append('courts', JSON.stringify(courts));

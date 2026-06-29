@@ -4,7 +4,7 @@
 
 export type RegistrationStep = 'email' | 'otp' | 'success';
 
-export type SetupStep = 'personal' | 'venue' | 'amenities' | 'courts' | 'review';
+export type SetupStep = 'personal' | 'venue' | 'courts' | 'review';
 
 export interface PersonalInfo {
   fullName: string;
@@ -42,7 +42,6 @@ export interface RegistrationFormData {
   registrationToken: string;
   personalInfo: PersonalInfo;
   venueInfo: VenueInfo;
-  amenities: string[];
   courts: SubCourt[];
 }
 
@@ -72,18 +71,6 @@ export const SPORT_TYPE_OPTIONS = [
   { value: 'volleyball', label: 'Bóng chuyền' },
 ] as const;
 
-// Amenity options
-export const AMENITY_OPTIONS = [
-  { key: 'wifi', label: 'WiFi', icon: '📶' },
-  { key: 'parking', label: 'Bãi đỗ xe', icon: '🅿️' },
-  { key: 'changing_room', label: 'Phòng thay đồ', icon: '🚿' },
-  { key: 'drinks', label: 'Nước uống', icon: '🥤' },
-  { key: 'night_light', label: 'Ánh sáng ban đêm', icon: '💡' },
-  { key: 'seating', label: 'Ghế ngồi khán giả', icon: '💺' },
-  { key: 'restroom', label: 'Nhà vệ sinh', icon: '🚻' },
-  { key: 'canteen', label: 'Căn-tin', icon: '🍽️' },
-] as const;
-
 // Default pricing slots
 export const DEFAULT_PRICING_SLOTS: PricingSlot[] = [
   { label: 'Sáng', startTime: '05:00', endTime: '11:00', price: 0 },
@@ -96,7 +83,6 @@ export const DEFAULT_PRICING_SLOTS: PricingSlot[] = [
 export const SETUP_STEPS: { key: SetupStep; label: string }[] = [
   { key: 'personal', label: 'Cá nhân' },
   { key: 'venue', label: 'Cụm sân' },
-  { key: 'amenities', label: 'Tiện ích' },
   { key: 'courts', label: 'Sân & Giá' },
   { key: 'review', label: 'Xác nhận' },
 ];

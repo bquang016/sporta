@@ -2,7 +2,7 @@
 // Setup Wizard — Step 2: Venue Info + Images
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { VenueInfo } from '../types';
 import { SPORT_TYPE_OPTIONS } from '../types';
 
@@ -12,12 +12,159 @@ interface VenueInfoStepProps {
   isLoading: boolean;
 }
 
+/* Icons */
+const BuildingIcon = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
+
+const LocationIcon = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+/* Reusable input */
+const InputField = ({
+  id, label, icon, value, onChange, placeholder, disabled
+}: {
+  id: string; label: string; icon: React.ReactNode; value: string;
+  onChange: (val: string) => void; placeholder: string; disabled?: boolean;
+}) => (
+  <div className="space-y-1.5">
+    <label htmlFor={id} className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
+      {label}
+    </label>
+    <div className="relative">
+      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
+      <input
+        id={id} type="text" placeholder={placeholder} value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 font-bold text-xs text-slate-700 placeholder-slate-400
+                   focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white transition-all"
+        disabled={disabled}
+      />
+    </div>
+  </div>
+);
+
+/* Reusable Select */
+const SelectField = ({
+  id, label, icon, value, onChange, options, placeholder, disabled
+}: {
+  id: string; label: string; icon: React.ReactNode; value: string;
+  onChange: (val: string) => void; options: {code: number, name: string}[]; placeholder: string; disabled?: boolean;
+}) => (
+  <div className="space-y-1.5">
+    <label htmlFor={id} className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
+      {label}
+    </label>
+    <div className="relative">
+      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
+      <select
+        id={id} value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 font-bold text-xs text-slate-700
+                   focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white transition-all appearance-none cursor-pointer"
+        disabled={disabled || options.length === 0}
+      >
+        <option value="" disabled>{placeholder}</option>
+        {options.map((opt) => (
+          <option key={opt.code} value={opt.name}>{opt.name}</option>
+        ))}
+      </select>
+      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+    </div>
+  </div>
+);
+
 export const VenueInfoStep = ({
   venueInfo,
   onVenueInfoChange,
   isLoading,
 }: VenueInfoStepProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [provinces, setProvinces] = useState<{code: number, name: string}[]>([]);
+  const [districts, setDistricts] = useState<{code: number, name: string}[]>([]);
+  const [wards, setWards] = useState<{code: number, name: string}[]>([]);
+
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState<number | null>(null);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
+
+  // Initial load for provinces
+  useEffect(() => {
+    fetch('https://provinces.open-api.vn/api/p/')
+      .then(res => res.json())
+      .then(data => {
+        setProvinces(data);
+        // Pre-select if value exists
+        if (venueInfo.province) {
+          const p = data.find((x: any) => x.name === venueInfo.province);
+          if (p) setSelectedProvinceCode(p.code);
+        }
+      })
+      .catch(err => console.error("Failed to load provinces", err));
+  }, []);
+
+  // When province changes, fetch districts
+  useEffect(() => {
+    if (selectedProvinceCode) {
+      fetch(`https://provinces.open-api.vn/api/p/${selectedProvinceCode}?depth=2`)
+        .then(res => res.json())
+        .then(data => {
+          setDistricts(data.districts || []);
+          // Pre-select if value exists
+          if (venueInfo.district) {
+            const d = (data.districts || []).find((x: any) => x.name === venueInfo.district);
+            if (d) setSelectedDistrictCode(d.code);
+          }
+        })
+        .catch(err => console.error("Failed to load districts", err));
+    } else {
+      setDistricts([]);
+    }
+  }, [selectedProvinceCode]);
+
+  // When district changes, fetch wards
+  useEffect(() => {
+    if (selectedDistrictCode) {
+      fetch(`https://provinces.open-api.vn/api/d/${selectedDistrictCode}?depth=2`)
+        .then(res => res.json())
+        .then(data => setWards(data.wards || []))
+        .catch(err => console.error("Failed to load wards", err));
+    } else {
+      setWards([]);
+    }
+  }, [selectedDistrictCode]);
+
+  const handleProvinceChange = (name: string) => {
+    const p = provinces.find(x => x.name === name);
+    if (p) {
+      setSelectedProvinceCode(p.code);
+      setSelectedDistrictCode(null);
+      setWards([]);
+      onVenueInfoChange({ ...venueInfo, province: name, district: '', ward: '' });
+    }
+  };
+
+  const handleDistrictChange = (name: string) => {
+    const d = districts.find(x => x.name === name);
+    if (d) {
+      setSelectedDistrictCode(d.code);
+      onVenueInfoChange({ ...venueInfo, district: name, ward: '' });
+    }
+  };
+
+  const handleWardChange = (name: string) => {
+    onVenueInfoChange({ ...venueInfo, ward: name });
+  };
 
   const handleSportToggle = (sportValue: string) => {
     const current = venueInfo.sportTypes;
@@ -39,44 +186,6 @@ export const VenueInfoStep = ({
     onVenueInfoChange({ ...venueInfo, images: updated });
   };
 
-  /* Icons */
-  const BuildingIcon = (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-    </svg>
-  );
-
-  const LocationIcon = (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-
-  /* Reusable input */
-  const InputField = ({
-    id, label, icon, value, onChange, placeholder,
-  }: {
-    id: string; label: string; icon: React.ReactNode; value: string;
-    onChange: (val: string) => void; placeholder: string;
-  }) => (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-        {label}
-      </label>
-      <div className="relative">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
-        <input
-          id={id} type="text" placeholder={placeholder} value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 font-bold text-xs text-slate-700 placeholder-slate-400
-                     focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white transition-all"
-          disabled={isLoading}
-        />
-      </div>
-    </div>
-  );
-
   return (
     <div className="animate-fadeIn space-y-6">
       {/* Header */}
@@ -97,22 +206,27 @@ export const VenueInfoStep = ({
         <InputField id="setup-venue-name" label="Tên cụm sân" icon={BuildingIcon}
           value={venueInfo.venueName}
           onChange={(val) => onVenueInfoChange({ ...venueInfo, venueName: val })}
-          placeholder="Sân bóng Thành Công" />
+          placeholder="Sân bóng Thành Công" disabled={isLoading} />
 
         {/* Address */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <InputField id="setup-province" label="Tỉnh / Thành phố" icon={LocationIcon}
+          <SelectField id="setup-province" label="Tỉnh / Thành phố" icon={LocationIcon}
             value={venueInfo.province}
-            onChange={(val) => onVenueInfoChange({ ...venueInfo, province: val })}
-            placeholder="TP. Hồ Chí Minh" />
-          <InputField id="setup-district" label="Quận / Huyện" icon={LocationIcon}
+            onChange={handleProvinceChange}
+            options={provinces}
+            placeholder="Chọn Tỉnh/Thành" disabled={isLoading || provinces.length === 0} />
+            
+          <SelectField id="setup-district" label="Quận / Huyện" icon={LocationIcon}
             value={venueInfo.district}
-            onChange={(val) => onVenueInfoChange({ ...venueInfo, district: val })}
-            placeholder="Quận 7" />
-          <InputField id="setup-ward" label="Phường / Xã" icon={LocationIcon}
+            onChange={handleDistrictChange}
+            options={districts}
+            placeholder="Chọn Quận/Huyện" disabled={isLoading || districts.length === 0 || !venueInfo.province} />
+            
+          <SelectField id="setup-ward" label="Phường / Xã" icon={LocationIcon}
             value={venueInfo.ward}
-            onChange={(val) => onVenueInfoChange({ ...venueInfo, ward: val })}
-            placeholder="Tân Phong" />
+            onChange={handleWardChange}
+            options={wards}
+            placeholder="Chọn Phường/Xã" disabled={isLoading || wards.length === 0 || !venueInfo.district} />
         </div>
 
         {/* Description */}

@@ -58,10 +58,6 @@ public class Venue {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<VenueAmenity> amenities = new ArrayList<>();
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

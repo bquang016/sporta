@@ -12,7 +12,6 @@ import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.UserSportRepository;
 import com.backend.sporta.repository.VenueRepository;
-import com.backend.sporta.repository.VenueAmenityRepository;
 import com.backend.sporta.repository.CourtRepository;
 import com.backend.sporta.repository.CourtPricingRepository;
 import com.backend.sporta.security.JwtTokenProvider;
@@ -58,9 +57,6 @@ public class AuthService {
 
     @Autowired
     private VenueRepository venueRepository;
-
-    @Autowired
-    private VenueAmenityRepository venueAmenityRepository;
 
     @Autowired
     private CourtRepository courtRepository;
@@ -204,7 +200,6 @@ public class AuthService {
             String sportTypes,
             int subCourtCount,
             String description,
-            String amenitiesJson,
             String courtsJson,
             org.springframework.web.multipart.MultipartFile idFrontImage,
             org.springframework.web.multipart.MultipartFile idBackImage,
@@ -272,7 +267,6 @@ public class AuthService {
                 .subCourtCount(subCourtCount)
                 .description(description)
                 .registrationImages(imagesJson)
-                .amenitiesJson(amenitiesJson)
                 .courtsJson(courtsJson)
                 .status(RegistrationStatus.PENDING)
                 .build();
@@ -343,21 +337,6 @@ public class AuthService {
                 .build();
         venue = venueRepository.save(venue);
 
-        // 5. Create VenueAmenity records
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            java.util.List<String> amenityKeys = mapper.readValue(reg.getAmenitiesJson(),
-                    mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
-            for (String key : amenityKeys) {
-                VenueAmenity amenity = VenueAmenity.builder()
-                        .venue(venue)
-                        .amenityKey(key)
-                        .build();
-                venueAmenityRepository.save(amenity);
-            }
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            // Ignore if amenities JSON is invalid — not critical
-        }
 
         // 6. Create Courts and CourtPricing
         try {

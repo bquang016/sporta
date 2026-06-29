@@ -7,7 +7,6 @@ import { useSetupWizard } from '../hooks/useSetupWizard';
 import { SetupStepIndicator } from '../components/SetupStepIndicator';
 import { PersonalInfoStep } from '../components/PersonalInfoStep';
 import { VenueInfoStep } from '../components/VenueInfoStep';
-import { AmenitiesStep } from '../components/AmenitiesStep';
 import { CourtsStep } from '../components/CourtsStep';
 import { ReviewStep } from '../components/ReviewStep';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
@@ -89,14 +88,6 @@ export const SetupPage = () => {
                 />
               )}
 
-              {wizard.currentStep === 'amenities' && (
-                <AmenitiesStep
-                  amenities={wizard.amenities}
-                  onAmenitiesChange={wizard.setAmenities}
-                  isLoading={wizard.isLoading}
-                />
-              )}
-
               {wizard.currentStep === 'courts' && (
                 <CourtsStep
                   courts={wizard.courts}
@@ -109,7 +100,6 @@ export const SetupPage = () => {
                 <ReviewStep
                   personalInfo={wizard.personalInfo}
                   venueInfo={wizard.venueInfo}
-                  amenities={wizard.amenities}
                   courts={wizard.courts}
                   onGoToStep={wizard.goToStep}
                   isLoading={wizard.isLoading}
