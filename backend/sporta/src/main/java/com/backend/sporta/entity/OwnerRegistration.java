@@ -60,10 +60,6 @@ public class OwnerRegistration {
     @Column(name = "registration_images", columnDefinition = "TEXT")
     private String registrationImages;
 
-    // ── Detail data as JSON ──
-    @Column(name = "amenities_json", columnDefinition = "TEXT")
-    private String amenitiesJson;
-
     @Column(name = "courts_json", columnDefinition = "TEXT")
     private String courtsJson;
 

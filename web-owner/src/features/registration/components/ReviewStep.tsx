@@ -3,12 +3,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { PersonalInfo, VenueInfo, SubCourt, SetupStep } from '../types';
-import { AMENITY_OPTIONS, SPORT_TYPE_OPTIONS } from '../types';
+import { SPORT_TYPE_OPTIONS } from '../types';
 
 interface ReviewStepProps {
   personalInfo: PersonalInfo;
   venueInfo: VenueInfo;
-  amenities: string[];
   courts: SubCourt[];
   onGoToStep: (step: SetupStep) => void;
   isLoading: boolean;
@@ -17,16 +16,12 @@ interface ReviewStepProps {
 export const ReviewStep = ({
   personalInfo,
   venueInfo,
-  amenities,
   courts,
   onGoToStep,
   isLoading,
 }: ReviewStepProps) => {
   const getSportLabel = (value: string) =>
     SPORT_TYPE_OPTIONS.find((s) => s.value === value)?.label || value;
-
-  const getAmenityLabel = (key: string) =>
-    AMENITY_OPTIONS.find((a) => a.key === key);
 
   const formatPrice = (price: number): string => {
     if (!price) return '0';
@@ -130,33 +125,6 @@ export const ReviewStep = ({
         <InfoRow label="Loại sân" value={venueInfo.sportTypes.map(getSportLabel).join(', ')} />
         <InfoRow label="Số sân con" value={String(venueInfo.subCourtCount)} />
         <InfoRow label="Hình ảnh" value={`${venueInfo.images.length} ảnh`} />
-      </div>
-
-      {/* ═══ Section 3: Amenities ═══ */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <SectionHeader
-          title="Tiện ích"
-          step="amenities"
-          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>}
-        />
-        {amenities.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {amenities.map((key) => {
-              const opt = getAmenityLabel(key);
-              return (
-                <span
-                  key={key}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand-emerald/5 border border-brand-emerald/15 rounded-full text-[9px] font-bold text-brand-emerald"
-                >
-                  <span>{opt?.icon}</span>
-                  <span>{opt?.label || key}</span>
-                </span>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-[10px] text-slate-400 font-semibold">Chưa chọn tiện ích nào</p>
-        )}
       </div>
 
       {/* ═══ Section 4: Courts ═══ */}

@@ -50,7 +50,6 @@ export function useSetupWizard() {
     images: [],
   });
 
-  const [amenities, setAmenities] = useState<string[]>([]);
 
   const [courts, setCourts] = useState<SubCourt[]>([
     {
@@ -79,9 +78,6 @@ export function useSetupWizard() {
           if (!venueInfo.ward.trim()) return 'Vui lòng nhập Phường/Xã.';
           if (venueInfo.sportTypes.length === 0) return 'Vui lòng chọn ít nhất một loại sân.';
           return null;
-
-        case 'amenities':
-          return null; // Amenities are optional
 
         case 'courts':
           if (courts.length === 0) return 'Vui lòng thêm ít nhất một sân con.';
@@ -141,7 +137,6 @@ export function useSetupWizard() {
         registrationToken,
         personalInfo,
         venueInfo,
-        amenities,
         courts
       );
 
@@ -155,7 +150,7 @@ export function useSetupWizard() {
     } finally {
       setIsLoading(false);
     }
-  }, [registrationToken, personalInfo, venueInfo, amenities, courts, navigate]);
+  }, [registrationToken, personalInfo, venueInfo, courts, navigate]);
 
   return {
     // State
@@ -166,13 +161,11 @@ export function useSetupWizard() {
     errorMsg,
     personalInfo,
     venueInfo,
-    amenities,
     courts,
 
     // Setters
     setPersonalInfo,
     setVenueInfo,
-    setAmenities,
     setCourts,
     setErrorMsg,
 
