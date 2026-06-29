@@ -44,13 +44,13 @@ export const Modal = ({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
+      <div 
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+        onClick={onClose} 
       />
 
       {/* Modal Card */}
-      <div
+      <div 
         className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-3xl shadow-[0_24px_48px_rgba(0,0,0,0.16)] z-10 border border-slate-100/80 flex flex-col max-h-[85vh] overflow-hidden transition-all duration-300 scale-100`}
       >
         {/* Header */}
@@ -59,8 +59,8 @@ export const Modal = ({
             <span className="w-2.5 h-2.5 rounded-full bg-brand-emerald"></span>
             {title || 'Thông báo'}
           </h3>
-          <button
-            onClick={onClose}
+          <button 
+            onClick={onClose} 
             className="text-slate-400 hover:text-slate-600 transition-colors font-bold p-1 rounded-lg hover:bg-slate-50 focus:outline-none"
           >
             ✕
