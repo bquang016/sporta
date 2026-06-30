@@ -65,7 +65,7 @@ public class OwnerRegistration {
 
     // ── Status ──
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'PENDING'")
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50)")
     @Builder.Default
     private RegistrationStatus status = RegistrationStatus.PENDING;
 

@@ -18,7 +18,7 @@ import java.util.UUID;
 public class Venue {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'ACTIVE'")
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50)")
     @Builder.Default
     private VenueStatus status = VenueStatus.ACTIVE;
 

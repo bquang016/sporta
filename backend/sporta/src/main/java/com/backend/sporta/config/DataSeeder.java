@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 
@@ -46,8 +47,18 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Override
     public void run(String... args) throws Exception {
+        // Fix for "users_role_check" constraint when adding new Roles
+        try {
+            jdbcTemplate.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint users_role_check (có thể không tồn tại).");
+        }
+
         if (sportRepository.count() == 0) {
             sportRepository.save(new Sport(null, "Bóng đá"));
             sportRepository.save(new Sport(null, "Cầu lông"));
@@ -57,6 +68,32 @@ public class DataSeeder implements CommandLineRunner {
         } else if (sportRepository.count() == 3) {
             sportRepository.save(new Sport(null, "Bóng rổ"));
             System.out.println("Data Seeder: Đã thêm Bóng rổ vào database.");
+        }
+
+        // Seed Super Admin
+        if (userRepository.findByEmail("superadmin@sporta.vn").isEmpty()) {
+            User superAdmin = User.builder()
+                    .email("superadmin@sporta.vn")
+                    .password(passwordEncoder.encode("admin123"))
+                    .fullName("Super Admin")
+                    .role(Role.SUPER_ADMIN)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            userRepository.save(superAdmin);
+            System.out.println("Data Seeder: Đã tạo tài khoản Super Admin (superadmin@sporta.vn / admin123).");
+        }
+
+        // Seed Admin
+        if (userRepository.findByEmail("admin@sporta.vn").isEmpty()) {
+            User admin = User.builder()
+                    .email("admin@sporta.vn")
+                    .password(passwordEncoder.encode("admin123"))
+                    .fullName("Admin")
+                    .role(Role.ADMIN)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            userRepository.save(admin);
+            System.out.println("Data Seeder: Đã tạo tài khoản Admin (admin@sporta.vn / admin123).");
         }
 
         // Seed Default Owner User
