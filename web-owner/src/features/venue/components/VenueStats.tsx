@@ -38,7 +38,7 @@ export const VenueStats = ({ showStats, totalVenues, totalCourts, activeCourts }
 
       <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm flex items-center justify-between">
         <div className="space-y-1">
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">San dang hoat dong</p>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">San dang Hoạt động</p>
           <h3 className="text-2xl font-black text-emerald-600">{activeCourts}</h3>
         </div>
         <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-brand-emerald flex items-center justify-center">

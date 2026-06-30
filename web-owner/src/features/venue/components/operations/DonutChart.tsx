@@ -24,18 +24,18 @@ export const DonutChart = ({ activeCount, maintCount, closedCount, totalCount, i
   const circumference = 2 * Math.PI * r;
   const gap = totalCount > 1 ? 4 : 0; // gap between segments in px
 
-  const activePct  = totalCount > 0 ? activeCount / totalCount : 0;
-  const maintPct   = totalCount > 0 ? maintCount  / totalCount : 0;
-  const closedPct  = totalCount > 0 ? closedCount / totalCount : 0;
+  const activePct = totalCount > 0 ? activeCount / totalCount : 0;
+  const maintPct = totalCount > 0 ? maintCount / totalCount : 0;
+  const closedPct = totalCount > 0 ? closedCount / totalCount : 0;
 
-  const lenActive = activePct  * (circumference - (totalCount > 1 ? gap * 3 : 0));
-  const lenMaint  = maintPct   * (circumference - (totalCount > 1 ? gap * 3 : 0));
-  const lenClosed = closedPct  * (circumference - (totalCount > 1 ? gap * 3 : 0));
+  const lenActive = activePct * (circumference - (totalCount > 1 ? gap * 3 : 0));
+  const lenMaint = maintPct * (circumference - (totalCount > 1 ? gap * 3 : 0));
+  const lenClosed = closedPct * (circumference - (totalCount > 1 ? gap * 3 : 0));
 
   const segments = [
-    { key: 'active',  count: activeCount,  pct: activePct,  len: lenActive, offset: 0,                          color: '#10b981', label: 'Hoat dong' },
-    { key: 'maint',   count: maintCount,   pct: maintPct,   len: lenMaint,  offset: -(lenActive + gap),         color: '#f59e0b', label: 'Bao tri' },
-    { key: 'closed',  count: closedCount,  pct: closedPct,  len: lenClosed, offset: -(lenActive + lenMaint + gap * 2), color: '#ef4444', label: 'Dong cua' },
+    { key: 'active', count: activeCount, pct: activePct, len: lenActive, offset: 0, color: '#10b981', label: 'Hoạt động' },
+    { key: 'maint', count: maintCount, pct: maintPct, len: lenMaint, offset: -(lenActive + gap), color: '#f59e0b', label: 'Bảo trì' },
+    { key: 'closed', count: closedCount, pct: closedPct, len: lenClosed, offset: -(lenActive + lenMaint + gap * 2), color: '#ef4444', label: 'Đóng cửa' },
   ];
 
   return (
