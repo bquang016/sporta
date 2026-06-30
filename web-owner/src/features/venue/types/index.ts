@@ -1,4 +1,4 @@
-export interface CourtImageDto {
+export interface VenueImageDto {
   id: number;
   imageUrl: string;
 }
@@ -10,6 +10,27 @@ export interface VenueResponse {
   location: string;
   description: string;
   status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED';
+  // TRẠNG THÁI MỚI
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  hasPendingRevision?: boolean;
+
+  latitude?: number;
+  longitude?: number;
+  openingTime?: string;
+  closingTime?: string;
+  sport?: {
+    id: number;
+    name: string;
+  };
+  coverImage?: string;
+  images?: VenueImageDto[];
+  shiftDurationMinutes: number;
+  
+  // TÍNH NĂNG MỚI: PHỤ THU
+  hasSurcharge: boolean;
+  surchargeAmount?: number;
+  surchargeDescription?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +39,19 @@ export interface VenueRequest {
   name: string;
   location: string;
   description: string;
+  latitude?: number;
+  longitude?: number;
+  openingTime: string;
+  closingTime: string;
+  sportId: number;
+  coverImage: string;
+  detailImages: string[];
+  shiftDurationMinutes: number;
+  
+  // TÍNH NĂNG MỚI: PHỤ THU
+  hasSurcharge: boolean;
+  surchargeAmount?: number;
+  surchargeDescription?: string;
 }
 
 export interface CourtResponse {
@@ -26,18 +60,9 @@ export interface CourtResponse {
   ownerName: string;
   name: string;
   price: number;
-  description: string;
-  coverImage: string;
-  openingTime: string;
-  closingTime: string;
-  location: string;
-  sportId: number;
-  sportName: string;
-  venueId: string | null;
-  venueName: string | null;
-  rejectionReason: string | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  detailImages: CourtImageDto[];
+  venueId: string;
+  venueName: string;
+  status: 'ACTIVE' | 'MAINTENANCE';
   createdAt: string;
   updatedAt: string;
 }
@@ -45,12 +70,6 @@ export interface CourtResponse {
 export interface CourtRequest {
   name: string;
   price: number;
-  description: string;
-  coverImage: string;
-  openingTime: string;
-  closingTime: string;
-  location: string;
-  sportId: number;
-  venueId: string | null;
-  detailImages: string[];
+  venueId: string;
+  status: 'ACTIVE' | 'MAINTENANCE';
 }

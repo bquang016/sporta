@@ -1,0 +1,538 @@
+import React, { useRef } from 'react';
+import { Modal } from '../../../components/ui/Modal';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { MOCK_FACILITIES, formatPrice } from './mockData';
+import { useBookingMatrix } from '../hooks/useBookingMatrix';
+
+const SESSIONS = {
+  morning: {
+    label: 'Sáng',
+    time: '06:00'
+  },
+  afternoon: {
+    label: 'Chiều',
+    time: '12:00'
+  },
+  evening: {
+    label: 'Tối',
+    time: '17:00'
+  }
+};
+
+export const MobileBookingGrid = () => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  const {
+    times: allTimes,
+    slots,
+    searchTerm,
+    setSearchTerm,
+    selectedCourtType,
+    setSelectedCourtType,
+    currentDate,
+    isBookingModalOpen,
+    setIsBookingModalOpen,
+    isDetailModalOpen,
+    setIsDetailModalOpen,
+    showKpis,
+    setShowKpis,
+    quickBookingData,
+    setQuickBookingData,
+    selectedBookingDetail,
+    filteredFacilities,
+    kpis,
+    getCellStyle,
+    handlePrevDay,
+    handleNextDay,
+    handleToday,
+    handleCellClick,
+    handleQuickBookingSubmit,
+    handleCancelBooking,
+    getBlockSpan,
+    isInsideBlock,
+    handleConfirmDeposit
+  } = useBookingMatrix();
+
+  const [activeSession, setActiveSession] = React.useState<'morning' | 'afternoon' | 'evening'>('morning');
+
+  const scrollToSession = (session: 'morning' | 'afternoon' | 'evening') => {
+    setActiveSession(session);
+    const targetTime = SESSIONS[session].time;
+    const container = scrollContainerRef.current;
+    const target = document.getElementById(`m-col-${targetTime}`);
+    if (container && target) {
+      const offset = target.offsetLeft - container.offsetLeft;
+      container.scrollTo({ left: offset, behavior: 'smooth' });
+    }
+  };
+
+  const getCompactText = (name: string | undefined, status: string, span: number) => {
+    if (status === 'maintenance') return span > 1 ? 'BẢO TRÌ' : 'BT';
+    if (!name) return '';
+    if (span === 1) return name.substring(0, 3) + '..';
+    if (span === 2) return name.substring(0, 8) + (name.length > 8 ? '..' : '');
+    return name;
+  };
+
+  const getMobileCellStyle = (status: string): string => {
+    switch (status) {
+      case 'available':
+        return 'bg-slate-50 active:bg-emerald-50/50 cursor-pointer transition-colors duration-150';
+      case 'booked':
+        return 'bg-gradient-to-r from-emerald-600 to-teal-800 text-white font-bold shadow-sm border border-emerald-700/40 hover:brightness-105 transition-all';
+      case 'pending':
+        return 'bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 font-extrabold shadow-sm border border-amber-500/40 hover:brightness-105 transition-all';
+      case 'matchmaking':
+        return 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold shadow-sm border border-indigo-700/40 hover:brightness-105 transition-all';
+      case 'maintenance':
+        return 'bg-stripes-red text-red-800 font-bold border border-red-200 hover:brightness-105 transition-all';
+      default:
+        return 'bg-white';
+    }
+  };
+
+  return (
+    <div className="flex flex-col w-full min-h-full pb-36 relative select-none">
+      
+      <style>{`
+        .bg-stripes-red {
+          background-image: repeating-linear-gradient(45deg, #fee2e2, #fee2e2 8px, #fecaca 8px, #fecaca 16px);
+        }
+        .mobile-matrix-scroll::-webkit-scrollbar { display: none; }
+        .mobile-matrix-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
+      {/* ─── 1. BỘ CHỌN BUỔI (JUMP KEYS) ───────── */}
+      <div className="px-4 pt-4 pb-2">
+        <div className="bg-slate-100 p-1 rounded-2xl flex border border-slate-200/50">
+          {(Object.keys(SESSIONS) as Array<keyof typeof SESSIONS>).map((key) => {
+            const active = activeSession === key;
+            return (
+              <button
+                key={key}
+                onClick={() => scrollToSession(key)}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                  active 
+                    ? 'bg-brand-emerald text-white shadow-md shadow-emerald-950/15' 
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {key === 'morning' && (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707m12.728 12.728A9 9 0 115.636 5.636a9 9 0 0112.728 12.728z" />
+                  </svg>
+                )}
+                {key === 'afternoon' && (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                  </svg>
+                )}
+                {key === 'evening' && (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+                <span>{SESSIONS[key].label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ─── 2. THÀNH KPI COMPACT CHO MOBILE ─── */}
+      <div className="px-4 mt-1">
+        <div className="bg-white px-4 py-2.5 rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex items-center justify-between gap-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] text-slate-500 font-bold w-full">
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-brand-emerald flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+              </svg>
+              Lấp đầy: <span className="text-slate-800 font-black">{kpis.occupancyRate}%</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Doanh thu: <span className="text-slate-800 font-black">{formatPrice(kpis.totalRevenue)}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H9m1.414-1.414A2 2 0 1114 3.586V5h-3.586M9 11h6m-6 4h6" />
+              </svg>
+              Lượt đặt: <span className="text-slate-800 font-black">{kpis.bookingBlockCount}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Hoạt động: <span className="text-slate-800 font-black">{kpis.activeCourtsText}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 3. ĐIỀU HƯỚNG NGÀY & TÌM KIẾM CHO MOBILE ─── */}
+      <div className="px-4 mt-3 space-y-2.5">
+        <div className="flex items-center justify-between border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+          <button onClick={handlePrevDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <button onClick={handleToday} className="flex-1 py-2 text-xs font-bold text-slate-700 bg-white border-x border-slate-200 hover:bg-slate-50">
+            {currentDate}
+          </button>
+          <button onClick={handleNextDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2.5">
+          <div className="relative">
+            <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Tìm khách đặt sân..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald font-medium placeholder-slate-400"
+            />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">✕</button>
+            )}
+          </div>
+
+          <div className="flex bg-slate-100 rounded-xl p-1 gap-1 border border-slate-200/50">
+            {['all', '5v5', '7v7', '11v11'].map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedCourtType(type)}
+                className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all text-center ${
+                  selectedCourtType === type ? 'bg-white text-brand-emerald shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                {type === 'all' ? 'Tất cả' : `Sân ${type.replace('v', ' đấu ')}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 4. LƯỚI MA TRẬN CUỘN LIÊN TỤC ─── */}
+      <div className="px-4 py-2 mt-2 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_24px_rgba(0,0,0,0.02)] overflow-hidden">
+          
+          <div ref={scrollContainerRef} className="mobile-matrix-scroll overflow-x-auto touch-pan-x overscroll-x-contain">
+            <div className="min-w-max">
+              <table className="border-collapse table-fixed">
+                <thead>
+                  <tr className="bg-slate-900 border-b border-slate-800">
+                    <th 
+                      style={{ position: 'sticky', left: 0, zIndex: 30 }}
+                      className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-wider px-2 h-10 w-16 text-center border-r border-slate-800"
+                    >
+                      Sân
+                    </th>
+                    {allTimes.map((time) => {
+                      const isHour = time.endsWith(':00');
+                      return (
+                        <th 
+                          key={time} 
+                          id={`m-col-${time}`}
+                          className={`text-[9px] font-extrabold px-1 h-10 w-16 text-center border-r ${
+                            isHour 
+                              ? 'bg-slate-900 text-brand-yellow border-r-slate-500' 
+                              : 'bg-slate-800 text-slate-300 border-r-slate-700'
+                          }`}
+                        >
+                          <div>{time.split(':')[0]}h</div>
+                          <div className="text-[7px] opacity-70 font-bold">{time.split(':')[1]}</div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFacilities.map((facility) => (
+                    <tr key={facility.id} className="border-b border-slate-100 last:border-0">
+                      <td 
+                        style={{ position: 'sticky', left: 0, zIndex: 20 }}
+                        className="bg-slate-900 text-white font-black text-center text-xs h-14 w-16 border-r border-slate-800 shadow-[2px_0_8px_rgba(0,0,0,0.1)]"
+                      >
+                        <div className="text-slate-100 truncate px-0.5">{facility.name.replace('Sân ', '')}</div>
+                        <div className="text-[7px] text-brand-yellow tracking-tighter uppercase font-bold">{facility.type}</div>
+                      </td>
+
+                      {allTimes.map((time, colIdx) => {
+                        const slot = slots.find(s => s.facilityId === facility.id && s.time === time);
+                        const status = slot?.status || 'available';
+                        const isHourBorder = time.endsWith(':00');
+
+                        if (isInsideBlock(facility.id, time, status, slot?.customerName)) {
+                          return null;
+                        }
+
+                        const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName) : 1;
+
+                        return (
+                          <td
+                            key={`${facility.id}-${time}`}
+                            colSpan={span}
+                            onClick={() => handleCellClick(facility.id, time, status)}
+                            className={`h-14 p-0 border-b border-slate-100 transition-all ${
+                              isHourBorder ? 'border-l-2 border-l-slate-400/85' : ''
+                            } ${status === 'available' ? 'border-r border-r-slate-300 bg-slate-50/50 active:bg-emerald-500/10' : ''}`}
+                          >
+                            {status === 'available' ? (
+                              <div className="h-full w-full flex items-center justify-center cursor-pointer">
+                                <span className="text-[10px] text-slate-300 font-bold">+</span>
+                              </div>
+                            ) : (
+                              <div className={`h-10 mx-0.5 rounded-lg flex items-center justify-between px-1.5 gap-1 shadow-sm ${getMobileCellStyle(status)}`}>
+                                {status === 'matchmaking' && (
+                                  <svg className="w-3.5 h-3.5 text-white/80 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                )}
+                                <span className="text-[9px] font-black truncate leading-tight flex-1">
+                                  {status === 'matchmaking' 
+                                    ? `Xé vé: ${slot?.customerName || 'Trận ghép'} (${slot?.maxPlayers}ng - ${slot?.skillLevel})`
+                                    : getCompactText(slot?.customerName, status, span)}
+                                </span>
+                                <span className="text-[7px] font-extrabold opacity-75 whitespace-nowrap bg-black/10 px-0.5 py-0.2 rounded">
+                                  {span * 30}p
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chú thích màu sắc */}
+      <div className="flex items-center justify-center gap-3 py-2 mt-1 flex-wrap px-4">
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded bg-slate-100 border border-slate-200"></div>
+          <span className="text-[9px] font-bold text-slate-500">Trống</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded bg-brand-emerald"></div>
+          <span className="text-[9px] font-bold text-slate-500">Đã đặt</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded bg-amber-400"></div>
+          <span className="text-[9px] font-bold text-slate-500">Đang giữ</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded bg-indigo-600 bg-gradient-to-r from-indigo-600 to-purple-600"></div>
+          <span className="text-[9px] font-bold text-slate-500">Xé vé</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded bg-red-500"></div>
+          <span className="text-[9px] font-bold text-slate-500">Bảo trì</span>
+        </div>
+      </div>
+
+      {/* MODALS */}
+      <Modal isOpen={isBookingModalOpen} onClose={() => setIsBookingModalOpen(false)} title="Đặt sân bóng nhanh" maxWidth="sm">
+        <form onSubmit={handleQuickBookingSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Chọn Sân</label>
+            <Dropdown
+              options={MOCK_FACILITIES.map(f => ({ value: f.id, label: `${f.name} (${f.type})` }))}
+              value={quickBookingData.facilityId}
+              onChange={(val) => setQuickBookingData({...quickBookingData, facilityId: val})}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Loại giờ</label>
+            <Dropdown
+              options={[
+                { value: 'regular', label: 'Giờ thường' },
+                { value: 'matchmaking', label: 'Xé vé' }
+              ]}
+              value={quickBookingData.bookingType}
+              onChange={(val) => setQuickBookingData({...quickBookingData, bookingType: val as any})}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên khách hàng / Tên giải</label>
+            <input
+              type="text"
+              placeholder="Nhập tên khách..."
+              value={quickBookingData.customerName}
+              onChange={(e) => setQuickBookingData({...quickBookingData, customerName: e.target.value})}
+              disabled={quickBookingData.status === 'maintenance' && quickBookingData.bookingType !== 'matchmaking'}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none disabled:bg-slate-100"
+            />
+          </div>
+
+          {quickBookingData.bookingType === 'matchmaking' && (
+            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200/50">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Số người tối đa</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="30"
+                  value={quickBookingData.maxPlayers}
+                  onChange={(e) => setQuickBookingData({...quickBookingData, maxPlayers: parseInt(e.target.value) || 10})}
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Trình độ</label>
+                <Dropdown
+                  options={[
+                    { value: 'Yếu', label: 'Yếu' },
+                    { value: 'Trung bình yếu', label: 'Trung bình yếu' },
+                    { value: 'Trung bình khá', label: 'Trung bình khá' },
+                    { value: 'Khá', label: 'Khá' },
+                    { value: 'Bán chuyên', label: 'Bán chuyên' },
+                    { value: 'Chuyên nghiệp', label: 'Chuyên nghiệp' }
+                  ]}
+                  value={quickBookingData.skillLevel}
+                  onChange={(val) => setQuickBookingData({...quickBookingData, skillLevel: val})}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bắt đầu</label>
+              <Dropdown
+                options={allTimes.map(t => ({ value: t, label: t }))}
+                value={quickBookingData.startTime}
+                onChange={(val) => setQuickBookingData({...quickBookingData, startTime: val})}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kết thúc</label>
+              <Dropdown
+                options={allTimes.map(t => ({ value: t, label: t }))}
+                value={quickBookingData.endTime}
+                onChange={(val) => setQuickBookingData({...quickBookingData, endTime: val})}
+              />
+            </div>
+          </div>
+
+          {quickBookingData.bookingType === 'regular' && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Trạng thái đặt</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['booked', 'pending', 'maintenance'].map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setQuickBookingData({...quickBookingData, status: st as any, customerName: st === 'maintenance' ? '' : quickBookingData.customerName})}
+                    className={`py-2 rounded-xl text-[10px] font-bold border transition-all ${
+                      quickBookingData.status === st 
+                        ? st === 'booked' ? 'bg-brand-emerald text-white border-brand-emerald'
+                          : st === 'pending' ? 'bg-amber-400 text-amber-950 border-amber-400'
+                          : 'bg-red-500 text-white border-red-500'
+                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {st === 'booked' ? 'Đã đặt' : st === 'pending' ? 'Đang giữ' : 'Bảo trì'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2">
+            <button type="submit" className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+              Xác nhận đặt lịch
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isDetailModalOpen && !!selectedBookingDetail} onClose={() => setIsDetailModalOpen(false)} title="Thông tin lịch đặt" maxWidth="sm">
+        {selectedBookingDetail && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                selectedBookingDetail.status === 'booked' ? 'bg-emerald-600 text-white' :
+                selectedBookingDetail.status === 'pending' ? 'bg-amber-400 text-amber-950' :
+                selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-600 text-white bg-gradient-to-br from-indigo-600 to-purple-600' :
+                'bg-red-500 text-white'
+              }`}>
+                {selectedBookingDetail.status === 'booked' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+                {selectedBookingDetail.status === 'pending' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                {selectedBookingDetail.status === 'matchmaking' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
+                {selectedBookingDetail.status === 'maintenance' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" /></svg>}
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-xs font-black text-slate-800 truncate">{selectedBookingDetail.customerName}</h4>
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-1 inline-block ${
+                  selectedBookingDetail.status === 'booked' ? 'bg-emerald-100 text-emerald-800' :
+                  selectedBookingDetail.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                  selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-100 text-indigo-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' : selectedBookingDetail.status === 'pending' ? 'Đang giữ' : selectedBookingDetail.status === 'matchmaking' ? 'Xé vé' : 'Bảo trì'}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-[11px]">
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="font-semibold text-slate-400">Sân bóng</span>
+                <span className="font-black text-slate-800">{selectedBookingDetail.facility.name} ({selectedBookingDetail.facility.type})</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="font-semibold text-slate-400">Thời gian</span>
+                <span className="font-black text-brand-emerald">{selectedBookingDetail.startTime} – {selectedBookingDetail.endTime}</span>
+              </div>
+              {selectedBookingDetail.status === 'matchmaking' && (
+                <>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400">Số lượng người tối đa</span>
+                    <span className="font-black text-slate-800">{selectedBookingDetail.maxPlayers || 10} người</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400">Trình độ yêu cầu</span>
+                    <span className="font-black text-indigo-600">{selectedBookingDetail.skillLevel || 'Chưa cập nhật'}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="font-semibold text-slate-400">Giá thuê</span>
+                <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.facility.pricePerHour)}/h</span>
+              </div>
+              {selectedBookingDetail.status !== 'maintenance' && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="font-semibold text-slate-400">Tổng tạm tính</span>
+                  <span className="font-black text-slate-800 text-xs">{formatPrice(selectedBookingDetail.price)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 space-y-2">
+              {selectedBookingDetail.status === 'pending' && (
+                <button onClick={handleConfirmDeposit} className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+                  Xác nhận đã đặt cọc
+                </button>
+              )}
+              <button onClick={handleCancelBooking} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors">
+                {selectedBookingDetail.status === 'maintenance' ? 'Hủy lịch bảo trì' : 'Hủy lịch đặt sân này'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+};

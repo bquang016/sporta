@@ -375,15 +375,10 @@ public class AuthService {
                 }
 
                 Court court = Court.builder()
-                        .owner(owner)
                         .venue(venue)
                         .name(courtName)
                         .price(0.0)
-                        .openingTime("05:00")
-                        .closingTime("22:00")
-                        .location(venue.getLocation())
-                        .sport(sport)
-                        .status(com.backend.sporta.enums.CourtStatus.PENDING)
+                        .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
                         .build();
                 court = courtRepository.save(court);
 
