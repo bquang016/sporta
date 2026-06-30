@@ -98,11 +98,11 @@ export const VenueList = ({ venues, courts, openMenuId, setOpenMenuId, onEdit, o
         const venueCourts = courts.filter(c => c.venueId === venue.id);
         const venueStatus = venue.status || 'ACTIVE';
         const statusColor =
-          venueStatus === 'ACTIVE'      ? 'bg-emerald-50 text-brand-emerald border-emerald-100' :
-          venueStatus === 'MAINTENANCE' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-          'bg-red-50 text-red-600 border-red-100';
+          venueStatus === 'ACTIVE' ? 'bg-emerald-50 text-brand-emerald border-emerald-100' :
+            venueStatus === 'MAINTENANCE' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+              'bg-red-50 text-red-600 border-red-100';
         const statusLabel =
-          venueStatus === 'ACTIVE' ? 'Hoat dong' : venueStatus === 'MAINTENANCE' ? 'Bao tri' : 'Dong cua';
+          venueStatus === 'ACTIVE' ? 'Hoạt động' : venueStatus === 'MAINTENANCE' ? 'Bảo trì' : 'Đóng cửa';
 
         return (
           <div

@@ -30,8 +30,8 @@ interface OperationsContextType {
   // Venue Actions
   setSelectedVenueId: (id: string | null) => void;
   changeVenueStatus: (venueId: string, status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED') => Promise<void>;
-  updateVenueInfo: (id: string, name: string, location: string, description: string) => Promise<void>;
-  createVenueInfo: (name: string, location: string, description: string) => Promise<void>;
+  updateVenueInfo: (id: string, name: string, location: string, description: string, openingTime: string, closingTime: string, sportId: number, coverImage: string, detailImages: string[], shiftDurationMinutes: number, latitude?: number, longitude?: number, hasSurcharge?: boolean, surchargeAmount?: number, surchargeDescription?: string) => Promise<void>;
+  createVenueInfo: (name: string, location: string, description: string, openingTime: string, closingTime: string, sportId: number, coverImage: string, detailImages: string[], shiftDurationMinutes: number, latitude?: number, longitude?: number, hasSurcharge?: boolean, surchargeAmount?: number, surchargeDescription?: string) => Promise<void>;
   
   // Court/Facility Actions
   toggleCourtStatus: (courtId: string) => void;
@@ -195,9 +195,40 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   // Update Venue details
-  const updateVenueInfo = async (id: string, name: string, location: string, description: string) => {
+  const updateVenueInfo = async (
+    id: string,
+    name: string,
+    location: string,
+    description: string,
+    openingTime: string,
+    closingTime: string,
+    sportId: number,
+    coverImage: string,
+    detailImages: string[],
+    shiftDurationMinutes: number,
+    latitude?: number,
+    longitude?: number,
+    hasSurcharge?: boolean,
+    surchargeAmount?: number,
+    surchargeDescription?: string
+  ) => {
     try {
-      const updated = await courtService.updateVenue(id, { name, location, description });
+      const updated = await courtService.updateVenue(id, {
+        name,
+        location,
+        description,
+        openingTime,
+        closingTime,
+        sportId,
+        coverImage,
+        detailImages,
+        shiftDurationMinutes,
+        latitude,
+        longitude,
+        hasSurcharge: hasSurcharge || false,
+        surchargeAmount,
+        surchargeDescription
+      });
       setVenues(prev => prev.map(v => v.id === id ? updated : v));
     } catch (err: any) {
       console.error(err);
@@ -206,9 +237,39 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   // Create new Venue
-  const createVenueInfo = async (name: string, location: string, description: string) => {
+  const createVenueInfo = async (
+    name: string,
+    location: string,
+    description: string,
+    openingTime: string,
+    closingTime: string,
+    sportId: number,
+    coverImage: string,
+    detailImages: string[],
+    shiftDurationMinutes: number,
+    latitude?: number,
+    longitude?: number,
+    hasSurcharge?: boolean,
+    surchargeAmount?: number,
+    surchargeDescription?: string
+  ) => {
     try {
-      const created = await courtService.createVenue({ name, location, description });
+      const created = await courtService.createVenue({
+        name,
+        location,
+        description,
+        openingTime,
+        closingTime,
+        sportId,
+        coverImage,
+        detailImages,
+        shiftDurationMinutes,
+        latitude,
+        longitude,
+        hasSurcharge: hasSurcharge || false,
+        surchargeAmount,
+        surchargeDescription
+      });
       setVenues(prev => [...prev, created]);
       setSelectedVenueId(created.id);
     } catch (err: any) {

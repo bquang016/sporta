@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Tooltip } from '../ui/Tooltip';
-import { ConfirmModal } from '../ui/ConfirmModal';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import logoHorizontal from '@/assets/logo/light/logo-horizontal_1600x400px.svg';
+import logoSvg from '@/assets/logo/light/logo-main_40x40px_small.svg';
 
 const PAGE_TITLES: Record<string, string> = {
   'dashboard': 'Dashboard Thống Kê',
@@ -57,12 +59,22 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         }`}
       >
         {/* Sidebar Header */}
-        <div className={`p-6 pb-2 transition-all duration-300 ${isSidebarCollapsed ? 'text-center px-2' : ''}`}>
-          <h1 className="text-2xl font-black tracking-tight text-brand-yellow">
-            {isSidebarCollapsed ? 'S' : 'Sporta'}
-          </h1>
-          {!isSidebarCollapsed && (
-            <p className="text-[10px] text-on-primary/70 mt-1 font-bold uppercase tracking-widest">Hệ Thống Admin</p>
+        <div className={`py-6 px-4 transition-all duration-300 ${isSidebarCollapsed ? 'text-center px-2 flex justify-center' : 'flex flex-col items-start gap-1'}`}>
+          {isSidebarCollapsed ? (
+            <img 
+              src={logoSvg} 
+              alt="Sporta Logo" 
+              className="w-10 h-10 object-contain hover:scale-110 transition-transform duration-200" 
+            />
+          ) : (
+            <div className="flex flex-col gap-1 w-full">
+              <img 
+                src={logoHorizontal} 
+                alt="Sporta Logo" 
+                className="h-10 w-auto object-contain max-w-[180px]" 
+              />
+              <p className="text-[9px] text-on-primary/60 font-bold uppercase tracking-widest pl-1 mt-0.5">Hệ Thống Admin</p>
+            </div>
           )}
         </div>
         

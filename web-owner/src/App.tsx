@@ -2,13 +2,16 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { MobileDashboardPage } from './features/dashboard/pages/MobileDashboardPage'
 import { DesktopDashboardPage } from './features/dashboard/pages/DesktopDashboardPage'
-import { MatrixPage } from './pages/MatrixPage'
-import { ScanPage } from './pages/ScanPage'
+import { MatrixPage } from './features/booking/pages/MatrixPage'
+import { ScanPage } from './features/scan/pages/ScanPage'
 import { OperationsPage } from './features/venue/pages/OperationsPage'
 import { OperationsProvider } from './hooks/useOperationsState'
-import { ProfilePage } from './pages/ProfilePage'
-import { SettingsPage } from './pages/SettingsPage'
-import { LoginPage } from './pages/LoginPage'
+import { ProfilePage } from './features/profile/pages/ProfilePage'
+import { SettingsPage } from './features/settings/pages/SettingsPage'
+import { LoginPage } from './features/auth/pages/LoginPage'
+import { RegisterPage } from './features/registration/pages/RegisterPage'
+import { SetupPage } from './features/registration/pages/SetupPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { useIsMobile } from './hooks/useIsMobile'
 
@@ -20,6 +23,9 @@ function App() {
     <Routes>
       {/* Public Route */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register/setup" element={<SetupPage />} />
+      <Route path="/change-password" element={<ChangePasswordPage />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>

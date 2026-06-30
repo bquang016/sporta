@@ -7,10 +7,11 @@ import { OperationsFacilitiesTab } from '../components/operations/OperationsFaci
 import { BookingQueueModal } from '../components/operations/BookingQueueModal';
 import { BulkSurchargeModal } from '../components/operations/BulkSurchargeModal';
 import { CourtConfigModal } from '../components/operations/CourtConfigModal';
-import { VenueFormModal } from '../components/VenueFormModal';
+import { VenueFormScreen } from '../components/VenueFormScreen';
 import { VenueStatusModal } from '../components/VenueStatusModal';
 import { VenueRowMenu } from '../components/operations/VenueRowMenu';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+import { AddCourtSubScreen } from '../components/operations/AddCourtSubScreen';
 
 export const OperationsPage = () => {
   const isMobile = useIsMobile();
@@ -24,179 +25,214 @@ export const OperationsPage = () => {
     setSelectedVenueId,
     setSelectedCourtIds,
 
-    // UI Local
-    mobileScreen,
-    setMobileScreen,
-    activeTab,
-    setActiveTab,
-    searchQuery,
-    setSearchQuery,
-    isQueueModalOpen,
-    setIsQueueModalOpen,
-    isEditModalOpen,
-    setIsEditModalOpen,
-    isCreateVenueModalOpen,
-    setIsCreateVenueModalOpen,
-    isEditVenueModalOpen,
-    setIsEditVenueModalOpen,
-    isVenueStatusModalOpen,
-    setIsVenueStatusModalOpen,
-    openVenueMenuId,
-    setOpenVenueMenuId,
+    mobileScreen, setMobileScreen,
+    activeTab, setActiveTab,
+    searchQuery, setSearchQuery,
+    isQueueModalOpen, setIsQueueModalOpen,
+    isEditModalOpen, setIsEditModalOpen,
+    isCreateVenueModalOpen, setIsCreateVenueModalOpen,
+    isEditVenueModalOpen, setIsEditVenueModalOpen,
+    isVenueStatusModalOpen, setIsVenueStatusModalOpen,
+    openVenueMenuId, setOpenVenueMenuId,
 
-    // Form inputs
-    editingCourt,
-    editName,
-    setEditName,
-    editPrice,
-    setEditPrice,
-    editDescription,
-    setEditDescription,
-    editCoverImage,
-    setEditCoverImage,
-    editOpening,
-    setEditOpening,
-    editClosing,
-    setEditClosing,
-    editLocation,
-    setEditLocation,
-    editSportId,
-    setEditSportId,
-    editApprovalStatus,
-    setEditApprovalStatus,
-    editOpStatus,
-    setEditOpStatus,
-    editDetailImages,
-    uploadingCover,
-    uploadingDetail,
+    editingCourt, editName, setEditName,
+    editPrice, setEditPrice,
+    editOpStatus, setEditOpStatus,
 
     // Create Venue Inputs
-    newVenueName,
-    setNewVenueName,
-    newVenueLocation,
-    setNewVenueLocation,
-    newVenueDescription,
-    setNewVenueDescription,
+    newVenueName, setNewVenueName,
+    newVenueLocation, setNewVenueLocation,
+    newVenueLatitude, setNewVenueLatitude,
+    newVenueLongitude, setNewVenueLongitude,
+    newVenueDescription, setNewVenueDescription,
+    newVenueOpeningTime, setNewVenueOpeningTime,
+    newVenueClosingTime, setNewVenueClosingTime,
+    newVenueShiftDuration, setNewVenueShiftDuration,
+    newVenueSportId, setNewVenueSportId,
+    newVenueCoverImage, setNewVenueCoverImage,
+    newVenueDetailImages,
+    newVenueHasSurcharge, setNewVenueHasSurcharge,
+    newVenueSurchargeAmount, setNewVenueSurchargeAmount,
+    newVenueSurchargeDescription, setNewVenueSurchargeDescription,
+    uploadingNewVenueCover, uploadingNewVenueDetail,
 
     // Edit Venue Inputs
-    editVenueName,
-    setEditVenueName,
-    editVenueLocation,
-    setEditVenueLocation,
-    editVenueDescription,
-    setEditVenueDescription,
+    editVenueName, setEditVenueName,
+    editVenueLocation, setEditVenueLocation,
+    editVenueLatitude, setEditVenueLatitude,
+    editVenueLongitude, setEditVenueLongitude,
+    editVenueDescription, setEditVenueDescription,
+    editVenueOpeningTime, setEditVenueOpeningTime,
+    editVenueClosingTime, setEditVenueClosingTime,
+    editVenueShiftDuration, setEditVenueShiftDuration,
+    editVenueSportId, setEditVenueSportId,
+    editVenueCoverImage, setEditVenueCoverImage,
+    editVenueDetailImages,
+    editVenueHasSurcharge, setEditVenueHasSurcharge,
+    editVenueSurchargeAmount, setEditVenueSurchargeAmount,
+    editVenueSurchargeDescription, setEditVenueSurchargeDescription,
+    uploadingEditVenueCover, uploadingEditVenueDetail,
 
-    // Surcharge
-    isSurchargeModalOpen,
-    setIsSurchargeModalOpen,
-    surchargeAmount,
-    setSurchargeAmount,
+    isSurchargeModalOpen, setIsSurchargeModalOpen,
+    surchargeAmount, setSurchargeAmount,
     surchargeCourtIds,
 
-    // Derived values
-    activeVenue,
-    activeVenueId,
-    activeCourts,
-    filteredVenues,
-    actionRequiredBookings,
-    todayRevenue,
-    totalBookingsCount,
-    avgOccupancy,
+    activeVenue, activeVenueId, activeCourts, filteredVenues,
+    actionRequiredBookings, todayRevenue, totalBookingsCount, avgOccupancy,
+    activeCount, maintCount, closedCount, totalOpCourts,
 
-    // Donut Stats
-    activeCount,
-    maintCount,
-    closedCount,
-    totalOpCourts,
+    formatVND, hourDropdownOptions, opDropdownOptions,
+    getCourtOpStatus, getCourtDetails,
 
-    // Helper functions
-    formatVND,
-    hourDropdownOptions,
-    approvalDropdownOptions,
-    opDropdownOptions,
-    getCourtOpStatus,
-    getCourtDetails,
+    pendingVenueStatus, isConfirmStatusModalOpen,
 
-    // Confirmation Flow States
-    pendingVenueStatus,
-    isConfirmStatusModalOpen,
+    handleVenueStatusSelect, handleConfirmVenueStatusChange, handleCancelVenueStatusChange,
+    handleOpenVenueStatusFromMenu, handleCreateVenue, handleOpenEditVenue,
+    handleEditVenue, handleSelectAll, handleSelectCourt, handleOpenBulkSurcharge,
+    handleApplySurcharge, handleOpenEditCourt, handleSaveCourtConfig, handleResolveBooking,
 
-    // Operations Handlers
-    handleVenueStatusSelect,
-    handleConfirmVenueStatusChange,
-    handleCancelVenueStatusChange,
-    handleOpenVenueStatusFromMenu,
-    handleCreateVenue,
-    handleOpenEditVenue,
-    handleEditVenue,
-    handleSelectAll,
-    handleSelectCourt,
-    handleOpenBulkSurcharge,
-    handleApplySurcharge,
-    handleOpenEditCourt,
-    uploadCoverFile,
-    uploadDetailFiles,
-    handleRemoveDetailImage,
-    handleSaveCourtConfig,
-    handleResolveBooking,
+    isAddingCourt, newCourtName, setNewCourtName,
+    newCourtPrice, setNewCourtPrice,
+    newCourtStatus, setNewCourtStatus,
+    isConfirmSubmitOpen, setIsConfirmSubmitOpen,
+    newCourtValidationErrors,
+    handleStartAddCourt, handleCancelAddCourt,
+    handleSubmitNewCourt, handleConfirmSubmitNewCourt,
+
+    uploadNewVenueCoverFile, uploadNewVenueDetailFiles,
+    uploadEditVenueCoverFile, uploadEditVenueDetailFiles,
+    handleRemoveNewVenueDetailImage, handleRemoveEditVenueDetailImage
   } = useOperationsPage();
 
-    // ── LOADING / EMPTY STATES ──────────────────────────────────────────────────
+  if (loading && venues.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 select-none font-sans">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-brand-emerald rounded-full animate-spin mb-4" />
+        <span className="text-xs text-slate-400 font-extrabold tracking-wider uppercase">Đang tải dữ liệu...</span>
+      </div>
+    );
+  }
 
-    if (loading) {
-      return (
-        <div className="flex flex-col flex-1 min-h-[400px] items-center justify-center gap-3 relative font-sans animate-fadeIn">
-          <div className="w-10 h-10 border-4 border-slate-200 border-t-brand-emerald rounded-full animate-spin" />
-          <p className="text-xs text-slate-400 font-bold">Đang tải dữ liệu từ máy chủ...</p>
+  if (isCreateVenueModalOpen) {
+    return (
+      <div className="flex-grow relative min-h-0 overflow-hidden">
+        <VenueFormScreen
+          onClose={() => setIsCreateVenueModalOpen(false)}
+          onSubmit={handleCreateVenue}
+          title="Tạo cụm sân mới"
+          name={newVenueName}
+          setName={setNewVenueName}
+          location={newVenueLocation}
+          setLocation={setNewVenueLocation}
+          latitude={newVenueLatitude}
+          setLatitude={setNewVenueLatitude}
+          longitude={newVenueLongitude}
+          setLongitude={setNewVenueLongitude}
+          description={newVenueDescription}
+          setDescription={setNewVenueDescription}
+          openingTime={newVenueOpeningTime}
+          setOpeningTime={setNewVenueOpeningTime}
+          closingTime={newVenueClosingTime}
+          setClosingTime={setNewVenueClosingTime}
+          shiftDurationMinutes={newVenueShiftDuration}
+          setShiftDurationMinutes={setNewVenueShiftDuration}
+          sportId={newVenueSportId}
+          setSportId={setNewVenueSportId}
+          coverImage={newVenueCoverImage}
+          setCoverImage={setNewVenueCoverImage}
+          detailImages={newVenueDetailImages}
+          
+          hasSurcharge={newVenueHasSurcharge}
+          setHasSurcharge={setNewVenueHasSurcharge}
+          surchargeAmount={newVenueSurchargeAmount}
+          setSurchargeAmount={setNewVenueSurchargeAmount}
+          surchargeDescription={newVenueSurchargeDescription}
+          setSurchargeDescription={setNewVenueSurchargeDescription}
+
+          uploadingCover={uploadingNewVenueCover}
+          uploadingDetail={uploadingNewVenueDetail}
+          onUploadCover={uploadNewVenueCoverFile}
+          onUploadDetail={uploadNewVenueDetailFiles}
+          onRemoveDetailImage={handleRemoveNewVenueDetailImage}
+          submitLabel="Tạo cụm sân"
+        />
+      </div>
+    );
+  }
+
+  if (isEditVenueModalOpen) {
+    return (
+      <div className="flex-grow relative min-h-0 overflow-hidden">
+        <VenueFormScreen
+          onClose={() => setIsEditVenueModalOpen(false)}
+          onSubmit={handleEditVenue}
+          title="Chỉnh sửa thông tin cụm sân"
+          name={editVenueName}
+          setName={setEditVenueName}
+          location={editVenueLocation}
+          setLocation={setEditVenueLocation}
+          latitude={editVenueLatitude}
+          setLatitude={setEditVenueLatitude}
+          longitude={editVenueLongitude}
+          setLongitude={setEditVenueLongitude}
+          description={editVenueDescription}
+          setDescription={setEditVenueDescription}
+          openingTime={editVenueOpeningTime}
+          setOpeningTime={setEditVenueOpeningTime}
+          closingTime={editVenueClosingTime}
+          setClosingTime={setEditVenueClosingTime}
+          shiftDurationMinutes={editVenueShiftDuration}
+          setShiftDurationMinutes={setEditVenueShiftDuration}
+          sportId={editVenueSportId}
+          setSportId={setEditVenueSportId}
+          coverImage={editVenueCoverImage}
+          setCoverImage={setEditVenueCoverImage}
+          detailImages={editVenueDetailImages}
+          
+          hasSurcharge={editVenueHasSurcharge}
+          setHasSurcharge={setEditVenueHasSurcharge}
+          surchargeAmount={editVenueSurchargeAmount}
+          setSurchargeAmount={setEditVenueSurchargeAmount}
+          surchargeDescription={editVenueSurchargeDescription}
+          setSurchargeDescription={setEditVenueSurchargeDescription}
+
+          uploadingCover={uploadingEditVenueCover}
+          uploadingDetail={uploadingEditVenueDetail}
+          onUploadCover={uploadEditVenueCoverFile}
+          onUploadDetail={uploadEditVenueDetailFiles}
+          onRemoveDetailImage={handleRemoveEditVenueDetailImage}
+          submitLabel="Lưu thay đổi"
+        />
+      </div>
+    );
+  }
+
+  if (venues.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none font-sans">
+        <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center text-slate-300 mb-6 shadow-xs">
+          <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
         </div>
-      );
-    }
-
-    if (venues.length === 0) {
-      return (
-        <div className="flex flex-col flex-1 min-h-[400px] items-center justify-center p-6 text-center gap-4 relative font-sans animate-fadeIn">
-          <div className="w-20 h-20 rounded-full bg-emerald-50 text-brand-emerald flex items-center justify-center shadow-inner select-none">
-            <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="3" width="20" height="18" rx="2" ry="2" />
-              <line x1="12" y1="3" x2="12" y2="21" />
-              <circle cx="12" cy="12" r="4" />
-            </svg>
-          </div>
-          <div className="max-w-md space-y-1">
-            <h2 className="text-base font-black text-slate-800">Chưa có cụm sân nào được cấu hình</h2>
-            <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-              Hệ thống cần ít nhất một cụm sân để quản lý các hoạt động vận hành, sân bãi và đặt sân. Hãy tạo cụm sân đầu tiên của bạn ngay bây giờ.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsCreateVenueModalOpen(true)}
-            className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs px-6 py-4 rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2 border-b-2 border-emerald-950"
-          >
-            <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-            </svg>
-            Tạo cụm sân đầu tiên
-          </button>
-
-          {/* MODAL: CREATE VENUE (empty state) */}
-          <VenueFormModal
-            isOpen={isCreateVenueModalOpen}
-            onClose={() => setIsCreateVenueModalOpen(false)}
-            onSubmit={handleCreateVenue}
-            title="Tạo cụm sân mới"
-            name={newVenueName}
-            setName={setNewVenueName}
-            location={newVenueLocation}
-            setLocation={setNewVenueLocation}
-            description={newVenueDescription}
-            setDescription={setNewVenueDescription}
-            submitLabel="Tạo cụm sân"
-          />
+        <div className="max-w-md space-y-1">
+          <h2 className="text-base font-black text-slate-800">Chưa có cụm sân nào được cấu hình</h2>
+          <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+            Hệ thống cần ít nhất một cụm sân để quản lý các hoạt động vận hành, sân bãi và đặt sân. Hãy tạo cụm sân đầu tiên của bạn ngay bây giờ.
+          </p>
         </div>
-      );
-    }
-
-  // ── MAIN RENDER ──────────────────────────────────────────────────────────────
+        <button
+          onClick={() => setIsCreateVenueModalOpen(true)}
+          className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs px-6 py-4 rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2 border-b-2 border-emerald-950 mt-6"
+        >
+          <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+          </svg>
+          Tạo cụm sân đầu tiên
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative font-sans animate-fadeIn">
@@ -206,7 +242,6 @@ export const OperationsPage = () => {
         </div>
       )}
 
-      {/* MOBILE DRILL-DOWN LAYOUT */}
       {isMobile ? (
         <div className="flex flex-col flex-1">
           {mobileScreen === 'list' ? (
@@ -252,8 +287,8 @@ export const OperationsPage = () => {
                     >
                       <div className="flex justify-between items-start">
                         <div className="space-y-1 flex-1 min-w-0 pr-2">
-                          <h3 className="font-black text-slate-800 text-sm tracking-tight truncate">{venue.name}</h3>
-                          <p className="text-[10px] text-slate-400 font-bold truncate">{venue.location}</p>
+                           <h3 className="font-black text-slate-800 text-sm tracking-tight truncate">{venue.name}</h3>
+                           <p className="text-[10px] text-slate-400 font-bold truncate">{venue.location}</p>
                         </div>
                         <VenueRowMenu
                           venueId={venue.id}
@@ -280,7 +315,6 @@ export const OperationsPage = () => {
               </div>
             </div>
           ) : (
-            /* MOBILE SCREEN 2: Venue Detail */
             <div className="space-y-4">
               <div className="flex justify-between items-center select-none">
                 <button
@@ -292,39 +326,42 @@ export const OperationsPage = () => {
                   </svg>
                   Quay lại
                 </button>
-                <VenueRowMenu
-                  venueId={activeVenueId || ''}
-                  openMenuId={openVenueMenuId}
-                  setOpenMenuId={setOpenVenueMenuId}
-                  onEditInfo={() => handleOpenEditVenue()}
-                  onEditStatus={() => setIsVenueStatusModalOpen(true)}
-                />
-              </div>
-
-              <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm">
-                <h2 className="text-base font-black text-slate-800">{activeVenue.name}</h2>
-                <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">{activeVenue.location}</p>
-              </div>
-
-              {actionRequiredBookings.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-3xl p-4 flex justify-between items-center text-xs font-bold text-red-750 animate-pulse select-none">
-                  <span>Có {actionRequiredBookings.length} đơn đặt sân cần hoàn tiền / đổi lịch gấp.</span>
-                  <button onClick={() => setIsQueueModalOpen(true)}
-                    className="bg-red-600 hover:bg-red-750 text-white font-extrabold text-[10px] px-3.5 py-1.5 rounded-xl transition-all cursor-pointer">
-                    Xử lý
-                  </button>
-                </div>
-              )}
-
-              {/* Mobile Tabs */}
-              <div className="flex bg-slate-105 p-1 rounded-2xl select-none">
-                <button onClick={() => setActiveTab('facilities')}
-                  className={`flex-1 py-2 text-center text-xs font-black rounded-xl transition-all cursor-pointer ${activeTab === 'facilities' ? 'bg-white text-brand-emerald shadow-xs' : 'text-slate-500'}`}>
-                  Quản lý sân bãi
+                <button
+                  onClick={handleStartAddCourt}
+                  className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-[10px] px-3.5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1 border-b-2 border-emerald-950"
+                >
+                  <svg className="w-3.5 h-3.5 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Thêm sân lẻ
                 </button>
-                <button onClick={() => setActiveTab('overview')}
-                  className={`flex-1 py-2 text-center text-xs font-black rounded-xl transition-all cursor-pointer ${activeTab === 'overview' ? 'bg-white text-brand-emerald shadow-xs' : 'text-slate-500'}`}>
-                  Tổng quan chỉ số
+              </div>
+
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm space-y-1.5 text-left">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">{activeVenue.name}</h2>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold leading-normal truncate" title={activeVenue.location}>
+                  Địa chỉ: {activeVenue.location}
+                </p>
+              </div>
+
+              <div className="bg-slate-100/80 backdrop-blur-md p-1 rounded-2xl flex gap-1 select-none">
+                <button
+                  onClick={() => setActiveTab('facilities')}
+                  className={`flex-1 py-2 rounded-xl text-center text-xs font-extrabold transition-all cursor-pointer ${
+                    activeTab === 'facilities' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Danh sách sân
+                </button>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`flex-1 py-2 rounded-xl text-center text-xs font-extrabold transition-all cursor-pointer ${
+                    activeTab === 'overview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Biểu đồ vận hành
                 </button>
               </div>
 
@@ -353,12 +390,12 @@ export const OperationsPage = () => {
                   getCourtDetails={getCourtDetails}
                   formatVND={formatVND}
                   isMobile
+                  sportName={activeVenue?.sport?.name}
                 />
               )}
             </div>
           )}
 
-          {/* Mobile Floating action bar - ONLY surcharge */}
           {selectedCourtIds.length > 0 && mobileScreen === 'detail' && activeTab === 'facilities' && (
             <div className="fixed bottom-20 left-4 right-4 z-50 bg-primary text-on-primary rounded-3xl p-4 shadow-xl border border-white/10 flex flex-col gap-2 select-none animate-slideUp">
               <div className="flex justify-between items-center text-xs font-bold px-1 border-b border-white/10 pb-2">
@@ -382,9 +419,7 @@ export const OperationsPage = () => {
           )}
         </div>
       ) : (
-        /* DESKTOP MASTER-DETAIL LAYOUT */
         <div className="flex gap-6 flex-1 min-h-0">
-          {/* LEFT SIDEBAR */}
           <OperationsSidebar
             venues={venues}
             courts={courts}
@@ -399,21 +434,27 @@ export const OperationsPage = () => {
             onEditVenueStatus={handleOpenVenueStatusFromMenu}
           />
 
-          {/* MAIN CONTENT AREA */}
           <section className="flex-1 bg-white border border-slate-200/60 rounded-3xl shadow-sm p-6 flex flex-col min-w-0">
-            {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100 select-none flex-shrink-0">
-              <div className="space-y-1 min-w-0">
+              <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-black text-slate-800 tracking-tight">{activeVenue.name}</h1>
                 </div>
-                <p className="text-xs text-slate-450 font-bold leading-normal truncate" title={activeVenue.location}>
+                <p className="text-xs text-slate-455 font-bold leading-normal truncate" title={activeVenue.location}>
                   Địa chỉ: {activeVenue.location}
                 </p>
               </div>
+              <button
+                onClick={handleStartAddCourt}
+                className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 border-b-2 border-emerald-950 flex-shrink-0"
+              >
+                <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm sân mới
+              </button>
             </div>
 
-            {/* Warning Alert */}
             {actionRequiredBookings.length > 0 && (
               <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex justify-between items-center text-xs font-bold text-red-700 animate-pulse select-none flex-shrink-0">
                 <div className="flex items-center gap-2.5">
@@ -429,20 +470,50 @@ export const OperationsPage = () => {
               </div>
             )}
 
-            {/* Tab Navigation */}
-            <div className="flex gap-4 border-b border-slate-100 mt-4 select-none flex-shrink-0">
-              <button onClick={() => setActiveTab('facilities')}
-                className={`pb-3 text-xs font-black tracking-wider transition-all cursor-pointer ${activeTab === 'facilities' ? 'text-brand-emerald border-b-2 border-brand-emerald' : 'text-slate-400 hover:text-slate-600'}`}>
-                QUẢN LÝ SÂN BÃI
-              </button>
-              <button onClick={() => setActiveTab('overview')}
-                className={`pb-3 text-xs font-black tracking-wider transition-all cursor-pointer ${activeTab === 'overview' ? 'text-brand-emerald border-b-2 border-brand-emerald' : 'text-slate-400 hover:text-slate-600'}`}>
-                TỔNG QUAN CHỈ SỐ
-              </button>
+            <div className="mt-5 border-b border-slate-100 flex justify-between items-center flex-shrink-0 select-none">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setActiveTab('facilities')}
+                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${
+                    activeTab === 'facilities' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Danh sách sân trực thuộc ({activeCourts.length})
+                  {activeTab === 'facilities' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-emerald rounded-full" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${
+                    activeTab === 'overview' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  Giám sát vận hành & Thống kê
+                  {activeTab === 'overview' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-emerald rounded-full" />
+                  )}
+                </button>
+              </div>
+
+              {selectedCourtIds.length > 0 && activeTab === 'facilities' && (
+                <div className="pb-2.5 flex items-center gap-3 animate-fadeIn">
+                  <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150">
+                    Đã chọn: {selectedCourtIds.length} sân
+                  </span>
+                  <button onClick={handleOpenBulkSurcharge}
+                    className="bg-primary hover:bg-slate-850 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-slate-950">
+                    Cấu hình phụ thu
+                  </button>
+                  <button onClick={() => setSelectedCourtIds([])}
+                    className="text-[10px] font-black text-slate-450 hover:text-slate-700 cursor-pointer">
+                    Hủy chọn
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Tab Body */}
-            <div className="flex-1 overflow-y-auto mt-4 matrix-scroll min-h-0 relative">
+            <div className="flex-1 overflow-hidden mt-6">
               {activeTab === 'overview' ? (
                 <OperationsOverviewTab
                   activeCourts={activeCourts}
@@ -456,6 +527,7 @@ export const OperationsPage = () => {
                   getCourtOpStatus={getCourtOpStatus}
                   getCourtDetails={getCourtDetails}
                   formatVND={formatVND}
+                  isMobile={false}
                 />
               ) : (
                 <OperationsFacilitiesTab
@@ -466,39 +538,15 @@ export const OperationsPage = () => {
                   handleOpenEditCourt={handleOpenEditCourt}
                   getCourtDetails={getCourtDetails}
                   formatVND={formatVND}
+                  isMobile={false}
+                  sportName={activeVenue?.sport?.name}
                 />
               )}
             </div>
-
-            {/* Desktop Floating Action Bar */}
-            {selectedCourtIds.length > 0 && activeTab === 'facilities' && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[80] bg-primary text-on-primary rounded-2xl px-6 py-4 shadow-[0_16px_36px_rgba(0,53,39,0.3)] border border-white/10 flex items-center gap-6 select-none animate-slideUp">
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-white leading-none">Đã lựa chọn {selectedCourtIds.length} sân bãi</span>
-                  <span className="text-[9px] text-white/50 font-bold mt-1 uppercase tracking-widest">Thao tác hàng loạt</span>
-                </div>
-
-                <div className="h-6 w-px bg-white/20" />
-
-                <div className="flex items-center gap-3">
-                  <button onClick={handleOpenBulkSurcharge}
-                    className="bg-brand-yellow hover:bg-yellow-400 text-primary font-black text-[10px] px-5 py-2.5 rounded-xl transition-all cursor-pointer">
-                    Cài đặt phụ thu
-                  </button>
-                  <button onClick={() => setSelectedCourtIds([])}
-                    className="text-white/60 hover:text-white font-extrabold text-[10px] px-2 py-2 transition-all cursor-pointer">
-                    Hủy chọn
-                  </button>
-                </div>
-              </div>
-            )}
           </section>
         </div>
       )}
 
-      {/* ── MODALS ─────────────────────────────────────────────────────────── */}
-
-      {/* Booking action queue modal */}
       <BookingQueueModal
         isOpen={isQueueModalOpen}
         onClose={() => setIsQueueModalOpen(false)}
@@ -507,18 +555,16 @@ export const OperationsPage = () => {
         formatVND={formatVND}
       />
 
-      {/* Bulk surcharge modal */}
       <BulkSurchargeModal
         isOpen={isSurchargeModalOpen}
         onClose={() => setIsSurchargeModalOpen(false)}
+        handleApplySurcharge={handleApplySurcharge}
         surchargeAmount={surchargeAmount}
         setSurchargeAmount={setSurchargeAmount}
         surchargeCourtIds={surchargeCourtIds}
-        handleApplySurcharge={handleApplySurcharge}
         formatVND={formatVND}
       />
 
-      {/* Edit court modal */}
       <CourtConfigModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -527,61 +573,25 @@ export const OperationsPage = () => {
         setName={setEditName}
         price={editPrice}
         setPrice={setEditPrice}
-        opening={editOpening}
-        setOpening={setEditOpening}
-        closing={editClosing}
-        setClosing={setEditClosing}
-        approvalStatus={editApprovalStatus}
-        setApprovalStatus={setEditApprovalStatus}
         opStatus={editOpStatus}
         setOpStatus={setEditOpStatus}
-        description={editDescription}
-        setDescription={setEditDescription}
-        coverImage={editCoverImage}
-        setCoverImage={setEditCoverImage}
-        detailImages={editDetailImages}
-        uploadingCover={uploadingCover}
-        uploadingDetail={uploadingDetail}
-        hourDropdownOptions={hourDropdownOptions}
-        approvalDropdownOptions={approvalDropdownOptions}
-        opDropdownOptions={opDropdownOptions}
-        onUploadCover={uploadCoverFile}
-        onUploadDetail={uploadDetailFiles}
-        onRemoveDetailImage={handleRemoveDetailImage}
         formatVND={formatVND}
       />
 
-        {/* Create Venue Modal */}
-        <VenueFormModal
-          isOpen={isCreateVenueModalOpen}
-          onClose={() => setIsCreateVenueModalOpen(false)}
-          onSubmit={handleCreateVenue}
-          title="Tạo cụm sân mới"
-          name={newVenueName}
-          setName={setNewVenueName}
-          location={newVenueLocation}
-          setLocation={setNewVenueLocation}
-          description={newVenueDescription}
-          setDescription={setNewVenueDescription}
-          submitLabel="Tạo cụm sân"
-        />
+      <AddCourtSubScreen
+        isOpen={isAddingCourt}
+        onClose={handleCancelAddCourt}
+        onSubmit={handleSubmitNewCourt}
+        name={newCourtName}
+        setName={setNewCourtName}
+        price={newCourtPrice}
+        setPrice={setNewCourtPrice}
+        status={newCourtStatus}
+        setStatus={setNewCourtStatus}
+        validationErrors={newCourtValidationErrors}
+        formatVND={formatVND}
+      />
 
-        {/* Edit Venue Modal */}
-        <VenueFormModal
-          isOpen={isEditVenueModalOpen}
-          onClose={() => setIsEditVenueModalOpen(false)}
-          onSubmit={handleEditVenue}
-          title="Chỉnh sửa thông tin cụm sân"
-          name={editVenueName}
-          setName={setNewVenueName}
-          location={editVenueLocation}
-          setLocation={setEditVenueLocation}
-          description={editVenueDescription}
-          setDescription={setEditVenueDescription}
-          submitLabel="Lưu thay đổi"
-        />
-
-      {/* Venue Status Warning Modal */}
       <VenueStatusModal
         isOpen={isVenueStatusModalOpen}
         onClose={() => setIsVenueStatusModalOpen(false)}
@@ -589,7 +599,6 @@ export const OperationsPage = () => {
         currentStatus={activeVenue?.status}
       />
 
-      {/* Confirmation Modal for changing status */}
       <ConfirmModal
         isOpen={isConfirmStatusModalOpen}
         onClose={handleCancelVenueStatusChange}
@@ -611,6 +620,17 @@ export const OperationsPage = () => {
             ? `CẢNH BÁO: Bạn có chắc chắn muốn ĐÓNG CỬA khẩn cấp cụm sân "${activeVenue?.name || ''}"? Tất cả sân bãi trực thuộc sẽ đóng cửa, và bạn có thể cần xử lý các đơn đặt sân bị ảnh hưởng.`
             : `Bạn có chắc chắn muốn chuyển cụm sân "${activeVenue?.name || ''}" sang trạng thái bảo trì? Toàn bộ sân bãi bên trong sẽ tạm ngưng nhận khách đặt lịch mới.`
         }
+      />
+
+      <ConfirmModal
+        isOpen={isConfirmSubmitOpen}
+        onClose={() => setIsConfirmSubmitOpen(false)}
+        onConfirm={handleConfirmSubmitNewCourt}
+        title="Xác nhận lưu sân lẻ"
+        message={`Bạn có chắc chắn muốn lưu thông tin cho sân "${newCourtName}"?`}
+        confirmText="Đồng ý"
+        cancelText="Hủy"
+        variant="success"
       />
     </div>
   );

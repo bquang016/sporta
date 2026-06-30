@@ -2,6 +2,8 @@ package com.backend.sporta.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -15,5 +17,22 @@ public class VenueRequest {
     @NotBlank(message = "Vị trí không được để trống")
     private String location;
 
+    private Double latitude;
+    private Double longitude;
     private String description;
+
+    private LocalTime openingTime;
+    private LocalTime closingTime;
+
+    private Integer shiftDurationMinutes;
+
+    // ĐÃ SỬA LẠI THÀNH LONG THEO ĐÚNG DATABASE CỦA BẠN
+    private Long sportId; 
+
+    private String coverImage;
+    private List<String> detailImages;
+
+    private Boolean hasSurcharge;
+    private Double surchargeAmount;
+    private String surchargeDescription;
 }

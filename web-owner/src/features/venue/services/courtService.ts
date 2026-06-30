@@ -65,12 +65,12 @@ export const courtService = {
     return data.imageUrl;
   },
 
-  async updateStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED'): Promise<CourtResponse> {
+  async updateStatus(id: string, status: 'ACTIVE' | 'MAINTENANCE'): Promise<CourtResponse> {
     const res = await fetch(`${BASE_URL}/owner/courts/${id}/status?status=${status}`, {
       method: 'PUT',
       headers: getHeaders(),
     });
-    return handleResponse(res, 'Cập nhật trạng thái giả lập thất bại');
+    return handleResponse(res, 'Cập nhật trạng thái thất bại');
   },
 
   async getVenues(): Promise<VenueResponse[]> {
