@@ -59,7 +59,6 @@ export function RegisterScreen() {
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Đăng ký tài khoản</Text>
       </View>
 
       <View style={styles.content}>
@@ -251,6 +250,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
     color: COLORS.onSurface,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   submitContainer: {
     marginTop: 15,

@@ -207,6 +207,12 @@ export const LoginPage = () => {
               Liên hệ hỗ trợ
             </a>
           </div>
+          <div className="mt-2 text-center text-[10px] text-slate-400 font-semibold">
+            Chưa có tài khoản?{' '}
+            <Link to="/register" className="text-brand-emerald font-black hover:underline">
+              Đăng ký ngay
+            </Link>
+          </div>
         </div>
       </div>
     </div>

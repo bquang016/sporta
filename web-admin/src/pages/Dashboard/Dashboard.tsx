@@ -1,5 +1,7 @@
 import React from 'react';
-import { Card } from '../../components/ui/Card';
+import { AdminKPIStats } from './components/AdminKPIStats';
+import { LineChart } from './components/LineChart';
+import { AdminActivityLog } from './components/AdminActivityLog';
 
 export const Dashboard: React.FC = () => {
     // Mock data
@@ -10,32 +12,56 @@ export const Dashboard: React.FC = () => {
         { label: 'Sân Chờ Duyệt', value: '12', change: 'Cần xử lý', isPositive: false },
     ];
 
+    const revenueData = {
+        labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
+        values: [12000000, 15000000, 11000000, 18000000, 25000000, 32000000, 28000000]
+    };
+
+    const userData = {
+        labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
+        values: [45, 52, 38, 65, 89, 120, 105]
+    };
+
+    const activities = [
+        { id: '1', time: '10:45 29/06', message: 'Hệ thống đã tự động duyệt 15 sân mới.' },
+        { id: '2', time: '09:30 29/06', message: 'Người dùng ID #4592 vừa nâng cấp lên đối tác.' },
+        { id: '3', time: '08:15 29/06', message: 'Cảnh báo: Server tải cao (85%) khu vực MN.' },
+        { id: '4', time: '22:00 28/06', message: 'Hoàn thành sao lưu dữ liệu hàng ngày.' },
+    ];
+
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-12 w-full">
             <div>
-                <h1 className="text-2xl font-bold text-on-background">Dashboard Tổng Quan</h1>
-                <p className="text-on-surface-variant mt-1 text-sm">Theo dõi các chỉ số quan trọng của nền tảng Sporta.</p>
+                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Dashboard Tổng Quan</h1>
+                <p className="text-slate-500 mt-1 text-sm font-medium">Theo dõi các chỉ số quan trọng của nền tảng Sporta.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {metrics.map((metric, idx) => (
-                    <Card key={idx} className="p-6">
-                        <h3 className="text-sm font-medium text-on-surface-variant">{metric.label}</h3>
-                        <p className="text-3xl font-bold text-on-surface mt-2">{metric.value}</p>
-                        <div className={`mt-2 text-sm font-medium ${metric.isPositive ? 'text-brand-emerald' : 'text-error'}`}>
-                            {metric.change}
-                        </div>
-                    </Card>
-                ))}
-            </div>
+            {/* KPI Stats */}
+            <AdminKPIStats metrics={metrics} />
 
+            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6 min-h-[300px] flex items-center justify-center border-dashed border-2 border-outline-variant/30 bg-surface-container-lowest/50">
-                    <p className="text-on-surface-variant">Biểu đồ doanh thu (Chờ tích hợp API/Thư viện)</p>
-                </Card>
-                <Card className="p-6 min-h-[300px] flex items-center justify-center border-dashed border-2 border-outline-variant/30 bg-surface-container-lowest/50">
-                    <p className="text-on-surface-variant">Biểu đồ người dùng (Chờ tích hợp API/Thư viện)</p>
-                </Card>
+                <LineChart 
+                    title="Biểu đồ doanh thu" 
+                    subtitle="Doanh thu tổng hợp trên toàn hệ thống" 
+                    data={revenueData} 
+                    colorHex="#064E3B"
+                    gradientId="revenue-grad"
+                    formatValue={(val) => `${new Intl.NumberFormat('vi-VN').format(val)} đ`}
+                />
+                <LineChart 
+                    title="Biểu đồ người dùng mới" 
+                    subtitle="Lượng đăng ký mới trong tuần" 
+                    data={userData} 
+                    colorHex="#2563EB"
+                    gradientId="users-grad"
+                    formatValue={(val) => `${val} user`}
+                />
+            </div>
+
+            {/* Activity Log */}
+            <div className="w-full">
+                <AdminActivityLog activities={activities} />
             </div>
         </div>
     );

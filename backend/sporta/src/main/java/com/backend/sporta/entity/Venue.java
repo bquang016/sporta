@@ -31,7 +31,7 @@ public class Venue {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "location", nullable = false)
+    @Column(name = "location")
     private String location;
 
     @Column(name = "latitude")
@@ -39,6 +39,24 @@ public class Venue {
 
     @Column(name = "longitude")
     private Double longitude;
+
+    @Column(name = "province")
+    private String province;
+
+    @Column(name = "district")
+    private String district;
+
+    @Column(name = "ward")
+    private String ward;
+
+    @Column(name = "sport_types", columnDefinition = "TEXT")
+    private String sportTypes;
+
+    @Column(name = "sub_court_count")
+    private Integer subCourtCount;
+
+    @Column(name = "registration_images", columnDefinition = "TEXT")
+    private String registrationImages;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;

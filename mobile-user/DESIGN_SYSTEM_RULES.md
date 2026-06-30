@@ -30,7 +30,8 @@ import { TYPOGRAPHY } from '@/shared/config/theme';
 
 ### 8 Cấp độ chữ chuẩn (Hanken Grotesk):
 1. **`TYPOGRAPHY.headlineXl`** (48px, weight 800, line-height 56px, letter-spacing -0.96) - Dành cho tiêu đề cực lớn.
-2. **`TYPOGRAPHY.headlineLg`** (32px, weight 700, line-height 40px, letter-spacing -0.32) - Dành cho tiêu đề màn hình chính trên Web/Desktop.
+2. **`TYPOGRAPHY.headlineLg`** (32px, weight 700, line-height 40px,
+ letter-spacing -0.32) - Dành cho tiêu đề màn hình chính trên Web/Desktop.
 3. **`TYPOGRAPHY.headlineLgMobile`** (24px, weight 700, line-height 32px) - Dành cho tiêu đề màn hình chính trên Điện thoại.
 4. **`TYPOGRAPHY.headlineMd`** (24px, weight 600, line-height 32px) - Dành cho tiêu đề mục lớn.
 5. **`TYPOGRAPHY.bodyLg`** (18px, weight 400, line-height 28px) - Dành cho nội dung văn bản nổi bật.
