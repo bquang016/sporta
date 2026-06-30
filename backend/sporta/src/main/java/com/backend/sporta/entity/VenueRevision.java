@@ -1,19 +1,19 @@
 package com.backend.sporta.entity;
 
-import com.backend.sporta.enums.CourtStatus;
+import com.backend.sporta.enums.ApprovalStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "courts")
+@Table(name = "venue_revisions")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Court {
+public class VenueRevision {
 
     @Id
     @GeneratedValue
@@ -24,32 +24,26 @@ public class Court {
     @JoinColumn(name = "venue_id", nullable = false)
     private Venue venue;
 
-    @Column(name = "name", nullable = false)
-    private String name;
-
-    // Giá mặc định (Cấp 1) - Sẽ bị ghi đè nếu có CourtPriceRule
-    @Column(name = "price", nullable = false)
-    private Double price;
+    // Lưu chuỗi JSON chứa các dữ liệu bị thay đổi (VD: {"name": "Sân mới", "location": "Địa chỉ mới"})
+    @Column(name = "pending_data", columnDefinition = "TEXT", nullable = false)
+    private String pendingData;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
-    private CourtStatus status = CourtStatus.ACTIVE;
+    private ApprovalStatus status = ApprovalStatus.PENDING;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "reviewer_notes", columnDefinition = "TEXT")
+    private String reviewerNotes;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }

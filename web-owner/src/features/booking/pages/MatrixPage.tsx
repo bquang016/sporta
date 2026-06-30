@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { DesktopBookingGrid } from '../components/booking/DesktopBookingGrid';
-import { MobileBookingGrid } from '../components/booking/MobileBookingGrid';
-import { BookingCardView } from '../components/booking/BookingCardView';
-import { useIsMobile } from '../hooks/useIsMobile';
+import { DesktopBookingGrid } from '../components/DesktopBookingGrid';
+import { MobileBookingGrid } from '../components/MobileBookingGrid';
+import { BookingCardView } from '../components/BookingCardView';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 type ViewMode = 'grid' | 'card';
 

@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Component
@@ -96,8 +97,8 @@ public class DataSeeder implements CommandLineRunner {
                         .name("Cụm sân Cầu Giấy")
                         .location("15 Dịch Vọng Hậu, Cầu Giấy, Hà Nội")
                         .description("Tổ hợp thể thao Cầu Giấy với 4 sân bóng đá mini và 6 sân cầu lông.")
-                        .openingTime("06:00")
-                        .closingTime("23:00")
+                        .openingTime(LocalTime.of(6, 0))
+                        .closingTime(LocalTime.of(23, 0))
                         .sport(bongDa)
                         .coverImage("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop")
                         .build();
@@ -111,8 +112,8 @@ public class DataSeeder implements CommandLineRunner {
                         .name("Cụm sân Quận 7")
                         .location("45 Nguyễn Văn Linh, Tân Phong, Quận 7, TP. Hồ Chí Minh")
                         .description("Cụm sân Pickleball trong nhà hiện đại và cao cấp nhất khu vực Nam Sài Gòn.")
-                        .openingTime("05:00")
-                        .closingTime("22:00")
+                        .openingTime(LocalTime.of(5, 0))
+                        .closingTime(LocalTime.of(22, 0))
                         .sport(pickleball)
                         .coverImage("https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=600&auto=format&fit=crop")
                         .build();
@@ -125,8 +126,8 @@ public class DataSeeder implements CommandLineRunner {
                         .name("Cụm sân Ba Đình")
                         .location("34 Hoàng Hoa Thám, Ba Đình, Hà Nội")
                         .description("Khu phức hợp thể thao ngoài trời Ba Đình.")
-                        .openingTime("06:00")
-                        .closingTime("22:00")
+                        .openingTime(LocalTime.of(6, 0))
+                        .closingTime(LocalTime.of(22, 0))
                         .sport(cauLong)
                         .coverImage("https://images.unsplash.com/photo-1613918431201-f2f27ddc5ca7?q=80&w=600&auto=format&fit=crop")
                         .build();

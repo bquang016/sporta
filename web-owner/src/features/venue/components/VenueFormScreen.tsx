@@ -27,6 +27,15 @@ interface VenueFormScreenProps {
   coverImage: string;
   setCoverImage: (val: string) => void;
   detailImages: string[];
+  
+  // PROPS MỚI: Dành cho Phụ thu
+  hasSurcharge: boolean;
+  setHasSurcharge: (val: boolean) => void;
+  surchargeAmount?: number;
+  setSurchargeAmount: (val: number | undefined) => void;
+  surchargeDescription: string;
+  setSurchargeDescription: (val: string) => void;
+
   uploadingCover: boolean;
   uploadingDetail: boolean;
   onUploadCover: (file: File) => void;
@@ -61,6 +70,12 @@ export const VenueFormScreen = ({
   coverImage,
   setCoverImage,
   detailImages,
+  hasSurcharge,
+  setHasSurcharge,
+  surchargeAmount,
+  setSurchargeAmount,
+  surchargeDescription,
+  setSurchargeDescription,
   uploadingCover,
   uploadingDetail,
   onUploadCover,
@@ -119,11 +134,6 @@ export const VenueFormScreen = ({
   const durationWarning = getDurationWarning();
 
   return (
-    /*
-     * The component takes up all available flex space given by the parent container.
-     * Parent in OperationsPage wraps it in a div with flex-grow.
-     * We use absolute inset-0 to cover the full parent container area.
-     */
     <div className="absolute inset-0 flex flex-col bg-slate-50 font-sans z-10 animate-fadeIn">
       {/* ── TOP HEADER BAR ─────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 bg-white border-b border-slate-200 px-5 py-3.5 flex items-center justify-between shadow-xs z-10">
@@ -174,12 +184,10 @@ export const VenueFormScreen = ({
 
         {/* LEFT: Scrollable Form Panel */}
         <div className="w-full lg:w-[45%] xl:w-[42%] flex flex-col bg-white border-r border-slate-200 overflow-hidden">
-          {/* Section header label */}
           <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-slate-100">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Thông tin cụm sân</p>
           </div>
 
-          {/* Scrollable form body */}
           <form
             onSubmit={e => { e.preventDefault(); onSubmit(e); }}
             className="flex-1 overflow-y-auto px-6 py-5 space-y-5 matrix-scroll"
@@ -322,11 +330,51 @@ export const VenueFormScreen = ({
               />
             </div>
 
-            {/* ⑥ Separator */}
-            <div className="flex items-center gap-3 pt-1">
-              <div className="flex-1 h-px bg-slate-100" />
-              <span className="text-[9px] font-black text-slate-350 uppercase tracking-widest">Hình ảnh</span>
-              <div className="flex-1 h-px bg-slate-100" />
+            {/* ⑥ Phụ thu (Tính năng mới) */}
+            <div className="space-y-3 pt-3 pb-2 border-t border-b border-slate-100">
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={hasSurcharge}
+                    onChange={(e) => setHasSurcharge(e.target.checked)}
+                    className="w-4 h-4 text-brand-emerald rounded border-slate-300 focus:ring-brand-emerald cursor-pointer"
+                  />
+                </div>
+                <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider group-hover:text-slate-800 transition-colors">
+                  Áp dụng Phụ thu chung (VD: Trà đá, Dọn dẹp...)
+                </span>
+              </label>
+
+              {hasSurcharge && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fadeIn">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                      Số tiền phụ thu (VNĐ) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="VD: 20000"
+                      value={surchargeAmount || ''}
+                      onChange={(e) => setSurchargeAmount(Number(e.target.value))}
+                      className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                      Mô tả phụ thu <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="VD: Phí dọn dẹp sân bãi"
+                      value={surchargeDescription}
+                      onChange={(e) => setSurchargeDescription(e.target.value)}
+                      className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ⑦ Ảnh bìa */}
@@ -335,7 +383,6 @@ export const VenueFormScreen = ({
                 Ảnh bìa cụm sân
               </label>
               <div className="flex gap-4 items-start">
-                {/* Preview box */}
                 <div className="w-28 h-20 bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl overflow-hidden relative flex-shrink-0 flex items-center justify-center">
                   {coverImage ? (
                     <img src={coverImage} alt="Cover preview" className="w-full h-full object-cover" />
@@ -422,14 +469,12 @@ export const VenueFormScreen = ({
               )}
             </div>
 
-            {/* Bottom padding */}
             <div className="h-8" />
           </form>
         </div>
 
         {/* RIGHT: Sticky Full-height Map Panel */}
         <div className="hidden lg:flex flex-col flex-1 relative bg-slate-100">
-          {/* Map label badge */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-slate-200/80 flex items-center gap-1.5 pointer-events-none">
             <svg className="w-3 h-3 text-brand-emerald" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -450,7 +495,6 @@ export const VenueFormScreen = ({
         </div>
       </div>
 
-      {/* Mobile-only map hint banner */}
       <div className="lg:hidden flex-shrink-0 bg-amber-50 border-t border-amber-200 px-5 py-3 flex items-center gap-2">
         <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

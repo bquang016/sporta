@@ -2,7 +2,7 @@ package com.backend.sporta.controller;
 
 import com.backend.sporta.enums.VenueStatus;
 import com.backend.sporta.dto.VenueRequest;
-import com.backend.sporta.entity.Venue;
+import com.backend.sporta.dto.VenueResponse;
 import com.backend.sporta.service.VenueService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,34 +22,34 @@ public class OwnerVenueController {
     private VenueService venueService;
 
     @GetMapping
-    public ResponseEntity<List<Venue>> getOwnerVenues() {
+    public ResponseEntity<List<VenueResponse>> getOwnerVenues() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        List<Venue> response = venueService.getVenuesByOwnerEmail(email);
+        List<VenueResponse> response = venueService.getVenuesByOwnerEmail(email);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public ResponseEntity<Venue> createVenue(@Valid @RequestBody VenueRequest request) {
+    public ResponseEntity<VenueResponse> createVenue(@Valid @RequestBody VenueRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Venue response = venueService.createVenue(request, email);
+        VenueResponse response = venueService.createVenue(request, email);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Venue> updateVenueStatus(
+    public ResponseEntity<VenueResponse> updateVenueStatus(
             @PathVariable("id") UUID id,
             @RequestParam("status") VenueStatus status) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Venue response = venueService.updateVenueStatus(id, status, email);
+        VenueResponse response = venueService.updateVenueStatus(id, status, email);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Venue> updateVenue(
+    public ResponseEntity<VenueResponse> updateVenue(
             @PathVariable("id") UUID id,
             @Valid @RequestBody VenueRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Venue response = venueService.updateVenue(id, request, email);
+        VenueResponse response = venueService.updateVenue(id, request, email);
         return ResponseEntity.ok(response);
     }
 }

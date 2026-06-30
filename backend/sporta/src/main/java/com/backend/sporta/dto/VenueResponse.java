@@ -1,38 +1,36 @@
 package com.backend.sporta.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import lombok.*;
+import com.backend.sporta.enums.ApprovalStatus;
+import com.backend.sporta.enums.VenueStatus;
+import lombok.Builder;
+import lombok.Data;
+
 import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
 @Builder
-public class VenueRequest {
-    @NotBlank(message = "Tên cụm sân không được để trống")
+public class VenueResponse {
+    private UUID id;
     private String name;
-
-    @NotBlank(message = "Vị trí không được để trống")
     private String location;
-
     private Double latitude;
     private Double longitude;
     private String description;
-
+    
     private LocalTime openingTime;
     private LocalTime closingTime;
-
     private Integer shiftDurationMinutes;
-
-    // ĐÃ SỬA LẠI THÀNH LONG THEO ĐÚNG DATABASE CỦA BẠN
-    private Long sportId; 
-
+    
     private String coverImage;
     private List<String> detailImages;
-
+    
     private Boolean hasSurcharge;
     private Double surchargeAmount;
     private String surchargeDescription;
+    
+    private VenueStatus status;
+    private ApprovalStatus approvalStatus;
+    private Boolean hasPendingRevision;
 }

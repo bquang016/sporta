@@ -10,6 +10,10 @@ export interface VenueResponse {
   location: string;
   description: string;
   status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED';
+  // TRẠNG THÁI MỚI
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  hasPendingRevision?: boolean;
+
   latitude?: number;
   longitude?: number;
   openingTime?: string;
@@ -21,6 +25,12 @@ export interface VenueResponse {
   coverImage?: string;
   images?: VenueImageDto[];
   shiftDurationMinutes: number;
+  
+  // TÍNH NĂNG MỚI: PHỤ THU
+  hasSurcharge: boolean;
+  surchargeAmount?: number;
+  surchargeDescription?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +47,11 @@ export interface VenueRequest {
   coverImage: string;
   detailImages: string[];
   shiftDurationMinutes: number;
+  
+  // TÍNH NĂNG MỚI: PHỤ THU
+  hasSurcharge: boolean;
+  surchargeAmount?: number;
+  surchargeDescription?: string;
 }
 
 export interface CourtResponse {

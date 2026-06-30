@@ -37,18 +37,15 @@ export const useOperationsPage = () => {
   const [isEditVenueModalOpen, setIsEditVenueModalOpen] = useState(false);
   const [isVenueStatusModalOpen, setIsVenueStatusModalOpen] = useState(false);
   
-  // Per-venue 3-dot menu (tracks which venue's menu is open)
   const [openVenueMenuId, setOpenVenueMenuId] = useState<string | null>(null);
-
-  // Active court being edited
   const [editingCourt, setEditingCourt] = useState<CourtResponse | null>(null);
 
-  // Edit court form states (Simplified: only name, price, status)
+  // Edit court form states
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editOpStatus, setEditOpStatus] = useState<'ACTIVE' | 'MAINTENANCE'>('ACTIVE');
 
-  // Create venue form states
+  // --- CREATE VENUE FORM STATES ---
   const [newVenueName, setNewVenueName] = useState('');
   const [newVenueLocation, setNewVenueLocation] = useState('');
   const [newVenueLatitude, setNewVenueLatitude] = useState<number | undefined>(undefined);
@@ -60,10 +57,15 @@ export const useOperationsPage = () => {
   const [newVenueSportId, setNewVenueSportId] = useState('1');
   const [newVenueCoverImage, setNewVenueCoverImage] = useState('');
   const [newVenueDetailImages, setNewVenueDetailImages] = useState<string[]>([]);
+  // THÊM: State phụ thu cho tạo mới
+  const [newVenueHasSurcharge, setNewVenueHasSurcharge] = useState(false);
+  const [newVenueSurchargeAmount, setNewVenueSurchargeAmount] = useState<number | undefined>(undefined);
+  const [newVenueSurchargeDescription, setNewVenueSurchargeDescription] = useState('');
+  
   const [uploadingNewVenueCover, setUploadingNewVenueCover] = useState(false);
   const [uploadingNewVenueDetail, setUploadingNewVenueDetail] = useState(false);
 
-  // Edit venue form states
+  // --- EDIT VENUE FORM STATES ---
   const [editVenueName, setEditVenueName] = useState('');
   const [editVenueLocation, setEditVenueLocation] = useState('');
   const [editVenueLatitude, setEditVenueLatitude] = useState<number | undefined>(undefined);
@@ -75,22 +77,24 @@ export const useOperationsPage = () => {
   const [editVenueSportId, setEditVenueSportId] = useState('1');
   const [editVenueCoverImage, setEditVenueCoverImage] = useState('');
   const [editVenueDetailImages, setEditVenueDetailImages] = useState<string[]>([]);
+  // THÊM: State phụ thu cho cập nhật
+  const [editVenueHasSurcharge, setEditVenueHasSurcharge] = useState(false);
+  const [editVenueSurchargeAmount, setEditVenueSurchargeAmount] = useState<number | undefined>(undefined);
+  const [editVenueSurchargeDescription, setEditVenueSurchargeDescription] = useState('');
+
   const [uploadingEditVenueCover, setUploadingEditVenueCover] = useState(false);
   const [uploadingEditVenueDetail, setUploadingEditVenueDetail] = useState(false);
 
-  // Surcharge states
+  // Bulk Surcharge states (cho Sân lẻ)
   const [isSurchargeModalOpen, setIsSurchargeModalOpen] = useState(false);
   const [surchargeAmount, setSurchargeAmount] = useState('50000');
   const [surchargeCourtIds, setSurchargeCourtIds] = useState<string[]>([]);
 
-  // Open status modal for a specific venue (from 3-dot menu)
   const [targetVenueForStatus, setTargetVenueForStatus] = useState<string | null>(null);
-
-  // Confirmation flow states for venue status
   const [pendingVenueStatus, setPendingVenueStatus] = useState<'ACTIVE' | 'MAINTENANCE' | 'CLOSED' | null>(null);
   const [isConfirmStatusModalOpen, setIsConfirmStatusModalOpen] = useState(false);
 
-  // --- NEW COURT FORM STATES ---
+  // New Court Form
   const [isAddingCourt, setIsAddingCourt] = useState(false);
   const [newCourtName, setNewCourtName] = useState('');
   const [newCourtPrice, setNewCourtPrice] = useState('100000');
@@ -160,13 +164,11 @@ export const useOperationsPage = () => {
     }
   };
 
-  // Helper: Format currency 100000 -> 100.000 VND
   const formatVND = (amount: number) => {
     if (isNaN(amount)) return '0 VND';
     return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VND';
   };
 
-  // Smart hour options from 00:00 to 23:30 in 30-min intervals
   const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
     const hours = Math.floor(i / 2).toString().padStart(2, '0');
     const minutes = (i % 2 === 0 ? '00' : '30');
@@ -192,7 +194,6 @@ export const useOperationsPage = () => {
   const todayRevenue = confirmedBookings.reduce((sum, b) => sum + b.price, 0);
   const totalBookingsCount = venueBookings.length;
 
-  // Court operational status helpers
   const getCourtOpStatus = (courtId: string) => {
     const court = courts.find(c => c.id === courtId);
     return court?.status || 'ACTIVE';
@@ -235,10 +236,9 @@ export const useOperationsPage = () => {
     ? Math.round(activeCourts.reduce((sum, c) => sum + getCourtOccupancy(c), 0) / activeCourts.length)
     : 0;
 
-  // Stats for donut chart
   const activeCount = activeCourts.filter(c => c.status === 'ACTIVE').length;
   const maintCount  = activeCourts.filter(c => c.status === 'MAINTENANCE').length;
-  const closedCount = 0; // Handled at venue level now
+  const closedCount = 0; 
   const totalOpCourts = activeCourts.length;
 
   const handleVenueStatusSelect = (newStatus: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED') => {
@@ -280,6 +280,12 @@ export const useOperationsPage = () => {
       showToast('error', 'Vui lòng điền đủ Tên và Địa chỉ cụm sân');
       return;
     }
+    // Validate Surcharge
+    if (newVenueHasSurcharge && (!newVenueSurchargeAmount || !newVenueSurchargeDescription.trim())) {
+      showToast('error', 'Vui lòng nhập số tiền và mô tả cho Phụ thu');
+      return;
+    }
+
     try {
       await createVenueInfo(
         newVenueName,
@@ -292,9 +298,15 @@ export const useOperationsPage = () => {
         newVenueDetailImages,
         newVenueShiftDuration,
         newVenueLatitude,
-        newVenueLongitude
+        newVenueLongitude,
+        // Gửi thông tin phụ thu xuống service
+        newVenueHasSurcharge,
+        newVenueSurchargeAmount,
+        newVenueSurchargeDescription
       );
       setIsCreateVenueModalOpen(false);
+      
+      // Reset form
       setNewVenueName('');
       setNewVenueLocation('');
       setNewVenueLatitude(undefined);
@@ -306,6 +318,10 @@ export const useOperationsPage = () => {
       setNewVenueSportId('1');
       setNewVenueCoverImage('');
       setNewVenueDetailImages([]);
+      setNewVenueHasSurcharge(false);
+      setNewVenueSurchargeAmount(undefined);
+      setNewVenueSurchargeDescription('');
+      
       showToast('success', 'Đã tạo cụm sân mới thành công!');
       await refreshData();
     } catch (err: any) {
@@ -327,6 +343,12 @@ export const useOperationsPage = () => {
     setEditVenueSportId(target.sport?.id ? String(target.sport.id) : '1');
     setEditVenueCoverImage(target.coverImage || '');
     setEditVenueDetailImages(target.images ? target.images.map(img => img.imageUrl) : []);
+    
+    // Đổ dữ liệu phụ thu có sẵn vào form
+    setEditVenueHasSurcharge(target.hasSurcharge || false);
+    setEditVenueSurchargeAmount(target.surchargeAmount);
+    setEditVenueSurchargeDescription(target.surchargeDescription || '');
+
     if (venueId) setSelectedVenueId(venueId);
     setIsEditVenueModalOpen(true);
   };
@@ -334,6 +356,10 @@ export const useOperationsPage = () => {
   const handleEditVenue = async () => {
     if (!editVenueName.trim() || !editVenueLocation.trim()) {
       showToast('error', 'Vui lòng điền đủ Tên và Địa chỉ cụm sân');
+      return;
+    }
+    if (editVenueHasSurcharge && (!editVenueSurchargeAmount || !editVenueSurchargeDescription.trim())) {
+      showToast('error', 'Vui lòng nhập số tiền và mô tả cho Phụ thu');
       return;
     }
     try {
@@ -349,7 +375,11 @@ export const useOperationsPage = () => {
         editVenueDetailImages,
         editVenueShiftDuration,
         editVenueLatitude,
-        editVenueLongitude
+        editVenueLongitude,
+        // Gửi thông tin phụ thu cập nhật xuống service
+        editVenueHasSurcharge,
+        editVenueSurchargeAmount,
+        editVenueSurchargeDescription
       );
       setIsEditVenueModalOpen(false);
       showToast('success', 'Đã cập nhật thông tin cụm sân thành công!');
@@ -425,7 +455,6 @@ export const useOperationsPage = () => {
     }`);
   };
 
-  // Image Upload Methods for Venue Form
   const uploadNewVenueCoverFile = async (file: File) => {
     try {
       setUploadingNewVenueCover(true);
@@ -498,7 +527,6 @@ export const useOperationsPage = () => {
     setSelectedVenueId,
     setSelectedCourtIds,
     
-    // UI Local
     mobileScreen,
     setMobileScreen,
     activeTab,
@@ -518,7 +546,6 @@ export const useOperationsPage = () => {
     openVenueMenuId,
     setOpenVenueMenuId,
 
-    // Form inputs
     editingCourt,
     editName,
     setEditName,
@@ -527,66 +554,44 @@ export const useOperationsPage = () => {
     editOpStatus,
     setEditOpStatus,
     
-    // Create Venue Inputs
-    newVenueName,
-    setNewVenueName,
-    newVenueLocation,
-    setNewVenueLocation,
-    newVenueLatitude,
-    setNewVenueLatitude,
-    newVenueLongitude,
-    setNewVenueLongitude,
-    newVenueDescription,
-    setNewVenueDescription,
-    newVenueOpeningTime,
-    setNewVenueOpeningTime,
-    newVenueClosingTime,
-    setNewVenueClosingTime,
-    newVenueShiftDuration,
-    setNewVenueShiftDuration,
-    newVenueSportId,
-    setNewVenueSportId,
-    newVenueCoverImage,
-    setNewVenueCoverImage,
-    newVenueDetailImages,
-    setNewVenueDetailImages,
-    uploadingNewVenueCover,
-    uploadingNewVenueDetail,
+    // Xuất state phụ thu tạo mới
+    newVenueName, setNewVenueName,
+    newVenueLocation, setNewVenueLocation,
+    newVenueLatitude, setNewVenueLatitude,
+    newVenueLongitude, setNewVenueLongitude,
+    newVenueDescription, setNewVenueDescription,
+    newVenueOpeningTime, setNewVenueOpeningTime,
+    newVenueClosingTime, setNewVenueClosingTime,
+    newVenueShiftDuration, setNewVenueShiftDuration,
+    newVenueSportId, setNewVenueSportId,
+    newVenueCoverImage, setNewVenueCoverImage,
+    newVenueDetailImages, setNewVenueDetailImages,
+    newVenueHasSurcharge, setNewVenueHasSurcharge,
+    newVenueSurchargeAmount, setNewVenueSurchargeAmount,
+    newVenueSurchargeDescription, setNewVenueSurchargeDescription,
+    uploadingNewVenueCover, uploadingNewVenueDetail,
 
-    // Edit Venue Inputs
-    editVenueName,
-    setEditVenueName,
-    editVenueLocation,
-    setEditVenueLocation,
-    editVenueLatitude,
-    setEditVenueLatitude,
-    editVenueLongitude,
-    setEditVenueLongitude,
-    editVenueDescription,
-    setEditVenueDescription,
-    editVenueOpeningTime,
-    setEditVenueOpeningTime,
-    editVenueClosingTime,
-    setEditVenueClosingTime,
-    editVenueShiftDuration,
-    setEditVenueShiftDuration,
-    editVenueSportId,
-    setEditVenueSportId,
-    editVenueCoverImage,
-    setEditVenueCoverImage,
-    editVenueDetailImages,
-    setEditVenueDetailImages,
-    uploadingEditVenueCover,
-    uploadingEditVenueDetail,
+    // Xuất state phụ thu cập nhật
+    editVenueName, setEditVenueName,
+    editVenueLocation, setEditVenueLocation,
+    editVenueLatitude, setEditVenueLatitude,
+    editVenueLongitude, setEditVenueLongitude,
+    editVenueDescription, setEditVenueDescription,
+    editVenueOpeningTime, setEditVenueOpeningTime,
+    editVenueClosingTime, setEditVenueClosingTime,
+    editVenueShiftDuration, setEditVenueShiftDuration,
+    editVenueSportId, setEditVenueSportId,
+    editVenueCoverImage, setEditVenueCoverImage,
+    editVenueDetailImages, setEditVenueDetailImages,
+    editVenueHasSurcharge, setEditVenueHasSurcharge,
+    editVenueSurchargeAmount, setEditVenueSurchargeAmount,
+    editVenueSurchargeDescription, setEditVenueSurchargeDescription,
+    uploadingEditVenueCover, uploadingEditVenueDetail,
 
-    // Surcharge
-    isSurchargeModalOpen,
-    setIsSurchargeModalOpen,
-    surchargeAmount,
-    setSurchargeAmount,
+    isSurchargeModalOpen, setIsSurchargeModalOpen,
+    surchargeAmount, setSurchargeAmount,
     surchargeCourtIds,
     
-    // Derived values
     activeVenue,
     activeVenueId,
     activeCourts,
@@ -597,14 +602,8 @@ export const useOperationsPage = () => {
     todayRevenue,
     totalBookingsCount,
     avgOccupancy,
-    
-    // Donut Stats
-    activeCount,
-    maintCount,
-    closedCount,
-    totalOpCourts,
+    activeCount, maintCount, closedCount, totalOpCourts,
 
-    // Helper functions
     formatVND,
     hourDropdownOptions,
     opDropdownOptions,
@@ -614,13 +613,9 @@ export const useOperationsPage = () => {
     getCourtPerformanceRevenue,
     getCourtDetails,
 
-    // Confirmation Flow States
-    pendingVenueStatus,
-    setPendingVenueStatus,
-    isConfirmStatusModalOpen,
-    setIsConfirmStatusModalOpen,
+    pendingVenueStatus, setPendingVenueStatus,
+    isConfirmStatusModalOpen, setIsConfirmStatusModalOpen,
 
-    // Operations Handlers
     handleVenueStatusSelect,
     handleConfirmVenueStatusChange,
     handleCancelVenueStatusChange,
@@ -636,24 +631,15 @@ export const useOperationsPage = () => {
     handleSaveCourtConfig,
     handleResolveBooking,
 
-    // --- NEW COURT FORM / DRAFT EXPORTS ---
-    isAddingCourt,
-    setIsAddingCourt,
-    newCourtName,
-    setNewCourtName,
-    newCourtPrice,
-    setNewCourtPrice,
-    newCourtStatus,
-    setNewCourtStatus,
-    isConfirmSubmitOpen,
-    setIsConfirmSubmitOpen,
+    isAddingCourt, setIsAddingCourt,
+    newCourtName, setNewCourtName,
+    newCourtPrice, setNewCourtPrice,
+    newCourtStatus, setNewCourtStatus,
+    isConfirmSubmitOpen, setIsConfirmSubmitOpen,
     newCourtValidationErrors,
-    handleStartAddCourt,
-    handleCancelAddCourt,
-    handleSubmitNewCourt,
-    handleConfirmSubmitNewCourt,
+    handleStartAddCourt, handleCancelAddCourt,
+    handleSubmitNewCourt, handleConfirmSubmitNewCourt,
 
-    // Image upload actions for Venues
     uploadNewVenueCoverFile,
     uploadNewVenueDetailFiles,
     uploadEditVenueCoverFile,

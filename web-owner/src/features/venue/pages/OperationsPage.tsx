@@ -25,161 +25,85 @@ export const OperationsPage = () => {
     setSelectedVenueId,
     setSelectedCourtIds,
 
-    // UI Local
-    mobileScreen,
-    setMobileScreen,
-    activeTab,
-    setActiveTab,
-    searchQuery,
-    setSearchQuery,
-    isQueueModalOpen,
-    setIsQueueModalOpen,
-    isEditModalOpen,
-    setIsEditModalOpen,
-    isCreateVenueModalOpen,
-    setIsCreateVenueModalOpen,
-    isEditVenueModalOpen,
-    setIsEditVenueModalOpen,
-    isVenueStatusModalOpen,
-    setIsVenueStatusModalOpen,
-    openVenueMenuId,
-    setOpenVenueMenuId,
+    mobileScreen, setMobileScreen,
+    activeTab, setActiveTab,
+    searchQuery, setSearchQuery,
+    isQueueModalOpen, setIsQueueModalOpen,
+    isEditModalOpen, setIsEditModalOpen,
+    isCreateVenueModalOpen, setIsCreateVenueModalOpen,
+    isEditVenueModalOpen, setIsEditVenueModalOpen,
+    isVenueStatusModalOpen, setIsVenueStatusModalOpen,
+    openVenueMenuId, setOpenVenueMenuId,
 
-    // Form inputs
-    editingCourt,
-    editName,
-    setEditName,
-    editPrice,
-    setEditPrice,
-    editOpStatus,
-    setEditOpStatus,
+    editingCourt, editName, setEditName,
+    editPrice, setEditPrice,
+    editOpStatus, setEditOpStatus,
 
     // Create Venue Inputs
-    newVenueName,
-    setNewVenueName,
-    newVenueLocation,
-    setNewVenueLocation,
-    newVenueLatitude,
-    setNewVenueLatitude,
-    newVenueLongitude,
-    setNewVenueLongitude,
-    newVenueDescription,
-    setNewVenueDescription,
-    newVenueOpeningTime,
-    setNewVenueOpeningTime,
-    newVenueClosingTime,
-    setNewVenueClosingTime,
-    newVenueShiftDuration,
-    setNewVenueShiftDuration,
-    newVenueSportId,
-    setNewVenueSportId,
-    newVenueCoverImage,
-    setNewVenueCoverImage,
+    newVenueName, setNewVenueName,
+    newVenueLocation, setNewVenueLocation,
+    newVenueLatitude, setNewVenueLatitude,
+    newVenueLongitude, setNewVenueLongitude,
+    newVenueDescription, setNewVenueDescription,
+    newVenueOpeningTime, setNewVenueOpeningTime,
+    newVenueClosingTime, setNewVenueClosingTime,
+    newVenueShiftDuration, setNewVenueShiftDuration,
+    newVenueSportId, setNewVenueSportId,
+    newVenueCoverImage, setNewVenueCoverImage,
     newVenueDetailImages,
-    uploadingNewVenueCover,
-    uploadingNewVenueDetail,
+    newVenueHasSurcharge, setNewVenueHasSurcharge,
+    newVenueSurchargeAmount, setNewVenueSurchargeAmount,
+    newVenueSurchargeDescription, setNewVenueSurchargeDescription,
+    uploadingNewVenueCover, uploadingNewVenueDetail,
 
     // Edit Venue Inputs
-    editVenueName,
-    setEditVenueName,
-    editVenueLocation,
-    setEditVenueLocation,
-    editVenueLatitude,
-    setEditVenueLatitude,
-    editVenueLongitude,
-    setEditVenueLongitude,
-    editVenueDescription,
-    setEditVenueDescription,
-    editVenueOpeningTime,
-    setEditVenueOpeningTime,
-    editVenueClosingTime,
-    setEditVenueClosingTime,
-    editVenueShiftDuration,
-    setEditVenueShiftDuration,
-    editVenueSportId,
-    setEditVenueSportId,
-    editVenueCoverImage,
-    setEditVenueCoverImage,
+    editVenueName, setEditVenueName,
+    editVenueLocation, setEditVenueLocation,
+    editVenueLatitude, setEditVenueLatitude,
+    editVenueLongitude, setEditVenueLongitude,
+    editVenueDescription, setEditVenueDescription,
+    editVenueOpeningTime, setEditVenueOpeningTime,
+    editVenueClosingTime, setEditVenueClosingTime,
+    editVenueShiftDuration, setEditVenueShiftDuration,
+    editVenueSportId, setEditVenueSportId,
+    editVenueCoverImage, setEditVenueCoverImage,
     editVenueDetailImages,
-    uploadingEditVenueCover,
-    uploadingEditVenueDetail,
+    editVenueHasSurcharge, setEditVenueHasSurcharge,
+    editVenueSurchargeAmount, setEditVenueSurchargeAmount,
+    editVenueSurchargeDescription, setEditVenueSurchargeDescription,
+    uploadingEditVenueCover, uploadingEditVenueDetail,
 
-    // Surcharge
-    isSurchargeModalOpen,
-    setIsSurchargeModalOpen,
-    surchargeAmount,
-    setSurchargeAmount,
+    isSurchargeModalOpen, setIsSurchargeModalOpen,
+    surchargeAmount, setSurchargeAmount,
     surchargeCourtIds,
 
-    // Derived values
-    activeVenue,
-    activeVenueId,
-    activeCourts,
-    filteredVenues,
-    actionRequiredBookings,
-    todayRevenue,
-    totalBookingsCount,
-    avgOccupancy,
+    activeVenue, activeVenueId, activeCourts, filteredVenues,
+    actionRequiredBookings, todayRevenue, totalBookingsCount, avgOccupancy,
+    activeCount, maintCount, closedCount, totalOpCourts,
 
-    // Donut Stats
-    activeCount,
-    maintCount,
-    closedCount,
-    totalOpCourts,
+    formatVND, hourDropdownOptions, opDropdownOptions,
+    getCourtOpStatus, getCourtDetails,
 
-    // Helper functions
-    formatVND,
-    hourDropdownOptions,
-    opDropdownOptions,
-    getCourtOpStatus,
-    getCourtDetails,
+    pendingVenueStatus, isConfirmStatusModalOpen,
 
-    // Confirmation Flow States
-    pendingVenueStatus,
-    isConfirmStatusModalOpen,
+    handleVenueStatusSelect, handleConfirmVenueStatusChange, handleCancelVenueStatusChange,
+    handleOpenVenueStatusFromMenu, handleCreateVenue, handleOpenEditVenue,
+    handleEditVenue, handleSelectAll, handleSelectCourt, handleOpenBulkSurcharge,
+    handleApplySurcharge, handleOpenEditCourt, handleSaveCourtConfig, handleResolveBooking,
 
-    // Operations Handlers
-    handleVenueStatusSelect,
-    handleConfirmVenueStatusChange,
-    handleCancelVenueStatusChange,
-    handleOpenVenueStatusFromMenu,
-    handleCreateVenue,
-    handleOpenEditVenue,
-    handleEditVenue,
-    handleSelectAll,
-    handleSelectCourt,
-    handleOpenBulkSurcharge,
-    handleApplySurcharge,
-    handleOpenEditCourt,
-    handleSaveCourtConfig,
-    handleResolveBooking,
-
-    // --- NEW COURT FORM / DRAFT EXPORTS ---
-    isAddingCourt,
-    newCourtName,
-    setNewCourtName,
-    newCourtPrice,
-    setNewCourtPrice,
-    newCourtStatus,
-    setNewCourtStatus,
-    isConfirmSubmitOpen,
-    setIsConfirmSubmitOpen,
+    isAddingCourt, newCourtName, setNewCourtName,
+    newCourtPrice, setNewCourtPrice,
+    newCourtStatus, setNewCourtStatus,
+    isConfirmSubmitOpen, setIsConfirmSubmitOpen,
     newCourtValidationErrors,
-    handleStartAddCourt,
-    handleCancelAddCourt,
-    handleSubmitNewCourt,
-    handleConfirmSubmitNewCourt,
+    handleStartAddCourt, handleCancelAddCourt,
+    handleSubmitNewCourt, handleConfirmSubmitNewCourt,
 
-    // Image upload actions for Venues
-    uploadNewVenueCoverFile,
-    uploadNewVenueDetailFiles,
-    uploadEditVenueCoverFile,
-    uploadEditVenueDetailFiles,
-    handleRemoveNewVenueDetailImage,
-    handleRemoveEditVenueDetailImage
+    uploadNewVenueCoverFile, uploadNewVenueDetailFiles,
+    uploadEditVenueCoverFile, uploadEditVenueDetailFiles,
+    handleRemoveNewVenueDetailImage, handleRemoveEditVenueDetailImage
   } = useOperationsPage();
 
-  // ── LOADING STATE ─────────────────────────────────────────────────────────────
   if (loading && venues.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 select-none font-sans">
@@ -217,6 +141,14 @@ export const OperationsPage = () => {
           coverImage={newVenueCoverImage}
           setCoverImage={setNewVenueCoverImage}
           detailImages={newVenueDetailImages}
+          
+          hasSurcharge={newVenueHasSurcharge}
+          setHasSurcharge={setNewVenueHasSurcharge}
+          surchargeAmount={newVenueSurchargeAmount}
+          setSurchargeAmount={setNewVenueSurchargeAmount}
+          surchargeDescription={newVenueSurchargeDescription}
+          setSurchargeDescription={setNewVenueSurchargeDescription}
+
           uploadingCover={uploadingNewVenueCover}
           uploadingDetail={uploadingNewVenueDetail}
           onUploadCover={uploadNewVenueCoverFile}
@@ -256,6 +188,14 @@ export const OperationsPage = () => {
           coverImage={editVenueCoverImage}
           setCoverImage={setEditVenueCoverImage}
           detailImages={editVenueDetailImages}
+          
+          hasSurcharge={editVenueHasSurcharge}
+          setHasSurcharge={setEditVenueHasSurcharge}
+          surchargeAmount={editVenueSurchargeAmount}
+          setSurchargeAmount={setEditVenueSurchargeAmount}
+          surchargeDescription={editVenueSurchargeDescription}
+          setSurchargeDescription={setEditVenueSurchargeDescription}
+
           uploadingCover={uploadingEditVenueCover}
           uploadingDetail={uploadingEditVenueDetail}
           onUploadCover={uploadEditVenueCoverFile}
@@ -267,7 +207,6 @@ export const OperationsPage = () => {
     );
   }
 
-  // ── EMPTY STATE ────────────────────────────────────────────────────────────────
   if (venues.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none font-sans">
@@ -295,7 +234,6 @@ export const OperationsPage = () => {
     );
   }
 
-  // ── MAIN RENDER ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col flex-1 min-h-0 relative font-sans animate-fadeIn">
       {error && (
@@ -304,7 +242,6 @@ export const OperationsPage = () => {
         </div>
       )}
 
-      {/* MOBILE DRILL-DOWN LAYOUT */}
       {isMobile ? (
         <div className="flex flex-col flex-1">
           {mobileScreen === 'list' ? (
@@ -378,7 +315,6 @@ export const OperationsPage = () => {
               </div>
             </div>
           ) : (
-            /* MOBILE SCREEN 2: Venue Detail */
             <div className="space-y-4">
               <div className="flex justify-between items-center select-none">
                 <button
@@ -401,7 +337,6 @@ export const OperationsPage = () => {
                 </button>
               </div>
 
-              {/* Sub-Header venue info card */}
               <div className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm space-y-1.5 text-left">
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">{activeVenue.name}</h2>
@@ -411,7 +346,6 @@ export const OperationsPage = () => {
                 </p>
               </div>
 
-              {/* Tabs selector */}
               <div className="bg-slate-100/80 backdrop-blur-md p-1 rounded-2xl flex gap-1 select-none">
                 <button
                   onClick={() => setActiveTab('facilities')}
@@ -462,7 +396,6 @@ export const OperationsPage = () => {
             </div>
           )}
 
-          {/* Mobile Floating action bar - ONLY surcharge */}
           {selectedCourtIds.length > 0 && mobileScreen === 'detail' && activeTab === 'facilities' && (
             <div className="fixed bottom-20 left-4 right-4 z-50 bg-primary text-on-primary rounded-3xl p-4 shadow-xl border border-white/10 flex flex-col gap-2 select-none animate-slideUp">
               <div className="flex justify-between items-center text-xs font-bold px-1 border-b border-white/10 pb-2">
@@ -486,9 +419,7 @@ export const OperationsPage = () => {
           )}
         </div>
       ) : (
-        /* DESKTOP MASTER-DETAIL LAYOUT */
         <div className="flex gap-6 flex-1 min-h-0">
-          {/* LEFT SIDEBAR */}
           <OperationsSidebar
             venues={venues}
             courts={courts}
@@ -503,9 +434,7 @@ export const OperationsPage = () => {
             onEditVenueStatus={handleOpenVenueStatusFromMenu}
           />
 
-          {/* MAIN CONTENT AREA */}
           <section className="flex-1 bg-white border border-slate-200/60 rounded-3xl shadow-sm p-6 flex flex-col min-w-0">
-            {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100 select-none flex-shrink-0">
               <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -526,7 +455,6 @@ export const OperationsPage = () => {
               </button>
             </div>
 
-            {/* Warning Alert */}
             {actionRequiredBookings.length > 0 && (
               <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex justify-between items-center text-xs font-bold text-red-700 animate-pulse select-none flex-shrink-0">
                 <div className="flex items-center gap-2.5">
@@ -542,7 +470,6 @@ export const OperationsPage = () => {
               </div>
             )}
 
-            {/* Content Tabs selector */}
             <div className="mt-5 border-b border-slate-100 flex justify-between items-center flex-shrink-0 select-none">
               <div className="flex gap-4">
                 <button
@@ -569,7 +496,6 @@ export const OperationsPage = () => {
                 </button>
               </div>
 
-              {/* Multi-surcharge button */}
               {selectedCourtIds.length > 0 && activeTab === 'facilities' && (
                 <div className="pb-2.5 flex items-center gap-3 animate-fadeIn">
                   <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150">
@@ -587,7 +513,6 @@ export const OperationsPage = () => {
               )}
             </div>
 
-            {/* TAB PANES */}
             <div className="flex-1 overflow-hidden mt-6">
               {activeTab === 'overview' ? (
                 <OperationsOverviewTab
@@ -622,9 +547,6 @@ export const OperationsPage = () => {
         </div>
       )}
 
-      {/* ── MODALS & OVERLAYS ───────────────────────────────────────────────────────── */}
-
-      {/* Queue booking handler */}
       <BookingQueueModal
         isOpen={isQueueModalOpen}
         onClose={() => setIsQueueModalOpen(false)}
@@ -633,7 +555,6 @@ export const OperationsPage = () => {
         formatVND={formatVND}
       />
 
-      {/* Bulk Surcharge config */}
       <BulkSurchargeModal
         isOpen={isSurchargeModalOpen}
         onClose={() => setIsSurchargeModalOpen(false)}
@@ -644,7 +565,6 @@ export const OperationsPage = () => {
         formatVND={formatVND}
       />
 
-      {/* MODAL: COURT CONFIGURATION & PRICING */}
       <CourtConfigModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -658,7 +578,6 @@ export const OperationsPage = () => {
         formatVND={formatVND}
       />
 
-      {/* Add Court Modal (Replaces the inline screen) */}
       <AddCourtSubScreen
         isOpen={isAddingCourt}
         onClose={handleCancelAddCourt}
@@ -673,7 +592,6 @@ export const OperationsPage = () => {
         formatVND={formatVND}
       />
 
-      {/* Venue Status Warning Modal */}
       <VenueStatusModal
         isOpen={isVenueStatusModalOpen}
         onClose={() => setIsVenueStatusModalOpen(false)}
@@ -681,7 +599,6 @@ export const OperationsPage = () => {
         currentStatus={activeVenue?.status}
       />
 
-      {/* Confirmation Modal for changing status */}
       <ConfirmModal
         isOpen={isConfirmStatusModalOpen}
         onClose={handleCancelVenueStatusChange}
@@ -705,7 +622,6 @@ export const OperationsPage = () => {
         }
       />
 
-      {/* Confirm Submit Registration Modal */}
       <ConfirmModal
         isOpen={isConfirmSubmitOpen}
         onClose={() => setIsConfirmSubmitOpen(false)}

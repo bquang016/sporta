@@ -1,23 +1,29 @@
 package com.backend.sporta.service;
 
+import com.backend.sporta.enums.ApprovalStatus;
 import com.backend.sporta.enums.VenueStatus;
 import com.backend.sporta.dto.VenueRequest;
+import com.backend.sporta.dto.VenueResponse;
 import com.backend.sporta.entity.Owner;
 import com.backend.sporta.entity.Sport;
 import com.backend.sporta.entity.Venue;
 import com.backend.sporta.entity.VenueImage;
+import com.backend.sporta.entity.VenueRevision;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.VenueImageRepository;
 import com.backend.sporta.repository.VenueRepository;
+import com.backend.sporta.repository.VenueRevisionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class VenueService {
@@ -33,20 +39,26 @@ public class VenueService {
 
     @Autowired
     private VenueImageRepository venueImageRepository;
+    
+    @Autowired
+    private VenueRevisionRepository venueRevisionRepository;
+    
 
-    public List<Venue> getVenuesByOwnerEmail(String email) {
-        return venueRepository.findByOwnerUserEmail(email);
+    public List<VenueResponse> getVenuesByOwnerEmail(String email) {
+        return venueRepository.findByOwnerUserEmail(email).stream()
+                .map(venue -> mapToResponse(venue, false))
+                .collect(Collectors.toList());
     }
 
     @Transactional
-    public Venue createVenue(VenueRequest request, String email) {
+    public VenueResponse createVenue(VenueRequest request, String email) {
         Owner owner = ownerRepository.findByUserEmail(email)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin chủ sở hữu", 404));
 
         Sport sport = null;
         if (request.getSportId() != null) {
             sport = sportRepository.findById(request.getSportId())
-                    .orElseThrow(() -> new CustomException("Môn thể thao không tồn tại: " + request.getSportId(), 404));
+                    .orElseThrow(() -> new CustomException("Môn thể thao không tồn tại", 404));
         }
 
         int duration = request.getShiftDurationMinutes() != null ? request.getShiftDurationMinutes() : 30;
@@ -59,16 +71,21 @@ public class VenueService {
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .description(request.getDescription())
-                .openingTime(request.getOpeningTime())
+                .openingTime(request.getOpeningTime()) // Dùng LocalTime
                 .closingTime(request.getClosingTime())
                 .shiftDurationMinutes(duration)
                 .sport(sport)
                 .coverImage(request.getCoverImage())
+                .hasSurcharge(request.getHasSurcharge() != null ? request.getHasSurcharge() : false)
+                .surchargeAmount(request.getSurchargeAmount())
+                .surchargeDescription(request.getSurchargeDescription())
+                .status(VenueStatus.ACTIVE)
+                .approvalStatus(ApprovalStatus.APPROVED)
                 .build();
 
         venue = venueRepository.save(venue);
 
-        if (request.getDetailImages() != null) {
+        if (request.getDetailImages() != null && !request.getDetailImages().isEmpty()) {
             List<VenueImage> detailImages = new ArrayList<>();
             for (String imgUrl : request.getDetailImages()) {
                 detailImages.add(VenueImage.builder()
@@ -80,11 +97,11 @@ public class VenueService {
             venue.setImages(detailImages);
         }
 
-        return venueRepository.save(venue);
+        return mapToResponse(venue, false);
     }
 
     @Transactional
-    public Venue updateVenueStatus(UUID id, VenueStatus status, String email) {
+    public VenueResponse updateVenueStatus(UUID id, VenueStatus status, String email) {
         Venue venue = venueRepository.findById(id)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin cụm sân", 404));
 
@@ -94,11 +111,11 @@ public class VenueService {
         }
 
         venue.setStatus(status);
-        return venueRepository.save(venue);
+        return mapToResponse(venueRepository.save(venue), false);
     }
 
     @Transactional
-    public Venue updateVenue(UUID id, VenueRequest request, String email) {
+    public VenueResponse updateVenue(UUID id, VenueRequest request, String email) {
         Venue venue = venueRepository.findById(id)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin cụm sân", 404));
 
@@ -107,30 +124,50 @@ public class VenueService {
             throw new CustomException("Bạn không có quyền chỉnh sửa cụm sân này", 403);
         }
 
-        Sport sport = null;
-        if (request.getSportId() != null) {
-            sport = sportRepository.findById(request.getSportId())
-                    .orElseThrow(() -> new CustomException("Môn thể thao không tồn tại: " + request.getSportId(), 404));
-        }
-
         int duration = request.getShiftDurationMinutes() != null ? request.getShiftDurationMinutes() : 30;
         validateShiftDuration(request.getOpeningTime(), request.getClosingTime(), duration);
 
-        venue.setName(request.getName());
-        venue.setLocation(request.getLocation());
-        venue.setLatitude(request.getLatitude());
-        venue.setLongitude(request.getLongitude());
+        boolean hasSensitiveChanges = false;
+
+        // KIỂM TRA THAY ĐỔI NHẠY CẢM để tạo bản nháp
+        if (!venue.getName().equals(request.getName()) || !venue.getLocation().equals(request.getLocation())) {
+            hasSensitiveChanges = true;
+            try {
+                // Thay vì dùng objectMapper, ta dùng luôn .toString() của Java
+                String pendingData = request.toString(); 
+                
+                VenueRevision revision = VenueRevision.builder()
+                        .venue(venue)
+                        .pendingData(pendingData)
+                        .status(ApprovalStatus.PENDING)
+                        .build();
+                venueRevisionRepository.save(revision);
+            } catch (Exception e) {
+                throw new CustomException("Lỗi xử lý dữ liệu bản nháp", 500);
+            }
+        }
+
+        // Cập nhật các trường không nhạy cảm
+        Sport sport = null;
+        if (request.getSportId() != null) {
+            sport = sportRepository.findById(request.getSportId())
+                    .orElseThrow(() -> new CustomException("Môn thể thao không tồn tại", 404));
+            venue.setSport(sport);
+        }
+
         venue.setDescription(request.getDescription());
         venue.setOpeningTime(request.getOpeningTime());
         venue.setClosingTime(request.getClosingTime());
         venue.setShiftDurationMinutes(duration);
-        venue.setSport(sport);
         venue.setCoverImage(request.getCoverImage());
+        venue.setHasSurcharge(request.getHasSurcharge() != null ? request.getHasSurcharge() : false);
+        venue.setSurchargeAmount(request.getSurchargeAmount());
+        venue.setSurchargeDescription(request.getSurchargeDescription());
 
         venue.getImages().clear();
         venueRepository.saveAndFlush(venue);
 
-        if (request.getDetailImages() != null) {
+        if (request.getDetailImages() != null && !request.getDetailImages().isEmpty()) {
             List<VenueImage> detailImages = new ArrayList<>();
             for (String imgUrl : request.getDetailImages()) {
                 detailImages.add(VenueImage.builder()
@@ -142,38 +179,52 @@ public class VenueService {
             venue.setImages(detailImages);
         }
 
-        return venueRepository.save(venue);
+        Venue updatedVenue = venueRepository.save(venue);
+        return mapToResponse(updatedVenue, hasSensitiveChanges);
     }
 
-    private void validateShiftDuration(String openingTime, String closingTime, Integer shiftDurationMinutes) {
-        if (openingTime == null || openingTime.trim().isEmpty() ||
-            closingTime == null || closingTime.trim().isEmpty()) {
+    // Logic tính toán mới sử dụng LocalTime
+    private void validateShiftDuration(LocalTime open, LocalTime close, Integer shiftDurationMinutes) {
+        if (open == null || close == null || shiftDurationMinutes == null || shiftDurationMinutes <= 0) {
             return;
         }
-        if (shiftDurationMinutes == null || shiftDurationMinutes <= 0) {
-            throw new CustomException("Thời lượng ca phải lớn hơn 0", 400);
+        
+        int openMin = open.getHour() * 60 + open.getMinute();
+        int closeMin = close.getHour() * 60 + close.getMinute();
+        
+        int totalMinutes = closeMin - openMin;
+        if (totalMinutes <= 0) {
+            totalMinutes += 24 * 60; // Mở qua đêm
         }
         
-        try {
-            String[] openParts = openingTime.split(":");
-            String[] closeParts = closingTime.split(":");
-            if (openParts.length != 2 || closeParts.length != 2) {
-                throw new CustomException("Định dạng giờ mở/đóng cửa không hợp lệ", 400);
-            }
-            
-            int openMin = Integer.parseInt(openParts[0]) * 60 + Integer.parseInt(openParts[1]);
-            int closeMin = Integer.parseInt(closeParts[0]) * 60 + Integer.parseInt(closeParts[1]);
-            
-            int totalMinutes = closeMin - openMin;
-            if (totalMinutes <= 0) {
-                totalMinutes += 24 * 60;
-            }
-            
-            if (totalMinutes % shiftDurationMinutes != 0) {
-                throw new CustomException("Khoảng thời gian hoạt động (" + totalMinutes + " phút) phải chia hết cho thời lượng ca (" + shiftDurationMinutes + " phút)", 400);
-            }
-        } catch (NumberFormatException e) {
-            throw new CustomException("Giờ mở/đóng cửa chứa ký tự không hợp lệ", 400);
+        if (totalMinutes % shiftDurationMinutes != 0) {
+            throw new CustomException("Khoảng thời gian hoạt động phải chia hết cho thời lượng ca (" + shiftDurationMinutes + " phút)", 400);
         }
+    }
+
+    // Mapper helper
+    private VenueResponse mapToResponse(Venue venue, boolean hasPendingRevision) {
+        List<String> detailImageUrls = venue.getImages() != null ? 
+            venue.getImages().stream().map(VenueImage::getImageUrl).collect(Collectors.toList()) : new ArrayList<>();
+
+        return VenueResponse.builder()
+                .id(venue.getId())
+                .name(venue.getName())
+                .location(venue.getLocation())
+                .latitude(venue.getLatitude())
+                .longitude(venue.getLongitude())
+                .description(venue.getDescription())
+                .openingTime(venue.getOpeningTime())
+                .closingTime(venue.getClosingTime())
+                .shiftDurationMinutes(venue.getShiftDurationMinutes())
+                .coverImage(venue.getCoverImage())
+                .detailImages(detailImageUrls)
+                .hasSurcharge(venue.getHasSurcharge())
+                .surchargeAmount(venue.getSurchargeAmount())
+                .surchargeDescription(venue.getSurchargeDescription())
+                .status(venue.getStatus())
+                .approvalStatus(venue.getApprovalStatus())
+                .hasPendingRevision(hasPendingRevision)
+                .build();
     }
 }
