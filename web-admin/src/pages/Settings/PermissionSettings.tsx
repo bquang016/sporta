@@ -216,12 +216,16 @@ export const PermissionSettings = () => {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedRole === r.id ? 'bg-white shadow-sm' : 'bg-slate-100'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                      selectedRole === r.id 
+                        ? 'bg-primary-container text-brand-yellow shadow-sm' 
+                        : 'bg-surface-variant/40 text-outline group-hover:bg-surface-variant group-hover:text-on-surface'
+                    }`}>
                       {selectedRole === r.id && r.activeIcon ? r.activeIcon : r.icon}
                     </div>
                     <div className="text-left">
-                      <h4 className={`text-xs font-black ${selectedRole === r.id ? 'text-slate-800' : 'text-slate-700'}`}>{r.name}</h4>
-                      <p className={`text-[10px] font-medium ${selectedRole === r.id ? 'text-cyan-600' : 'text-slate-400'}`}>{r.subtitle}</p>
+                      <h4 className={`text-xs font-black transition-colors ${selectedRole === r.id ? 'text-primary' : 'text-on-surface-variant group-hover:text-on-surface'}`}>{r.name}</h4>
+                      <p className={`text-[10px] font-medium transition-colors ${selectedRole === r.id ? 'text-primary/60' : 'text-outline'}`}>{r.subtitle}</p>
                     </div>
                   </div>
                   {r.isRoot && (
@@ -248,24 +252,24 @@ export const PermissionSettings = () => {
             
             {/* Header */}
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-secondary-container/20 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-secondary-container" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-800">Quyền hạn của: <span className="text-slate-500">{activeRoleConfig.name}</span></h2>
-                  <p className="text-xs text-slate-500 font-medium">{activeRoleConfig.subtitle}</p>
+                  <h2 className="text-xl font-black text-on-surface tracking-tight">Quyền hạn của: <span className="text-primary">{activeRoleConfig.name}</span></h2>
+                  <p className="text-sm text-outline font-medium">{activeRoleConfig.subtitle}</p>
                 </div>
               </div>
               
               <Button
                 onClick={handleSave}
                 disabled={isReadOnly || isSaving}
-                variant="secondary"
+                variant="primary"
                 size="md"
-                className="!text-sm flex items-center gap-2 px-5 py-2.5 disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-500"
+                className="!text-sm flex items-center gap-2 px-5 py-2.5 disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-500 font-bold"
               >
                 {isSaving ? (
                   <LoadingSpinner size="sm" color="current" />
@@ -279,7 +283,7 @@ export const PermissionSettings = () => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-6 overflow-y-scroll flex-1">
               
               {message.text && (
                 <div className={`mb-6 p-4 rounded-xl text-sm font-bold flex items-center gap-2 ${
@@ -290,31 +294,47 @@ export const PermissionSettings = () => {
               )}
 
               {activeRoleConfig.isRoot && (
-                <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-5 mb-8 flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-5 mb-8 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-blue-900 mb-1 uppercase tracking-wide">Hệ thống bảo vệ: SUPER ADMIN</h4>
-                    <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                    <h4 className="text-sm font-black text-primary mb-1.5 uppercase tracking-wider">Hệ thống bảo vệ: SUPER ADMIN</h4>
+                    <p className="text-sm text-primary/80 font-medium leading-relaxed">
                       Vai trò SUPER_ADMIN là vai trò gốc của hệ thống. Tất cả các quyền hạn đã được kích hoạt mặc định và không thể bị tước bỏ.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {selectedRole === 'ADMIN' && (
+                <div className="bg-primary-container/5 border border-primary-container/10 rounded-2xl p-5 mb-8 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-on-primary-container" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-primary-container mb-1.5 uppercase tracking-wider">Cấu hình phân quyền động</h4>
+                    <p className="text-sm text-primary-container/80 font-medium leading-relaxed">
+                      Quản trị viên Super Admin có thể bật tắt các quyền hạn dành riêng cho vai trò Admin. Sau khi lưu, Admin cần đăng nhập lại.
                     </p>
                   </div>
                 </div>
               )}
               
               {selectedRole !== 'ADMIN' && !activeRoleConfig.isRoot && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8 flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-slate-400 flex items-center justify-center shrink-0 mt-0.5">
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="bg-surface-variant/20 border border-surface-variant/50 rounded-2xl p-5 mb-8 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-outline-variant flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-on-surface" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-slate-700 mb-1 uppercase tracking-wide">Chưa hỗ trợ phân quyền tùy chỉnh</h4>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    <h4 className="text-sm font-black text-on-surface-variant mb-1.5 uppercase tracking-wider">Chưa hỗ trợ phân quyền tùy chỉnh</h4>
+                    <p className="text-sm text-outline font-medium leading-relaxed">
                       Tính năng phân quyền tùy chỉnh cho vai trò này hiện chưa khả dụng. Các quyền hiển thị bên dưới chỉ mang tính chất minh họa.
                     </p>
                   </div>
@@ -345,7 +365,7 @@ export const PermissionSettings = () => {
                                 <p className="text-xs text-slate-400 font-medium mt-0.5">{feature.desc}</p>
                               </div>
                               
-                              <label className={`relative inline-flex items-center ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                              <label className={`relative inline-flex items-center ${isReadOnly ? 'cursor-not-allowed opacity-50 grayscale' : 'cursor-pointer'} transition-transform`}>
                                 <input 
                                   type="checkbox" 
                                   className="sr-only peer" 
@@ -353,7 +373,7 @@ export const PermissionSettings = () => {
                                   onChange={() => handleToggle(feature.key)}
                                   disabled={isReadOnly}
                                 />
-                                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-400"></div>
+                                <div className="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-outline-variant after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:duration-300 peer-checked:bg-brand-yellow"></div>
                               </label>
                             </div>
                           );
