@@ -7,7 +7,7 @@ interface OperationsFacilitiesTabProps {
   selectedCourtIds: string[];
   handleSelectAll: (checked: boolean) => void;
   handleSelectCourt: (id: string) => void;
-  handleOpenEditCourt: (court: CourtResponse) => void;
+  handleOpenEditCourt: (court: CourtResponse, mode: 'shift' | 'day') => void;
   getCourtDetails: (court: CourtResponse) => {
     name: string;
     price: number;
@@ -109,10 +109,16 @@ export const OperationsFacilitiesTab = ({
                     <span className="text-slate-400 text-[8px] block uppercase">Doanh thu/ngay</span>
                     <span className="text-brand-emerald font-black">{formatVND(details.performanceRevenue)}</span>
                   </div>
-                  <button onClick={() => handleOpenEditCourt(court)}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] rounded-xl border border-slate-200 cursor-pointer">
-                    Cau hinh
-                  </button>
+                  <div className="flex gap-1.5 select-none">
+                    <button onClick={() => handleOpenEditCourt(court, 'shift')}
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[9px] rounded-xl border border-slate-200 cursor-pointer">
+                      Giá & Ca
+                    </button>
+                    <button onClick={() => handleOpenEditCourt(court, 'day')}
+                      className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-brand-emerald font-extrabold text-[9px] rounded-xl border border-emerald-150 cursor-pointer">
+                      Giá theo Thứ
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -197,13 +203,16 @@ export const OperationsFacilitiesTab = ({
                     </div>
                   </td>
                   <td className="py-4 pr-2 text-right select-none">
-                    <button onClick={() => handleOpenEditCourt(court)}
-                      className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] rounded-xl transition-colors flex items-center gap-1 border border-slate-200 cursor-pointer ml-auto">
-                      <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Cấu hình
-                    </button>
+                    <div className="flex justify-end gap-1.5">
+                      <button onClick={() => handleOpenEditCourt(court, 'shift')}
+                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] rounded-xl transition-colors flex items-center gap-1 border border-slate-200 cursor-pointer">
+                        Sửa giá theo ca
+                      </button>
+                      <button onClick={() => handleOpenEditCourt(court, 'day')}
+                        className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-brand-emerald font-extrabold text-[10px] rounded-xl transition-colors flex items-center gap-1 border border-emerald-150 cursor-pointer">
+                        Sửa giá theo ngày
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

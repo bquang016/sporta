@@ -45,6 +45,16 @@ export const useOperationsPage = () => {
   const [editPrice, setEditPrice] = useState('');
   const [editOpStatus, setEditOpStatus] = useState<'ACTIVE' | 'MAINTENANCE'>('ACTIVE');
 
+  // States định giá phân tầng (Tiered Pricing)
+  const [hasShiftPricing, setHasShiftPricing] = useState(false);
+  const [shiftPrices, setShiftPrices] = useState<Record<string, string>>({});
+  const [hasDayOfWeekPricing, setHasDayOfWeekPricing] = useState(false);
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(6); // Mặc định là Thứ 7 (số 6)
+  const [dayPricingType, setDayPricingType] = useState<'percentage' | 'fixed'>('percentage');
+  const [dayPricingValue, setDayPricingValue] = useState<string>('');
+  const [isBulkEdit, setIsBulkEdit] = useState(false);
+  const [configMode, setConfigMode] = useState<'shift' | 'day'>('shift');
+
   // --- CREATE VENUE FORM STATES ---
   const [newVenueName, setNewVenueName] = useState('');
   const [newVenueLocation, setNewVenueLocation] = useState('');
@@ -414,35 +424,260 @@ export const useOperationsPage = () => {
     showToast('success', `Đã cấu hình phụ thu +${formatVND(amt)} thành công.`);
   };
 
-  const handleOpenEditCourt = (court: CourtResponse) => {
+  const handleOpenEditCourt = async (court: CourtResponse, mode: 'shift' | 'day') => {
+    setIsBulkEdit(false);
+    setConfigMode(mode);
     setEditingCourt(court);
     setEditName(court.name);
     setEditPrice(court.price.toString());
     setEditOpStatus(court.status);
+
+    // Reset các state cấu hình
+    setHasShiftPricing(mode === 'shift');
+    setShiftPrices({});
+    setHasDayOfWeekPricing(mode === 'day');
+    setSelectedDayOfWeek(6);
+    setDayPricingType('percentage');
+    setDayPricingValue('');
+
+    setIsEditModalOpen(true);
+
+    try {
+      const rules = await courtService.getCourtPriceRules(court.id);
+      const shiftsMap: Record<string, string> = {};
+      let hasShift = false;
+      let hasDay = false;
+
+      rules.forEach(rule => {
+        if (rule.ruleType === 'SHIFT' && mode === 'shift') {
+          hasShift = true;
+          // Format start/end time dạng "HH:mm" từ "HH:mm:ss"
+          const start = rule.startTime?.substring(0, 5) || '';
+          const end = rule.endTime?.substring(0, 5) || '';
+          if (start && end) {
+            shiftsMap[`${start}-${end}`] = rule.customPrice?.toString() || '';
+          }
+        } else if (rule.ruleType === 'DAY_OF_WEEK' && mode === 'day') {
+          hasDay = true;
+          setSelectedDayOfWeek(rule.dayOfWeek || 6);
+          if (rule.percentageModifier !== null && rule.percentageModifier !== undefined) {
+            setDayPricingType('percentage');
+            setDayPricingValue(rule.percentageModifier.toString());
+          } else if (rule.fixedModifier !== null && rule.fixedModifier !== undefined) {
+            setDayPricingType('fixed');
+            setDayPricingValue(rule.fixedModifier.toString());
+          }
+        }
+      });
+
+      if (mode === 'shift') {
+        setHasShiftPricing(hasShift);
+        setShiftPrices(shiftsMap);
+      } else {
+        setHasDayOfWeekPricing(hasDay);
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi tải quy tắc giá:', err);
+    }
+  };
+
+  const handleOpenBulkEdit = (mode: 'shift' | 'day') => {
+    if (selectedCourtIds.length === 0) {
+      showToast('error', 'Vui lòng chọn ít nhất một sân để cấu hình');
+      return;
+    }
+    setIsBulkEdit(true);
+    setConfigMode(mode);
+    setEditingCourt(null);
+    setEditName('Bulk Edit');
+    
+    const firstSelected = courts.find(c => c.id === selectedCourtIds[0]);
+    setEditPrice(firstSelected ? firstSelected.price.toString() : '');
+    setEditOpStatus('ACTIVE');
+
+    setHasShiftPricing(mode === 'shift');
+    setShiftPrices({});
+    setHasDayOfWeekPricing(mode === 'day');
+    setSelectedDayOfWeek(6);
+    setDayPricingType('percentage');
+    setDayPricingValue('');
+
     setIsEditModalOpen(true);
   };
 
   const handleSaveCourtConfig = async () => {
-    if (!editName.trim()) {
-      showToast('error', 'Tên sân không được để trống');
-      return;
+    // 1. Validate basic operational info only in shift mode
+    let priceNum = 0;
+    if (configMode === 'shift') {
+      if (!isBulkEdit && !editName.trim()) {
+        showToast('error', 'Tên sân không được để trống');
+        return;
+      }
+      priceNum = parseFloat(editPrice);
+      if (isNaN(priceNum) || priceNum <= 0) {
+        showToast('error', 'Giá thuê sân không hợp lệ');
+        return;
+      }
     }
-    const priceNum = parseFloat(editPrice);
-    if (isNaN(priceNum) || priceNum <= 0) {
-      showToast('error', 'Giá thuê sân không hợp lệ');
-      return;
-    }
+
     try {
-      const payload: CourtRequest = {
-        name: editName,
-        price: priceNum,
-        venueId: activeVenueId || '',
-        status: editOpStatus,
-      };
-      await courtService.updateCourt(editingCourt!.id, payload);
+      // 2. Save Basic Court Info (only in shift mode)
+      if (configMode === 'shift') {
+        if (!isBulkEdit) {
+          const payload: CourtRequest = {
+            name: editName,
+            price: priceNum,
+            venueId: activeVenueId || '',
+            status: editOpStatus,
+          };
+          await courtService.updateCourt(editingCourt!.id, payload);
+        } else {
+          // Cập nhật hàng loạt (Giữ nguyên tên gốc của từng sân)
+          for (const courtId of selectedCourtIds) {
+            const targetCourt = courts.find(c => c.id === courtId);
+            if (!targetCourt) continue;
+            const payload: CourtRequest = {
+              name: targetCourt.name,
+              price: priceNum,
+              venueId: activeVenueId || '',
+              status: editOpStatus,
+            };
+            await courtService.updateCourt(courtId, payload);
+          }
+        }
+      }
+
+      // 3. Save Price Rules (with merge logic to prevent deletion of rules not in mode)
+      if (!isBulkEdit) {
+        const courtId = editingCourt!.id;
+        const existingRules = await courtService.getCourtPriceRules(courtId);
+        const rulesPayload: any[] = [];
+
+        if (configMode === 'shift') {
+          // Keep existing day of week rules
+          existingRules.forEach(r => {
+            if (r.ruleType === 'DAY_OF_WEEK') {
+              rulesPayload.push({
+                ruleType: 'DAY_OF_WEEK',
+                dayOfWeek: r.dayOfWeek,
+                percentageModifier: r.percentageModifier,
+                fixedModifier: r.fixedModifier
+              });
+            }
+          });
+
+          // Add new shift rules
+          if (hasShiftPricing) {
+            Object.entries(shiftPrices).forEach(([key, val]) => {
+              const valNum = parseFloat(val);
+              if (!isNaN(valNum) && valNum > 0) {
+                const [start, end] = key.split('-');
+                rulesPayload.push({
+                  ruleType: 'SHIFT',
+                  startTime: `${start}:00`,
+                  endTime: `${end}:00`,
+                  customPrice: valNum
+                });
+              }
+            });
+          }
+        } else {
+          // Keep existing shift rules
+          existingRules.forEach(r => {
+            if (r.ruleType === 'SHIFT') {
+              rulesPayload.push({
+                ruleType: 'SHIFT',
+                startTime: r.startTime,
+                endTime: r.endTime,
+                customPrice: r.customPrice
+              });
+            }
+          });
+
+          // Add new day of week rules
+          if (hasDayOfWeekPricing) {
+            const valNum = parseFloat(dayPricingValue);
+            if (!isNaN(valNum) && valNum > 0) {
+              rulesPayload.push({
+                ruleType: 'DAY_OF_WEEK',
+                dayOfWeek: selectedDayOfWeek,
+                percentageModifier: dayPricingType === 'percentage' ? valNum : null,
+                fixedModifier: dayPricingType === 'fixed' ? valNum : null
+              });
+            }
+          }
+        }
+
+        await courtService.saveCourtPriceRules(courtId, rulesPayload);
+      } else {
+        // Bulk Edit rules for all selected courts
+        for (const courtId of selectedCourtIds) {
+          const existingRules = await courtService.getCourtPriceRules(courtId);
+          const rulesPayload: any[] = [];
+
+          if (configMode === 'shift') {
+            // Keep day rules
+            existingRules.forEach(r => {
+              if (r.ruleType === 'DAY_OF_WEEK') {
+                rulesPayload.push({
+                  ruleType: 'DAY_OF_WEEK',
+                  dayOfWeek: r.dayOfWeek,
+                  percentageModifier: r.percentageModifier,
+                  fixedModifier: r.fixedModifier
+                });
+              }
+            });
+
+            // Add new shift rules
+            if (hasShiftPricing) {
+              Object.entries(shiftPrices).forEach(([key, val]) => {
+                const valNum = parseFloat(val);
+                if (!isNaN(valNum) && valNum > 0) {
+                  const [start, end] = key.split('-');
+                  rulesPayload.push({
+                    ruleType: 'SHIFT',
+                    startTime: `${start}:00`,
+                    endTime: `${end}:00`,
+                    customPrice: valNum
+                  });
+                }
+              });
+            }
+          } else {
+            // Keep shift rules
+            existingRules.forEach(r => {
+              if (r.ruleType === 'SHIFT') {
+                rulesPayload.push({
+                  ruleType: 'SHIFT',
+                  startTime: r.startTime,
+                  endTime: r.endTime,
+                  customPrice: r.customPrice
+                });
+              }
+            });
+
+            // Add new day rules
+            if (hasDayOfWeekPricing) {
+              const valNum = parseFloat(dayPricingValue);
+              if (!isNaN(valNum) && valNum > 0) {
+                rulesPayload.push({
+                  ruleType: 'DAY_OF_WEEK',
+                  dayOfWeek: selectedDayOfWeek,
+                  percentageModifier: dayPricingType === 'percentage' ? valNum : null,
+                  fixedModifier: dayPricingType === 'fixed' ? valNum : null
+                });
+              }
+            }
+          }
+
+          await courtService.saveCourtPriceRules(courtId, rulesPayload);
+        }
+      }
+
       await refreshData();
       setIsEditModalOpen(false);
-      showToast('success', 'Đã cập nhật thông tin sân thành công.');
+      setSelectedCourtIds([]); // Reset selection
+      showToast('success', isBulkEdit ? 'Đã cấu hình giá hàng loạt cho các sân thành công.' : 'Đã cập nhật thông tin cấu hình sân thành công.');
     } catch (err: any) {
       showToast('error', err.message || 'Lỗi khi lưu thông tin cấu hình sân');
     }
@@ -553,6 +788,27 @@ export const useOperationsPage = () => {
     setEditPrice,
     editOpStatus,
     setEditOpStatus,
+
+    hasShiftPricing,
+    setHasShiftPricing,
+    shiftPrices,
+    setShiftPrice: (shiftKey: string, priceVal: string) => setShiftPrices(prev => ({ ...prev, [shiftKey]: priceVal })),
+    removeShiftPrice: (shiftKey: string) => setShiftPrices(prev => {
+      const next = { ...prev };
+      delete next[shiftKey];
+      return next;
+    }),
+    hasDayOfWeekPricing,
+    setHasDayOfWeekPricing,
+    selectedDayOfWeek,
+    setSelectedDayOfWeek,
+    dayPricingType,
+    setDayPricingType,
+    dayPricingValue,
+    setDayPricingValue,
+    isBulkEdit,
+    configMode,
+    setConfigMode,
     
     // Xuất state phụ thu tạo mới
     newVenueName, setNewVenueName,
@@ -628,6 +884,7 @@ export const useOperationsPage = () => {
     handleOpenBulkSurcharge,
     handleApplySurcharge,
     handleOpenEditCourt,
+    handleOpenBulkEdit,
     handleSaveCourtConfig,
     handleResolveBooking,
 
