@@ -14,6 +14,7 @@ import com.backend.sporta.repository.UserSportRepository;
 import com.backend.sporta.repository.VenueRepository;
 import com.backend.sporta.repository.CourtRepository;
 import com.backend.sporta.repository.CourtPricingRepository;
+import com.backend.sporta.repository.RolePermissionRepository;
 import com.backend.sporta.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +66,9 @@ public class AuthService {
     private CourtPricingRepository courtPricingRepository;
 
     @Autowired
+    private RolePermissionRepository rolePermissionRepository;
+
+    @Autowired
     private FileStorageService fileStorageService;
 
     @Autowired
@@ -93,10 +97,22 @@ public class AuthService {
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
 
+        java.util.List<String> permissions = java.util.Collections.emptyList();
+        if (user.getRole() == Role.ADMIN) {
+            permissions = rolePermissionRepository.findByRole(Role.ADMIN)
+                    .stream()
+                    .filter(RolePermission::isAllowed)
+                    .map(RolePermission::getFeature)
+                    .collect(java.util.stream.Collectors.toList());
+        } else if (user.getRole() == Role.SUPER_ADMIN) {
+            permissions = java.util.List.of("ALL_FEATURES");
+        }
+
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .message("Đăng nhập thành công.")
                 .mustChangePassword(user.isMustChangePassword())
+                .permissions(permissions)
                 .build();
     }
 

@@ -19,6 +19,7 @@ import java.util.UUID;
 @Builder
 public class Venue {
 
+
     @Id
     @GeneratedValue
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
@@ -96,7 +97,7 @@ public class Venue {
 
     // TRẠNG THÁI: Trạng thái vật lý của sân (Đang mở/Đóng cửa)
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'ACTIVE'")
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50)")
     @Builder.Default
     private VenueStatus status = VenueStatus.ACTIVE;
 
