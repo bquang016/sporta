@@ -107,6 +107,22 @@ public class Venue {
     @Builder.Default
     private ApprovalStatus approvalStatus = ApprovalStatus.APPROVED;
 
+    @Column(name = "min_price")
+    @Builder.Default
+    private Double minPrice = 0.0;
+
+    @Column(name = "max_price")
+    @Builder.Default
+    private Double maxPrice = 0.0;
+
+    public Double getMinPrice() {
+        return minPrice != null ? minPrice : 0.0;
+    }
+
+    public Double getMaxPrice() {
+        return maxPrice != null ? maxPrice : 0.0;
+    }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

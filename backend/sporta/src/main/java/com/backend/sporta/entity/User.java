@@ -45,9 +45,13 @@ public class User {
     @Column(nullable = false)
     private UserStatus status;
 
-    @Column(name = "must_change_password", nullable = false)
+    @Column(name = "must_change_password")
     @Builder.Default
-    private boolean mustChangePassword = false;
+    private Boolean mustChangePassword = false;
+
+    public boolean isMustChangePassword() {
+        return this.mustChangePassword != null && this.mustChangePassword;
+    }
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

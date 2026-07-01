@@ -73,9 +73,10 @@ interface VenueListProps {
   setOpenMenuId: (id: string | null) => void;
   onEdit: (venue: VenueResponse) => void;
   onChangeStatus: (venueId: string) => void;
+  formatVND: (n: number) => string;
 }
 
-export const VenueList = ({ venues, courts, openMenuId, setOpenMenuId, onEdit, onChangeStatus }: VenueListProps) => {
+export const VenueList = ({ venues, courts, openMenuId, setOpenMenuId, onEdit, onChangeStatus, formatVND }: VenueListProps) => {
   if (venues.length === 0) {
     return (
       <div className="flex-1 bg-white border border-slate-200/50 rounded-3xl p-10 flex flex-col items-center justify-center text-center space-y-4 shadow-sm select-none">
@@ -103,6 +104,18 @@ export const VenueList = ({ venues, courts, openMenuId, setOpenMenuId, onEdit, o
               'bg-red-50 text-red-600 border-red-100';
         const statusLabel =
           venueStatus === 'ACTIVE' ? 'Hoạt động' : venueStatus === 'MAINTENANCE' ? 'Bảo trì' : 'Đóng cửa';
+
+        const renderPriceRange = () => {
+          const min = venue.minPrice;
+          const max = venue.maxPrice;
+          if (min === undefined || min === null || min === 0) {
+            return "Chưa có bảng giá";
+          }
+          if (min === max) {
+            return `Giá: ${formatVND(min || 0)} / ca`;
+          }
+          return `Giá từ: ${formatVND(min || 0)} - ${formatVND(max || 0)} / ca`;
+        };
 
         return (
           <div
@@ -137,6 +150,14 @@ export const VenueList = ({ venues, courts, openMenuId, setOpenMenuId, onEdit, o
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 </svg>
                 <span className="truncate" title={venue.location}>{venue.location}</span>
+              </div>
+
+              {/* Hiển thị khoảng giá cụm sân */}
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-brand-emerald bg-emerald-50/40 border border-emerald-100/50 px-2 py-1 rounded-xl w-fit">
+                <svg className="w-3.5 h-3.5 text-brand-emerald flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{renderPriceRange()}</span>
               </div>
 
               {venue.description && (

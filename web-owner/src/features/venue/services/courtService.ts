@@ -1,4 +1,4 @@
-import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest } from '../types';
+import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse } from '../types';
 
 const BASE_URL = 'http://localhost:8387/api/v1';
 
@@ -105,5 +105,22 @@ export const courtService = {
       body: JSON.stringify(data),
     });
     return handleResponse(res, 'Lỗi khi cập nhật thông tin cụm sân');
+  },
+
+  async getCourtPriceRules(courtId: string): Promise<CourtPriceRuleResponse[]> {
+    const res = await fetch(`${BASE_URL}/owner/courts/${courtId}/price-rules`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Không thể lấy cấu hình giá chi tiết của sân');
+  },
+
+  async saveCourtPriceRules(courtId: string, rules: CourtPriceRuleRequest[]): Promise<any> {
+    const res = await fetch(`${BASE_URL}/owner/courts/${courtId}/price-rules`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(rules),
+    });
+    return handleResponse(res, 'Lỗi khi lưu cấu hình giá chi tiết của sân');
   }
 };
