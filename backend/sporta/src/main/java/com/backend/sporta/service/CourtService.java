@@ -2,10 +2,14 @@ package com.backend.sporta.service;
 
 import com.backend.sporta.dto.CourtRequest;
 import com.backend.sporta.dto.CourtResponse;
+import com.backend.sporta.dto.CourtPriceRuleRequest;
+import com.backend.sporta.dto.CourtPriceRuleResponse;
 import com.backend.sporta.entity.Court;
+import com.backend.sporta.entity.CourtPriceRule;
 import com.backend.sporta.enums.CourtStatus;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.CourtRepository;
+import com.backend.sporta.repository.CourtPriceRuleRepository;
 import com.backend.sporta.entity.Venue;
 import com.backend.sporta.repository.VenueRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +28,12 @@ public class CourtService {
 
     @Autowired
     private VenueRepository venueRepository;
+
+    @Autowired
+    private CourtPriceRuleRepository courtPriceRuleRepository;
+
+    @Autowired
+    private VenueService venueService;
 
     public List<CourtResponse> getCourtsByOwnerEmail(String email) {
         return courtRepository.findByVenueOwnerUserEmail(email).stream()
@@ -59,6 +69,10 @@ public class CourtService {
                 .build();
 
         court = courtRepository.save(court);
+        
+        // Trigger đồng bộ khoảng giá cụm sân
+        venueService.updateVenuePriceRange(venue.getId());
+        
         return mapToResponse(court);
     }
 
@@ -82,6 +96,10 @@ public class CourtService {
         }
 
         court = courtRepository.save(court);
+        
+        // Trigger đồng bộ khoảng giá cụm sân
+        venueService.updateVenuePriceRange(venue.getId());
+        
         return mapToResponse(court);
     }
 
@@ -91,7 +109,63 @@ public class CourtService {
                 .orElseThrow(() -> new CustomException("Sân bãi không tồn tại", 404));
         court.setStatus(status);
         court = courtRepository.save(court);
+        
+        // Trigger đồng bộ khoảng giá cụm sân
+        venueService.updateVenuePriceRange(court.getVenue().getId());
+        
         return mapToResponse(court);
+    }
+
+    public List<CourtPriceRuleResponse> getPriceRulesByCourtId(UUID courtId, String ownerEmail) {
+        Court court = courtRepository.findById(courtId)
+                .orElseThrow(() -> new CustomException("Sân bãi không tồn tại", 404));
+
+        if (!court.getVenue().getOwner().getUser().getEmail().equals(ownerEmail)) {
+            throw new CustomException("Bạn không có quyền truy cập sân bãi này", 403);
+        }
+
+        return courtPriceRuleRepository.findByCourtId(courtId).stream()
+                .map(rule -> CourtPriceRuleResponse.builder()
+                        .id(rule.getId())
+                        .courtId(rule.getCourt().getId())
+                        .ruleType(rule.getRuleType())
+                        .startTime(rule.getStartTime())
+                        .endTime(rule.getEndTime())
+                        .customPrice(rule.getCustomPrice())
+                        .dayOfWeek(rule.getDayOfWeek())
+                        .percentageModifier(rule.getPercentageModifier())
+                        .fixedModifier(rule.getFixedModifier())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void savePriceRules(UUID courtId, List<CourtPriceRuleRequest> requests, String ownerEmail) {
+        Court court = courtRepository.findById(courtId)
+                .orElseThrow(() -> new CustomException("Sân bãi không tồn tại", 404));
+
+        if (!court.getVenue().getOwner().getUser().getEmail().equals(ownerEmail)) {
+            throw new CustomException("Bạn không có quyền cấu hình giá cho sân bãi này", 403);
+        }
+
+        // Xóa tất cả các rule cũ của sân này
+        courtPriceRuleRepository.deleteByCourtId(courtId);
+
+        if (requests != null && !requests.isEmpty()) {
+            List<CourtPriceRule> newRules = requests.stream()
+                    .map(req -> CourtPriceRule.builder()
+                            .court(court)
+                            .ruleType(req.getRuleType())
+                            .startTime(req.getStartTime())
+                            .endTime(req.getEndTime())
+                            .customPrice(req.getCustomPrice())
+                            .dayOfWeek(req.getDayOfWeek())
+                            .percentageModifier(req.getPercentageModifier())
+                            .fixedModifier(req.getFixedModifier())
+                            .build())
+                    .collect(Collectors.toList());
+            courtPriceRuleRepository.saveAll(newRules);
+        }
     }
 
     private CourtResponse mapToResponse(Court court) {

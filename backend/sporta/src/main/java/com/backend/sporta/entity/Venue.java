@@ -19,6 +19,7 @@ import java.util.UUID;
 @Builder
 public class Venue {
 
+
     @Id
     @GeneratedValue
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
@@ -96,7 +97,7 @@ public class Venue {
 
     // TRẠNG THÁI: Trạng thái vật lý của sân (Đang mở/Đóng cửa)
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'ACTIVE'")
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(50)")
     @Builder.Default
     private VenueStatus status = VenueStatus.ACTIVE;
 
@@ -105,6 +106,22 @@ public class Venue {
     @Column(name = "approval_status", nullable = false)
     @Builder.Default
     private ApprovalStatus approvalStatus = ApprovalStatus.APPROVED;
+
+    @Column(name = "min_price")
+    @Builder.Default
+    private Double minPrice = 0.0;
+
+    @Column(name = "max_price")
+    @Builder.Default
+    private Double maxPrice = 0.0;
+
+    public Double getMinPrice() {
+        return minPrice != null ? minPrice : 0.0;
+    }
+
+    public Double getMaxPrice() {
+        return maxPrice != null ? maxPrice : 0.0;
+    }
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

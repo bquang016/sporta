@@ -15,6 +15,7 @@ import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.VenueImageRepository;
 import com.backend.sporta.repository.VenueRepository;
 import com.backend.sporta.repository.VenueRevisionRepository;
+import com.backend.sporta.repository.CourtRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,9 @@ public class VenueService {
     
     @Autowired
     private VenueRevisionRepository venueRevisionRepository;
+    
+    @Autowired
+    private CourtRepository courtRepository;
     
 
     public List<VenueResponse> getVenuesByOwnerEmail(String email) {
@@ -138,6 +142,7 @@ public class VenueService {
         // KIỂM TRA THAY ĐỔI NHẠY CẢM để tạo bản nháp
         if (!venue.getName().equals(request.getName()) || !venue.getLocation().equals(request.getLocation())) {
             hasSensitiveChanges = true;
+            venue.setApprovalStatus(ApprovalStatus.PENDING);
             try {
                 // Thay vì dùng objectMapper, ta dùng luôn .toString() của Java
                 String pendingData = request.toString(); 
@@ -151,6 +156,8 @@ public class VenueService {
             } catch (Exception e) {
                 throw new CustomException("Lỗi xử lý dữ liệu bản nháp", 500);
             }
+        } else {
+            venue.setApprovalStatus(ApprovalStatus.APPROVED);
         }
 
         // Cập nhật các trường không nhạy cảm
@@ -208,6 +215,18 @@ public class VenueService {
         }
     }
 
+    @Transactional
+    public void updateVenuePriceRange(UUID venueId) {
+        Venue venue = venueRepository.findById(venueId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin cụm sân", 404));
+        Double minPrice = courtRepository.findMinPriceByVenueIdAndStatusActive(venueId);
+        Double maxPrice = courtRepository.findMaxPriceByVenueIdAndStatusActive(venueId);
+        
+        venue.setMinPrice(minPrice != null ? minPrice : 0.0);
+        venue.setMaxPrice(maxPrice != null ? maxPrice : 0.0);
+        venueRepository.save(venue);
+    }
+
     // Mapper helper
     private VenueResponse mapToResponse(Venue venue, boolean hasPendingRevision) {
         List<String> detailImageUrls = venue.getImages() != null ? 
@@ -231,6 +250,8 @@ public class VenueService {
                 .status(venue.getStatus())
                 .approvalStatus(venue.getApprovalStatus())
                 .hasPendingRevision(hasPendingRevision)
+                .minPrice(venue.getMinPrice())
+                .maxPrice(venue.getMaxPrice())
                 .build();
     }
 }

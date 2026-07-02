@@ -2,6 +2,8 @@ package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.CourtRequest;
 import com.backend.sporta.dto.CourtResponse;
+import com.backend.sporta.dto.CourtPriceRuleRequest;
+import com.backend.sporta.dto.CourtPriceRuleResponse;
 import com.backend.sporta.enums.CourtStatus;
 import com.backend.sporta.service.CourtService;
 import jakarta.validation.Valid;
@@ -57,5 +59,21 @@ public class OwnerCourtController {
             @RequestParam("status") CourtStatus status) {
         CourtResponse response = courtService.updateCourtStatus(id, status);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/price-rules")
+    public ResponseEntity<List<CourtPriceRuleResponse>> getCourtPriceRules(@PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<CourtPriceRuleResponse> response = courtService.getPriceRulesByCourtId(id, email);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/price-rules")
+    public ResponseEntity<?> saveCourtPriceRules(
+            @PathVariable("id") UUID id,
+            @RequestBody List<CourtPriceRuleRequest> request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        courtService.savePriceRules(id, request, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Lưu cấu hình giá thành công"));
     }
 }

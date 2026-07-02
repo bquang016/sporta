@@ -39,6 +39,15 @@ export const OperationsPage = () => {
     editPrice, setEditPrice,
     editOpStatus, setEditOpStatus,
 
+    hasShiftPricing, setHasShiftPricing,
+    shiftPrices, setShiftPrice, removeShiftPrice,
+    hasDayOfWeekPricing, setHasDayOfWeekPricing,
+    selectedDayOfWeek, setSelectedDayOfWeek,
+    dayPricingType, setDayPricingType,
+    dayPricingValue, setDayPricingValue,
+    isBulkEdit,
+    configMode,
+
     // Create Venue Inputs
     newVenueName, setNewVenueName,
     newVenueLocation, setNewVenueLocation,
@@ -89,7 +98,7 @@ export const OperationsPage = () => {
     handleVenueStatusSelect, handleConfirmVenueStatusChange, handleCancelVenueStatusChange,
     handleOpenVenueStatusFromMenu, handleCreateVenue, handleOpenEditVenue,
     handleEditVenue, handleSelectAll, handleSelectCourt, handleOpenBulkSurcharge,
-    handleApplySurcharge, handleOpenEditCourt, handleSaveCourtConfig, handleResolveBooking,
+    handleApplySurcharge, handleOpenEditCourt, handleOpenBulkEdit, handleSaveCourtConfig, handleResolveBooking,
 
     isAddingCourt, newCourtName, setNewCourtName,
     newCourtPrice, setNewCourtPrice,
@@ -141,7 +150,7 @@ export const OperationsPage = () => {
           coverImage={newVenueCoverImage}
           setCoverImage={setNewVenueCoverImage}
           detailImages={newVenueDetailImages}
-          
+
           hasSurcharge={newVenueHasSurcharge}
           setHasSurcharge={setNewVenueHasSurcharge}
           surchargeAmount={newVenueSurchargeAmount}
@@ -188,7 +197,7 @@ export const OperationsPage = () => {
           coverImage={editVenueCoverImage}
           setCoverImage={setEditVenueCoverImage}
           detailImages={editVenueDetailImages}
-          
+
           hasSurcharge={editVenueHasSurcharge}
           setHasSurcharge={setEditVenueHasSurcharge}
           surchargeAmount={editVenueSurchargeAmount}
@@ -266,12 +275,12 @@ export const OperationsPage = () => {
                   <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <input 
-                    type="text" 
-                    placeholder="Tìm kiếm cụm sân..." 
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm cụm sân..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="bg-transparent border-none outline-none w-full text-slate-700 font-semibold" 
+                    className="bg-transparent border-none outline-none w-full text-slate-700 font-semibold"
                   />
                 </div>
               </div>
@@ -287,8 +296,17 @@ export const OperationsPage = () => {
                     >
                       <div className="flex justify-between items-start">
                         <div className="space-y-1 flex-1 min-w-0 pr-2">
-                           <h3 className="font-black text-slate-800 text-sm tracking-tight truncate">{venue.name}</h3>
-                           <p className="text-[10px] text-slate-400 font-bold truncate">{venue.location}</p>
+                          <h3 className="font-black text-slate-800 text-sm tracking-tight truncate">{venue.name}</h3>
+                          <p className="text-[10px] text-slate-400 font-bold truncate">{venue.location}</p>
+                          <p className="text-[9px] text-brand-emerald font-extrabold">
+                            {(() => {
+                              const min = venue.minPrice;
+                              const max = venue.maxPrice;
+                              if (min === undefined || min === null || min === 0) return "Chưa có bảng giá";
+                              if (min === max) return `Giá: ${formatVND(min || 0)} / ca`;
+                              return `Giá từ: ${formatVND(min || 0)} - ${formatVND(max || 0)} / ca`;
+                            })()}
+                          </p>
                         </div>
                         <VenueRowMenu
                           venueId={venue.id}
@@ -349,17 +367,15 @@ export const OperationsPage = () => {
               <div className="bg-slate-100/80 backdrop-blur-md p-1 rounded-2xl flex gap-1 select-none">
                 <button
                   onClick={() => setActiveTab('facilities')}
-                  className={`flex-1 py-2 rounded-xl text-center text-xs font-extrabold transition-all cursor-pointer ${
-                    activeTab === 'facilities' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-700'
-                  }`}
+                  className={`flex-1 py-2 rounded-xl text-center text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'facilities' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                    }`}
                 >
                   Danh sách sân
                 </button>
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`flex-1 py-2 rounded-xl text-center text-xs font-extrabold transition-all cursor-pointer ${
-                    activeTab === 'overview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-700'
-                  }`}
+                  className={`flex-1 py-2 rounded-xl text-center text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'overview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                    }`}
                 >
                   Biểu đồ vận hành
                 </button>
@@ -407,12 +423,16 @@ export const OperationsPage = () => {
               </div>
               <div className="flex gap-2">
                 <button onClick={handleOpenBulkSurcharge}
-                  className="flex-1 bg-brand-yellow hover:bg-yellow-400 text-primary font-black text-[10px] py-2.5 rounded-xl transition-all cursor-pointer text-center">
-                  Cài đặt phụ thu
+                  className="flex-1 bg-white/10 hover:bg-white/15 text-white font-extrabold text-[9px] py-2.5 rounded-xl transition-all cursor-pointer text-center">
+                  Phụ thu
                 </button>
-                <button onClick={() => setSelectedCourtIds([])}
-                  className="flex-1 bg-white/10 hover:bg-white/15 text-white font-extrabold text-[10px] py-2.5 rounded-xl transition-all cursor-pointer text-center">
-                  Hủy bỏ
+                <button onClick={() => handleOpenBulkEdit('shift')}
+                  className="flex-1 bg-brand-emerald hover:bg-emerald-800 text-white font-black text-[9px] py-2.5 rounded-xl transition-all cursor-pointer text-center">
+                  Sửa giá theo ca
+                </button>
+                <button onClick={() => handleOpenBulkEdit('day')}
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-black text-[9px] py-2.5 rounded-xl transition-all cursor-pointer text-center">
+                  Sửa giá theo ngày
                 </button>
               </div>
             </div>
@@ -474,9 +494,8 @@ export const OperationsPage = () => {
               <div className="flex gap-4">
                 <button
                   onClick={() => setActiveTab('facilities')}
-                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${
-                    activeTab === 'facilities' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
-                  }`}
+                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${activeTab === 'facilities' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                    }`}
                 >
                   Danh sách sân trực thuộc ({activeCourts.length})
                   {activeTab === 'facilities' && (
@@ -485,9 +504,8 @@ export const OperationsPage = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${
-                    activeTab === 'overview' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
-                  }`}
+                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${activeTab === 'overview' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                    }`}
                 >
                   Giám sát vận hành & Thống kê
                   {activeTab === 'overview' && (
@@ -504,6 +522,14 @@ export const OperationsPage = () => {
                   <button onClick={handleOpenBulkSurcharge}
                     className="bg-primary hover:bg-slate-850 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-slate-950">
                     Cấu hình phụ thu
+                  </button>
+                  <button onClick={() => handleOpenBulkEdit('shift')}
+                    className="bg-brand-emerald hover:bg-emerald-800 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-emerald-950">
+                    Sửa giá theo ca
+                  </button>
+                  <button onClick={() => handleOpenBulkEdit('day')}
+                    className="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-teal-850">
+                    Sửa giá theo ngày
                   </button>
                   <button onClick={() => setSelectedCourtIds([])}
                     className="text-[10px] font-black text-slate-450 hover:text-slate-700 cursor-pointer">
@@ -576,6 +602,23 @@ export const OperationsPage = () => {
         opStatus={editOpStatus}
         setOpStatus={setEditOpStatus}
         formatVND={formatVND}
+        activeVenue={activeVenue}
+        hasShiftPricing={hasShiftPricing}
+        setHasShiftPricing={setHasShiftPricing}
+        shiftPrices={shiftPrices}
+        setShiftPrice={setShiftPrice}
+        removeShiftPrice={removeShiftPrice}
+        hasDayOfWeekPricing={hasDayOfWeekPricing}
+        setHasDayOfWeekPricing={setHasDayOfWeekPricing}
+        selectedDayOfWeek={selectedDayOfWeek}
+        setSelectedDayOfWeek={setSelectedDayOfWeek}
+        dayPricingType={dayPricingType}
+        setDayPricingType={setDayPricingType}
+        dayPricingValue={dayPricingValue}
+        setDayPricingValue={setDayPricingValue}
+        isBulkEdit={isBulkEdit}
+        selectedCourtsCount={selectedCourtIds.length}
+        configMode={configMode}
       />
 
       <AddCourtSubScreen
@@ -610,15 +653,15 @@ export const OperationsPage = () => {
           pendingVenueStatus === 'ACTIVE'
             ? 'success'
             : pendingVenueStatus === 'CLOSED'
-            ? 'danger'
-            : 'warning'
+              ? 'danger'
+              : 'warning'
         }
         message={
           pendingVenueStatus === 'ACTIVE'
             ? `Bạn có chắc chắn muốn mở cửa hoạt động lại cụm sân "${activeVenue?.name || ''}"? Tất cả các sân bãi trực thuộc sẽ được chuyển sang trạng thái hoạt động.`
             : pendingVenueStatus === 'CLOSED'
-            ? `CẢNH BÁO: Bạn có chắc chắn muốn ĐÓNG CỬA khẩn cấp cụm sân "${activeVenue?.name || ''}"? Tất cả sân bãi trực thuộc sẽ đóng cửa, và bạn có thể cần xử lý các đơn đặt sân bị ảnh hưởng.`
-            : `Bạn có chắc chắn muốn chuyển cụm sân "${activeVenue?.name || ''}" sang trạng thái bảo trì? Toàn bộ sân bãi bên trong sẽ tạm ngưng nhận khách đặt lịch mới.`
+              ? `CẢNH BÁO: Bạn có chắc chắn muốn ĐÓNG CỬA khẩn cấp cụm sân "${activeVenue?.name || ''}"? Tất cả sân bãi trực thuộc sẽ đóng cửa, và bạn có thể cần xử lý các đơn đặt sân bị ảnh hưởng.`
+              : `Bạn có chắc chắn muốn chuyển cụm sân "${activeVenue?.name || ''}" sang trạng thái bảo trì? Toàn bộ sân bãi bên trong sẽ tạm ngưng nhận khách đặt lịch mới.`
         }
       />
 

@@ -6,7 +6,7 @@ interface ModalProps {
   onClose: () => void;
   title?: React.ReactNode;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | '3/4';
   footer?: React.ReactNode;
 }
 
@@ -37,6 +37,13 @@ export const Modal = ({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
+    '7xl': 'max-w-7xl',
+    '3/4': 'max-w-[75vw] w-11/12',
   };
 
   const modalRoot = document.body;

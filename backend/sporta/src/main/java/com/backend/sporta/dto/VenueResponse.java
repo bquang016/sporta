@@ -33,4 +33,7 @@ public class VenueResponse {
     private VenueStatus status;
     private ApprovalStatus approvalStatus;
     private Boolean hasPendingRevision;
+    
+    private Double minPrice;
+    private Double maxPrice;
 }

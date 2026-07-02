@@ -31,6 +31,9 @@ export interface VenueResponse {
   surchargeAmount?: number;
   surchargeDescription?: string;
 
+  minPrice?: number;
+  maxPrice?: number;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -72,4 +75,26 @@ export interface CourtRequest {
   price: number;
   venueId: string;
   status: 'ACTIVE' | 'MAINTENANCE';
+}
+
+export interface CourtPriceRuleRequest {
+  ruleType: 'SHIFT' | 'DAY_OF_WEEK';
+  startTime?: string;
+  endTime?: string;
+  customPrice?: number;
+  dayOfWeek?: number;
+  percentageModifier?: number;
+  fixedModifier?: number;
+}
+
+export interface CourtPriceRuleResponse {
+  id: string;
+  courtId: string;
+  ruleType: 'SHIFT' | 'DAY_OF_WEEK';
+  startTime?: string;
+  endTime?: string;
+  customPrice?: number;
+  dayOfWeek?: number;
+  percentageModifier?: number;
+  fixedModifier?: number;
 }
