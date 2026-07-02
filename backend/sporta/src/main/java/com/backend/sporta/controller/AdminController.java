@@ -28,9 +28,26 @@ public class AdminController {
         if (permissions.isEmpty()) {
             RolePermission dashboard = RolePermission.builder().role(Role.ADMIN).feature("VIEW_DASHBOARD").isAllowed(true).build();
             RolePermission facilities = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_FACILITIES").isAllowed(true).build();
+            RolePermission owners = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_OWNERS").isAllowed(true).build();
             RolePermission users = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_USERS").isAllowed(true).build();
+            RolePermission system = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_SYSTEM").isAllowed(false).build();
             
-            permissions = rolePermissionRepository.saveAll(List.of(dashboard, facilities, users));
+            permissions = rolePermissionRepository.saveAll(List.of(dashboard, facilities, owners, users, system));
+        } else {
+            // Check missing permissions for older databases
+            boolean hasSystem = permissions.stream().anyMatch(p -> p.getFeature().equals("MANAGE_SYSTEM"));
+            boolean hasOwners = permissions.stream().anyMatch(p -> p.getFeature().equals("MANAGE_OWNERS"));
+            
+            if (!hasSystem || !hasOwners) {
+                if (!hasSystem) {
+                    rolePermissionRepository.save(RolePermission.builder().role(Role.ADMIN).feature("MANAGE_SYSTEM").isAllowed(false).build());
+                }
+                if (!hasOwners) {
+                    rolePermissionRepository.save(RolePermission.builder().role(Role.ADMIN).feature("MANAGE_OWNERS").isAllowed(true).build());
+                }
+                // Fetch again to ensure list mutability is safe
+                permissions = rolePermissionRepository.findByRole(Role.ADMIN);
+            }
         }
         
         return ResponseEntity.ok(permissions);
