@@ -1,6 +1,7 @@
 package com.backend.sporta.entity;
 
 import com.backend.sporta.enums.Role;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,5 +26,6 @@ public class RolePermission {
     private String feature;
 
     @Column(name = "is_allowed", nullable = false)
+    @JsonProperty("isAllowed")
     private boolean isAllowed;
 }

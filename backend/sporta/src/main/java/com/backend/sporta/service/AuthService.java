@@ -99,8 +99,17 @@ public class AuthService {
 
         java.util.List<String> permissions = java.util.Collections.emptyList();
         if (user.getRole() == Role.ADMIN) {
-            permissions = rolePermissionRepository.findByRole(Role.ADMIN)
-                    .stream()
+            java.util.List<RolePermission> adminPerms = rolePermissionRepository.findByRole(Role.ADMIN);
+            if (adminPerms.isEmpty()) {
+                RolePermission dashboard = RolePermission.builder().role(Role.ADMIN).feature("VIEW_DASHBOARD").isAllowed(true).build();
+                RolePermission facilities = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_FACILITIES").isAllowed(true).build();
+                RolePermission owners = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_OWNERS").isAllowed(true).build();
+                RolePermission users = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_USERS").isAllowed(true).build();
+                RolePermission system = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_SYSTEM").isAllowed(false).build();
+                
+                adminPerms = rolePermissionRepository.saveAll(java.util.List.of(dashboard, facilities, owners, users, system));
+            }
+            permissions = adminPerms.stream()
                     .filter(RolePermission::isAllowed)
                     .map(RolePermission::getFeature)
                     .collect(java.util.stream.Collectors.toList());
