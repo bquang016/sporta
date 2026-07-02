@@ -10,33 +10,9 @@ import { Avatar, Button, Card } from '../../../shared/ui';
 import { SearchBar } from '../../../features/search-bar';
 import { SportCategories } from '../../../features/sport-categories';
 import { AuthCtaBanner } from '../../../features/auth-cta';
-import { FacilityCard, Facility } from '../../../entities/facility';
+import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
 import { MatchCard, Match } from '../../../entities/match';
 
-const NEARBY_FACILITIES: Facility[] = [
-  {
-    id: 'green-field',
-    name: 'Sân Green Field',
-    rating: 4.8,
-    location: 'Cầu Giấy',
-    distance: '1.2km',
-    price: '350k',
-    status: '🟢 Còn chỗ tối nay',
-    statusType: 'success',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRI_WbsF_oyNYiLMb9oK7Dm3y6w39BRYXwgKn4BIuRp7CQ9vb-2NUDL_Fi2bYTm1AGCX8AkcWgfKPcjwP9ba_vXQ--Ro7V-RZMOzvRKSIz3YF985plPNcZoJ2CUCgNb_OMUB6q5yYYbUEd6gxEcPZzhNrQWwrc956zxXGydvPDXN6mk8L-5wHs7UtYzZbtQ8_zlH90kYKNbQ0KgcAto4dmTlMzNATIjHtfNvaokJY_yshJWhunjucTicKeRKwqNyRMG3SHJdgmKMw',
-  },
-  {
-    id: 'dong-da-club',
-    name: 'Nhà thi đấu Trung tâm',
-    rating: 4.5,
-    location: 'Đống Đa',
-    distance: '2.5km',
-    price: '500k',
-    status: '🟡 Sắp hết chỗ',
-    statusType: 'warning',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9VjV_Boq-m-L6DQCrUi4TuqXv4ziB_UMEyaSBpCC06D-VhJMf8k0VKDy7cFwJjwZzWqF5MObMpDYZ0bFGvZg3GEbKCaxJc_-K_Sxn3ZAX506_WXTQHUHoeNB75WPXy_R8yDDxK1a4TRDnwUFxwW3GizSR5XXOzrAcdysQLwWOgGUWkiMv9Fsl5Rmi44-ntayXHeMh66KzQzRGm5EN0qgehvk2-x43HOXiUnNotg3zUP9LfRD4u7kT4EcyjgydihqR3aGqF9yEmCo',
-  },
-];
 
 const HOT_MATCHES: Match[] = [
   {
@@ -69,6 +45,7 @@ export function HomeScreen() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
+  const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
 
   const checkAuth = async () => {
     try {
@@ -307,15 +284,23 @@ export function HomeScreen() {
             contentContainerStyle={styles.horizontalScroll}
             decelerationRate="fast"
           >
-            {NEARBY_FACILITIES.map((facility) => (
-              <View key={facility.id} style={styles.cardContainer}>
-                <FacilityCard
-                  facility={facility}
-                  onPress={() => handleFacilityPress(facility.id)}
-                  onBookPress={() => handleFacilityPress(facility.id)}
-                />
-              </View>
-            ))}
+            {facilitiesLoading ? (
+              <Text style={{ padding: SPACING.md }}>Đang tải danh sách sân...</Text>
+            ) : facilitiesError ? (
+              <Text style={{ padding: SPACING.md, color: COLORS.error }}>{facilitiesError}</Text>
+            ) : facilities.length === 0 ? (
+              <Text style={{ padding: SPACING.md }}>Chưa có sân nào</Text>
+            ) : (
+              facilities.map((facility) => (
+                <View key={facility.id} style={styles.cardContainer}>
+                  <FacilityCard
+                    facility={facility}
+                    onPress={() => handleFacilityPress(facility.id)}
+                    onBookPress={() => handleFacilityPress(facility.id)}
+                  />
+                </View>
+              ))
+            )}
           </ScrollView>
         </View>
 

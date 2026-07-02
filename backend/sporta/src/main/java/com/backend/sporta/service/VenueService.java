@@ -50,6 +50,12 @@ public class VenueService {
                 .collect(Collectors.toList());
     }
 
+    public List<VenueResponse> getAllActiveVenues() {
+        return venueRepository.findByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.APPROVED).stream()
+                .map(venue -> mapToResponse(venue, false))
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public VenueResponse createVenue(VenueRequest request, String email) {
         Owner owner = ownerRepository.findByUserEmail(email)
