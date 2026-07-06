@@ -7,7 +7,7 @@ interface Permission {
   id: number;
   role: string;
   feature: string;
-  allowed: boolean;
+  isAllowed: boolean;
 }
 
 const PERMISSION_GROUPS = [
@@ -26,7 +26,14 @@ const PERMISSION_GROUPS = [
   {
     groupName: 'QUẢN LÝ TÀI KHOẢN',
     features: [
-      { key: 'MANAGE_USERS', name: 'Quản lý người dùng', desc: 'Quyền xem và quản lý chủ sân, người chơi' }
+      { key: 'MANAGE_OWNERS', name: 'Quản lý chủ sân', desc: 'Quyền xét duyệt, xem và quản lý tài khoản chủ sân' },
+      { key: 'MANAGE_USERS', name: 'Quản lý người dùng', desc: 'Quyền xem và quản lý người chơi' }
+    ]
+  },
+  {
+    groupName: 'CÀI ĐẶT HỆ THỐNG',
+    features: [
+      { key: 'MANAGE_SYSTEM', name: 'Cài đặt chung', desc: 'Thay đổi tên web, logo và cấu hình hệ thống' }
     ]
   }
 ];
@@ -124,10 +131,10 @@ export const PermissionSettings = () => {
       // If the permission exists, toggle it
       const exists = prev.find(p => p.feature === featureKey);
       if (exists) {
-        return prev.map(p => p.feature === featureKey ? { ...p, allowed: !p.allowed } : p);
+        return prev.map(p => p.feature === featureKey ? { ...p, isAllowed: !p.isAllowed } : p);
       }
       // If it doesn't exist, create it locally as allowed: true
-      return [...prev, { id: Date.now(), role: 'ADMIN', feature: featureKey, allowed: true }];
+      return [...prev, { id: Date.now(), role: 'ADMIN', feature: featureKey, isAllowed: true }];
     });
   };
 
@@ -143,7 +150,7 @@ export const PermissionSettings = () => {
         const p = permissions.find(p => p.feature === f.key);
         return {
           feature: f.key,
-          isAllowed: p ? p.allowed : false
+          isAllowed: p ? p.isAllowed : false
         };
       })
     );
@@ -187,7 +194,7 @@ export const PermissionSettings = () => {
     if (activeRoleConfig.isRoot) return true;
     if (selectedRole !== 'ADMIN') return false;
     const p = permissions.find(p => p.feature === featureKey);
-    return p ? p.allowed : false;
+    return p ? p.isAllowed : false;
   };
 
   return (

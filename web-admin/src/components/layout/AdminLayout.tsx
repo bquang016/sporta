@@ -92,13 +92,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_FACILITIES')) && (
             <NavItem id="facilities" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="facility" label="Kiểm duyệt sân" isCollapsed={isSidebarCollapsed} />
           )}
-          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_USERS')) && (
-            <>
-              <NavItem id="owners" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý chủ sân" isCollapsed={isSidebarCollapsed} />
-              <NavItem id="users" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý người dùng" isCollapsed={isSidebarCollapsed} />
-            </>
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_OWNERS')) && (
+            <NavItem id="owners" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý chủ sân" isCollapsed={isSidebarCollapsed} />
           )}
-          {role === 'SUPER_ADMIN' && (
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_USERS')) && (
+            <NavItem id="users" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý người dùng" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_SYSTEM')) && (
             <NavItem id="settings" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
           )}
         </nav>
