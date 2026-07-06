@@ -14,6 +14,7 @@ interface DropdownProps {
   className?: string;
   menuClassName?: string;
   disabled?: boolean;
+  direction?: 'down' | 'up';
 }
 
 export const Dropdown = ({
@@ -23,7 +24,8 @@ export const Dropdown = ({
   placeholder = 'Chọn một tùy chọn',
   className = '',
   menuClassName = '',
-  disabled = false
+  disabled = false,
+  direction = 'down'
 }: DropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -74,7 +76,9 @@ export const Dropdown = ({
       {/* Dropdown Menu */}
       {isOpen && (
         <div 
-          className={`absolute left-0 right-0 z-50 mt-1.5 max-h-60 overflow-y-auto bg-white border border-slate-200/80 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] matrix-scroll focus:outline-none ${menuClassName}`}
+          className={`absolute left-0 right-0 z-50 max-h-60 overflow-y-auto bg-white border border-slate-200/80 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] matrix-scroll focus:outline-none ${
+            direction === 'up' ? 'bottom-full mb-1.5' : 'mt-1.5'
+          } ${menuClassName}`}
         >
           <div className="py-1">
             {options.length === 0 ? (

@@ -15,7 +15,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<Map<String, String>> handleCustomException(CustomException ex) {
         Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
+        response.put("message", ex.getMessage());
         return ResponseEntity.status(ex.getStatus()).body(response);
     }
 
@@ -24,6 +24,13 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error -> 
             errors.put(error.getField(), error.getDefaultMessage()));
+        
+        if (!ex.getBindingResult().getFieldErrors().isEmpty()) {
+            errors.put("message", ex.getBindingResult().getFieldErrors().get(0).getDefaultMessage());
+        } else {
+            errors.put("message", "Validation error");
+        }
+            
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 

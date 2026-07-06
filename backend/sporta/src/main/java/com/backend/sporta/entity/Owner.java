@@ -27,8 +27,17 @@ public class Owner {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number")
     private String phoneNumber;
+
+    @Column(name = "id_number")
+    private String idNumber;
+
+    @Column(name = "id_front_image", columnDefinition = "TEXT")
+    private String idFrontImage; // URL ảnh CCCD mặt trước
+
+    @Column(name = "id_back_image", columnDefinition = "TEXT")
+    private String idBackImage; // URL ảnh CCCD mặt sau
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;

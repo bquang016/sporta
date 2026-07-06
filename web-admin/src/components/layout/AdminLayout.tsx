@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Tooltip } from '../ui/Tooltip';
-import { ConfirmModal } from '../ui/ConfirmModal';
+import { useNavigate } from 'react-router-dom';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import logoHorizontal from '@/assets/logo/light/logo-horizontal_1600x400px.svg';
+import logoSvg from '@/assets/logo/light/logo-main_40x40px_small.svg';
 
 const PAGE_TITLES: Record<string, string> = {
   'dashboard': 'Dashboard Thống Kê',
@@ -27,8 +30,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isOnline = true;
   const latency = 12;
 
-  const userEmail = 'admin@sporta.vn';
-  const userInitials = 'AD';
+  const navigate = useNavigate();
+  const role = localStorage.getItem('role');
+  const permissionsStr = localStorage.getItem('permissions');
+  const permissions = permissionsStr ? JSON.parse(permissionsStr) : [];
+
+  const userEmail = role === 'SUPER_ADMIN' ? 'superadmin@sporta.vn' : 'admin@sporta.vn';
+  const userInitials = role === 'SUPER_ADMIN' ? 'SA' : 'AD';
   
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Yêu cầu duyệt sân', desc: 'Sân Q7-1 vừa đăng ký mới', time: 'Vừa xong', unread: true },
@@ -57,22 +65,42 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         }`}
       >
         {/* Sidebar Header */}
-        <div className={`p-6 pb-2 transition-all duration-300 ${isSidebarCollapsed ? 'text-center px-2' : ''}`}>
-          <h1 className="text-2xl font-black tracking-tight text-brand-yellow">
-            {isSidebarCollapsed ? 'S' : 'Sporta'}
-          </h1>
-          {!isSidebarCollapsed && (
-            <p className="text-[10px] text-on-primary/70 mt-1 font-bold uppercase tracking-widest">Hệ Thống Admin</p>
+        <div className={`py-6 px-4 transition-all duration-300 ${isSidebarCollapsed ? 'text-center px-2 flex justify-center' : 'flex flex-col items-start gap-1'}`}>
+          {isSidebarCollapsed ? (
+            <img 
+              src={logoSvg} 
+              alt="Sporta Logo" 
+              className="w-10 h-10 object-contain hover:scale-110 transition-transform duration-200" 
+            />
+          ) : (
+            <div className="flex flex-col gap-1 w-full">
+              <img 
+                src={logoHorizontal} 
+                alt="Sporta Logo" 
+                className="h-10 w-auto object-contain max-w-[180px]" 
+              />
+              <p className="text-[9px] text-on-primary/60 font-bold uppercase tracking-widest pl-1 mt-0.5">Hệ Thống Admin</p>
+            </div>
           )}
         </div>
         
         {/* Navigation Items */}
         <nav className={`flex-1 py-8 space-y-2 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}>
-          <NavItem id="dashboard" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="home" label="Bảng điều khiển" isCollapsed={isSidebarCollapsed} />
-          <NavItem id="facilities" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="facility" label="Kiểm duyệt sân" isCollapsed={isSidebarCollapsed} />
-          <NavItem id="owners" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý chủ sân" isCollapsed={isSidebarCollapsed} />
-          <NavItem id="users" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý người dùng" isCollapsed={isSidebarCollapsed} />
-          <NavItem id="settings" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
+          {(role === 'SUPER_ADMIN' || permissions.includes('VIEW_DASHBOARD')) && (
+            <NavItem id="dashboard" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="home" label="Bảng điều khiển" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_FACILITIES')) && (
+            <NavItem id="facilities" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="facility" label="Kiểm duyệt sân" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_OWNERS')) && (
+            <NavItem id="owners" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý chủ sân" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_USERS')) && (
+            <NavItem id="users" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý người dùng" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_SYSTEM')) && (
+            <NavItem id="settings" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
+          )}
         </nav>
         
         {/* User Account Section */}
@@ -224,10 +252,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                           {userInitials}
                         </div>
                         <div className="min-w-0">
-                          <h4 className="text-xs font-black text-slate-800 truncate">Sporta Super Admin</h4>
+                          <h4 className="text-xs font-black text-slate-800 truncate">Sporta {role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}</h4>
                           <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{userEmail}</p>
                           <span className="inline-block text-[8px] font-black uppercase text-brand-emerald bg-brand-emerald/10 px-1.5 py-0.5 rounded mt-1">
-                            Quản trị viên
+                            {role === 'SUPER_ADMIN' ? 'Quản trị tối cao' : 'Quản trị viên'}
                           </span>
                         </div>
                       </div>
@@ -279,8 +307,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           isOpen={isLogoutModalOpen}
           onClose={() => setIsLogoutModalOpen(false)}
           onConfirm={async () => {
-             // Mock logout
-             setIsLogoutModalOpen(false);
+             localStorage.removeItem('accessToken');
+             localStorage.removeItem('role');
+             localStorage.removeItem('permissions');
+             navigate('/login', { replace: true });
           }}
           title="Xác nhận đăng xuất"
           message="Bạn có chắc chắn muốn đăng xuất khỏi hệ thống quản lý admin Sporta?"

@@ -4,8 +4,6 @@ import com.backend.sporta.enums.CourtStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -23,41 +21,20 @@ public class Court {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private Owner owner;
+    @JoinColumn(name = "venue_id", nullable = false)
+    private Venue venue;
 
     @Column(name = "name", nullable = false)
     private String name;
 
+    // Giá mặc định (Cấp 1) - Sẽ bị ghi đè nếu có CourtPriceRule
     @Column(name = "price", nullable = false)
     private Double price;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
-
-    @Column(name = "cover_image", columnDefinition = "TEXT")
-    private String coverImage;
-
-    @Column(name = "opening_time", nullable = false)
-    private String openingTime;
-
-    @Column(name = "closing_time", nullable = false)
-    private String closingTime;
-
-    @Column(name = "location", nullable = false)
-    private String location;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "sport_id", nullable = false)
-    private Sport sport;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private CourtStatus status;
-
-    @OneToMany(mappedBy = "court", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
-    private List<CourtImage> images = new ArrayList<>();
+    private CourtStatus status = CourtStatus.ACTIVE;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
