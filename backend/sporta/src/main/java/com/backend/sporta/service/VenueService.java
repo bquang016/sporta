@@ -252,6 +252,7 @@ public class VenueService {
                 .hasPendingRevision(hasPendingRevision)
                 .minPrice(venue.getMinPrice())
                 .maxPrice(venue.getMaxPrice())
+                .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .build();
     }
 }

@@ -16,4 +16,7 @@ export interface VenueResponse {
   status: string;
   approvalStatus: string;
   hasPendingRevision: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  sportName?: string | null;
 }
