@@ -1,441 +1,544 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+  Keyboard,
+} from 'react-native';
+import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button, Card, Badge } from '../../../shared/ui';
+import {
+  useMapFacilities,
+  HANOI_COORDINATE,
+} from '../../../entities/facility/model/useMapFacilities';
+import {
+  useFacilitySearch,
+  VenueMarker,
+  ClusterMarkerView,
+  MapFacilityCard,
+  FloatingSportFilter,
+  MapSearchBar,
+  useMapSearchAutocomplete,
+  SearchResultItem,
+  getGoongPlaceDetail,
+} from '../../../features/map-search';
 
-interface MapPin {
-  id: string;
-  name: string;
-  sport: 'soccer' | 'badminton' | 'tennis' | 'basketball';
-  rating: number;
-  distance: string;
-  price: string;
-  x: number; // percentage width
-  y: number; // percentage height
-}
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const DEFAULT_REGION: Region = {
+  latitude: HANOI_COORDINATE.latitude,
+  longitude: HANOI_COORDINATE.longitude,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
 
-const MOCK_PINS: MapPin[] = [
-  { id: '1', name: 'Sân bóng Green Field', sport: 'soccer', rating: 4.8, distance: '0.8 km', price: '300k/h', x: 25, y: 35 },
-  { id: '2', name: 'CLB Cầu lông Đống Đa', sport: 'badminton', rating: 4.9, distance: '1.2 km', price: '120k/h', x: 65, y: 20 },
-  { id: '3', name: 'Sân Tennis Mỹ Đình', sport: 'tennis', rating: 4.7, distance: '2.5 km', price: '250k/h', x: 40, y: 55 },
-  { id: '4', name: 'Nhà thi đấu Bách Khoa', sport: 'basketball', rating: 4.6, distance: '1.9 km', price: '180k/h', x: 70, y: 70 },
-];
+const USER_ZOOM_DELTA = 0.02;
 
+// ---------------------------------------------------------------------------
+// MapScreen Component
+// ---------------------------------------------------------------------------
 export function MapScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSport, setSelectedSport] = useState<string | null>(null);
-  const [selectedPin, setSelectedPin] = useState<MapPin | null>(MOCK_PINS[0]);
+  const mapRef = useRef<MapView>(null);
 
-  const filteredPins = MOCK_PINS.filter(pin => {
-    const matchesSearch = pin.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSport = !selectedSport || pin.sport === selectedSport;
-    return matchesSearch && matchesSport;
-  });
+  // State
+  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
+  const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
-  const getSportIcon = (sport: string) => {
-    switch (sport) {
-      case 'soccer': return 'sports-soccer';
-      case 'badminton': return 'sports-cricket'; // closest representation or cricket/badminton
-      case 'tennis': return 'sports-tennis';
-      case 'basketball': return 'sports-basketball';
-      default: return 'sports';
+  // Data from entity layer
+  const { venues, loading, error } = useMapFacilities();
+
+  const {
+    availableSports,
+    mapItems,
+    selectedSport,
+    selectedVenue,
+    filteredVenues,
+    handleSelectSport,
+    handleSelectVenue,
+    handleRegionChange,
+  } = useFacilitySearch(venues);
+
+  // Search logic
+  const { 
+    query: searchQuery, 
+    setQuery: setSearchQuery, 
+    results: searchResults, 
+    loading: searchLoading 
+  } = useMapSearchAutocomplete(venues);
+
+  // ---------------------------------------------------------------------------
+  // GPS Permission
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setLocationGranted(true);
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const userCoord = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        };
+        setUserLocation(userCoord);
+
+        // Center bản đồ về vị trí user
+        mapRef.current?.animateToRegion(
+          {
+            ...userCoord,
+            latitudeDelta: USER_ZOOM_DELTA,
+            longitudeDelta: USER_ZOOM_DELTA,
+          },
+          800
+        );
+      } else {
+        // GPS bị từ chối → fallback về Hà Nội
+        setLocationGranted(false);
+      }
+    } catch {
+      setLocationGranted(false);
     }
   };
 
-  const getSportName = (sport: string) => {
-    switch (sport) {
-      case 'soccer': return 'Bóng đá';
-      case 'badminton': return 'Cầu lông';
-      case 'tennis': return 'Tennis';
-      case 'basketball': return 'Bóng rổ';
-      default: return '';
-    }
-  };
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+  const handleRegionChangeComplete = useCallback(
+    (newRegion: Region) => {
+      setRegion(newRegion);
+      handleRegionChange(newRegion.latitudeDelta);
+    },
+    [handleRegionChange]
+  );
 
+  const handleMyLocation = useCallback(async () => {
+    if (userLocation) {
+      mapRef.current?.animateToRegion(
+        {
+          ...userLocation,
+          latitudeDelta: USER_ZOOM_DELTA,
+          longitudeDelta: USER_ZOOM_DELTA,
+        },
+        600
+      );
+    } else {
+      // Thử xin quyền lại
+      await requestLocationPermission();
+    }
+  }, [userLocation]);
+
+  const handleZoomIn = useCallback(() => {
+    const newRegion = {
+      ...region,
+      latitudeDelta: region.latitudeDelta * 0.5,
+      longitudeDelta: region.longitudeDelta * 0.5,
+    };
+    mapRef.current?.animateToRegion(newRegion, 300);
+  }, [region]);
+
+  const handleZoomOut = useCallback(() => {
+    const newRegion = {
+      ...region,
+      latitudeDelta: region.latitudeDelta * 2,
+      longitudeDelta: region.longitudeDelta * 2,
+    };
+    mapRef.current?.animateToRegion(newRegion, 300);
+  }, [region]);
+
+  const handleClosePopup = useCallback(() => {
+    handleSelectVenue(null);
+    Keyboard.dismiss();
+  }, [handleSelectVenue]);
+
+  const router = useRouter();
+
+  const handleBook = useCallback((venueId: string) => {
+    router.push(`/booking/${venueId}`);
+  }, [router]);
+
+  const handleDirections = useCallback(
+    (venue: { latitude: number; longitude: number; name: string }) => {
+      // TODO: open maps with directions
+      console.log('Directions to:', venue.name, venue.latitude, venue.longitude);
+    },
+    []
+  );
+
+  const handleSelectSearchResult = useCallback(async (item: SearchResultItem) => {
+    if (item.type === 'venue') {
+      const venue = item.data;
+      mapRef.current?.animateToRegion({
+        latitude: venue.latitude,
+        longitude: venue.longitude,
+        latitudeDelta: USER_ZOOM_DELTA,
+        longitudeDelta: USER_ZOOM_DELTA,
+      }, 800);
+      handleSelectVenue(venue.id);
+    } else {
+      // It's a place. Fetch details
+      const placeDetails = await getGoongPlaceDetail(item.data.place_id);
+      if (placeDetails) {
+        mapRef.current?.animateToRegion({
+          latitude: placeDetails.latitude,
+          longitude: placeDetails.longitude,
+          latitudeDelta: 0.03, // Suitable zoom for a neighborhood/street
+          longitudeDelta: 0.03,
+        }, 800);
+        handleSelectVenue(null); // Close any open venue card
+      }
+    }
+  }, [handleSelectVenue]);
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <View style={styles.container}>
-      {/* Header wrapper to color the status bar and notch area white */}
-      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.searchHeader}>
-          <View style={styles.searchContainer}>
-            <MaterialIcons name="search" size={20} color={COLORS.outline} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Tìm kiếm sân vận động, CLB..."
-              placeholderTextColor={COLORS.outline}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          <Button variant="ghost" icon="tune" style={styles.filterButton} onPress={() => {}} />
+      {/* ---- Header / Search Bar ---- */}
+      <SafeAreaView style={styles.headerSafe} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <MapSearchBar
+            query={searchQuery}
+            onChangeQuery={setSearchQuery}
+            results={searchResults}
+            loading={searchLoading}
+            onSelectResult={handleSelectSearchResult}
+          />
+
+          {/* GPS permission warning */}
+          {locationGranted === false && (
+            <TouchableOpacity
+              style={styles.gpsWarning}
+              onPress={requestLocationPermission}
+            >
+              <MaterialIcons
+                name="location-off"
+                size={14}
+                color={COLORS.amber}
+              />
+              <Text style={styles.gpsWarningText}>
+                Chưa cấp quyền GPS · Đang hiển thị Hà Nội
+              </Text>
+              <MaterialIcons name="refresh" size={14} color={COLORS.amber} />
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
 
-      {/* Category List */}
-      <View style={styles.categoryWrapper}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContainer}>
-          <TouchableOpacity
-            style={[styles.categoryChip, !selectedSport && styles.categoryChipActive]}
-            onPress={() => setSelectedSport(null)}
-          >
-            <Text style={[styles.categoryChipText, !selectedSport && styles.categoryChipTextActive]}>Tất cả</Text>
-          </TouchableOpacity>
-          {(['soccer', 'badminton', 'tennis', 'basketball'] as const).map((sport) => (
-            <TouchableOpacity
-              key={sport}
-              style={[styles.categoryChip, selectedSport === sport && styles.categoryChipActive]}
-              onPress={() => setSelectedSport(sport)}
-            >
-              <MaterialIcons
-                name={getSportIcon(sport)}
-                size={16}
-                color={selectedSport === sport ? COLORS.onPrimary : COLORS.onSurfaceVariant}
-                style={styles.chipIcon}
-              />
-              <Text style={[styles.categoryChipText, selectedSport === sport && styles.categoryChipTextActive]}>
-                {getSportName(sport)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Simulated Map Canvas */}
-      <View style={styles.mapCanvas}>
-        {/* Map Grid Elements (Streets Mockup) */}
-        <View style={[styles.mapStreet, { top: '30%', left: 0, right: 0, height: 16 }]} />
-        <View style={[styles.mapStreet, { top: '60%', left: 0, right: 0, height: 12 }]} />
-        <View style={[styles.mapStreet, { left: '35%', top: 0, bottom: 0, width: 14 }]} />
-        <View style={[styles.mapStreet, { left: '75%', top: 0, bottom: 0, width: 10 }]} />
-        <View style={[styles.mapStreet, { left: '15%', top: '30%', bottom: 0, width: 8, transform: [{ rotate: '45deg' }] }]} />
-        
-        {/* Map Parks (Green spaces Mockup) */}
-        <View style={[styles.mapPark, { top: '10%', left: '10%', width: 80, height: 60 }]} />
-        <View style={[styles.mapPark, { top: '45%', right: '10%', width: 70, height: 80 }]} />
-
-        {/* Pins */}
-        {filteredPins.map((pin) => {
-          const isActive = selectedPin?.id === pin.id;
-          return (
-            <TouchableOpacity
-              key={pin.id}
-              style={[
-                styles.pinContainer,
-                { left: `${pin.x}%`, top: `${pin.y}%` },
-                isActive && styles.pinContainerActive
-              ]}
-              onPress={() => setSelectedPin(pin)}
-            >
-              <View style={[styles.pinBubble, isActive && styles.pinBubbleActive]}>
-                <MaterialIcons
-                  name={getSportIcon(pin.sport)}
-                  size={18}
-                  color={isActive ? COLORS.onPrimary : COLORS.primary}
+      {/* ---- Map ---- */}
+      <View style={styles.mapWrapper}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          initialRegion={DEFAULT_REGION}
+          onRegionChangeComplete={handleRegionChangeComplete}
+          showsUserLocation={locationGranted === true}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          toolbarEnabled={false}
+          mapPadding={{ top: 0, right: 0, bottom: selectedVenue ? 180 : 0, left: 0 }}
+          onPress={handleClosePopup}
+        >
+          {/* --- Render markers --- */}
+          {mapItems.map((item) => {
+            if (item.type === 'venue') {
+              return (
+                <VenueMarker
+                  key={item.data.id}
+                  venue={item.data}
+                  isActive={selectedVenue?.id === item.data.id}
+                  onPress={handleSelectVenue}
                 />
-              </View>
-              <View style={[styles.pinArrow, isActive && styles.pinArrowActive]} />
-            </TouchableOpacity>
-          );
-        })}
+              );
+            } else {
+              return (
+                <ClusterMarkerView
+                  key={item.data.id}
+                  cluster={item.data}
+                  onPress={(cluster) => {
+                    // Zoom in vào cluster khi tap
+                    mapRef.current?.animateToRegion(
+                      {
+                        latitude: cluster.latitude,
+                        longitude: cluster.longitude,
+                        latitudeDelta: region.latitudeDelta * 0.4,
+                        longitudeDelta: region.longitudeDelta * 0.4,
+                      },
+                      500
+                    );
+                  }}
+                />
+              );
+            }
+          })}
+        </MapView>
 
-        {/* Floating Actions on Map */}
-        <View style={styles.floatingButtons}>
-          <TouchableOpacity style={styles.floatingActionBtn}>
+        {/* ---- Floating Sport Filter ---- */}
+        <FloatingSportFilter
+          availableSports={availableSports}
+          selectedSport={selectedSport}
+          onSelectSport={handleSelectSport}
+          venueCount={filteredVenues.length}
+        />
+
+        {/* ---- Floating Action Buttons (Zoom + MyLocation) ---- */}
+        <View style={styles.floatingActions}>
+          <TouchableOpacity style={styles.floatingBtn} onPress={handleZoomIn}>
             <MaterialIcons name="add" size={22} color={COLORS.onSurface} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.floatingActionBtn}>
+          <TouchableOpacity style={styles.floatingBtn} onPress={handleZoomOut}>
             <MaterialIcons name="remove" size={22} color={COLORS.onSurface} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.floatingActionBtn, { marginTop: SPACING.base }]}>
-            <MaterialIcons name="my-location" size={22} color={COLORS.primary} />
+          <View style={styles.floatingDivider} />
+          <TouchableOpacity
+            style={[
+              styles.floatingBtn,
+              locationGranted === true && styles.floatingBtnActive,
+            ]}
+            onPress={handleMyLocation}
+          >
+            <MaterialIcons
+              name="my-location"
+              size={22}
+              color={
+                locationGranted === true ? COLORS.primary : COLORS.onSurfaceVariant
+              }
+            />
           </TouchableOpacity>
         </View>
+
+        {/* ---- Loading overlay ---- */}
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Đang tải sân...</Text>
+            </View>
+          </View>
+        )}
+
+        {/* ---- Error state ---- */}
+        {error && !loading && (
+          <View style={styles.errorBanner}>
+            <MaterialIcons name="wifi-off" size={16} color={COLORS.error} />
+            <Text style={styles.errorText}>Không thể tải dữ liệu sân</Text>
+          </View>
+        )}
+
+        {/* ---- Empty state ---- */}
+        {!loading && !error && filteredVenues.length === 0 && (
+          <View style={styles.emptyOverlay}>
+            <View style={styles.emptyCard}>
+              <MaterialIcons
+                name="sports"
+                size={32}
+                color={COLORS.outline}
+              />
+              <Text style={styles.emptyTitle}>Không tìm thấy sân</Text>
+              <Text style={styles.emptySubtitle}>
+                {selectedSport
+                  ? `Không có sân ${selectedSport} nào trong khu vực này`
+                  : 'Chưa có sân nào được đăng ký trong khu vực'}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ---- Venue Pop-up Card ---- */}
+        {selectedVenue && (
+          <MapFacilityCard
+            venue={selectedVenue}
+            onClose={handleClosePopup}
+            onBook={handleBook}
+            onDirections={handleDirections}
+          />
+        )}
       </View>
-
-      {/* Selected Venue Details (Bottom Sheet UI) */}
-      {selectedPin && (
-        <Card variant="default" style={styles.bottomCard}>
-          <View style={styles.bottomCardHeader}>
-            <View style={styles.badgeWrapper}>
-              <Badge text={getSportName(selectedPin.sport)} variant="default" />
-              <View style={styles.distanceBadge}>
-                <MaterialIcons name="directions-walk" size={14} color={COLORS.primary} />
-                <Text style={styles.distanceText}>{selectedPin.distance}</Text>
-              </View>
-            </View>
-            <View style={styles.ratingContainer}>
-              <MaterialIcons name="star" size={16} color={COLORS.secondary} />
-              <Text style={styles.ratingText}>{selectedPin.rating}</Text>
-            </View>
-          </View>
-          
-          <Text style={styles.venueName}>{selectedPin.name}</Text>
-          <Text style={styles.venuePrice}>
-            Giá thuê: <Text style={styles.venuePriceVal}>{selectedPin.price}</Text>
-          </Text>
-
-          <View style={styles.cardActions}>
-            <Button
-              variant="outline"
-              title="Đường đi"
-              icon="directions"
-              style={styles.cardActionBtn}
-              onPress={() => console.log('Get directions for', selectedPin.name)}
-            />
-            <Button
-              variant="primary"
-              title="Đặt sân ngay"
-              icon="event-available"
-              style={[styles.cardActionBtn, styles.bookingBtn]}
-              onPress={() => console.log('Book venue', selectedPin.id)}
-            />
-          </View>
-        </Card>
-      )}
     </View>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  headerSafeArea: {
+  headerSafe: {
     backgroundColor: COLORS.surface,
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 20,
   },
-  searchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  header: {
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: SPACING.base,
-    gap: SPACING.sm,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
-    paddingHorizontal: SPACING.sm,
-    height: 44,
-    gap: SPACING.base,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    padding: 0,
-  },
-  filterButton: {
-    height: 44,
-    width: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  categoryWrapper: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: SPACING.base,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
-  },
-  categoryContainer: {
-    paddingHorizontal: SPACING.marginMobile,
-    gap: SPACING.base,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerHigh,
-    borderRadius: BORDER_RADIUS.xl,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
     gap: SPACING.xs,
   },
-  categoryChipActive: {
-    backgroundColor: COLORS.primary,
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.base,
   },
-  categoryChipText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.onSurfaceVariant,
+  headerTitle: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    fontSize: 18,
+    color: COLORS.onSurface,
+  },
+  gpsWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.amberOpacity10,
+    borderRadius: BORDER_RADIUS.default,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  gpsWarningText: {
     fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-  },
-  categoryChipTextActive: {
-    color: COLORS.onPrimary,
-  },
-  chipIcon: {
-    marginRight: -2,
-  },
-  mapCanvas: {
+    fontSize: 11,
+    color: COLORS.amber,
     flex: 1,
-    backgroundColor: '#EAEBFF', // Light blue typical of maps
+  },
+  mapWrapper: {
+    flex: 1,
     position: 'relative',
-    overflow: 'hidden',
   },
-  mapStreet: {
-    position: 'absolute',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
+  map: {
+    flex: 1,
   },
-  mapPark: {
-    position: 'absolute',
-    backgroundColor: '#D1FAE5', // Soft green color
-    borderRadius: 8,
-    opacity: 0.7,
-  },
-  pinContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    zIndex: 1,
-  },
-  pinContainerActive: {
-    zIndex: 10,
-  },
-  pinBubble: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pinBubbleActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  pinArrow: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: COLORS.primary,
-    marginTop: -2,
-  },
-  pinArrowActive: {
-    borderTopColor: COLORS.primary,
-  },
-  floatingButtons: {
+  floatingActions: {
     position: 'absolute',
     right: SPACING.marginMobile,
-    top: SPACING.md,
-    gap: 6,
+    bottom: 110,
+    gap: 4,
+    alignItems: 'center',
   },
-  floatingActionBtn: {
-    width: 40,
-    height: 40,
+  floatingBtn: {
+    width: 44,
+    height: 44,
     borderRadius: BORDER_RADIUS.default,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  floatingBtnActive: {
+    backgroundColor: COLORS.primaryOpacity08,
+  },
+  floatingDivider: {
+    width: 32,
+    height: 1,
+    backgroundColor: COLORS.outlineVariant,
+    marginVertical: 2,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 70,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 15,
+  },
+  loadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.base,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.base,
+    shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  bottomCard: {
+  loadingText: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+  },
+  errorBanner: {
     position: 'absolute',
-    bottom: 85, // clear bottom navigation bar height (65 + extra spacing)
+    top: 70,
     left: SPACING.marginMobile,
     right: SPACING.marginMobile,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  bottomCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  badgeWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.base,
+    backgroundColor: COLORS.errorContainer,
+    borderRadius: BORDER_RADIUS.default,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.base,
+    zIndex: 15,
   },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    borderRadius: BORDER_RADIUS.xl,
-    paddingHorizontal: SPACING.base,
-    paddingVertical: 2,
-    gap: 2,
-  },
-  distanceText: {
-    fontSize: 10,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.onSurface,
-  },
-  venueName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    marginBottom: 4,
-  },
-  venuePrice: {
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    marginBottom: SPACING.md,
-  },
-  venuePriceVal: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: SPACING.base,
-  },
-  cardActionBtn: {
+  errorText: {
+    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    fontSize: 13,
+    color: COLORS.onErrorContainer,
     flex: 1,
-    height: 40,
   },
-  bookingBtn: {
-    backgroundColor: COLORS.primary,
+  emptyOverlay: {
+    position: 'absolute',
+    bottom: 110,
+    left: SPACING.marginMobile,
+    right: SPACING.marginMobile,
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  emptyCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    gap: SPACING.xs,
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    width: '100%',
+  },
+  emptyTitle: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontWeight: '600' as const,
+    fontSize: 16,
+    color: COLORS.onSurface,
+  },
+  emptySubtitle: {
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
   },
 });
 

@@ -18,15 +18,16 @@ export interface Facility {
 
 interface FacilityCardProps {
   facility: Facility;
+  style?: any;
   onPress?: () => void;
   onBookPress?: () => void;
 }
 
-export function FacilityCard({ facility, onPress, onBookPress }: FacilityCardProps) {
+export function FacilityCard({ facility, style, onPress, onBookPress }: FacilityCardProps) {
   const isWarning = facility.statusType === 'warning';
   
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.imageContainer}>
         <Image source={{ uri: facility.imageUrl }} style={styles.image} resizeMode="cover" />
         <Badge 
