@@ -3,6 +3,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Dashboard } from "@/pages/Dashboard/Dashboard";
 import { FacilityAuditing } from "@/pages/Facilities/FacilityAuditing";
 import { UserManagement } from "@/pages/Users/UserManagement";
+import { OwnerManagement } from "@/pages/Users/OwnerManagement";
 import { LoginPage } from "@/pages/Auth/LoginPage";
 import { PermissionSettings } from "@/pages/Settings/PermissionSettings";
 
@@ -23,8 +24,9 @@ function App() {
       case "facilities":
         return <FacilityAuditing />;
       case "users":
-      case "owners":
         return <UserManagement />;
+      case "owners":
+        return <OwnerManagement />;
       case "settings":
         return <PermissionSettings />;
       default:

@@ -47,6 +47,12 @@ export function HomeScreen() {
   const [userName, setUserName] = useState('Khách');
   const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
 
+  const getApiUrl = () => {
+    if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    return 'http://localhost:8387/api/v1';
+  };
+
   const checkAuth = async () => {
     try {
       let token = '';
@@ -60,8 +66,55 @@ export function HomeScreen() {
       }
 
       if (token) {
-        setIsAuthenticated(true);
-        setUserName(name || 'Thành viên');
+        // Gửi request API kiểm tra token có hợp lệ / bị khóa không
+        try {
+          const response = await fetch(`${getApiUrl()}/auth/ping`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.status === 403) {
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.message && errorData.message.includes('đã bị khóa')) {
+              // Cưỡng chế logout tài khoản bị khóa
+              if (Platform.OS === 'web') {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userEmail');
+                window.alert(errorData.message);
+              } else {
+                await SecureStore.deleteItemAsync('accessToken');
+                await SecureStore.deleteItemAsync('userName');
+                await SecureStore.deleteItemAsync('userEmail');
+                Alert.alert('Tài khoản bị khóa', errorData.message);
+              }
+              setIsAuthenticated(false);
+              setUserName('Khách');
+              return;
+            }
+          }
+          
+          if (!response.ok) {
+            throw new Error('Token không hợp lệ');
+          }
+
+          setIsAuthenticated(true);
+          setUserName(name || 'Thành viên');
+        } catch (e) {
+          // Token hết hạn hoặc lỗi kết nối máy chủ -> Xóa session
+          if (Platform.OS === 'web') {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userEmail');
+          } else {
+            await SecureStore.deleteItemAsync('accessToken');
+            await SecureStore.deleteItemAsync('userName');
+            await SecureStore.deleteItemAsync('userEmail');
+          }
+          setIsAuthenticated(false);
+          setUserName('Khách');
+        }
       } else {
         setIsAuthenticated(false);
         setUserName('Khách');

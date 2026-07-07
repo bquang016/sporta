@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logoHorizontal from '@/assets/logo/light/logo-horizontal_1600x400px.svg';
-import logoVertical from '@/assets/logo/light/logo-main_40x40px_small.svg';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
