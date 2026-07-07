@@ -63,6 +63,12 @@ public class VenueService {
                 .collect(Collectors.toList());
     }
 
+    public List<VenueResponse> getAllActiveVenues() {
+        return venueRepository.findByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.APPROVED).stream()
+                .map(venue -> mapToResponse(venue, false))
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public VenueResponse createVenue(VenueRequest request, String email) {
         Owner owner = ownerRepository.findByUserEmail(email)
@@ -501,6 +507,7 @@ public class VenueService {
                 .hasPendingRevision(hasPendingRevision)
                 .minPrice(venue.getMinPrice())
                 .maxPrice(venue.getMaxPrice())
+                .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .build();
     }
 

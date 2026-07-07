@@ -41,4 +41,6 @@ public class VenueResponse {
     
     private Double minPrice;
     private Double maxPrice;
+
+    private String sportName;
 }

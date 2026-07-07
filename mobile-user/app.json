@@ -39,7 +39,13 @@
       "expo-secure-store",
       "@react-native-community/datetimepicker",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Sporta cần truy cập vị trí để hiển thị sân gần bạn trên bản đồ."
+        }
+      ]
     ]
   }
 }
