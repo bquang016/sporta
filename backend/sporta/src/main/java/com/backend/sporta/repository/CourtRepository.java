@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface CourtRepository extends JpaRepository<Court, UUID> {
     List<Court> findByVenueOwnerId(UUID ownerId);
     List<Court> findByVenueOwnerUserEmail(String email);
+    List<Court> findByVenueId(UUID venueId);
 
     @Query("SELECT MIN(c.price) FROM Court c WHERE c.venue.id = :venueId AND c.status = com.backend.sporta.enums.CourtStatus.ACTIVE")
     Double findMinPriceByVenueIdAndStatusActive(@Param("venueId") UUID venueId);

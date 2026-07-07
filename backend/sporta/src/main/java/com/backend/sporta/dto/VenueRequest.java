@@ -21,6 +21,11 @@ public class VenueRequest {
     private Double longitude;
     private String description;
 
+    private String province;
+    private String district;
+    private String ward;
+    private String addressDetail;
+
     private LocalTime openingTime;
     private LocalTime closingTime;
 
