@@ -47,7 +47,7 @@ const Toggle: React.FC<ToggleProps> = ({ checked, onChange, disabled }) => {
   );
 };
 
-export const UserManagement: React.FC = () => {
+export const OwnerManagement: React.FC = () => {
   const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -63,19 +63,19 @@ export const UserManagement: React.FC = () => {
   // Get current logged-in admin details
   const currentAdmin = getLoggedInAdmin();
 
-  // Fetch users from backend
-  const fetchUsers = async () => {
+  // Fetch owners from backend
+  const fetchOwners = async () => {
     setIsLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users?role=PLAYER&search=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`http://localhost:8387/api/v1/admin/users?role=OWNER&search=${encodeURIComponent(searchQuery)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       if (!response.ok) {
-        throw new Error('Không thể tải danh sách người chơi từ máy chủ.');
+        throw new Error('Không thể tải danh sách chủ sân từ máy chủ.');
       }
       const data = await response.json();
       setUsers(data);
@@ -87,12 +87,12 @@ export const UserManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchOwners();
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchUsers();
+    fetchOwners();
   };
 
   // Triggered when Toggle status changes
@@ -127,8 +127,8 @@ export const UserManagement: React.FC = () => {
         throw new Error(data.message || 'Khóa tài khoản thất bại');
       }
 
-      showToast('success', `Đã khóa tài khoản người chơi "${selectedUser.fullName}" thành công`);
-      fetchUsers();
+      showToast('success', `Đã khóa tài khoản chủ sân "${selectedUser.fullName}" thành công`);
+      fetchOwners();
     } catch (err: any) {
       showToast('error', err.message || 'Có lỗi xảy ra khi khóa tài khoản');
       throw err; // Propagate to keep modal loading or open
@@ -153,9 +153,9 @@ export const UserManagement: React.FC = () => {
         throw new Error(data.message || 'Mở khóa tài khoản thất bại');
       }
 
-      showToast('success', `Đã mở khóa tài khoản người chơi "${selectedUser.fullName}" thành công`);
+      showToast('success', `Đã mở khóa tài khoản chủ sân "${selectedUser.fullName}" thành công`);
       setIsUnlockModalOpen(false);
-      fetchUsers();
+      fetchOwners();
     } catch (err: any) {
       showToast('error', err.message || 'Có lỗi xảy ra khi mở khóa tài khoản');
     } finally {
@@ -168,8 +168,8 @@ export const UserManagement: React.FC = () => {
       {/* Title section */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-on-background">Quản Lý Người Chơi</h1>
-          <p className="text-on-surface-variant mt-1 text-sm">Quản lý tài khoản, trạng thái hoạt động của Người Chơi (Players).</p>
+          <h1 className="text-2xl font-bold text-on-background">Quản Lý Chủ Sân</h1>
+          <p className="text-on-surface-variant mt-1 text-sm">Quản lý tài khoản, trạng thái hoạt động của Chủ Sân (Owners).</p>
         </div>
       </div>
 
@@ -200,8 +200,7 @@ export const UserManagement: React.FC = () => {
               size="sm"
               onClick={() => {
                 setSearchQuery('');
-                // Fetch again next tick when state updates
-                setTimeout(() => fetchUsers(), 0);
+                setTimeout(() => fetchOwners(), 0);
               }}
               className="text-xs font-bold text-slate-500 hover:text-slate-800"
             >
@@ -215,7 +214,7 @@ export const UserManagement: React.FC = () => {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center gap-3">
               <LoadingSpinner size="lg" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Đang tải dữ liệu người chơi...</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Đang tải dữ liệu chủ sân...</span>
             </div>
           ) : error ? (
             <div className="h-64 flex flex-col items-center justify-center gap-3 px-6 text-center">
@@ -226,7 +225,7 @@ export const UserManagement: React.FC = () => {
               </div>
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">Lỗi Tải Dữ Liệu</h3>
               <p className="text-xs text-slate-500 max-w-sm font-semibold">{error}</p>
-              <Button variant="primary" onClick={fetchUsers} size="sm" className="mt-2 bg-brand-emerald text-white">
+              <Button variant="primary" onClick={fetchOwners} size="sm" className="mt-2 bg-brand-emerald text-white">
                 Thử lại
               </Button>
             </div>
@@ -238,13 +237,13 @@ export const UserManagement: React.FC = () => {
                 </svg>
               </div>
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">Không Tìm Thấy Kết Quả</h3>
-              <p className="text-xs text-slate-400 font-semibold">Không tìm thấy bất kỳ người chơi nào phù hợp.</p>
+              <p className="text-xs text-slate-400 font-semibold">Không tìm thấy bất kỳ chủ sân nào phù hợp.</p>
             </div>
           ) : (
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/50 sticky top-0 backdrop-blur-sm z-10 select-none">
                 <tr>
-                  <th className="px-6 py-3.5">Mã User</th>
+                  <th className="px-6 py-3.5">Mã Owner</th>
                   <th className="px-6 py-3.5">Họ Tên</th>
                   <th className="px-6 py-3.5">Email</th>
                   <th className="px-6 py-3.5">Ngày Tham Gia</th>
@@ -256,7 +255,7 @@ export const UserManagement: React.FC = () => {
                 {users.map((user) => {
                   const isSelf = !!(currentAdmin && user.id === currentAdmin.userId);
                   const isLocked = user.status === 'BANNED';
-                  const isChecked = !isLocked; // Toggle checked = Active, unchecked = Locked
+                  const isChecked = !isLocked;
 
                   return (
                     <tr key={user.id} className="hover:bg-slate-50/40 transition-colors">
@@ -301,7 +300,7 @@ export const UserManagement: React.FC = () => {
           setSelectedUser(null);
         }}
         onConfirm={handleConfirmLock}
-        roleType="PLAYER"
+        roleType="OWNER"
         userName={selectedUser?.fullName || ''}
         userEmail={selectedUser?.email || ''}
       />
@@ -315,11 +314,11 @@ export const UserManagement: React.FC = () => {
         }}
         onConfirm={handleConfirmUnlock}
         title="Xác nhận mở khóa tài khoản"
-        message={`Bạn có chắc chắn muốn mở khóa tài khoản của người chơi "${selectedUser?.fullName}"? Sau khi mở khóa, người chơi sẽ có thể đăng nhập và đặt sân bình thường.`}
+        message={`Bạn có chắc chắn muốn mở khóa tài khoản của chủ sân "${selectedUser?.fullName}"? Sau khi mở khóa, chủ sân sẽ có thể đăng nhập và quản lý sân đấu bình thường.`}
         confirmText={isUnlocking ? "Đang mở..." : "Mở khóa"}
         cancelText="Hủy bỏ"
         variant="unlock"
       />
     </div>
   );
-};
+}
