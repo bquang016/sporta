@@ -1,4 +1,3 @@
-import React from 'react';
 import logoSvg from '@/assets/logo/light/logo-main_40x40px_small.svg';
 
 interface LoadingSpinnerProps {

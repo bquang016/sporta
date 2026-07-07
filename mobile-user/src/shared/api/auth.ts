@@ -19,7 +19,7 @@ export const loginApi = async (email: string, password: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to login');
+    throw new Error(errorData.message || 'Failed to login');
   }
 
   return response.json();
@@ -36,7 +36,7 @@ export const sendOtp = async (email: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to send OTP');
+    throw new Error(errorData.message || 'Failed to send OTP');
   }
 
   return response.json();
@@ -53,7 +53,7 @@ export const verifyOtp = async (email: string, otp: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to verify OTP');
+    throw new Error(errorData.message || 'Failed to verify OTP');
   }
 
   return response.json();
@@ -70,7 +70,7 @@ export const registerUser = async (data: any) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to register user');
+    throw new Error(errorData.message || 'Failed to register user');
   }
 
   return response.json();
@@ -87,7 +87,7 @@ export const googleLoginApi = async (idToken: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Xác thực Google thất bại');
+    throw new Error(errorData.message || 'Xác thực Google thất bại');
   }
 
   return response.json();
