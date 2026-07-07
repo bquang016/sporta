@@ -15,6 +15,14 @@ public class EmailService {
 
     public void sendOtpEmail(String toEmail, String otpCode) {
         try {
+            // TẠM THỜI MOCK GỬI EMAIL ĐỂ TRÁNH LỖI GMAIL POLICY
+            System.out.println("\n=================================================");
+            System.out.println("🔔 [MOCK EMAIL] XÁC THỰC TÀI KHOẢN");
+            System.out.println("Gửi đến: " + toEmail);
+            System.out.println("Mã OTP của bạn là: " + otpCode);
+            System.out.println("=================================================\n");
+            
+            /* CỐT CODE GỐC (Dùng khi triển khai thật)
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
@@ -40,8 +48,8 @@ public class EmailService {
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
-
-        } catch (MessagingException e) {
+            */
+        } catch (Exception e) {
             throw new RuntimeException("Failed to send OTP email", e);
         }
     }
@@ -52,6 +60,14 @@ public class EmailService {
      */
     public void sendAccountApprovedEmail(String toEmail, String temporaryPassword) {
         try {
+            // TẠM THỜI MOCK GỬI EMAIL ĐỂ TRÁNH LỖI GMAIL POLICY
+            System.out.println("\n=================================================");
+            System.out.println("🎉 [MOCK EMAIL] TÀI KHOẢN ĐÃ ĐƯỢC KÍCH HOẠT");
+            System.out.println("Gửi đến: " + toEmail);
+            System.out.println("Mật khẩu tạm thời: " + temporaryPassword);
+            System.out.println("=================================================\n");
+            
+            /* CỐT CODE GỐC (Dùng khi triển khai thật)
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
@@ -95,8 +111,8 @@ public class EmailService {
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
-
-        } catch (MessagingException e) {
+            */
+        } catch (Exception e) {
             throw new RuntimeException("Failed to send account approved email", e);
         }
     }
