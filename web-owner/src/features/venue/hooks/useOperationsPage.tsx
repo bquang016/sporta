@@ -22,9 +22,11 @@ export const useOperationsPage = () => {
     bulkApplySurcharge,
     setSelectedCourtIds,
     resolveBooking,
+    deleteVenueDraft,
   } = useOperations();
 
-  const activeVenue = venues.find(v => v.id === selectedVenueId) || venues[0];
+  const activeVenues = venues.filter(v => v.approvalStatus !== 'DRAFT');
+  const activeVenue = activeVenues.find(v => v.id === selectedVenueId) || activeVenues[0];
   const activeVenueId = activeVenue?.id;
 
   // Local UI States
@@ -192,7 +194,8 @@ export const useOperationsPage = () => {
   ];
 
   const activeCourts = courts.filter(c => c.venueId === activeVenueId);
-  const filteredVenues = venues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredVenues = activeVenues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const draftVenues = venues.filter(v => v.approvalStatus === 'DRAFT');
 
   const venueBookings = bookings.filter(b => {
     const court = courts.find(c => c.id === b.courtId);
@@ -852,6 +855,8 @@ export const useOperationsPage = () => {
     activeVenueId,
     activeCourts,
     filteredVenues,
+    draftVenues,
+    deleteVenueDraft,
     venueBookings,
     actionRequiredBookings,
     confirmedBookings,
