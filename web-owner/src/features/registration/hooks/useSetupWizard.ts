@@ -40,24 +40,27 @@ export function useSetupWizard() {
   });
 
   const [venueInfo, setVenueInfo] = useState<VenueInfo>({
-    venueName: '',
+    name: '',
+    location: '',
+    latitude: 21.028511,
+    longitude: 105.804817,
+    description: '',
     province: '',
     district: '',
     ward: '',
-    description: '',
-    sportTypes: [],
-    subCourtCount: 1,
-    images: [],
+    addressDetail: '',
+    openingTime: '06:00',
+    closingTime: '22:00',
+    shiftDurationMinutes: 60,
+    sportId: '',
+    coverImage: null,
+    detailImages: [],
+    hasSurcharge: false,
+    surchargeDescription: '',
   });
 
 
-  const [courts, setCourts] = useState<SubCourt[]>([
-    {
-      name: 'Sân 1',
-      sportType: '',
-      pricingSlots: DEFAULT_PRICING_SLOTS.map((s) => ({ ...s })),
-    },
-  ]);
+  const [courts, setCourts] = useState<SubCourt[]>([]);
 
   // ── Step index helpers ──
   const stepIndex = SETUP_STEPS.findIndex((s) => s.key === currentStep);
@@ -71,20 +74,29 @@ export function useSetupWizard() {
           if (!personalInfo.idNumber.trim()) return 'Vui lòng nhập số CCCD/CMND.';
           return null;
 
-        case 'venue':
-          if (!venueInfo.venueName.trim()) return 'Vui lòng nhập tên cụm sân.';
-          if (!venueInfo.province.trim()) return 'Vui lòng nhập Tỉnh/Thành phố.';
-          if (!venueInfo.district.trim()) return 'Vui lòng nhập Quận/Huyện.';
-          if (!venueInfo.ward.trim()) return 'Vui lòng nhập Phường/Xã.';
-          if (venueInfo.sportTypes.length === 0) return 'Vui lòng chọn ít nhất một loại sân.';
+        case 'venue-basic':
+          if (!venueInfo.name.trim()) return 'Vui lòng nhập tên cụm sân.';
+          if (!venueInfo.location.trim()) return 'Vui lòng chọn vị trí trên bản đồ.';
           return null;
 
-        case 'courts':
-          if (courts.length === 0) return 'Vui lòng thêm ít nhất một sân con.';
+        case 'venue-courts':
+          if (!venueInfo.sportId) return 'Vui lòng chọn môn thể thao chính.';
+          if (courts.length === 0) return 'Vui lòng khai báo ít nhất một sân lẻ.';
           for (const court of courts) {
             if (!court.name.trim()) return 'Vui lòng nhập tên cho tất cả sân con.';
-            if (!court.sportType) return `Vui lòng chọn loại thể thao cho "${court.name}".`;
+            if (!court.price || court.price <= 0) return `Vui lòng nhập giá thuê hợp lệ cho "${court.name}".`;
           }
+          return null;
+
+        case 'venue-images':
+          if (!venueInfo.coverImage) return 'Vui lòng tải lên ảnh bìa (cover).';
+          if (venueInfo.detailImages.length === 0) return 'Vui lòng tải lên ít nhất một ảnh chi tiết.';
+          return null;
+
+        case 'venue-operating':
+          if (!venueInfo.openingTime || !venueInfo.closingTime) return 'Vui lòng chọn thời gian hoạt động.';
+          if (!venueInfo.shiftDurationMinutes) return 'Vui lòng chọn thời lượng ca.';
+          if (venueInfo.hasSurcharge && (!venueInfo.surchargeAmount || !venueInfo.surchargeDescription.trim())) return 'Vui lòng nhập đầy đủ thông tin phụ thu.';
           return null;
 
         case 'review':
