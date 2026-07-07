@@ -51,7 +51,12 @@ export const VenueMarker = memo(
       <Marker
         key={venue.id}
         coordinate={{ latitude: venue.latitude, longitude: venue.longitude }}
-        onPress={() => onPress(venue.id)}
+        onPress={(e) => {
+          if (e && e.stopPropagation) {
+            e.stopPropagation();
+          }
+          onPress(venue.id);
+        }}
         tracksViewChanges={false}
         anchor={{ x: 0.5, y: 1 }}
       >
@@ -116,7 +121,12 @@ export const ClusterMarkerView = memo(
       <Marker
         key={cluster.id}
         coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
-        onPress={() => onPress(cluster)}
+        onPress={(e) => {
+          if (e && e.stopPropagation) {
+            e.stopPropagation();
+          }
+          onPress(cluster);
+        }}
         tracksViewChanges={false}
         anchor={{ x: 0.5, y: 0.5 }}
       >
@@ -126,7 +136,12 @@ export const ClusterMarkerView = memo(
             styles.clusterBubble,
             { width: size, height: size, borderRadius: size / 2 },
           ]}
-          onPress={() => onPress(cluster)}
+          onPress={(e) => {
+            if (e && e.stopPropagation) {
+              e.stopPropagation();
+            }
+            onPress(cluster);
+          }}
         >
           {/* Outer ring */}
           <View

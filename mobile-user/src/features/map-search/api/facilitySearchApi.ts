@@ -36,3 +36,38 @@ export const geocodeAddress = async (
     return null;
   }
 };
+
+export interface GoongPlace {
+  place_id: string;
+  description: string;
+}
+
+export const searchGoongPlaces = async (query: string): Promise<GoongPlace[]> => {
+  if (!query) return [];
+  try {
+    const encoded = encodeURIComponent(query);
+    const url = `https://rsapi.goong.io/Place/AutoComplete?api_key=${GOONG_API_KEY}&input=${encoded}&limit=5`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.predictions || [];
+  } catch {
+    return [];
+  }
+};
+
+export const getGoongPlaceDetail = async (placeId: string): Promise<GeocodeResult | null> => {
+  try {
+    const url = `https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${GOONG_API_KEY}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data.result && data.result.geometry && data.result.geometry.location) {
+      const { lat, lng } = data.result.geometry.location;
+      return { latitude: lat, longitude: lng };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};

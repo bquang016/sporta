@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,10 @@ import {
   TouchableOpacity,
   Image,
   Animated,
+  PanResponder,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button, Badge } from '../../../shared/ui';
 import { MapVenue } from '../../../entities/facility/model/useMapFacilities';
@@ -35,6 +37,63 @@ const StarRating = ({ rating }: { rating: number }) => (
 
 export const MapFacilityCard = memo(
   ({ venue, onClose, onBook, onDirections }: MapFacilityCardProps) => {
+    const insets = useSafeAreaInsets();
+    // Offset bottom to avoid bottom tab bar
+    const bottomPosition = Math.max(insets.bottom, 20) + 70;
+
+    // Animation value for slide up
+    const translateY = useRef(new Animated.Value(300)).current;
+
+    const closeCard = () => {
+      Animated.timing(translateY, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        onClose();
+      });
+    };
+
+    useEffect(() => {
+      // Slide up on mount
+      translateY.setValue(300);
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8,
+      }).start();
+    }, [venue.id]);
+
+    const panResponder = useRef(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only start panning if moving vertically downwards
+          return gestureState.dy > 10;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 0) {
+            translateY.setValue(gestureState.dy);
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          // If swiped down more than 50px or fast swipe, close it
+          if (gestureState.dy > 50 || gestureState.vy > 0.5) {
+            closeCard();
+          } else {
+            // Spring back
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 50,
+              friction: 8,
+            }).start();
+          }
+        },
+      })
+    ).current;
+
     const priceDisplay =
       venue.minPrice > 0
         ? venue.maxPrice > venue.minPrice
@@ -43,12 +102,18 @@ export const MapFacilityCard = memo(
         : 'Liên hệ';
 
     return (
-      <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.container,
+          { bottom: bottomPosition, transform: [{ translateY }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
         {/* Drag indicator */}
         <View style={styles.dragHandle} />
 
         {/* Close button */}
-        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+        <TouchableOpacity style={styles.closeBtn} onPress={closeCard}>
           <MaterialIcons name="close" size={18} color={COLORS.onSurfaceVariant} />
         </TouchableOpacity>
 
@@ -119,13 +184,13 @@ export const MapFacilityCard = memo(
                 variant="primary"
                 title="Đặt sân ngay"
                 icon="event-available"
-                style={[styles.actionBtn, styles.bookBtn]}
+                style={styles.actionBtn}
                 onPress={() => onBook(venue.id)}
               />
             </View>
           </View>
         </View>
-      </View>
+      </Animated.View>
     );
   }
 );
@@ -135,7 +200,6 @@ MapFacilityCard.displayName = 'MapFacilityCard';
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 90,
     left: SPACING.marginMobile,
     right: SPACING.marginMobile,
     backgroundColor: COLORS.surface,
@@ -191,6 +255,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
   sportBadge: {
     paddingHorizontal: SPACING.base,
@@ -249,9 +314,6 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    height: 36,
-  },
-  bookBtn: {
-    backgroundColor: COLORS.primary,
+    height: 42,
   },
 });

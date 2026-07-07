@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Keyboard,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import {
   useMapFacilities,
@@ -22,6 +24,10 @@ import {
   ClusterMarkerView,
   MapFacilityCard,
   FloatingSportFilter,
+  MapSearchBar,
+  useMapSearchAutocomplete,
+  SearchResultItem,
+  getGoongPlaceDetail,
 } from '../../../features/map-search';
 
 // ---------------------------------------------------------------------------
@@ -53,7 +59,6 @@ export function MapScreen() {
   // Data from entity layer
   const { venues, loading, error } = useMapFacilities();
 
-  // Feature logic (filter + cluster)
   const {
     availableSports,
     mapItems,
@@ -64,6 +69,14 @@ export function MapScreen() {
     handleSelectVenue,
     handleRegionChange,
   } = useFacilitySearch(venues);
+
+  // Search logic
+  const { 
+    query: searchQuery, 
+    setQuery: setSearchQuery, 
+    results: searchResults, 
+    loading: searchLoading 
+  } = useMapSearchAutocomplete(venues);
 
   // ---------------------------------------------------------------------------
   // GPS Permission
@@ -151,12 +164,14 @@ export function MapScreen() {
 
   const handleClosePopup = useCallback(() => {
     handleSelectVenue(null);
+    Keyboard.dismiss();
   }, [handleSelectVenue]);
 
+  const router = useRouter();
+
   const handleBook = useCallback((venueId: string) => {
-    // TODO: navigate to booking screen
-    console.log('Book venue:', venueId);
-  }, []);
+    router.push(`/booking/${venueId}`);
+  }, [router]);
 
   const handleDirections = useCallback(
     (venue: { latitude: number; longitude: number; name: string }) => {
@@ -166,6 +181,31 @@ export function MapScreen() {
     []
   );
 
+  const handleSelectSearchResult = useCallback(async (item: SearchResultItem) => {
+    if (item.type === 'venue') {
+      const venue = item.data;
+      mapRef.current?.animateToRegion({
+        latitude: venue.latitude,
+        longitude: venue.longitude,
+        latitudeDelta: USER_ZOOM_DELTA,
+        longitudeDelta: USER_ZOOM_DELTA,
+      }, 800);
+      handleSelectVenue(venue.id);
+    } else {
+      // It's a place. Fetch details
+      const placeDetails = await getGoongPlaceDetail(item.data.place_id);
+      if (placeDetails) {
+        mapRef.current?.animateToRegion({
+          latitude: placeDetails.latitude,
+          longitude: placeDetails.longitude,
+          latitudeDelta: 0.03, // Suitable zoom for a neighborhood/street
+          longitudeDelta: 0.03,
+        }, 800);
+        handleSelectVenue(null); // Close any open venue card
+      }
+    }
+  }, [handleSelectVenue]);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -174,10 +214,13 @@ export function MapScreen() {
       {/* ---- Header / Search Bar ---- */}
       <SafeAreaView style={styles.headerSafe} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
-          <View style={styles.headerTitleRow}>
-            <MaterialIcons name="map" size={22} color={COLORS.primary} />
-            <Text style={styles.headerTitle}>Tìm sân trên bản đồ</Text>
-          </View>
+          <MapSearchBar
+            query={searchQuery}
+            onChangeQuery={setSearchQuery}
+            results={searchResults}
+            loading={searchLoading}
+            onSelectResult={handleSelectSearchResult}
+          />
 
           {/* GPS permission warning */}
           {locationGranted === false && (
