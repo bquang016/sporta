@@ -53,6 +53,14 @@ public class User {
         return this.mustChangePassword != null && this.mustChangePassword;
     }
 
+    @Column(name = "is_deleted")
+    @Builder.Default
+    private Boolean isDeleted = false;
+
+    public boolean getIsDeleted() {
+        return this.isDeleted != null && this.isDeleted;
+    }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -63,6 +71,9 @@ public class User {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        if (this.isDeleted == null) {
+            this.isDeleted = false;
+        }
     }
 
     @PreUpdate

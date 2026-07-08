@@ -96,6 +96,10 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Email hoặc mật khẩu không đúng", 401));
 
+        if (user.getIsDeleted()) {
+            throw new CustomException("Tài khoản của bạn đã bị ngừng hoạt động hoặc xóa.", 403);
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Email hoặc mật khẩu không đúng", 401);
         }

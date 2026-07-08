@@ -1,6 +1,7 @@
 package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.UpdatePermissionRequest;
+import com.backend.sporta.dto.CreateAdminRequest;
 import com.backend.sporta.entity.RolePermission;
 import com.backend.sporta.entity.User;
 import com.backend.sporta.entity.UserStatus;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,9 @@ public class AdminController {
 
     @Autowired
     private LockLogRepository lockLogRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @GetMapping("/permissions")
     public ResponseEntity<List<RolePermission>> getAdminPermissions() {
@@ -116,10 +121,66 @@ public class AdminController {
             if (search != null && !search.trim().isEmpty()) {
                 users = userRepository.findBySearch(search);
             } else {
-                users = userRepository.findAllByOrderByCreatedAtDesc();
+                users = userRepository.findAllActiveOrderByCreatedAtDesc();
             }
         }
         return ResponseEntity.ok(users);
+    }
+
+    @PostMapping("/users/create-admin")
+    public ResponseEntity<?> createAdmin(@RequestBody CreateAdminRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User superAdmin = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin Super Admin", 404));
+        
+        if (superAdmin.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Bạn không có quyền thực hiện thao tác này. Chỉ Super Admin mới có quyền tạo Admin.", 403);
+        }
+        
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException("Email này đã được đăng ký trong hệ thống.", 400);
+        }
+        
+        User admin = User.builder()
+                .fullName(request.getFullName().trim())
+                .email(request.getEmail().trim())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.ADMIN)
+                .status(UserStatus.ACTIVE)
+                .mustChangePassword(false)
+                .isDeleted(false)
+                .build();
+                
+        userRepository.save(admin);
+        return ResponseEntity.ok(Map.of("message", "Tạo tài khoản vận hành Admin thành công."));
+    }
+
+    @PostMapping("/users/{id}/deactivate")
+    public ResponseEntity<?> deactivateAdmin(@PathVariable("id") Long userId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User superAdmin = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin Super Admin", 404));
+        
+        if (superAdmin.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Bạn không có quyền thực hiện thao tác này. Chỉ Super Admin mới có quyền vô hiệu hóa Admin.", 403);
+        }
+        
+        User adminToDeactivate = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin Admin cần vô hiệu hóa", 404));
+        
+        if (superAdmin.getId().equals(adminToDeactivate.getId())) {
+            throw new CustomException("Bạn không thể tự vô hiệu hóa tài khoản của chính mình.", 400);
+        }
+        
+        if (adminToDeactivate.getRole() != Role.ADMIN) {
+            throw new CustomException("Chỉ có thể vô hiệu hóa tài khoản nhân sự có vai trò ADMIN.", 400);
+        }
+        
+        adminToDeactivate.setIsDeleted(true);
+        adminToDeactivate.setStatus(UserStatus.INACTIVE);
+        userRepository.save(adminToDeactivate);
+        
+        return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa tài khoản Admin thành công."));
     }
 
     @PostMapping("/users/{id}/lock")
