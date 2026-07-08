@@ -12,6 +12,8 @@ import com.backend.sporta.repository.RolePermissionRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.LockReasonRepository;
 import com.backend.sporta.repository.LockLogRepository;
+import com.backend.sporta.repository.OwnerRegistrationRepository;
+import com.backend.sporta.entity.OwnerRegistration;
 import com.backend.sporta.exception.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,9 @@ public class AdminController {
 
     @Autowired
     private LockLogRepository lockLogRepository;
+
+    @Autowired
+    private OwnerRegistrationRepository ownerRegistrationRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -318,5 +323,17 @@ public class AdminController {
         
         lockReasonRepository.delete(reason);
         return ResponseEntity.ok(Map.of("message", "Đã xóa lý do khóa thành công."));
+    }
+
+    @GetMapping("/registrations")
+    public ResponseEntity<List<OwnerRegistration>> getOwnerRegistrations() {
+        return ResponseEntity.ok(ownerRegistrationRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    @GetMapping("/registrations/{id}")
+    public ResponseEntity<OwnerRegistration> getOwnerRegistrationDetail(@PathVariable("id") java.util.UUID id) {
+        OwnerRegistration registration = ownerRegistrationRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin đăng ký.", 404));
+        return ResponseEntity.ok(registration);
     }
 }
