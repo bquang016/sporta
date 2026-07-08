@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ToastType = 'success' | 'error' | 'warning';
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 export interface ToastItem {
   id: string;
@@ -76,12 +76,14 @@ const SingleToast = ({ item, onDismiss, index }: SingleToastProps) => {
     success: 'bg-emerald-500 border-emerald-400/30 shadow-emerald-500/20',
     error:   'bg-red-500 border-red-400/30 shadow-red-500/20',
     warning: 'bg-amber-500 border-amber-400/30 shadow-amber-500/20',
+    info:    'bg-sky-500 border-sky-400/30 shadow-sky-500/20',
   };
 
   const progressMap: Record<ToastType, string> = {
     success: 'bg-white/40',
     error:   'bg-white/40',
     warning: 'bg-white/40',
+    info:    'bg-white/40',
   };
 
   const IconSuccess = () => (
@@ -102,10 +104,17 @@ const SingleToast = ({ item, onDismiss, index }: SingleToastProps) => {
     </svg>
   );
 
+  const IconInfo = () => (
+    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+
   const icons: Record<ToastType, React.ReactNode> = {
     success: <IconSuccess />,
     error:   <IconError />,
     warning: <IconWarning />,
+    info:    <IconInfo />,
   };
 
   const translateY = leaving
@@ -241,6 +250,7 @@ export const Toast = ({ message, type = 'success', onClose, duration = 4000 }: T
     success: 'bg-emerald-500/90 border-emerald-400/30 shadow-emerald-500/10',
     error:   'bg-red-500/90 border-red-400/30 shadow-red-500/10',
     warning: 'bg-amber-500/90 border-amber-400/30 shadow-amber-500/10',
+    info:    'bg-sky-500/90 border-sky-400/30 shadow-sky-500/10',
   };
 
   return (
@@ -256,6 +266,10 @@ export const Toast = ({ message, type = 'success', onClose, duration = 4000 }: T
         ) : type === 'warning' ? (
           <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        ) : type === 'info' ? (
+          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : (
           <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

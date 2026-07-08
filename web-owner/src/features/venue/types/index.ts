@@ -8,10 +8,14 @@ export interface VenueResponse {
   ownerId: string;
   name: string;
   location: string;
+  province?: string;
+  district?: string;
+  ward?: string;
+  addressDetail?: string;
   description: string;
   status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED';
   // TRẠNG THÁI MỚI
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
   hasPendingRevision?: boolean;
 
   latitude?: number;
@@ -41,6 +45,10 @@ export interface VenueResponse {
 export interface VenueRequest {
   name: string;
   location: string;
+  province: string;
+  district: string;
+  ward: string;
+  addressDetail: string;
   description: string;
   latitude?: number;
   longitude?: number;
@@ -97,4 +105,33 @@ export interface CourtPriceRuleResponse {
   dayOfWeek?: number;
   percentageModifier?: number;
   fixedModifier?: number;
+}
+
+export interface CourtDraftDto {
+  id?: string;
+  name: string;
+  price: number;
+  status?: 'ACTIVE' | 'MAINTENANCE';
+  priceRules?: CourtPriceRuleRequest[];
+}
+
+export interface VenueDraftRequest {
+  name?: string;
+  location?: string;
+  province?: string;
+  district?: string;
+  ward?: string;
+  addressDetail?: string;
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+  openingTime?: string;
+  closingTime?: string;
+  sportId?: number;
+  coverImage?: string;
+  detailImages?: string[];
+  hasSurcharge?: boolean;
+  surchargeAmount?: number;
+  surchargeDescription?: string;
+  courts?: CourtDraftDto[];
 }

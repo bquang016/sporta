@@ -35,6 +35,9 @@ public class Venue {
     @Column(name = "location")
     private String location;
 
+    @Column(name = "address_detail")
+    private String addressDetail;
+
     @Column(name = "latitude")
     private Double latitude;
 

@@ -112,45 +112,74 @@ export const ReviewStep = ({
         </div>
       </div>
 
-      {/* ═══ Section 2: Venue ═══ */}
+      {/* ═══ Section 2: Venue Basic ═══ */}
       <div className="bg-white border border-slate-200 rounded-xl p-4">
         <SectionHeader
-          title="Thông tin cụm sân"
-          step="venue"
+          title="Thông tin cơ bản"
+          step="venue-basic"
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
         />
-        <InfoRow label="Tên sân" value={venueInfo.venueName} />
-        <InfoRow label="Địa chỉ" value={[venueInfo.ward, venueInfo.district, venueInfo.province].filter(Boolean).join(', ')} />
+        <InfoRow label="Tên sân" value={venueInfo.name} />
+        <InfoRow label="Địa chỉ" value={venueInfo.location} />
         {venueInfo.description && <InfoRow label="Mô tả" value={venueInfo.description} />}
-        <InfoRow label="Loại sân" value={venueInfo.sportTypes.map(getSportLabel).join(', ')} />
-        <InfoRow label="Số sân con" value={String(venueInfo.subCourtCount)} />
-        <InfoRow label="Hình ảnh" value={`${venueInfo.images.length} ảnh`} />
+        <InfoRow label="Hình ảnh" value={`${venueInfo.detailImages.length + (venueInfo.coverImage ? 1 : 0)} ảnh`} />
+      </div>
+
+      {/* ═══ Section 3: Operating & Pricing ═══ */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <SectionHeader
+          title="Vận hành & Phụ thu"
+          step="venue-operating"
+          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+        />
+        <InfoRow label="Giờ hoạt động" value={`${venueInfo.openingTime} - ${venueInfo.closingTime}`} />
+        <InfoRow label="Ca tiêu chuẩn" value={`${venueInfo.shiftDurationMinutes} phút`} />
+        {venueInfo.hasSurcharge && (
+          <InfoRow label="Phụ thu" value={`${formatPrice(venueInfo.surchargeAmount || 0)}₫ (${venueInfo.surchargeDescription})`} />
+        )}
       </div>
 
       {/* ═══ Section 4: Courts ═══ */}
       <div className="bg-white border border-slate-200 rounded-xl p-4">
         <SectionHeader
-          title="Sân con & Bảng giá"
-          step="courts"
+          title="Sân trực thuộc"
+          step="venue-courts"
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
         />
-        <div className="space-y-3">
+        <InfoRow label="Môn thể thao" value={getSportLabel(venueInfo.sportId)} />
+        <div className="space-y-3 mt-2">
           {courts.map((court, i) => (
             <div key={i} className="bg-slate-50 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-black text-slate-700">{court.name}</span>
                 <span className="text-[9px] font-bold text-brand-emerald bg-brand-emerald/10 px-2 py-0.5 rounded-full">
-                  {getSportLabel(court.sportType)}
+                  {formatPrice(court.price)}₫ / ca cơ bản
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {court.pricingSlots.map((slot, j) => (
-                  <div key={j} className="flex items-center justify-between text-[9px]">
-                    <span className="font-semibold text-slate-500">{slot.label} ({slot.startTime}-{slot.endTime})</span>
-                    <span className="font-black text-slate-700">{formatPrice(slot.price)}₫</span>
-                  </div>
-                ))}
-              </div>
+              {court.priceRules && court.priceRules.length > 0 && (
+                <div className="grid grid-cols-1 gap-1.5 mt-2 pt-2 border-t border-slate-200">
+                  <span className="text-[9px] font-bold text-slate-400 mb-1">Quy tắc đặc biệt:</span>
+                  {court.priceRules.map((rule, j) => (
+                    <div key={j} className="flex items-center justify-between text-[9px]">
+                      {rule.ruleType === 'SHIFT' ? (
+                        <>
+                          <span className="font-semibold text-slate-500">Khung giờ {rule.startTime}-{rule.endTime}</span>
+                          <span className="font-black text-slate-700">{formatPrice(rule.customPrice || 0)}₫</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold text-slate-500">Thứ {rule.dayOfWeek}</span>
+                          <span className="font-black text-slate-700">
+                            {rule.percentageModifier && rule.percentageModifier !== 1
+                              ? `Tăng ${Math.round((rule.percentageModifier - 1) * 100)}%`
+                              : `Cộng thêm ${formatPrice(rule.fixedModifier || 0)}₫`}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

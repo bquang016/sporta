@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface VenueRepository extends JpaRepository<Venue, UUID> {
     List<Venue> findByOwnerUserEmail(String email);
+    List<Venue> findByStatusAndApprovalStatus(com.backend.sporta.enums.VenueStatus status, com.backend.sporta.enums.ApprovalStatus approvalStatus);
 }

@@ -10,34 +10,10 @@ import { Avatar, Button, Card } from '../../../shared/ui';
 import { SearchBar } from '../../../features/search-bar';
 import { SportCategories } from '../../../features/sport-categories';
 import { AuthCtaBanner } from '../../../features/auth-cta';
-import { FacilityCard, Facility } from '../../../entities/facility';
+import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
 import { MatchCard, Match } from '../../../entities/match';
 import { clubStore } from '../../../entities/club';
 
-const NEARBY_FACILITIES: Facility[] = [
-  {
-    id: 'green-field',
-    name: 'Sân Green Field',
-    rating: 4.8,
-    location: 'Cầu Giấy',
-    distance: '1.2km',
-    price: '350k',
-    status: '🟢 Còn chỗ tối nay',
-    statusType: 'success',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRI_WbsF_oyNYiLMb9oK7Dm3y6w39BRYXwgKn4BIuRp7CQ9vb-2NUDL_Fi2bYTm1AGCX8AkcWgfKPcjwP9ba_vXQ--Ro7V-RZMOzvRKSIz3YF985plPNcZoJ2CUCgNb_OMUB6q5yYYbUEd6gxEcPZzhNrQWwrc956zxXGydvPDXN6mk8L-5wHs7UtYzZbtQ8_zlH90kYKNbQ0KgcAto4dmTlMzNATIjHtfNvaokJY_yshJWhunjucTicKeRKwqNyRMG3SHJdgmKMw',
-  },
-  {
-    id: 'dong-da-club',
-    name: 'Nhà thi đấu Trung tâm',
-    rating: 4.5,
-    location: 'Đống Đa',
-    distance: '2.5km',
-    price: '500k',
-    status: '🟡 Sắp hết chỗ',
-    statusType: 'warning',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9VjV_Boq-m-L6DQCrUi4TuqXv4ziB_UMEyaSBpCC06D-VhJMf8k0VKDy7cFwJjwZzWqF5MObMpDYZ0bFGvZg3GEbKCaxJc_-K_Sxn3ZAX506_WXTQHUHoeNB75WPXy_R8yDDxK1a4TRDnwUFxwW3GizSR5XXOzrAcdysQLwWOgGUWkiMv9Fsl5Rmi44-ntayXHeMh66KzQzRGm5EN0qgehvk2-x43HOXiUnNotg3zUP9LfRD4u7kT4EcyjgydihqR3aGqF9yEmCo',
-  },
-];
 
 const HOT_MATCHES: Match[] = [
   {
@@ -70,6 +46,13 @@ export function HomeScreen() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
+  const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
+
+  const getApiUrl = () => {
+    if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    return 'http://localhost:8387/api/v1';
+  };
 
   const checkAuth = async () => {
     try {
@@ -84,8 +67,55 @@ export function HomeScreen() {
       }
 
       if (token) {
-        setIsAuthenticated(true);
-        setUserName(name || 'Thành viên');
+        // Gửi request API kiểm tra token có hợp lệ / bị khóa không
+        try {
+          const response = await fetch(`${getApiUrl()}/auth/ping`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.status === 403) {
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.message && errorData.message.includes('đã bị khóa')) {
+              // Cưỡng chế logout tài khoản bị khóa
+              if (Platform.OS === 'web') {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userEmail');
+                window.alert(errorData.message);
+              } else {
+                await SecureStore.deleteItemAsync('accessToken');
+                await SecureStore.deleteItemAsync('userName');
+                await SecureStore.deleteItemAsync('userEmail');
+                Alert.alert('Tài khoản bị khóa', errorData.message);
+              }
+              setIsAuthenticated(false);
+              setUserName('Khách');
+              return;
+            }
+          }
+          
+          if (!response.ok) {
+            throw new Error('Token không hợp lệ');
+          }
+
+          setIsAuthenticated(true);
+          setUserName(name || 'Thành viên');
+        } catch (e) {
+          // Token hết hạn hoặc lỗi kết nối máy chủ -> Xóa session
+          if (Platform.OS === 'web') {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userEmail');
+          } else {
+            await SecureStore.deleteItemAsync('accessToken');
+            await SecureStore.deleteItemAsync('userName');
+            await SecureStore.deleteItemAsync('userEmail');
+          }
+          setIsAuthenticated(false);
+          setUserName('Khách');
+        }
       } else {
         setIsAuthenticated(false);
         setUserName('Khách');
@@ -177,16 +207,16 @@ export function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
-      
+
       {/* Header wrapper to color the status bar and notch area white */}
       <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
-              <Avatar 
-                size="md" 
-                source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null} 
-                fallbackIcon="person" 
+              <Avatar
+                size="md"
+                source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null}
+                fallbackIcon="person"
               />
             </TouchableOpacity>
             <View>
@@ -197,11 +227,11 @@ export function HomeScreen() {
               </View>
             </View>
           </View>
-          
+
           <View style={styles.headerRight}>
             <Text style={styles.logoText}>SPORTA</Text>
             <View style={{ position: 'relative' }}>
-              <Button 
+              <Button
                 variant="ghost"
                 icon="notifications"
                 style={styles.notificationButton}
@@ -214,57 +244,60 @@ export function HomeScreen() {
           </View>
         </View>
       </SafeAreaView>
-      
+
       {/* Scrollable Content */}
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Search Bar */}
-        <SearchBar 
-          onFilterPress={() => console.log('Open Filter Modal')} 
+        <SearchBar
+          onPress={() => router.push('/search')}
+          onFilterPress={() => {
+            router.push({ pathname: '/search', params: { openFilter: 'true' } });
+          }}
         />
-        
+
         {/* Sport Categories */}
-        <SportCategories 
-          onCategorySelect={(id) => console.log('Select category:', id)} 
+        <SportCategories
+          onCategorySelect={(id) => console.log('Select category:', id)}
         />
-        
+
         {/* Auth CTA Banner (Only show if guest) */}
         {!isAuthenticated && (
-          <AuthCtaBanner 
-            onLoginPress={handleLoginPress} 
-            onRegisterPress={handleRegisterPress} 
+          <AuthCtaBanner
+            onLoginPress={handleLoginPress}
+            onRegisterPress={handleRegisterPress}
           />
         )}
-        
+
         {/* Quick Action Cards */}
         <View style={styles.quickActionsGrid}>
-          <Card 
+          <Card
             variant="ghost"
             style={[
-              styles.quickActionCard, 
+              styles.quickActionCard,
               isAuthenticated ? styles.actionCardAuthPrimary : styles.actionCardPrimary
             ]}
-            onPress={() => console.log('Book now')}
+            onPress={() => router.push('/search')}
           >
-            <MaterialIcons 
-              name="event-available" 
-              size={24} 
-              color={isAuthenticated ? COLORS.onPrimary : COLORS.primary} 
+            <MaterialIcons
+              name="event-available"
+              size={24}
+              color={isAuthenticated ? COLORS.secondary : COLORS.primary}
             />
             <View>
-              <Text 
+              <Text
                 style={[
-                  styles.actionCardTitle, 
+                  styles.actionCardTitle,
                   { color: isAuthenticated ? COLORS.onPrimary : COLORS.primary }
                 ]}
               >
                 Đặt sân ngay
               </Text>
-              <Text 
+              <Text
                 style={[
-                  styles.actionCardSubtitle, 
+                  styles.actionCardSubtitle,
                   { color: isAuthenticated ? `${COLORS.onPrimary}B3` : `${COLORS.primary}B3` }
                 ]}
               >
@@ -272,11 +305,11 @@ export function HomeScreen() {
               </Text>
             </View>
           </Card>
-          
-          <Card 
+
+          <Card
             variant="ghost"
             style={[
-              styles.quickActionCard, 
+              styles.quickActionCard,
               isAuthenticated ? styles.actionCardAuthOutline : styles.actionCardGray
             ]}
             onPress={() => console.log('Match matching')}
@@ -288,7 +321,7 @@ export function HomeScreen() {
             </View>
           </Card>
         </View>
-        
+
         {/* Nearby Venues Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -300,24 +333,32 @@ export function HomeScreen() {
               onPress={() => console.log('See more')}
             />
           </View>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalScroll}
             decelerationRate="fast"
           >
-            {NEARBY_FACILITIES.map((facility) => (
-              <View key={facility.id} style={styles.cardContainer}>
-                <FacilityCard 
-                  facility={facility} 
-                  onPress={() => handleFacilityPress(facility.id)}
-                  onBookPress={() => handleFacilityPress(facility.id)}
-                />
-              </View>
-            ))}
+            {facilitiesLoading ? (
+              <Text style={{ padding: SPACING.md }}>Đang tải danh sách sân...</Text>
+            ) : facilitiesError ? (
+              <Text style={{ padding: SPACING.md, color: COLORS.error }}>{facilitiesError}</Text>
+            ) : facilities.length === 0 ? (
+              <Text style={{ padding: SPACING.md }}>Chưa có sân nào</Text>
+            ) : (
+              facilities.map((facility) => (
+                <View key={facility.id} style={styles.cardContainer}>
+                  <FacilityCard
+                    facility={facility}
+                    onPress={() => handleFacilityPress(facility.id)}
+                    onBookPress={() => handleFacilityPress(facility.id)}
+                  />
+                </View>
+              ))
+            )}
           </ScrollView>
         </View>
-        
+
         {/* Hot Matches Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -334,12 +375,12 @@ export function HomeScreen() {
               onPress={() => console.log('Open Filter dropdown')}
             />
           </View>
-          
+
           <View style={styles.matchList}>
             {HOT_MATCHES.map((match) => (
-              <MatchCard 
-                key={match.id} 
-                match={match} 
+              <MatchCard
+                key={match.id}
+                match={match}
                 onPress={() => console.log('View match detail:', match.id)}
                 onJoinPress={() => console.log('Join match:', match.id)}
               />

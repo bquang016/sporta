@@ -8,6 +8,8 @@ import { BookingQueueModal } from '../components/operations/BookingQueueModal';
 import { BulkSurchargeModal } from '../components/operations/BulkSurchargeModal';
 import { CourtConfigModal } from '../components/operations/CourtConfigModal';
 import { VenueFormScreen } from '../components/VenueFormScreen';
+import { VenueWizard } from '../components/operations/VenueWizard';
+import { DraftFloater } from '../components/operations/DraftFloater';
 import { VenueStatusModal } from '../components/VenueStatusModal';
 import { VenueRowMenu } from '../components/operations/VenueRowMenu';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
@@ -86,7 +88,7 @@ export const OperationsPage = () => {
     surchargeAmount, setSurchargeAmount,
     surchargeCourtIds,
 
-    activeVenue, activeVenueId, activeCourts, filteredVenues,
+    activeVenue, activeVenueId, activeCourts, filteredVenues, draftVenues, deleteVenueDraft,
     actionRequiredBookings, todayRevenue, totalBookingsCount, avgOccupancy,
     activeCount, maintCount, closedCount, totalOpCourts,
 
@@ -125,51 +127,27 @@ export const OperationsPage = () => {
   if (isCreateVenueModalOpen) {
     return (
       <div className="flex-grow relative min-h-0 overflow-hidden">
-        <VenueFormScreen
+        <VenueWizard
           onClose={() => setIsCreateVenueModalOpen(false)}
-          onSubmit={handleCreateVenue}
-          title="Tạo cụm sân mới"
-          name={newVenueName}
-          setName={setNewVenueName}
-          location={newVenueLocation}
-          setLocation={setNewVenueLocation}
-          latitude={newVenueLatitude}
-          setLatitude={setNewVenueLatitude}
-          longitude={newVenueLongitude}
-          setLongitude={setNewVenueLongitude}
-          description={newVenueDescription}
-          setDescription={setNewVenueDescription}
-          openingTime={newVenueOpeningTime}
-          setOpeningTime={setNewVenueOpeningTime}
-          closingTime={newVenueClosingTime}
-          setClosingTime={setNewVenueClosingTime}
-          shiftDurationMinutes={newVenueShiftDuration}
-          setShiftDurationMinutes={setNewVenueShiftDuration}
-          sportId={newVenueSportId}
-          setSportId={setNewVenueSportId}
-          coverImage={newVenueCoverImage}
-          setCoverImage={setNewVenueCoverImage}
-          detailImages={newVenueDetailImages}
-
-          hasSurcharge={newVenueHasSurcharge}
-          setHasSurcharge={setNewVenueHasSurcharge}
-          surchargeAmount={newVenueSurchargeAmount}
-          setSurchargeAmount={setNewVenueSurchargeAmount}
-          surchargeDescription={newVenueSurchargeDescription}
-          setSurchargeDescription={setNewVenueSurchargeDescription}
-
-          uploadingCover={uploadingNewVenueCover}
-          uploadingDetail={uploadingNewVenueDetail}
-          onUploadCover={uploadNewVenueCoverFile}
-          onUploadDetail={uploadNewVenueDetailFiles}
-          onRemoveDetailImage={handleRemoveNewVenueDetailImage}
-          submitLabel="Tạo cụm sân"
+          initialVenue={null}
         />
       </div>
     );
   }
 
   if (isEditVenueModalOpen) {
+    if (activeVenue && activeVenue.approvalStatus === 'DRAFT') {
+      return (
+        <div className="flex-grow relative min-h-0 overflow-hidden">
+          <VenueWizard
+            onClose={() => setIsEditVenueModalOpen(false)}
+            initialVenue={activeVenue}
+            initialCourts={activeCourts}
+          />
+        </div>
+      );
+    }
+    
     return (
       <div className="flex-grow relative min-h-0 overflow-hidden">
         <VenueFormScreen
@@ -441,7 +419,7 @@ export const OperationsPage = () => {
       ) : (
         <div className="flex gap-6 flex-1 min-h-0">
           <OperationsSidebar
-            venues={venues}
+            venues={filteredVenues}
             courts={courts}
             activeVenueId={activeVenueId}
             searchQuery={searchQuery}
@@ -674,6 +652,12 @@ export const OperationsPage = () => {
         confirmText="Đồng ý"
         cancelText="Hủy"
         variant="success"
+      />
+
+      <DraftFloater
+        drafts={draftVenues}
+        onResume={(draft) => handleOpenEditVenue(draft.id)}
+        onDelete={deleteVenueDraft}
       />
     </div>
   );

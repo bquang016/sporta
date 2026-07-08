@@ -8,6 +8,7 @@ interface ModalProps {
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
   footer?: React.ReactNode;
+  dotColor?: string;
 }
 
 export const Modal = ({
@@ -16,7 +17,8 @@ export const Modal = ({
   title,
   children,
   maxWidth = 'md',
-  footer
+  footer,
+  dotColor = 'bg-brand-emerald'
 }: ModalProps) => {
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -56,7 +58,7 @@ export const Modal = ({
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-emerald"></span>
+            <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`}></span>
             {title || 'Thông báo'}
           </h3>
           <button 

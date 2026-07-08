@@ -29,8 +29,8 @@ export const SetupStepIndicator = ({ currentStep, onStepClick }: SetupStepIndica
             >
               <div
                 className={`
-                  w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center
-                  text-[10px] lg:text-[11px] font-black transition-all duration-300
+                  w-7 h-7 lg:w-8 lg:h-8 rounded-full flex items-center justify-center
+                  text-[9px] lg:text-[10px] font-black transition-all duration-300
                   ${isCompleted
                     ? 'bg-brand-emerald text-white shadow-md shadow-brand-emerald/20'
                     : isActive
@@ -40,7 +40,7 @@ export const SetupStepIndicator = ({ currentStep, onStepClick }: SetupStepIndica
                 `}
               >
                 {isCompleted ? (
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
@@ -49,7 +49,7 @@ export const SetupStepIndicator = ({ currentStep, onStepClick }: SetupStepIndica
               </div>
               <span
                 className={`
-                  text-[7px] lg:text-[8px] font-black uppercase tracking-wider text-center leading-tight
+                  text-[6px] lg:text-[7.5px] font-black uppercase tracking-wider text-center leading-tight
                   ${isActive ? 'text-brand-emerald' : isCompleted ? 'text-brand-emerald/60' : 'text-slate-400'}
                 `}
               >
@@ -59,7 +59,7 @@ export const SetupStepIndicator = ({ currentStep, onStepClick }: SetupStepIndica
 
             {/* Connector line */}
             {i < SETUP_STEPS.length - 1 && (
-              <div className="flex-1 mx-1.5 lg:mx-2">
+              <div className="flex-1 mx-1 lg:mx-1.5">
                 <div
                   className={`
                     h-[2px] rounded-full transition-all duration-500

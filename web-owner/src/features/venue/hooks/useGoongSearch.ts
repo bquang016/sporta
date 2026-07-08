@@ -75,7 +75,7 @@ export const useGoongSearch = () => {
     }
   }, []);
 
-  const getPlaceDetails = useCallback(async (placeId: string): Promise<{ location: LatLng; address: string } | null> => {
+  const getPlaceDetails = useCallback(async (placeId: string): Promise<{ location: LatLng; address: string; components: any[] } | null> => {
     setLoading(true);
     setError(null);
 
@@ -88,14 +88,15 @@ export const useGoongSearch = () => {
 
       const data = await response.json();
       if (data.status === 'OK' && data.result) {
-        const { geometry, formatted_address } = data.result;
+        const { geometry, formatted_address, address_components } = data.result;
         if (geometry && geometry.location) {
           return {
             location: {
               lat: geometry.location.lat,
               lng: geometry.location.lng
             },
-            address: formatted_address || ''
+            address: formatted_address || '',
+            components: address_components || []
           };
         }
       }
@@ -109,7 +110,7 @@ export const useGoongSearch = () => {
     }
   }, []);
 
-  const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string | null> => {
+  const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<{ address: string; components: any[] } | null> => {
     setError(null);
 
     try {
@@ -121,8 +122,11 @@ export const useGoongSearch = () => {
 
       const data = await response.json();
       if (data.results && data.results.length > 0) {
-        // Return the first formatted address match
-        return data.results[0].formatted_address;
+        const res = data.results[0];
+        return {
+          address: res.formatted_address || '',
+          components: res.address_components || []
+        };
       }
       return null;
     } catch (err: any) {
