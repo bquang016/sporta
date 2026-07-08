@@ -212,7 +212,7 @@ public class VenueService {
                         .build());
             }
             venueImageRepository.saveAll(detailImages);
-            venue.setImages(detailImages);
+            venue.getImages().addAll(detailImages);
         }
 
         Venue updatedVenue = venueRepository.save(venue);
@@ -364,7 +364,7 @@ public class VenueService {
                         .build());
             }
             venueImageRepository.saveAll(detailImages);
-            venue.setImages(detailImages);
+            venue.getImages().addAll(detailImages);
         }
 
         syncCourts(venue, request.getCourts(), email);
