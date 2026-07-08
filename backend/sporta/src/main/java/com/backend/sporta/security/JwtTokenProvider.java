@@ -80,6 +80,8 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
+            System.err.println("JWT Validation Error for token: " + token);
+            e.printStackTrace();
             return false;
         }
     }

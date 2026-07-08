@@ -173,6 +173,13 @@ export const LocationPickerMap = ({
     });
     mapRef.current = map;
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.resize();
+      }
+    });
+    resizeObserver.observe(mapContainerRef.current);
+
     // Add Navigation Control
     map.addControl(new goongjs.NavigationControl({ showCompass: false }), 'top-right');
 
@@ -253,6 +260,7 @@ export const LocationPickerMap = ({
 
     // Cleanup on unmount
     return () => {
+      resizeObserver.disconnect();
       if (geocodeTimeoutRef.current) {
         clearTimeout(geocodeTimeoutRef.current);
       }

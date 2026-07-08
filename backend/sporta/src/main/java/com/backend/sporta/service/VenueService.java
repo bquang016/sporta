@@ -152,6 +152,7 @@ public class VenueService {
 
         String newLocation = reconstructLocation(request.getAddressDetail(), request.getWard(), request.getDistrict(), request.getProvince(), request.getLocation());
 
+        boolean hasSensitiveChanges = false;
         // KIỂM TRA THAY ĐỔI NHẠY CẢM để tạo bản nháp
         if (!venue.getName().equals(request.getName()) || !venue.getLocation().equals(newLocation)) {
             hasSensitiveChanges = true;
@@ -211,7 +212,7 @@ public class VenueService {
                         .build());
             }
             venueImageRepository.saveAll(detailImages);
-            venue.setImages(detailImages);
+            venue.getImages().addAll(detailImages);
         }
 
         Venue updatedVenue = venueRepository.save(venue);
@@ -363,7 +364,7 @@ public class VenueService {
                         .build());
             }
             venueImageRepository.saveAll(detailImages);
-            venue.setImages(detailImages);
+            venue.getImages().addAll(detailImages);
         }
 
         syncCourts(venue, request.getCourts(), email);
