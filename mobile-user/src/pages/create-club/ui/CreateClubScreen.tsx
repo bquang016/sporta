@@ -19,6 +19,11 @@ import { Button } from '../../../shared/ui';
 import { useClubs } from '../../../entities/club';
 import { CoverPickerModal, CoverItem } from './components/CoverPickerModal';
 import { AvatarPickerModal, AvatarItem } from './components/AvatarPickerModal';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadImageApi } from '../../../shared/api/upload';
+import { ProvincePickerModal, ProvinceItem } from './components/ProvincePickerModal';
+import { WardPickerModal, WardItem } from './components/WardPickerModal';
+import { useEffect } from 'react';
 
 // Mock Cover Images (Gradients and free Unsplash URLs)
 const MOCK_COVERS: CoverItem[] = [
@@ -37,10 +42,10 @@ const MOCK_AVATARS: AvatarItem[] = [
 ];
 
 const SPORTS_LIST = [
-  { name: 'Bóng đá', icon: 'sports-soccer' },
-  { name: 'Bóng rổ', icon: 'sports-basketball' },
-  { name: 'Cầu lông', icon: 'sports-cricket' },
-  { name: 'Pickleball', icon: 'sports-tennis' }
+  { id: 1, name: 'Bóng đá', icon: 'sports-soccer' },
+  { id: 2, name: 'Bóng rổ', icon: 'sports-basketball' },
+  { id: 3, name: 'Cầu lông', icon: 'sports-cricket' },
+  { id: 4, name: 'Pickleball', icon: 'sports-tennis' }
 ];
 
 export function CreateClubScreen() {
@@ -54,12 +59,134 @@ export function CreateClubScreen() {
   const [area, setArea] = useState('');
   const [maxMembers, setMaxMembers] = useState(30);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Pickers State
   const [selectedCover, setSelectedCover] = useState(MOCK_COVERS[0]);
   const [selectedAvatar, setSelectedAvatar] = useState(MOCK_AVATARS[0]);
   const [isCoverModalVisible, setIsCoverModalVisible] = useState(false);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
+
+  // Provinces State
+  const [provinces, setProvinces] = useState<ProvinceItem[]>([]);
+  const [isProvinceModalVisible, setIsProvinceModalVisible] = useState(false);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        const response = await fetch('https://provinces.open-api.vn/api/v2/p/');
+        if (response.ok) {
+          const data = await response.json();
+          setProvinces(data);
+        }
+      } catch (error) {
+        console.error('Lỗi tải danh sách tỉnh thành:', error);
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
+  // Wards State
+  const [ward, setWard] = useState('');
+  const [wards, setWards] = useState<WardItem[]>([]);
+  const [isWardModalVisible, setIsWardModalVisible] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedProvinceCode === null) {
+      setWards([]);
+      return;
+    }
+    const fetchWards = async () => {
+      setLoadingWards(true);
+      try {
+        const response = await fetch(`https://provinces.open-api.vn/api/v2/p/${selectedProvinceCode}?depth=2`);
+        if (response.ok) {
+          const data = await response.json();
+          setWards(data.wards || []);
+        }
+      } catch (error) {
+        console.error('Lỗi tải danh sách phường xã:', error);
+      } finally {
+        setLoadingWards(false);
+      }
+    };
+    fetchWards();
+  }, [selectedProvinceCode]);
+
+  const pickImageFromLibrary = async (type: 'avatar' | 'cover') => {
+    // Request permission
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      setAlertTitle('Quyền truy cập');
+      setAlertMessage('Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh.');
+      setAlertType('error');
+      setIsAlertVisible(true);
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: type === 'avatar' ? [1, 1] : [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const pickedUri = result.assets[0].uri;
+
+      // Close pickers immediately for smooth UX
+      if (type === 'avatar') {
+        setIsAvatarModalVisible(false);
+      } else {
+        setIsCoverModalVisible(false);
+      }
+
+      // Try uploading to backend
+      try {
+        const uploadType = type === 'avatar' ? 'avatar' : 'court_cover';
+        const uploadedUrl = await uploadImageApi(pickedUri, uploadType);
+        
+        if (type === 'avatar') {
+          setSelectedAvatar({
+            id: `custom-avatar-${Date.now()}`,
+            name: 'Ảnh thiết bị',
+            url: uploadedUrl,
+            icon: 'portrait'
+          });
+        } else {
+          setSelectedCover({
+            id: `custom-cover-${Date.now()}`,
+            name: 'Ảnh thiết bị',
+            url: uploadedUrl,
+            color: COLORS.primary
+          });
+        }
+      } catch (error) {
+        // Fallback to local device URI if offline/error
+        if (type === 'avatar') {
+          setSelectedAvatar({
+            id: `custom-avatar-${Date.now()}`,
+            name: 'Ảnh thiết bị',
+            url: pickedUri,
+            icon: 'portrait'
+          });
+        } else {
+          setSelectedCover({
+            id: `custom-cover-${Date.now()}`,
+            name: 'Ảnh thiết bị',
+            url: pickedUri,
+            color: COLORS.primary
+          });
+        }
+      }
+    }
+  };
 
   // Field Focus State
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -105,13 +232,14 @@ export function CreateClubScreen() {
     const tempErrors: Record<string, string> = {};
     if (!name.trim()) tempErrors.name = 'Tên câu lạc bộ không được để trống';
     if (!area.trim()) tempErrors.area = 'Khu vực hoạt động không được để trống';
+    if (!ward.trim()) tempErrors.ward = 'Phường/Xã không được để trống';
     if (!description.trim()) tempErrors.description = 'Mô tả hoạt động không được để trống';
     
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) {
       setAlertTitle('Lỗi nhập liệu');
       setAlertMessage('Vui lòng điền đầy đủ thông tin bắt buộc.');
@@ -120,25 +248,36 @@ export function CreateClubScreen() {
       return;
     }
 
-    const sportIcon = SPORTS_LIST.find(s => s.name === sport)?.icon || 'sports-soccer';
+    setSubmitting(true);
+    try {
+      const selectedSportItem = SPORTS_LIST.find(s => s.name === sport);
+      const sportId = selectedSportItem ? selectedSportItem.id : 1;
+      const fullArea = `${ward}, ${area}`;
 
-    createClub({
-      name: name.trim(),
-      description: description.trim(),
-      sport,
-      sportIcon,
-      maxMembers,
-      isPrivate,
-      coverImage: selectedCover.url,
-      avatarImage: selectedAvatar.url,
-      area: area.trim(),
-      activityLevel: 'Mới thành lập'
-    });
+      await createClub({
+        name: name.trim(),
+        description: description.trim(),
+        sportId,
+        maxMembers,
+        isPrivate,
+        coverImage: selectedCover.url,
+        avatarImage: selectedAvatar.url,
+        area: fullArea,
+        activityLevel: 'Mới thành lập'
+      });
 
-    setAlertTitle('Thành công');
-    setAlertMessage(`Đã tạo thành công câu lạc bộ "${name}"!`);
-    setAlertType('success');
-    setIsAlertVisible(true);
+      setAlertTitle('Thành công');
+      setAlertMessage(`Đã tạo thành công câu lạc bộ "${name}"!`);
+      setAlertType('success');
+      setIsAlertVisible(true);
+    } catch (error: any) {
+      setAlertTitle('Lỗi tạo CLB');
+      setAlertMessage(error.message || 'Có lỗi xảy ra, vui lòng thử lại sau.');
+      setAlertType('error');
+      setIsAlertVisible(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -251,20 +390,67 @@ export function CreateClubScreen() {
             {/* Activity Area */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Khu vực hoạt động <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedField === 'area' && styles.inputFocused,
-                  errors.area ? styles.inputError : null
-                ]}
-                placeholder="Ví dụ: Quận Cầu Giấy, Hà Nội..."
-                placeholderTextColor={COLORS.outline}
-                value={area}
-                onChangeText={setArea}
-                onFocus={() => setFocusedField('area')}
-                onBlur={() => setFocusedField(null)}
-              />
+              
+              <View style={styles.locationRow}>
+                {/* Province Selection */}
+                <View style={styles.locationCol}>
+                  <TouchableOpacity
+                    style={[
+                      styles.input,
+                      styles.dropdownInput,
+                      errors.area ? styles.inputError : null
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => setIsProvinceModalVisible(true)}
+                  >
+                    <Text 
+                      style={[
+                        styles.dropdownInputText,
+                        !area ? styles.dropdownPlaceholderText : null
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {area || 'Chọn tỉnh, TP...'}
+                    </Text>
+                    <MaterialIcons name="arrow-drop-down" size={24} color={COLORS.outline} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Ward Selection */}
+                <View style={styles.locationCol}>
+                  <TouchableOpacity
+                    style={[
+                      styles.input,
+                      styles.dropdownInput,
+                      !area && styles.dropdownDisabled,
+                      errors.ward ? styles.inputError : null
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => area && setIsWardModalVisible(true)}
+                    disabled={!area}
+                  >
+                    <Text 
+                      style={[
+                        styles.dropdownInputText,
+                        !ward ? styles.dropdownPlaceholderText : null,
+                        !area ? styles.dropdownDisabledText : null
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {ward || (area ? 'Chọn phường, xã...' : 'Chọn tỉnh, TP...')}
+                    </Text>
+                    <MaterialIcons 
+                      name="arrow-drop-down" 
+                      size={24} 
+                      color={area ? COLORS.outline : COLORS.outlineVariant} 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
               {errors.area ? <Text style={styles.errorText}>{errors.area}</Text> : null}
+              {errors.ward ? <Text style={styles.errorText}>{errors.ward}</Text> : null}
             </View>
 
             {/* Member Limit */}
@@ -386,10 +572,12 @@ export function CreateClubScreen() {
             {/* Submit Button */}
             <Button
               variant="primary"
-              title="Tạo câu lạc bộ"
+              title={submitting ? 'Đang tạo...' : 'Tạo câu lạc bộ'}
               icon="add-circle"
               style={styles.submitBtn}
               onPress={handleSubmit}
+              disabled={submitting}
+              loading={submitting}
             />
           </View>
         </ScrollView>
@@ -403,7 +591,7 @@ export function CreateClubScreen() {
         onRequestClose={() => {
           setIsAlertVisible(false);
           if (alertType === 'success') {
-            router.push('/my-clubs');
+            router.replace('/my-clubs');
           }
         }}
       >
@@ -424,7 +612,7 @@ export function CreateClubScreen() {
               onPress={() => {
                 setIsAlertVisible(false);
                 if (alertType === 'success') {
-                  router.push('/my-clubs');
+                  router.replace('/my-clubs');
                 }
               }}
             />
@@ -441,6 +629,7 @@ export function CreateClubScreen() {
           setSelectedCover(cover);
           setIsCoverModalVisible(false);
         }}
+        onPickFromLibrary={() => pickImageFromLibrary('cover')}
       />
 
       {/* Reusable Avatar Picker Modal */}
@@ -452,6 +641,29 @@ export function CreateClubScreen() {
           setSelectedAvatar(avatar);
           setIsAvatarModalVisible(false);
         }}
+        onPickFromLibrary={() => pickImageFromLibrary('avatar')}
+      />
+
+      {/* Reusable Province Picker Modal */}
+      <ProvincePickerModal
+        visible={isProvinceModalVisible}
+        onClose={() => setIsProvinceModalVisible(false)}
+        provinces={provinces}
+        onSelectProvince={(name, code) => {
+          setArea(name);
+          setSelectedProvinceCode(code);
+          setWard(''); // Reset ward on province change
+        }}
+        loading={loadingProvinces}
+      />
+
+      {/* Reusable Ward Picker Modal */}
+      <WardPickerModal
+        visible={isWardModalVisible}
+        onClose={() => setIsWardModalVisible(false)}
+        wards={wards}
+        onSelectWard={(name) => setWard(name)}
+        loading={loadingWards}
       />
     </SafeAreaView>
   );
@@ -586,6 +798,35 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: COLORS.primary,
+  },
+  dropdownInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: SPACING.xs,
+  },
+  dropdownInputText: {
+    color: COLORS.onSurface,
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
+  },
+  dropdownPlaceholderText: {
+    color: COLORS.outline,
+  },
+  dropdownDisabled: {
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderColor: COLORS.outlineVariant,
+  },
+  dropdownDisabledText: {
+    color: COLORS.outlineVariant,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+  },
+  locationCol: {
+    flex: 1,
   },
   inputError: {
     borderColor: COLORS.error,

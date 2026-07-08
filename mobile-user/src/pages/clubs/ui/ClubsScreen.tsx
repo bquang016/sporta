@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui';
 import { useClubs, ClubCard, SportsFilter } from '../../../entities/club';
@@ -10,10 +10,22 @@ import { MyClubsRedirect } from './components/MyClubsRedirect';
 
 export function ClubsScreen() {
   const router = useRouter();
-  const { clubs, joinedIds } = useClubs();
+  const { clubs, joinedIds, loading, refreshClubs } = useClubs();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState('all');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let sportId: number | undefined;
+      if (selectedSport === 'football') sportId = 1;
+      else if (selectedSport === 'basketball') sportId = 2;
+      else if (selectedSport === 'badminton') sportId = 3;
+      else if (selectedSport === 'pickleball') sportId = 4;
+
+      refreshClubs(sportId, searchQuery);
+    }, [selectedSport, searchQuery])
+  );
 
   const filteredClubs = clubs.filter(club => {
     // 1. Show only clubs that user can join (not yet joined)
@@ -82,7 +94,24 @@ export function ClubsScreen() {
       </View>
 
       {/* Clubs List */}
-      <ScrollView contentContainerStyle={styles.scrollList} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollList} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => {
+              let sportId: number | undefined;
+              if (selectedSport === 'football') sportId = 1;
+              else if (selectedSport === 'basketball') sportId = 2;
+              else if (selectedSport === 'badminton') sportId = 3;
+              else if (selectedSport === 'pickleball') sportId = 4;
+              refreshClubs(sportId, searchQuery);
+            }}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         {filteredClubs.length > 0 ? (
           filteredClubs.map((club) => (
             <ClubCard 
