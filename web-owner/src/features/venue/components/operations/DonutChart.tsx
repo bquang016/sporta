@@ -86,7 +86,7 @@ export const DonutChart = ({ activeCount, maintCount, closedCount, totalCount, i
           ) : (
             <>
               <h4 className={`font-black text-slate-800 leading-none ${isMobile ? 'text-xl' : 'text-3xl'}`}>{totalCount}</h4>
-              <span className={`font-black text-slate-400 uppercase tracking-widest block mt-1 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`}>SAN BAI</span>
+              <span className={`font-black text-slate-400 uppercase tracking-widest block mt-1 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`}>SÂN BÃI</span>
             </>
           )}
         </div>

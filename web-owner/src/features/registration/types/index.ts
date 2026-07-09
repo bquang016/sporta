@@ -85,6 +85,13 @@ export const SPORT_TYPE_OPTIONS = [
   { value: 'volleyball', label: 'Bóng chuyền' },
 ] as const;
 
+export interface PricingSlot {
+  label: string;
+  startTime: string;
+  endTime: string;
+  price: number;
+}
+
 // Default pricing slots
 export const DEFAULT_PRICING_SLOTS: PricingSlot[] = [
   { label: 'Sáng', startTime: '05:00', endTime: '11:00', price: 0 },

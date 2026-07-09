@@ -125,9 +125,17 @@ export const OperationsSidebar = ({
           venues.map(venue => {
             const isSelected = venue.id === activeVenueId;
             const venueCourtsCount = courts.filter(c => c.venueId === venue.id).length;
+            const isPending = venue.approvalStatus === 'PENDING';
             return (
               <div
                 key={venue.id}
+                onClick={() => {
+                  if (isPending) {
+                    onEditVenueInfo(venue.id);
+                  } else {
+                    onSelectVenue(venue.id);
+                  }
+                }}
                 className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-2.5 group ${
                   isSelected
                     ? 'bg-emerald-50/70 border-emerald-100 text-brand-emerald shadow-xs'
@@ -137,13 +145,15 @@ export const OperationsSidebar = ({
                 {/* Thumbnail */}
                 {renderThumbnail(venue)}
 
-                {/* Venue info - clicking selects the venue */}
-                <div
-                  className="flex-1 min-w-0 space-y-0.5"
-                  onClick={() => onSelectVenue(venue.id)}
-                >
+                {/* Venue info */}
+                <div className="flex-1 min-w-0 space-y-0.5">
                   <h4 className={`text-xs font-black truncate flex items-center gap-1.5 ${isSelected ? 'text-brand-emerald' : 'text-slate-800 group-hover:text-slate-900'}`}>
                     {venue.name}
+                    {venue.hasPendingRevision && (
+                      <span className="px-1 py-0.5 rounded-md bg-yellow-50 text-yellow-700 border border-yellow-200 text-[8px] font-black uppercase tracking-wider scale-90 origin-left">
+                        Chờ duyệt thay đổi
+                      </span>
+                    )}
                     {venue.approvalStatus === 'DRAFT' && (
                       <span className="px-1 py-0.5 rounded-md bg-amber-50 text-amber-600 border border-amber-100 text-[8px] font-black uppercase tracking-wider scale-90 origin-left">
                         Nháp
@@ -161,13 +171,15 @@ export const OperationsSidebar = ({
                 </div>
 
                 {/* 3-dot menu per venue row */}
-                <VenueRowMenu
-                  venueId={venue.id}
-                  openMenuId={openVenueMenuId}
-                  setOpenMenuId={setOpenVenueMenuId}
-                  onEditInfo={() => onEditVenueInfo(venue.id)}
-                  onEditStatus={() => onEditVenueStatus(venue.id)}
-                />
+                {!isPending && (
+                  <VenueRowMenu
+                    venueId={venue.id}
+                    openMenuId={openVenueMenuId}
+                    setOpenMenuId={setOpenVenueMenuId}
+                    onEditInfo={() => onEditVenueInfo(venue.id)}
+                    onEditStatus={() => onEditVenueStatus(venue.id)}
+                  />
+                )}
               </div>
             );
           })

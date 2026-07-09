@@ -133,6 +133,14 @@ export const courtService = {
     return handleResponse(res, 'Lỗi khi gửi yêu cầu duyệt cụm sân');
   },
 
+  async cancelVenueSubmission(id: string): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/cancel-submit`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Lỗi khi hủy yêu cầu duyệt cụm sân');
+  },
+
   async deleteVenueDraft(id: string): Promise<void> {
     const res = await fetch(`${BASE_URL}/owner/venues/${id}/draft`, {
       method: 'DELETE',

@@ -8,6 +8,7 @@ import com.backend.sporta.entity.Owner;
 import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.VenueImage;
 import com.backend.sporta.enums.CourtStatus;
+import com.backend.sporta.enums.ApprovalStatus;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.entity.Venue;
 import com.backend.sporta.repository.VenueRepository;
@@ -204,12 +205,20 @@ public class DataSeeder implements CommandLineRunner {
                 venueCauGiay = Venue.builder()
                         .owner(ownerProfile)
                         .name("Cụm sân Cầu Giấy")
-                        .location("15 Dịch Vọng Hậu, Cầu Giấy, Hà Nội")
+                        .location("15 Dịch Vọng Hậu, Dịch Vọng Hậu, Cầu Giấy, Hà Nội")
+                        .province("Hà Nội")
+                        .district("Cầu Giấy")
+                        .ward("Dịch Vọng Hậu")
+                        .addressDetail("15 Dịch Vọng Hậu")
+                        .latitude(21.0285)
+                        .longitude(105.7801)
                         .description("Tổ hợp thể thao Cầu Giấy với 4 sân bóng đá mini và 6 sân cầu lông.")
                         .openingTime(LocalTime.of(6, 0))
                         .closingTime(LocalTime.of(23, 0))
+                        .shiftDurationMinutes(60)
                         .sport(bongDa)
                         .coverImage("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop")
+                        .approvalStatus(ApprovalStatus.APPROVED)
                         .build();
                 venueCauGiay = venueRepository.save(venueCauGiay);
 
@@ -220,11 +229,19 @@ public class DataSeeder implements CommandLineRunner {
                         .owner(ownerProfile)
                         .name("Cụm sân Quận 7")
                         .location("45 Nguyễn Văn Linh, Tân Phong, Quận 7, TP. Hồ Chí Minh")
+                        .province("Hồ Chí Minh")
+                        .district("Quận 7")
+                        .ward("Tân Phong")
+                        .addressDetail("45 Nguyễn Văn Linh")
+                        .latitude(10.7326)
+                        .longitude(106.7268)
                         .description("Cụm sân Pickleball trong nhà hiện đại và cao cấp nhất khu vực Nam Sài Gòn.")
                         .openingTime(LocalTime.of(5, 0))
                         .closingTime(LocalTime.of(22, 0))
+                        .shiftDurationMinutes(60)
                         .sport(pickleball)
                         .coverImage("https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=600&auto=format&fit=crop")
+                        .approvalStatus(ApprovalStatus.APPROVED)
                         .build();
                 venueQuan7 = venueRepository.save(venueQuan7);
 
@@ -233,12 +250,20 @@ public class DataSeeder implements CommandLineRunner {
                 venueBaDinh = Venue.builder()
                         .owner(ownerProfile)
                         .name("Cụm sân Ba Đình")
-                        .location("34 Hoàng Hoa Thám, Ba Đình, Hà Nội")
+                        .location("34 Hoàng Hoa Thám, Hoàng Hoa Thám, Ba Đình, Hà Nội")
+                        .province("Hà Nội")
+                        .district("Ba Đình")
+                        .ward("Hoàng Hoa Thám")
+                        .addressDetail("34 Hoàng Hoa Thám")
+                        .latitude(21.0396)
+                        .longitude(105.8159)
                         .description("Khu phức hợp thể thao ngoài trời Ba Đình.")
                         .openingTime(LocalTime.of(6, 0))
                         .closingTime(LocalTime.of(22, 0))
+                        .shiftDurationMinutes(60)
                         .sport(cauLong)
                         .coverImage("https://images.unsplash.com/photo-1613918431201-f2f27ddc5ca7?q=80&w=600&auto=format&fit=crop")
+                        .approvalStatus(ApprovalStatus.APPROVED)
                         .build();
                 venueBaDinh = venueRepository.save(venueBaDinh);
 

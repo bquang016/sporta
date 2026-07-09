@@ -59,13 +59,16 @@ public class VenueService {
 
     public List<VenueResponse> getVenuesByOwnerEmail(String email) {
         return venueRepository.findByOwnerUserEmail(email).stream()
-                .map(venue -> mapToResponse(venue, false))
+                .map(venue -> mapToResponse(venue, checkHasPendingRevision(venue.getId())))
                 .collect(Collectors.toList());
     }
 
     public List<VenueResponse> getAllActiveVenues() {
-        return venueRepository.findByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.APPROVED).stream()
-                .map(venue -> mapToResponse(venue, false))
+        return venueRepository.findByStatusAndApprovalStatus(
+                com.backend.sporta.enums.VenueStatus.ACTIVE,
+                com.backend.sporta.enums.ApprovalStatus.APPROVED
+        ).stream()
+                .map(venue -> mapToResponse(venue, checkHasPendingRevision(venue.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -134,7 +137,7 @@ public class VenueService {
         }
 
         venue.setStatus(status);
-        return mapToResponse(venueRepository.save(venue), false);
+        return mapToResponse(venueRepository.save(venue), checkHasPendingRevision(venue.getId()));
     }
 
     @Transactional
@@ -147,13 +150,18 @@ public class VenueService {
             throw new CustomException("Bạn không có quyền chỉnh sửa cụm sân này", 403);
         }
 
+        if (venue.getApprovalStatus() == com.backend.sporta.enums.ApprovalStatus.PENDING) {
+            throw new CustomException("Không thể chỉnh sửa cụm sân đang trong trạng thái chờ duyệt", 400);
+        }
+
         int duration = request.getShiftDurationMinutes() != null ? request.getShiftDurationMinutes() : 30;
         validateShiftDuration(request.getOpeningTime(), request.getClosingTime(), duration);
 
         String newLocation = reconstructLocation(request.getAddressDetail(), request.getWard(), request.getDistrict(), request.getProvince(), request.getLocation());
 
         boolean hasSensitiveChanges = false;
-        // KIỂM TRA THAY ĐỔI NHẠY CẢM để tạo bản nháp
+
+        // KIỂM TRA THAY ĐỔI NHẠY CẢM để tạo bản nháp (Tên hoặc Địa chỉ/Vị trí)
         if (!venue.getName().equals(request.getName()) || !venue.getLocation().equals(newLocation)) {
             hasSensitiveChanges = true;
             try {
@@ -202,7 +210,7 @@ public class VenueService {
             venue.setLongitude(request.getLongitude());
         }
 
-        // Cập nhật các trường không nhạy cảm
+        // Cập nhật các trường không nhạy cảm (luôn cập nhật ngay lập tức)
         Sport sport = null;
         if (request.getSportId() != null) {
             sport = sportRepository.findById(request.getSportId())
@@ -235,7 +243,7 @@ public class VenueService {
         }
 
         Venue updatedVenue = venueRepository.save(venue);
-        return mapToResponse(updatedVenue, hasSensitiveChanges);
+        return mapToResponse(updatedVenue, hasSensitiveChanges || checkHasPendingRevision(updatedVenue.getId()));
     }
 
     // Logic tính toán mới sử dụng LocalTime
@@ -342,6 +350,10 @@ public class VenueService {
             throw new CustomException("Bạn không có quyền chỉnh sửa cụm sân này", 403);
         }
 
+        if (venue.getApprovalStatus() == com.backend.sporta.enums.ApprovalStatus.PENDING) {
+            throw new CustomException("Không thể chỉnh sửa cụm sân đang trong trạng thái chờ duyệt", 400);
+        }
+
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
             venue.setName(request.getName());
         }
@@ -428,6 +440,26 @@ public class VenueService {
         return mapToResponse(updatedVenue, false);
     }
 
+    @Transactional
+    public VenueResponse cancelSubmitVenue(UUID id, String email) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin cụm sân", 404));
+
+        if (venue.getOwner() == null || venue.getOwner().getUser() == null || 
+            !venue.getOwner().getUser().getEmail().equals(email)) {
+            throw new CustomException("Bạn không có quyền thao tác cụm sân này", 403);
+        }
+
+        if (venue.getApprovalStatus() != com.backend.sporta.enums.ApprovalStatus.PENDING) {
+            throw new CustomException("Chỉ có thể hủy yêu cầu duyệt đối với cụm sân đang chờ duyệt", 400);
+        }
+
+        venue.setApprovalStatus(com.backend.sporta.enums.ApprovalStatus.DRAFT);
+        
+        Venue updatedVenue = venueRepository.save(venue);
+        return mapToResponse(updatedVenue, false);
+    }
+
     private void syncCourts(Venue venue, List<CourtDraftDto> courtsList, String ownerEmail) {
         if (courtsList == null) {
             return;
@@ -472,30 +504,84 @@ public class VenueService {
 
             court = courtRepository.save(court);
 
-            syncPriceRules(court, courtDto.getPriceRules());
+            syncPriceRules(venue, court, courtDto.getPriceRules());
         }
 
         updateVenuePriceRange(venue.getId());
     }
 
-    private void syncPriceRules(Court court, List<CourtPriceRuleRequest> ruleRequests) {
+    private void syncPriceRules(Venue venue, Court court, List<CourtPriceRuleRequest> ruleRequests) {
         courtPriceRuleRepository.deleteByCourtId(court.getId());
 
         if (ruleRequests != null && !ruleRequests.isEmpty()) {
-            List<CourtPriceRule> newRules = ruleRequests.stream()
-                    .map(req -> CourtPriceRule.builder()
-                            .court(court)
-                            .ruleType(req.getRuleType())
-                            .startTime(req.getStartTime())
-                            .endTime(req.getEndTime())
-                            .customPrice(req.getCustomPrice())
-                            .dayOfWeek(req.getDayOfWeek())
-                            .percentageModifier(req.getPercentageModifier())
-                            .fixedModifier(req.getFixedModifier())
-                            .build())
-                    .collect(Collectors.toList());
+            LocalTime open = venue.getOpeningTime();
+            LocalTime close = venue.getClosingTime();
+            Integer shiftDuration = venue.getShiftDurationMinutes();
+
+            boolean performShiftValidation = open != null && close != null && shiftDuration != null && shiftDuration > 0;
+            int openMin = performShiftValidation ? (open.getHour() * 60 + open.getMinute()) : 0;
+            int closeMin = performShiftValidation ? (close.getHour() * 60 + close.getMinute()) : 0;
+
+            List<CourtPriceRule> newRules = new java.util.ArrayList<>();
+            for (CourtPriceRuleRequest req : ruleRequests) {
+                if (req.getRuleType() == com.backend.sporta.enums.PriceRuleType.SHIFT) {
+                    LocalTime ruleStart = req.getStartTime();
+                    LocalTime ruleEnd = req.getEndTime();
+
+                    if (ruleStart == null || ruleEnd == null) {
+                        throw new CustomException("Thời gian bắt đầu và kết thúc ca đặc biệt không được để trống", 400);
+                    }
+
+                    if (!ruleStart.isBefore(ruleEnd)) {
+                        throw new CustomException("Giờ kết thúc ca đặc biệt phải lớn hơn giờ bắt đầu", 400);
+                    }
+
+                    if (performShiftValidation) {
+                        int startMin = ruleStart.getHour() * 60 + ruleStart.getMinute();
+                        int endMin = ruleEnd.getHour() * 60 + ruleEnd.getMinute();
+
+                        // 1. Within operating hours?
+                        if (startMin < openMin || endMin > closeMin) {
+                            throw new CustomException("Ca đặc biệt " + ruleStart + " - " + ruleEnd + " nằm ngoài khung giờ mở cửa của cụm sân (" + open + " - " + close + ")", 400);
+                        }
+
+                        // 2. Aligned with shift boundaries?
+                        if ((startMin - openMin) % shiftDuration != 0 || (endMin - openMin) % shiftDuration != 0) {
+                            throw new CustomException("Ca đặc biệt " + ruleStart + " - " + ruleEnd + " không khớp với mốc chia ca (ca dài " + shiftDuration + " phút từ " + open + ")", 400);
+                        }
+
+                        // 3. Overlap check?
+                        for (CourtPriceRule existing : newRules) {
+                            if (existing.getRuleType() == com.backend.sporta.enums.PriceRuleType.SHIFT) {
+                                LocalTime eStart = existing.getStartTime();
+                                LocalTime eEnd = existing.getEndTime();
+                                if (ruleStart.isBefore(eEnd) && eStart.isBefore(ruleEnd)) {
+                                    throw new CustomException("Khung giờ ca đặc biệt " + ruleStart + " - " + ruleEnd + " bị trùng lặp với một quy tắc đã cấu hình", 400);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                newRules.add(CourtPriceRule.builder()
+                        .court(court)
+                        .ruleType(req.getRuleType())
+                        .startTime(req.getStartTime())
+                        .endTime(req.getEndTime())
+                        .customPrice(req.getCustomPrice())
+                        .dayOfWeek(req.getDayOfWeek())
+                        .percentageModifier(req.getPercentageModifier())
+                        .fixedModifier(req.getFixedModifier())
+                        .build());
+            }
             courtPriceRuleRepository.saveAll(newRules);
         }
+    }
+
+    private boolean checkHasPendingRevision(UUID venueId) {
+        if (venueRevisionRepository == null) return false;
+        List<VenueRevision> revisions = venueRevisionRepository.findByVenueIdOrderByCreatedAtDesc(venueId);
+        return revisions.stream().anyMatch(r -> r.getStatus() == ApprovalStatus.PENDING);
     }
 
     // Mapper helper

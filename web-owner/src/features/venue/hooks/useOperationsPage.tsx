@@ -77,25 +77,7 @@ export const useOperationsPage = () => {
   const [uploadingNewVenueCover, setUploadingNewVenueCover] = useState(false);
   const [uploadingNewVenueDetail, setUploadingNewVenueDetail] = useState(false);
 
-  // --- EDIT VENUE FORM STATES ---
-  const [editVenueName, setEditVenueName] = useState('');
-  const [editVenueLocation, setEditVenueLocation] = useState('');
-  const [editVenueLatitude, setEditVenueLatitude] = useState<number | undefined>(undefined);
-  const [editVenueLongitude, setEditVenueLongitude] = useState<number | undefined>(undefined);
-  const [editVenueDescription, setEditVenueDescription] = useState('');
-  const [editVenueOpeningTime, setEditVenueOpeningTime] = useState('06:00');
-  const [editVenueClosingTime, setEditVenueClosingTime] = useState('22:00');
-  const [editVenueShiftDuration, setEditVenueShiftDuration] = useState(30);
-  const [editVenueSportId, setEditVenueSportId] = useState('1');
-  const [editVenueCoverImage, setEditVenueCoverImage] = useState('');
-  const [editVenueDetailImages, setEditVenueDetailImages] = useState<string[]>([]);
-  // THÊM: State phụ thu cho cập nhật
-  const [editVenueHasSurcharge, setEditVenueHasSurcharge] = useState(false);
-  const [editVenueSurchargeAmount, setEditVenueSurchargeAmount] = useState<number | undefined>(undefined);
-  const [editVenueSurchargeDescription, setEditVenueSurchargeDescription] = useState('');
 
-  const [uploadingEditVenueCover, setUploadingEditVenueCover] = useState(false);
-  const [uploadingEditVenueDetail, setUploadingEditVenueDetail] = useState(false);
 
   // Bulk Surcharge states (cho Sân lẻ)
   const [isSurchargeModalOpen, setIsSurchargeModalOpen] = useState(false);
@@ -345,61 +327,8 @@ export const useOperationsPage = () => {
   const handleOpenEditVenue = (venueId?: string) => {
     const target = venueId ? venues.find(v => v.id === venueId) : activeVenue;
     if (!target) return;
-    setEditVenueName(target.name);
-    setEditVenueLocation(target.location);
-    setEditVenueLatitude(target.latitude);
-    setEditVenueLongitude(target.longitude);
-    setEditVenueDescription(target.description || '');
-    setEditVenueOpeningTime(target.openingTime || '06:00');
-    setEditVenueClosingTime(target.closingTime || '22:00');
-    setEditVenueShiftDuration(target.shiftDurationMinutes || 30);
-    setEditVenueSportId(target.sport?.id ? String(target.sport.id) : '1');
-    setEditVenueCoverImage(target.coverImage || '');
-    setEditVenueDetailImages(target.images ? target.images.map(img => img.imageUrl) : []);
-    
-    // Đổ dữ liệu phụ thu có sẵn vào form
-    setEditVenueHasSurcharge(target.hasSurcharge || false);
-    setEditVenueSurchargeAmount(target.surchargeAmount);
-    setEditVenueSurchargeDescription(target.surchargeDescription || '');
-
     if (venueId) setSelectedVenueId(venueId);
     setIsEditVenueModalOpen(true);
-  };
-
-  const handleEditVenue = async () => {
-    if (!editVenueName.trim() || !editVenueLocation.trim()) {
-      showToast('error', 'Vui lòng điền đủ Tên và Địa chỉ cụm sân');
-      return;
-    }
-    if (editVenueHasSurcharge && (!editVenueSurchargeAmount || !editVenueSurchargeDescription.trim())) {
-      showToast('error', 'Vui lòng nhập số tiền và mô tả cho Phụ thu');
-      return;
-    }
-    try {
-      await updateVenueInfo(
-        activeVenueId!,
-        editVenueName,
-        editVenueLocation,
-        editVenueDescription,
-        editVenueOpeningTime,
-        editVenueClosingTime,
-        parseInt(editVenueSportId),
-        editVenueCoverImage,
-        editVenueDetailImages,
-        editVenueShiftDuration,
-        editVenueLatitude,
-        editVenueLongitude,
-        // Gửi thông tin phụ thu cập nhật xuống service
-        editVenueHasSurcharge,
-        editVenueSurchargeAmount,
-        editVenueSurchargeDescription
-      );
-      setIsEditVenueModalOpen(false);
-      showToast('success', 'Đã cập nhật thông tin cụm sân thành công!');
-      await refreshData();
-    } catch (err: any) {
-      showToast('error', err.message || 'Lỗi khi cập nhật thông tin cụm sân');
-    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -722,37 +651,6 @@ export const useOperationsPage = () => {
       setUploadingNewVenueDetail(false);
     }
   };
-
-  const uploadEditVenueCoverFile = async (file: File) => {
-    try {
-      setUploadingEditVenueCover(true);
-      const url = await courtService.uploadImage(file, 'court_cover');
-      setEditVenueCoverImage(url);
-      showToast('success', 'Tải ảnh bìa mới lên thành công!');
-    } catch {
-      showToast('error', 'Lỗi khi upload ảnh bìa');
-    } finally {
-      setUploadingEditVenueCover(false);
-    }
-  };
-
-  const uploadEditVenueDetailFiles = async (files: FileList) => {
-    try {
-      setUploadingEditVenueDetail(true);
-      const uploadedUrls: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const url = await courtService.uploadImage(files[i], 'court_detail');
-        uploadedUrls.push(url);
-      }
-      setEditVenueDetailImages(prev => [...prev, ...uploadedUrls]);
-      showToast('success', `Đã upload thêm ${files.length} ảnh chi tiết!`);
-    } catch {
-      showToast('error', 'Lỗi khi upload ảnh chi tiết');
-    } finally {
-      setUploadingEditVenueDetail(false);
-    }
-  };
-
   return {
     venues,
     courts,
@@ -812,7 +710,7 @@ export const useOperationsPage = () => {
     isBulkEdit,
     configMode,
     setConfigMode,
-    
+
     // Xuất state phụ thu tạo mới
     newVenueName, setNewVenueName,
     newVenueLocation, setNewVenueLocation,
@@ -829,23 +727,6 @@ export const useOperationsPage = () => {
     newVenueSurchargeAmount, setNewVenueSurchargeAmount,
     newVenueSurchargeDescription, setNewVenueSurchargeDescription,
     uploadingNewVenueCover, uploadingNewVenueDetail,
-
-    // Xuất state phụ thu cập nhật
-    editVenueName, setEditVenueName,
-    editVenueLocation, setEditVenueLocation,
-    editVenueLatitude, setEditVenueLatitude,
-    editVenueLongitude, setEditVenueLongitude,
-    editVenueDescription, setEditVenueDescription,
-    editVenueOpeningTime, setEditVenueOpeningTime,
-    editVenueClosingTime, setEditVenueClosingTime,
-    editVenueShiftDuration, setEditVenueShiftDuration,
-    editVenueSportId, setEditVenueSportId,
-    editVenueCoverImage, setEditVenueCoverImage,
-    editVenueDetailImages, setEditVenueDetailImages,
-    editVenueHasSurcharge, setEditVenueHasSurcharge,
-    editVenueSurchargeAmount, setEditVenueSurchargeAmount,
-    editVenueSurchargeDescription, setEditVenueSurchargeDescription,
-    uploadingEditVenueCover, uploadingEditVenueDetail,
 
     isSurchargeModalOpen, setIsSurchargeModalOpen,
     surchargeAmount, setSurchargeAmount,
@@ -883,7 +764,6 @@ export const useOperationsPage = () => {
     handleOpenVenueStatusFromMenu,
     handleCreateVenue,
     handleOpenEditVenue,
-    handleEditVenue,
     handleSelectAll,
     handleSelectCourt,
     handleOpenBulkSurcharge,
@@ -904,9 +784,6 @@ export const useOperationsPage = () => {
 
     uploadNewVenueCoverFile,
     uploadNewVenueDetailFiles,
-    uploadEditVenueCoverFile,
-    uploadEditVenueDetailFiles,
     handleRemoveNewVenueDetailImage: (index: number) => setNewVenueDetailImages(prev => prev.filter((_, idx) => idx !== index)),
-    handleRemoveEditVenueDetailImage: (index: number) => setEditVenueDetailImages(prev => prev.filter((_, idx) => idx !== index))
   };
 };

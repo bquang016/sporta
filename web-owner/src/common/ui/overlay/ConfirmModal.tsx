@@ -27,19 +27,19 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const iconConfig = {
     success: {
       bg: 'bg-emerald-50 text-brand-emerald border-emerald-100',
-      icon: <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />,
+      icon: <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />,
     },
     danger: {
-      bg: 'bg-red-50 text-red-600 border-red-100',
-      icon: <Trash2 className="w-6 h-6 stroke-[2.5]" />,
+      bg: 'bg-red-50 text-red-650 border-red-100',
+      icon: <Trash2 className="w-8 h-8 stroke-[2.5]" />,
     },
     warning: {
-      bg: 'bg-amber-50 text-amber-650 border-amber-100',
-      icon: <AlertTriangle className="w-6 h-6 stroke-[2.5]" />,
+      bg: 'bg-amber-50 text-amber-600 border-amber-100',
+      icon: <AlertTriangle className="w-8 h-8 stroke-[2.5]" />,
     },
     logout: {
-      bg: 'bg-red-50 text-red-600 border-red-100',
-      icon: <LogOut className="w-6 h-6 stroke-[2.5]" />,
+      bg: 'bg-red-50 text-red-650 border-red-100',
+      icon: <LogOut className="w-8 h-8 stroke-[2.5]" />,
     },
   };
 
@@ -47,37 +47,42 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const footer = (
     <div className="flex gap-3 w-full">
-      <Button variant="ghost" onClick={onClose} className="flex-1">
+      <Button
+        variant="outline"
+        onClick={onClose}
+        className="flex-1 font-bold text-xs min-h-[38px] border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+      >
         {cancelText}
       </Button>
-      <button
+      <Button
+        variant={
+          variant === 'success'
+            ? 'secondary'
+            : variant === 'danger' || variant === 'logout'
+            ? 'danger'
+            : 'primary'
+        }
         onClick={() => {
           onConfirm();
           onClose();
         }}
-        className={`flex-1 font-sans font-black py-2.5 px-4 rounded-xl text-sm transition-all focus:outline-none cursor-pointer active:scale-95 duration-200 shadow-sm ${
-          variant === 'success'
-            ? 'bg-brand-emerald hover:bg-emerald-800 text-white'
-            : variant === 'danger' || variant === 'logout'
-            ? 'bg-red-650 hover:bg-red-750 text-white'
-            : 'bg-brand-yellow hover:bg-yellow-400 text-brand-emerald border border-brand-yellow/30'
-        }`}
+        className="flex-1 font-black text-xs min-h-[38px] uppercase tracking-wider"
       >
         {confirmText}
-      </button>
+      </Button>
     </div>
   );
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm" footer={footer}>
-      <div className="flex flex-col items-center text-center py-2.5 space-y-4">
+      <div className="flex flex-col items-center text-center py-4 space-y-4 select-none">
         {/* Icon Container */}
         <div
-          className={`w-13 h-13 rounded-2xl border flex items-center justify-center ${currentIcon.bg} shadow-sm select-none`}
+          className={`w-16 h-16 rounded-3xl border flex items-center justify-center ${currentIcon.bg} shadow-sm select-none`}
         >
           {currentIcon.icon}
         </div>
-        <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs">{message}</p>
+        <p className="text-xs text-slate-550 font-bold leading-relaxed max-w-xs">{message}</p>
       </div>
     </Modal>
   );
