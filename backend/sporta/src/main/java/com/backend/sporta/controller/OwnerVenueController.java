@@ -78,6 +78,14 @@ public class OwnerVenueController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/cancel-submit")
+    public ResponseEntity<VenueResponse> cancelSubmitVenue(
+            @PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        VenueResponse response = venueService.cancelSubmitVenue(id, email);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}/draft")
     public ResponseEntity<Void> deleteVenueDraft(
             @PathVariable("id") UUID id) {

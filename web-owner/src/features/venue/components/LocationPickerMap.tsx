@@ -173,6 +173,15 @@ export const LocationPickerMap = ({
     });
     mapRef.current = map;
 
+    // Suppress external Goong map stylesheet resource warnings
+    map.on('error', (e: any) => {
+      const msg = e?.error?.message || '';
+      if (msg.includes('Source layer') || msg.includes('Image')) {
+        return;
+      }
+      console.warn('Goong Map style resource warning:', msg);
+    });
+
     // Add Navigation Control
     map.addControl(new goongjs.NavigationControl({ showCompass: false }), 'top-right');
 

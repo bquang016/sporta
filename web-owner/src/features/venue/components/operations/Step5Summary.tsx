@@ -16,6 +16,8 @@ export const Step5Summary = () => {
     hasSurcharge,
     surchargeAmount,
     surchargeDescription,
+    initialVenue,
+    isPureEditMode
   } = useVenueWizard();
 
   const getSportName = () => {
@@ -78,6 +80,10 @@ export const Step5Summary = () => {
     return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VND';
   };
 
+  const isNameChanged = name !== initialVenue?.name;
+  const isLocationChanged = location !== initialVenue?.location;
+  const hasSensitiveChanges = isPureEditMode && (isNameChanged || isLocationChanged);
+
   return (
     <div className="flex-grow overflow-y-auto px-8 py-6 select-none max-w-5xl mx-auto w-full font-sans">
       <div className="space-y-1 mb-6">
@@ -86,6 +92,20 @@ export const Step5Summary = () => {
           Kiểm tra lại toàn bộ thông tin đăng ký cụm sân. Dưới đây là mô phỏng giao diện hiển thị với khách hàng đặt sân.
         </p>
       </div>
+
+      {hasSensitiveChanges && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-850 p-4 rounded-2xl mb-6 flex gap-3">
+          <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div className="space-y-1">
+            <h4 className="font-black text-xs text-amber-800 uppercase tracking-wider">Cảnh báo thay đổi thông tin nhạy cảm</h4>
+            <p className="text-xs text-amber-700 font-semibold leading-relaxed">
+              Bạn đang thay đổi {isNameChanged && <strong className="text-amber-900 font-black">Tên cụm sân</strong>}{isNameChanged && isLocationChanged && ' và '}{isLocationChanged && <strong className="text-amber-900 font-black">Vị trí/Địa chỉ</strong>}. Dữ liệu mới này sẽ được gửi tới Ban quản trị dưới dạng Bản nháp để kiểm duyệt lại. Cụm sân gốc vẫn sẽ tiếp tục hoạt động công khai bình thường với thông tin cũ mà không bị gián đoạn hoạt động.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
@@ -148,7 +168,7 @@ export const Step5Summary = () => {
                             {rule.ruleType === 'SHIFT' ? (
                               <span>Giờ {rule.startTime?.substring(0, 5)}-{rule.endTime?.substring(0, 5)}: {formatVND(rule.customPrice || 0)}</span>
                             ) : (
-                              <span>Thứ {rule.dayOfWeek === undefined ? '' : rule.dayOfWeek === 7 ? 'CN' : rule.dayOfWeek + 1}: {rule.percentageModifier ? `+${Math.round((rule.percentageModifier - 1) * 100)}%` : `+${formatVND(rule.fixedModifier || 0)}`}</span>
+                              <span>Thứ {rule.dayOfWeek === undefined ? '' : rule.dayOfWeek === 7 ? 'CN' : rule.dayOfWeek + 1}: {rule.fixedModifier && rule.fixedModifier > 0 ? `+${formatVND(rule.fixedModifier)}` : `+${Math.round(((rule.percentageModifier || 1.0) - 1.0) * 100)}%`}</span>
                             )}
                           </span>
                         ))}

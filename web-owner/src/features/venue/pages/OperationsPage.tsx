@@ -7,8 +7,8 @@ import { OperationsFacilitiesTab } from '../components/operations/OperationsFaci
 import { BookingQueueModal } from '../components/operations/BookingQueueModal';
 import { BulkSurchargeModal } from '../components/operations/BulkSurchargeModal';
 import { CourtConfigModal } from '../components/operations/CourtConfigModal';
-import { VenueFormScreen } from '../components/VenueFormScreen';
 import { VenueWizard } from '../components/operations/VenueWizard';
+import { VenuePendingDetailScreen } from '../components/operations/VenuePendingDetailScreen';
 import { DraftFloater } from '../components/operations/DraftFloater';
 import { VenueStatusModal } from '../components/VenueStatusModal';
 import { VenueRowMenu } from '../components/operations/VenueRowMenu';
@@ -67,23 +67,6 @@ export const OperationsPage = () => {
     newVenueSurchargeDescription, setNewVenueSurchargeDescription,
     uploadingNewVenueCover, uploadingNewVenueDetail,
 
-    // Edit Venue Inputs
-    editVenueName, setEditVenueName,
-    editVenueLocation, setEditVenueLocation,
-    editVenueLatitude, setEditVenueLatitude,
-    editVenueLongitude, setEditVenueLongitude,
-    editVenueDescription, setEditVenueDescription,
-    editVenueOpeningTime, setEditVenueOpeningTime,
-    editVenueClosingTime, setEditVenueClosingTime,
-    editVenueShiftDuration, setEditVenueShiftDuration,
-    editVenueSportId, setEditVenueSportId,
-    editVenueCoverImage, setEditVenueCoverImage,
-    editVenueDetailImages,
-    editVenueHasSurcharge, setEditVenueHasSurcharge,
-    editVenueSurchargeAmount, setEditVenueSurchargeAmount,
-    editVenueSurchargeDescription, setEditVenueSurchargeDescription,
-    uploadingEditVenueCover, uploadingEditVenueDetail,
-
     isSurchargeModalOpen, setIsSurchargeModalOpen,
     surchargeAmount, setSurchargeAmount,
     surchargeCourtIds,
@@ -99,7 +82,7 @@ export const OperationsPage = () => {
 
     handleVenueStatusSelect, handleConfirmVenueStatusChange, handleCancelVenueStatusChange,
     handleOpenVenueStatusFromMenu, handleCreateVenue, handleOpenEditVenue,
-    handleEditVenue, handleSelectAll, handleSelectCourt, handleOpenBulkSurcharge,
+    handleSelectAll, handleSelectCourt, handleOpenBulkSurcharge,
     handleApplySurcharge, handleOpenEditCourt, handleOpenBulkEdit, handleSaveCourtConfig, handleResolveBooking,
 
     isAddingCourt, newCourtName, setNewCourtName,
@@ -111,8 +94,7 @@ export const OperationsPage = () => {
     handleSubmitNewCourt, handleConfirmSubmitNewCourt,
 
     uploadNewVenueCoverFile, uploadNewVenueDetailFiles,
-    uploadEditVenueCoverFile, uploadEditVenueDetailFiles,
-    handleRemoveNewVenueDetailImage, handleRemoveEditVenueDetailImage
+    handleRemoveNewVenueDetailImage
   } = useOperationsPage();
 
   if (loading && venues.length === 0) {
@@ -136,7 +118,19 @@ export const OperationsPage = () => {
   }
 
   if (isEditVenueModalOpen) {
-    if (activeVenue && activeVenue.approvalStatus === 'DRAFT') {
+    if (activeVenue && activeVenue.approvalStatus === 'PENDING') {
+      return (
+        <div className="flex-grow relative min-h-0 overflow-auto bg-slate-50 p-6 matrix-scroll">
+          <VenuePendingDetailScreen
+            onClose={() => setIsEditVenueModalOpen(false)}
+            venue={activeVenue}
+            courts={activeCourts}
+          />
+        </div>
+      );
+    }
+
+    if (activeVenue) {
       return (
         <div className="flex-grow relative min-h-0 overflow-hidden">
           <VenueWizard
@@ -147,51 +141,6 @@ export const OperationsPage = () => {
         </div>
       );
     }
-    
-    return (
-      <div className="flex-grow relative min-h-0 overflow-hidden">
-        <VenueFormScreen
-          onClose={() => setIsEditVenueModalOpen(false)}
-          onSubmit={handleEditVenue}
-          title="Chỉnh sửa thông tin cụm sân"
-          name={editVenueName}
-          setName={setEditVenueName}
-          location={editVenueLocation}
-          setLocation={setEditVenueLocation}
-          latitude={editVenueLatitude}
-          setLatitude={setEditVenueLatitude}
-          longitude={editVenueLongitude}
-          setLongitude={setEditVenueLongitude}
-          description={editVenueDescription}
-          setDescription={setEditVenueDescription}
-          openingTime={editVenueOpeningTime}
-          setOpeningTime={setEditVenueOpeningTime}
-          closingTime={editVenueClosingTime}
-          setClosingTime={setEditVenueClosingTime}
-          shiftDurationMinutes={editVenueShiftDuration}
-          setShiftDurationMinutes={setEditVenueShiftDuration}
-          sportId={editVenueSportId}
-          setSportId={setEditVenueSportId}
-          coverImage={editVenueCoverImage}
-          setCoverImage={setEditVenueCoverImage}
-          detailImages={editVenueDetailImages}
-
-          hasSurcharge={editVenueHasSurcharge}
-          setHasSurcharge={setEditVenueHasSurcharge}
-          surchargeAmount={editVenueSurchargeAmount}
-          setSurchargeAmount={setEditVenueSurchargeAmount}
-          surchargeDescription={editVenueSurchargeDescription}
-          setSurchargeDescription={setEditVenueSurchargeDescription}
-
-          uploadingCover={uploadingEditVenueCover}
-          uploadingDetail={uploadingEditVenueDetail}
-          onUploadCover={uploadEditVenueCoverFile}
-          onUploadDetail={uploadEditVenueDetailFiles}
-          onRemoveDetailImage={handleRemoveEditVenueDetailImage}
-          submitLabel="Lưu thay đổi"
-        />
-      </div>
-    );
   }
 
   if (venues.length === 0) {
@@ -433,120 +382,142 @@ export const OperationsPage = () => {
           />
 
           <section className="flex-1 bg-white border border-slate-200/60 rounded-3xl shadow-sm p-6 flex flex-col min-w-0">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100 select-none flex-shrink-0">
-              <div className="space-y-1 min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-black text-slate-800 tracking-tight">{activeVenue.name}</h1>
-                </div>
-                <p className="text-xs text-slate-455 font-bold leading-normal truncate" title={activeVenue.location}>
-                  Địa chỉ: {activeVenue.location}
-                </p>
-              </div>
-              <button
-                onClick={handleStartAddCourt}
-                className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 border-b-2 border-emerald-950 flex-shrink-0"
-              >
-                <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                </svg>
-                Thêm sân mới
-              </button>
-            </div>
-
-            {actionRequiredBookings.length > 0 && (
-              <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex justify-between items-center text-xs font-bold text-red-700 animate-pulse select-none flex-shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            {activeVenue.approvalStatus === 'PENDING' ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-10 space-y-4 select-none animate-fadeIn">
+                <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>Có {actionRequiredBookings.length} đơn đặt sân cần giải quyết do cụm sân đóng cửa khẩn cấp.</span>
                 </div>
-                <button onClick={() => setIsQueueModalOpen(true)}
-                  className="bg-red-600 hover:bg-red-750 text-white font-extrabold text-[10px] px-4.5 py-2.5 rounded-xl transition-all cursor-pointer border-b-2 border-red-850">
-                  Giải quyết ngay
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Cụm sân đang chờ duyệt</h3>
+                <p className="text-xs text-slate-500 max-w-md leading-relaxed">
+                  Thông tin cụm sân <strong>"{activeVenue.name}"</strong> đang được Admin hệ thống duyệt. Trong thời gian này, bạn không thể quản lý danh sách sân lẻ hoặc cấu hình bảng giá/vận hành.
+                </p>
+                <button
+                  onClick={() => handleOpenEditVenue(activeVenue.id)}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] px-5 py-3.5 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer border-b-2 border-slate-950 flex items-center gap-1.5 uppercase tracking-wider"
+                >
+                  Xem chi tiết thông tin đang chờ duyệt
                 </button>
               </div>
+            ) : (
+              <>
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100 select-none flex-shrink-0">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-lg font-black text-slate-800 tracking-tight">{activeVenue.name}</h1>
+                    </div>
+                    <p className="text-xs text-slate-455 font-bold leading-normal truncate" title={activeVenue.location}>
+                      Địa chỉ: {activeVenue.location}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleStartAddCourt}
+                    className="bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 border-b-2 border-emerald-950 flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Thêm sân mới
+                  </button>
+                </div>
+
+                {actionRequiredBookings.length > 0 && (
+                  <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex justify-between items-center text-xs font-bold text-red-700 animate-pulse select-none flex-shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>Có {actionRequiredBookings.length} đơn đặt sân cần giải quyết do cụm sân đóng cửa khẩn cấp.</span>
+                    </div>
+                    <button onClick={() => setIsQueueModalOpen(true)}
+                      className="bg-red-600 hover:bg-red-750 text-white font-extrabold text-[10px] px-4.5 py-2.5 rounded-xl transition-all cursor-pointer border-b-2 border-red-850">
+                      Giải quyết ngay
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-5 border-b border-slate-100 flex justify-between items-center flex-shrink-0 select-none">
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setActiveTab('facilities')}
+                      className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${activeTab === 'facilities' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                      Danh sách sân trực thuộc ({activeCourts.length})
+                      {activeTab === 'facilities' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-emerald rounded-full" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('overview')}
+                      className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${activeTab === 'overview' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                      Giám sát vận hành & Thống kê
+                      {activeTab === 'overview' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-emerald rounded-full" />
+                      )}
+                    </button>
+                  </div>
+
+                  {selectedCourtIds.length > 0 && activeTab === 'facilities' && (
+                    <div className="pb-2.5 flex items-center gap-3 animate-fadeIn">
+                      <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150">
+                        Đã chọn: {selectedCourtIds.length} sân
+                      </span>
+                      <button onClick={handleOpenBulkSurcharge}
+                        className="bg-primary hover:bg-slate-850 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-slate-950">
+                        Cấu hình phụ thu
+                      </button>
+                      <button onClick={() => handleOpenBulkEdit('shift')}
+                        className="bg-brand-emerald hover:bg-emerald-800 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-emerald-950">
+                        Sửa giá theo ca
+                      </button>
+                      <button onClick={() => handleOpenBulkEdit('day')}
+                        className="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-teal-850">
+                        Sửa giá theo ngày
+                      </button>
+                      <button onClick={() => setSelectedCourtIds([])}
+                        className="text-[10px] font-black text-slate-450 hover:text-slate-700 cursor-pointer">
+                        Hủy chọn
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-hidden mt-6">
+                  {activeTab === 'overview' ? (
+                    <OperationsOverviewTab
+                      activeCourts={activeCourts}
+                      todayRevenue={todayRevenue}
+                      totalBookingsCount={totalBookingsCount}
+                      avgOccupancy={avgOccupancy}
+                      activeCount={activeCount}
+                      maintCount={maintCount}
+                      closedCount={closedCount}
+                      totalOpCourts={totalOpCourts}
+                      getCourtOpStatus={getCourtOpStatus}
+                      getCourtDetails={getCourtDetails}
+                      formatVND={formatVND}
+                      isMobile={false}
+                    />
+                  ) : (
+                    <OperationsFacilitiesTab
+                      activeCourts={activeCourts}
+                      selectedCourtIds={selectedCourtIds}
+                      handleSelectAll={handleSelectAll}
+                      handleSelectCourt={handleSelectCourt}
+                      handleOpenEditCourt={handleOpenEditCourt}
+                      getCourtDetails={getCourtDetails}
+                      formatVND={formatVND}
+                      isMobile={false}
+                      sportName={activeVenue?.sport?.name}
+                    />
+                  )}
+                </div>
+              </>
             )}
-
-            <div className="mt-5 border-b border-slate-100 flex justify-between items-center flex-shrink-0 select-none">
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setActiveTab('facilities')}
-                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${activeTab === 'facilities' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                  Danh sách sân trực thuộc ({activeCourts.length})
-                  {activeTab === 'facilities' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-emerald rounded-full" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`pb-3.5 text-xs font-black relative cursor-pointer transition-all ${activeTab === 'overview' ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                  Giám sát vận hành & Thống kê
-                  {activeTab === 'overview' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-emerald rounded-full" />
-                  )}
-                </button>
-              </div>
-
-              {selectedCourtIds.length > 0 && activeTab === 'facilities' && (
-                <div className="pb-2.5 flex items-center gap-3 animate-fadeIn">
-                  <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150">
-                    Đã chọn: {selectedCourtIds.length} sân
-                  </span>
-                  <button onClick={handleOpenBulkSurcharge}
-                    className="bg-primary hover:bg-slate-850 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-slate-950">
-                    Cấu hình phụ thu
-                  </button>
-                  <button onClick={() => handleOpenBulkEdit('shift')}
-                    className="bg-brand-emerald hover:bg-emerald-800 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-emerald-950">
-                    Sửa giá theo ca
-                  </button>
-                  <button onClick={() => handleOpenBulkEdit('day')}
-                    className="bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-[10px] px-4 py-2 rounded-xl transition-all cursor-pointer border-b-2 border-teal-850">
-                    Sửa giá theo ngày
-                  </button>
-                  <button onClick={() => setSelectedCourtIds([])}
-                    className="text-[10px] font-black text-slate-450 hover:text-slate-700 cursor-pointer">
-                    Hủy chọn
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 overflow-hidden mt-6">
-              {activeTab === 'overview' ? (
-                <OperationsOverviewTab
-                  activeCourts={activeCourts}
-                  todayRevenue={todayRevenue}
-                  totalBookingsCount={totalBookingsCount}
-                  avgOccupancy={avgOccupancy}
-                  activeCount={activeCount}
-                  maintCount={maintCount}
-                  closedCount={closedCount}
-                  totalOpCourts={totalOpCourts}
-                  getCourtOpStatus={getCourtOpStatus}
-                  getCourtDetails={getCourtDetails}
-                  formatVND={formatVND}
-                  isMobile={false}
-                />
-              ) : (
-                <OperationsFacilitiesTab
-                  activeCourts={activeCourts}
-                  selectedCourtIds={selectedCourtIds}
-                  handleSelectAll={handleSelectAll}
-                  handleSelectCourt={handleSelectCourt}
-                  handleOpenEditCourt={handleOpenEditCourt}
-                  getCourtDetails={getCourtDetails}
-                  formatVND={formatVND}
-                  isMobile={false}
-                  sportName={activeVenue?.sport?.name}
-                />
-              )}
-            </div>
           </section>
         </div>
       )}

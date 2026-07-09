@@ -4,6 +4,12 @@ import { useToast } from '../../../../components/ui/Toast';
 import { Dropdown } from '../../../../components/ui/Dropdown';
 import type { CourtPriceRuleRequest } from '../../types';
 import { Checkbox } from '../../../../components/ui/Checkbox';
+import { CurrencyInput } from '../../../../components/ui/CurrencyInput';
+
+const parseTimeToMinutes = (timeStr: string): number => {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+};
 
 export const Step4OperatingPricing = () => {
   const { showToast } = useToast();
@@ -32,6 +38,7 @@ export const Step4OperatingPricing = () => {
   const hourDropdownOptions = TIME_OPTIONS.map(t => ({ value: t, label: t }));
 
   const SHIFT_DURATIONS = [
+    { value: '', label: 'Chọn thời lượng...' },
     { value: '30', label: '30 phút' },
     { value: '60', label: '1 tiếng (60 phút)' },
     { value: '90', label: '90 phút' },
@@ -53,14 +60,63 @@ export const Step4OperatingPricing = () => {
   const [ruleType, setRuleType] = useState<'SHIFT' | 'DAY_OF_WEEK'>('SHIFT');
   
   // SHIFT fields
-  const [startTime, setStartTime] = useState('17:00');
-  const [endTime, setEndTime] = useState('22:00');
-  const [customPrice, setCustomPrice] = useState('150000');
+  const [selectedShiftSlot, setSelectedShiftSlot] = useState('');
+  const [customPrice, setCustomPrice] = useState<number>(150000);
+
+  // Helper to generate non-overlapping shift slots
+  const generateShiftSlots = () => {
+    if (!shiftDurationMinutes) return [];
+    
+    const openMin = parseTimeToMinutes(openingTime);
+    const closeMin = parseTimeToMinutes(closingTime);
+    const totalOp = closeMin - openMin;
+    
+    if (totalOp <= 0 || totalOp % shiftDurationMinutes !== 0) {
+      return [];
+    }
+    
+    const slots = [];
+    const formatTimeStr = (min: number): string => {
+      const h = Math.floor(min / 60).toString().padStart(2, '0');
+      const m = (min % 60).toString().padStart(2, '0');
+      return `${h}:${m}`;
+    };
+    
+    for (let current = openMin; current < closeMin; current += shiftDurationMinutes) {
+      const start = formatTimeStr(current);
+      const end = formatTimeStr(current + shiftDurationMinutes);
+      slots.push({
+        value: `${start}-${end}`,
+        label: `${start} - ${end}`
+      });
+    }
+    return slots;
+  };
+
+  const shiftSlots = generateShiftSlots();
+
+  // Reactive validation on dropdown changes
+  React.useEffect(() => {
+    const openMin = parseTimeToMinutes(openingTime);
+    const closeMin = parseTimeToMinutes(closingTime);
+    
+    if (closeMin <= openMin) {
+      showToast('error', 'Giờ đóng cửa phải lớn hơn giờ mở cửa!');
+      return;
+    }
+    
+    if (shiftDurationMinutes) {
+      const totalOp = closeMin - openMin;
+      if (totalOp % shiftDurationMinutes !== 0) {
+        showToast('warning', `Tổng thời lượng mở cửa (${totalOp} phút) không chia hết cho ca thuê (${shiftDurationMinutes} phút)! Vui lòng điều chỉnh lại.`);
+      }
+    }
+  }, [openingTime, closingTime, shiftDurationMinutes]);
 
   // DAY OF WEEK fields
   const [dayOfWeek, setDayOfWeek] = useState('6'); // Default Saturday
   const [modifierType, setModifierType] = useState<'percentage' | 'fixed'>('percentage');
-  const [modifierValue, setModifierValue] = useState('20'); // e.g. 20% increase or 20000 VND
+  const [modifierValue, setModifierValue] = useState<number>(20); // e.g. 20% increase or 20000 VND
 
   const activeCourt = courts[selectedCourtIndex] || null;
 
@@ -73,28 +129,40 @@ export const Step4OperatingPricing = () => {
     let newRule: CourtPriceRuleRequest;
 
     if (ruleType === 'SHIFT') {
-      const [startH, startM] = startTime.split(':').map(Number);
-      const [endH, endM] = endTime.split(':').map(Number);
-      if (startH * 60 + startM >= endH * 60 + endM) {
-        showToast('warning', 'Giờ kết thúc phải lớn hơn giờ bắt đầu');
+      if (!selectedShiftSlot) {
+        showToast('warning', 'Vui lòng chọn ca giờ áp dụng');
         return;
       }
 
-      const priceNum = parseFloat(customPrice);
-      if (!customPrice || isNaN(priceNum) || priceNum <= 0) {
+      const [start, end] = selectedShiftSlot.split('-');
+
+      if (customPrice <= 0) {
         showToast('warning', 'Giá thuê phải lớn hơn 0');
+        return;
+      }
+
+      // Check if this exact slot already exists
+      const existingRules = activeCourt.priceRules || [];
+      const exists = existingRules.some(r => {
+        if (r.ruleType !== 'SHIFT') return false;
+        const rStart = r.startTime ? r.startTime.substring(0, 5) : '';
+        const rEnd = r.endTime ? r.endTime.substring(0, 5) : '';
+        return rStart === start && rEnd === end;
+      });
+
+      if (exists) {
+        showToast('warning', `Ca giờ ${start} - ${end} đã được cấu hình giá đặc biệt!`);
         return;
       }
 
       newRule = {
         ruleType: 'SHIFT',
-        startTime,
-        endTime,
-        customPrice: priceNum
+        startTime: start,
+        endTime: end,
+        customPrice
       };
     } else {
-      const valNum = parseFloat(modifierValue);
-      if (!modifierValue || isNaN(valNum) || valNum <= 0) {
+      if (modifierValue <= 0) {
         showToast('warning', 'Giá trị điều chỉnh phải lớn hơn 0');
         return;
       }
@@ -105,9 +173,9 @@ export const Step4OperatingPricing = () => {
       let percentageModifier = 1.0;
       let fixedModifier = 0.0;
       if (modifierType === 'percentage') {
-        percentageModifier = 1.0 + (valNum / 100); // e.g. +20% -> 1.2
+        percentageModifier = 1.0 + (modifierValue / 100); // e.g. +20% -> 1.2
       } else {
-        fixedModifier = valNum; // e.g. +20000 VND
+        fixedModifier = modifierValue; // e.g. +20000 VND
       }
 
       newRule = {
@@ -198,11 +266,13 @@ export const Step4OperatingPricing = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Thời lượng mỗi ca thuê</label>
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                Thời lượng mỗi ca thuê <span className="text-red-500">*</span>
+              </label>
               <Dropdown
                 options={SHIFT_DURATIONS}
-                value={String(shiftDurationMinutes)}
-                onChange={val => setShiftDurationMinutes(parseInt(val))}
+                value={shiftDurationMinutes ? String(shiftDurationMinutes) : ''}
+                onChange={val => setShiftDurationMinutes(val ? parseInt(val) : undefined)}
                 className="w-full text-xs font-bold text-slate-700 rounded-xl"
               />
             </div>
@@ -224,12 +294,10 @@ export const Step4OperatingPricing = () => {
               <div className="space-y-4 animate-slideDown">
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Số tiền phụ thu (VND)</label>
-                  <input
-                    type="number"
-                    placeholder="Ví dụ: 50000"
-                    value={surchargeAmount || ''}
-                    onChange={e => setSurchargeAmount(e.target.value ? parseFloat(e.target.value) : undefined)}
-                    className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
+                  <CurrencyInput
+                    value={surchargeAmount || 0}
+                    onChange={val => setSurchargeAmount(val || undefined)}
+                    placeholder="Ví dụ: 50.000"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -313,32 +381,30 @@ export const Step4OperatingPricing = () => {
                     {ruleType === 'SHIFT' ? (
                       /* SHIFT fields */
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Từ giờ</label>
-                          <Dropdown
-                            options={hourDropdownOptions}
-                            value={startTime}
-                            onChange={setStartTime}
-                            className="w-full text-xs font-bold text-slate-700 rounded-lg py-1.5"
-                          />
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Chọn ca giờ áp dụng</label>
+                          {shiftSlots.length === 0 ? (
+                            <div className="text-[9px] font-bold text-red-500 bg-red-50/50 border border-red-100 p-2.5 rounded-lg select-none">
+                              Vui lòng thiết lập thời lượng ca hợp lệ để hiển thị các ca giờ.
+                            </div>
+                          ) : (
+                            <Dropdown
+                              options={[
+                                { value: '', label: 'Chọn ca giờ...' },
+                                ...shiftSlots
+                              ]}
+                              value={selectedShiftSlot}
+                              onChange={setSelectedShiftSlot}
+                              className="w-full text-xs font-bold text-slate-700 rounded-lg py-1.5"
+                            />
+                          )}
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Đến giờ</label>
-                          <Dropdown
-                            options={hourDropdownOptions}
-                            value={endTime}
-                            onChange={setEndTime}
-                            className="w-full text-xs font-bold text-slate-700 rounded-lg py-1.5"
-                          />
-                        </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1 sm:col-span-1">
                           <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Giá thuê thay thế (VND)</label>
-                          <input
-                            type="number"
-                            placeholder="Ví dụ: 150000"
+                          <CurrencyInput
                             value={customPrice}
-                            onChange={e => setCustomPrice(e.target.value)}
-                            className="w-full text-xs font-bold text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
+                            onChange={setCustomPrice}
+                            placeholder="Ví dụ: 150.000"
                           />
                         </div>
                       </div>
@@ -368,13 +434,21 @@ export const Step4OperatingPricing = () => {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Giá trị (+ hoặc %)</label>
-                          <input
-                            type="number"
-                            placeholder={modifierType === 'percentage' ? 'Ví dụ: 20 (% tăng thêm)' : 'Ví dụ: 30000 (VND)'}
-                            value={modifierValue}
-                            onChange={e => setModifierValue(e.target.value)}
-                            className="w-full text-xs font-bold text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
-                          />
+                          {modifierType === 'percentage' ? (
+                            <input
+                              type="number"
+                              placeholder="Ví dụ: 20 (% tăng thêm)"
+                              value={modifierValue}
+                              onChange={e => setModifierValue(parseFloat(e.target.value) || 0)}
+                              className="w-full text-xs font-bold text-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
+                            />
+                          ) : (
+                            <CurrencyInput
+                              value={modifierValue}
+                              onChange={setModifierValue}
+                              placeholder="Ví dụ: 30.000"
+                            />
+                          )}
                         </div>
                       </div>
                     )}

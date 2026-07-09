@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { VenueResponse } from '../../types';
+import { ConfirmModal } from '../../../../common/ui/overlay/ConfirmModal';
 
 interface DraftFloaterProps {
   drafts: VenueResponse[];
@@ -46,19 +47,26 @@ export const DraftFloater = ({ drafts, onResume, onDelete }: DraftFloaterProps) 
     }
   };
 
-  const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [idToDelete, setIdToDelete] = useState<string | null>(null);
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bản nháp này? Thao tác này sẽ xóa vĩnh viễn dữ liệu nháp và không thể khôi phục.')) {
-      return;
-    }
+    setIdToDelete(id);
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!idToDelete) return;
     try {
-      setDeletingId(id);
-      await onDelete(id);
-      localStorage.removeItem(`sporta_venue_draft_${id}`);
+      setDeletingId(idToDelete);
+      await onDelete(idToDelete);
+      localStorage.removeItem(`sporta_venue_draft_${idToDelete}`);
     } catch (err) {
       console.error(err);
     } finally {
       setDeletingId(null);
+      setIdToDelete(null);
     }
   };
 
@@ -193,6 +201,20 @@ export const DraftFloater = ({ drafts, onResume, onDelete }: DraftFloaterProps) 
           </span>
         )}
       </button>
+
+      <ConfirmModal
+        isOpen={isConfirmDeleteOpen}
+        onClose={() => {
+          setIsConfirmDeleteOpen(false);
+          setIdToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Xác nhận xóa bản nháp"
+        message="CẢNH BÁO: Bạn có chắc chắn muốn xóa bản nháp cụm sân này? Thao tác này sẽ xóa vĩnh viễn dữ liệu nháp và không thể khôi phục."
+        confirmText="Xóa bản nháp"
+        cancelText="Hủy"
+        variant="danger"
+      />
 
     </div>
   );

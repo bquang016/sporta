@@ -21,7 +21,8 @@ export const Step1BasicInfo = () => {
     ward,
     setWard,
     addressDetail,
-    setAddressDetail
+    setAddressDetail,
+    isPureEditMode
   } = useVenueWizard();
 
   return (
@@ -34,6 +35,20 @@ export const Step1BasicInfo = () => {
             Nhập các thông tin giới thiệu chung và vị trí định vị cụm sân của bạn.
           </p>
         </div>
+
+        {isPureEditMode && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-850 p-3.5 rounded-xl space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-[10px] text-amber-800 uppercase tracking-wider">
+              <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Chú ý duyệt thông tin
+            </div>
+            <p className="text-[10px] text-amber-700 font-semibold leading-normal">
+              Việc chỉnh sửa các trường nhạy cảm như <strong className="text-amber-900 font-black">Tên cụm sân</strong> hoặc <strong className="text-amber-900 font-black">Vị trí/Địa chỉ</strong> sẽ cần được Ban quản trị duyệt lại. Trong thời gian chờ duyệt, cụm sân vẫn hoạt động bình thường với tên và địa chỉ hiện tại.
+            </p>
+          </div>
+        )}
 
         {/* Name input */}
         <div className="space-y-1.5">

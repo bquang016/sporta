@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from '../../../../components/ui/Modal';
 import { Dropdown } from '../../../../components/ui/Dropdown';
+import { CurrencyInput } from '../../../../components/ui/CurrencyInput';
 
 interface AddCourtSubScreenProps {
   isOpen: boolean;
@@ -84,23 +85,18 @@ export const AddCourtSubScreen = ({
         {/* Base Price */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-0.5">
-            Giá thuê mặc định (VND/h) <span className="text-red-500">*</span>
+            Giá thuê mặc định (VND/ca) <span className="text-red-500">*</span>
           </label>
-          <div className="relative flex items-center">
-            <input
-              type="number"
-              placeholder="VD: 150000"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className={`w-full text-xs font-bold text-slate-700 pl-3.5 pr-12 py-2.5 rounded-xl border bg-white focus:outline-none focus:ring-1 ${
-                validationErrors.price
-                  ? 'border-red-500 focus:ring-red-500'
-                  : 'border-slate-200 focus:ring-brand-emerald focus:border-brand-emerald'
-              }`}
-              min={0}
-            />
-            <span className="absolute right-3.5 text-[10px] font-extrabold text-slate-400">VND/h</span>
-          </div>
+          <CurrencyInput
+            value={parseFloat(price) || 0}
+            onChange={(val) => setPrice(val.toString())}
+            placeholder="VD: 150.000"
+            className={
+              validationErrors.price
+                ? 'border-red-500 focus:ring-red-500'
+                : ''
+            }
+          />
           {validationErrors.price && (
             <p className="text-[9px] text-red-500 font-bold">{validationErrors.price}</p>
           )}
