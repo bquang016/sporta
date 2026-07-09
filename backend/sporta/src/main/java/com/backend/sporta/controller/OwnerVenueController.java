@@ -2,6 +2,7 @@ package com.backend.sporta.controller;
 
 import com.backend.sporta.enums.VenueStatus;
 import com.backend.sporta.dto.VenueRequest;
+import com.backend.sporta.dto.VenueDraftRequest;
 import com.backend.sporta.dto.VenueResponse;
 import com.backend.sporta.service.VenueService;
 import jakarta.validation.Valid;
@@ -51,5 +52,45 @@ public class OwnerVenueController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         VenueResponse response = venueService.updateVenue(id, request, email);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/draft")
+    public ResponseEntity<VenueResponse> createVenueDraft(@RequestBody VenueDraftRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        VenueResponse response = venueService.createVenueDraft(request, email);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/draft")
+    public ResponseEntity<VenueResponse> updateVenueDraft(
+            @PathVariable("id") UUID id,
+            @RequestBody VenueDraftRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        VenueResponse response = venueService.updateVenueDraft(id, request, email);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<VenueResponse> submitVenue(
+            @PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        VenueResponse response = venueService.submitVenue(id, email);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/cancel-submit")
+    public ResponseEntity<VenueResponse> cancelSubmitVenue(
+            @PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        VenueResponse response = venueService.cancelSubmitVenue(id, email);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/draft")
+    public ResponseEntity<Void> deleteVenueDraft(
+            @PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        venueService.deleteVenueDraft(id, email);
+        return ResponseEntity.noContent().build();
     }
 }

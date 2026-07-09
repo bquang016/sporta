@@ -9,15 +9,85 @@ const DEFAULT_LAT = 21.028511;
 const DEFAULT_LNG = 105.804817;
 const GOONG_MAP_KEY = import.meta.env.VITE_GOONG_MAP_KEY || '8n7WDTHRsELT9F8UA4g3nsDbFWn5KQPig2dDkJHZ';
 
+// Address Component Extraction Helper
+const extractAddressComponents = (components: any[], formattedAddress: string) => {
+  let province = '';
+  let district = '';
+  let ward = '';
+  let streetNumber = '';
+  let route = '';
+
+  components.forEach((comp: any) => {
+    const types = comp.types || [];
+    if (types.includes('administrative_area_level_1')) {
+      province = comp.long_name;
+    } else if (types.includes('administrative_area_level_2')) {
+      district = comp.long_name;
+    } else if (types.includes('administrative_area_level_3') || types.includes('sublocality_level_1') || types.includes('ward')) {
+      ward = comp.long_name;
+    } else if (types.includes('route')) {
+      route = comp.long_name;
+    } else if (types.includes('street_number')) {
+      streetNumber = comp.long_name;
+    }
+  });
+
+  // Clean administrative level prefixes
+  const cleanProvince = province.replace(/^(Tỉnh|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+  const cleanDistrict = district.replace(/^(Quận|Huyện|Thị xã|Thị Xã|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+  const cleanWard = ward.replace(/^(Phường|Xã|Thị trấn|Thị Trấn)/i, '').trim();
+
+  let addressDetail = '';
+  if (streetNumber && route) {
+    addressDetail = `${streetNumber} ${route}`;
+  } else if (route) {
+    addressDetail = route;
+  }
+
+  // Fallback splitting if some names are blank
+  if (!cleanProvince || !cleanDistrict || !cleanWard || !addressDetail) {
+    const parts = formattedAddress.split(',').map((p: string) => p.trim());
+    const len = parts.length;
+    
+    if (len >= 4) {
+      if (!addressDetail) addressDetail = parts[0];
+      if (!cleanWard) ward = parts[1].replace(/^(Phường|Xã|Thị trấn|Thị Trấn)/i, '').trim();
+      if (!cleanDistrict) district = parts[2].replace(/^(Quận|Huyện|Thị xã|Thị Xã|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+      if (!cleanProvince) province = parts[3].replace(/^(Tỉnh|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+    } else if (len === 3) {
+      if (!addressDetail) addressDetail = parts[0];
+      if (!cleanDistrict) district = parts[1].replace(/^(Quận|Huyện|Thị xã|Thị Xã|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+      if (!cleanProvince) province = parts[2].replace(/^(Tỉnh|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+    } else if (len === 2) {
+      if (!addressDetail) addressDetail = parts[0];
+      if (!cleanProvince) province = parts[1].replace(/^(Tỉnh|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim();
+    }
+  }
+
+  return {
+    province: cleanProvince || province.replace(/^(Tỉnh|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim(),
+    district: cleanDistrict || district.replace(/^(Quận|Huyện|Thị xã|Thị Xã|Thành phố|Thành Phố|Tp\.|TP)/i, '').trim(),
+    ward: cleanWard || ward.replace(/^(Phường|Xã|Thị trấn|Thị Trấn)/i, '').trim(),
+    addressDetail: addressDetail || formattedAddress.split(',')[0].trim()
+  };
+};
+
 interface LocationPickerMapProps {
   initialLocation?: {
     lat: number;
     lng: number;
   };
   initialAddress?: string;
-  onChange?: (data: { lat: number; lng: number; address: string }) => void;
+  onChange?: (data: {
+    lat: number;
+    lng: number;
+    address: string;
+    province: string;
+    district: string;
+    ward: string;
+    addressDetail: string;
+  }) => void;
   onClose?: () => void;
-  /** When true, fills the parent container's height instead of using a fixed height */
   fullHeight?: boolean;
 }
 
@@ -53,6 +123,13 @@ export const LocationPickerMap = ({
     lng: initialLocation?.lng && initialLocation.lng !== 0 ? initialLocation.lng : DEFAULT_LNG
   });
 
+  const [addressComponents, setAddressComponents] = useState({
+    province: '',
+    district: '',
+    ward: '',
+    addressDetail: ''
+  });
+
   // Sync initial location if it changes
   useEffect(() => {
     if (initialLocation?.lat && initialLocation?.lng && initialLocation.lat !== 0 && initialLocation.lng !== 0) {
@@ -60,6 +137,19 @@ export const LocationPickerMap = ({
       setCoords(newCoords);
       if (mapRef.current) {
         mapRef.current.setCenter([newCoords.lng, newCoords.lat]);
+      }
+      if (markerRef.current) {
+        markerRef.current.setLngLat([newCoords.lng, newCoords.lat]);
+      }
+      if (!initialAddress) {
+        reverseGeocode(initialLocation.lat, initialLocation.lng).then(geoResult => {
+          if (geoResult) {
+            setAddress(geoResult.address);
+            setSearchQuery(geoResult.address);
+            const parsed = extractAddressComponents(geoResult.components, geoResult.address);
+            setAddressComponents(parsed);
+          }
+        });
       }
     }
     if (initialAddress) {
@@ -83,71 +173,105 @@ export const LocationPickerMap = ({
     });
     mapRef.current = map;
 
+    // Suppress external Goong map stylesheet resource warnings
+    map.on('error', (e: any) => {
+      const msg = e?.error?.message || '';
+      if (msg.includes('Source layer') || msg.includes('Image')) {
+        return;
+      }
+      console.warn('Goong Map style resource warning:', msg);
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.resize();
+      }
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     // Add Navigation Control
     map.addControl(new goongjs.NavigationControl({ showCompass: false }), 'top-right');
 
     // Create Marker Element
     const el = document.createElement('div');
-    el.className = 'marker-pin-wrapper pointer-events-none select-none';
+    el.className = 'custom-map-marker select-none';
     el.innerHTML = `
-      <div class="relative flex flex-col items-center">
-        <!-- Bouncing Pin Icon -->
-        <div class="pin-icon-body w-9 h-9 rounded-full bg-brand-emerald border-2 border-white flex items-center justify-center shadow-[0_6px_20px_rgba(16,185,129,0.3)]">
-          <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+      <div class="marker-container relative flex flex-col items-center">
+        <!-- Marker shadow -->
+        <div class="absolute -bottom-1.5 w-7.5 h-2 bg-slate-950/20 rounded-full blur-[1.8px] scale-x-100 transform origin-center marker-shadow"></div>
+        
+        <!-- Sporta Emerald Teardrop with Metallic Outline & Gold Core -->
+        <div class="pin-body relative w-9 h-11 flex flex-col items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.12)]">
+          <svg class="absolute inset-0 w-full h-full" viewBox="0 0 36 44">
+            <defs>
+              <linearGradient id="sporta-pin-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="100%" stop-color="#047857" />
+              </linearGradient>
+            </defs>
+            <path d="M18 0C8.06 0 0 8.06 0 18c0 12.75 18 26 18 26s18-13.25 18-26C36 8.06 27.94 0 18 0z" fill="url(#sporta-pin-grad)" />
+            <path d="M18 1C8.61 1 1 8.61 1 18c0 11.87 17 24.31 17 24.31S35 29.87 35 18c0-9.39-7.61-17-17-17z" fill="none" stroke="white" stroke-opacity="0.3" stroke-width="1.5" />
           </svg>
+          
+          <!-- Inner White Ring with brand-yellow ball core -->
+          <div class="absolute top-[8px] w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)]">
+            <div class="w-2.5 h-2.5 rounded-full bg-brand-yellow shadow-inner animate-pulse"></div>
+          </div>
         </div>
-        <!-- Pin Tail -->
-        <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-white -mt-0.5"></div>
-        <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-brand-emerald -mt-[7.5px]"></div>
       </div>
     `;
 
-    // Create Marker
+    // Create Draggable Marker
     const marker = new goongjs.Marker({
       element: el,
-      anchor: 'bottom'
+      anchor: 'bottom',
+      draggable: true
     })
       .setLngLat([coords.lng, coords.lat])
       .addTo(map);
     markerRef.current = marker;
 
-    // Event Listeners
-    map.on('movestart', () => {
+    // Marker Drag Listeners
+    marker.on('dragstart', () => {
       setIsDragging(true);
+      el.classList.add('dragging');
     });
 
-    map.on('move', () => {
-      const center = map.getCenter();
-      marker.setLngLat(center);
-      setCoords({ lat: center.lat, lng: center.lng });
+    marker.on('drag', () => {
+      const markerCoords = marker.getLngLat();
+      setCoords({ lat: markerCoords.lat, lng: markerCoords.lng });
     });
 
-    map.on('moveend', () => {
+    marker.on('dragend', () => {
       setIsDragging(false);
-      const center = map.getCenter();
+      el.classList.remove('dragging');
+      const markerCoords = marker.getLngLat();
+      setCoords({ lat: markerCoords.lat, lng: markerCoords.lng });
 
-      // Clear any pending geocode request
       if (geocodeTimeoutRef.current) {
         clearTimeout(geocodeTimeoutRef.current);
       }
 
-      // Debounce geocoding
       geocodeTimeoutRef.current = setTimeout(async () => {
         try {
-          const geoAddress = await reverseGeocode(center.lat, center.lng);
-          if (geoAddress) {
-            setAddress(geoAddress);
-            setSearchQuery(geoAddress);
+          const geoResult = await reverseGeocode(markerCoords.lat, markerCoords.lng);
+          if (geoResult) {
+            setAddress(geoResult.address);
+            setSearchQuery(geoResult.address);
+            const parsed = extractAddressComponents(geoResult.components, geoResult.address);
+            setAddressComponents(parsed);
           }
         } catch (err) {
-          console.error('Failed to geocode center coordinate:', err);
+          console.error('Failed to geocode dragged marker:', err);
         }
-      }, 600);
+      }, 500);
     });
 
     // Cleanup on unmount
     return () => {
+      resizeObserver.disconnect();
       if (geocodeTimeoutRef.current) {
         clearTimeout(geocodeTimeoutRef.current);
       }
@@ -171,11 +295,15 @@ export const LocationPickerMap = ({
     clearSuggestions();
     try {
       const details = await getPlaceDetails(suggestion.place_id);
-      if (details && mapRef.current) {
+      if (details && mapRef.current && markerRef.current) {
         setAddress(details.address);
         setSearchQuery(details.address);
         setCoords(details.location);
         
+        const parsed = extractAddressComponents(details.components, details.address);
+        setAddressComponents(parsed);
+
+        markerRef.current.setLngLat([details.location.lng, details.location.lat]);
         mapRef.current.flyTo({
           center: [details.location.lng, details.location.lat],
           zoom: 16,
@@ -193,7 +321,6 @@ export const LocationPickerMap = ({
     try {
       let gpsCoords: { lat: number; lng: number };
 
-      // Capacitor Native Geolocation
       if (typeof window !== 'undefined' && (window as any).Capacitor) {
         const { Geolocation } = await import('@capacitor/geolocation');
         const permission = await Geolocation.checkPermissions();
@@ -209,7 +336,6 @@ export const LocationPickerMap = ({
           lng: pos.coords.longitude
         };
       } else {
-        // Standard Web Geolocation
         gpsCoords = await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
           if (!navigator.geolocation) {
             reject(new Error('GPS location is not supported by your browser.'));
@@ -230,7 +356,8 @@ export const LocationPickerMap = ({
 
       setCoords(gpsCoords);
 
-      if (mapRef.current) {
+      if (mapRef.current && markerRef.current) {
+        markerRef.current.setLngLat([gpsCoords.lng, gpsCoords.lat]);
         mapRef.current.flyTo({
           center: [gpsCoords.lng, gpsCoords.lat],
           zoom: 16,
@@ -238,10 +365,12 @@ export const LocationPickerMap = ({
         });
       }
 
-      const geoAddress = await reverseGeocode(gpsCoords.lat, gpsCoords.lng);
-      if (geoAddress) {
-        setAddress(geoAddress);
-        setSearchQuery(geoAddress);
+      const geoResult = await reverseGeocode(gpsCoords.lat, gpsCoords.lng);
+      if (geoResult) {
+        setAddress(geoResult.address);
+        setSearchQuery(geoResult.address);
+        const parsed = extractAddressComponents(geoResult.components, geoResult.address);
+        setAddressComponents(parsed);
       }
     } catch (err: any) {
       console.error('Error locating GPS coordinate:', err);
@@ -251,7 +380,6 @@ export const LocationPickerMap = ({
     }
   };
 
-  // Close suggestions on outside click
   useEffect(() => {
     const handleClickOutside = () => {
       if (showSuggestions) {
@@ -267,7 +395,11 @@ export const LocationPickerMap = ({
       onChange({
         lat: coords.lat,
         lng: coords.lng,
-        address
+        address,
+        province: addressComponents.province,
+        district: addressComponents.district,
+        ward: addressComponents.ward,
+        addressDetail: addressComponents.addressDetail
       });
     }
   };
@@ -276,12 +408,12 @@ export const LocationPickerMap = ({
     <div className={`relative w-full bg-slate-100 overflow-hidden flex flex-col ${
       fullHeight
         ? 'h-full rounded-none shadow-none border-0'
-        : 'h-[450px] md:h-[500px] rounded-3xl shadow-lg border border-slate-200'
+        : 'h-[360px] md:h-[400px] rounded-3xl shadow-lg border border-slate-200'
     }`}>
       {/* Autocomplete Search input */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="relative flex items-center bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 px-4 py-3">
-          <svg className="w-5 h-5 text-slate-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="relative flex items-center bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-100 px-4 py-2.5">
+          <svg className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -311,17 +443,17 @@ export const LocationPickerMap = ({
 
         {/* Suggestion Dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="mt-2 bg-white/98 backdrop-blur-md rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-slate-100 max-h-[200px] overflow-y-auto z-30 divide-y divide-slate-50 select-none">
+          <div className="mt-2 bg-white/98 backdrop-blur-md rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] border border-slate-100 max-h-[160px] overflow-y-auto z-30 divide-y divide-slate-50 select-none">
             {suggestions.map((item) => (
               <div
                 key={item.place_id}
                 onClick={() => handleSelectSuggestion(item)}
-                className="px-4 py-3 hover:bg-slate-50 active:bg-slate-100 cursor-pointer flex flex-col gap-0.5 text-left transition-all"
+                className="px-4 py-2.5 hover:bg-slate-50 active:bg-slate-100 cursor-pointer flex flex-col gap-0.5 text-left transition-all"
               >
-                <span className="text-[11px] font-black text-slate-800">
+                <span className="text-[10px] font-black text-slate-800">
                   {item.structured_formatting?.main_text || item.description.split(',')[0]}
                 </span>
-                <span className="text-[9px] font-bold text-slate-400 truncate">
+                <span className="text-[8px] font-bold text-slate-400 truncate">
                   {item.structured_formatting?.secondary_text || item.description}
                 </span>
               </div>
@@ -333,16 +465,20 @@ export const LocationPickerMap = ({
       {/* Map DOM Container */}
       <div ref={mapContainerRef} className="w-full h-full relative z-10" />
 
-      {/* Dynamic Marker animation behavior when map drags */}
+      {/* Styled lifting transition of draggable pin marker */}
       <style>{`
-        .marker-pin-wrapper {
-          transition: transform 0.15s ease-out;
+        .custom-map-marker .pin-body {
+          transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        /* Bounce pin body slightly upwards while dragging map */
-        .marker-pin-wrapper:has(+.mapboxgl-map.mapboxgl-user-interaction) .pin-icon-body,
-        .marker-pin-wrapper {
-          transform: translateY(${isDragging ? '-12px' : '0px'}) scale(${isDragging ? '1.1' : '1'});
-          transition: transform 0.2s ease-out;
+        .custom-map-marker .marker-shadow {
+          transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .custom-map-marker.dragging .pin-body {
+          transform: translateY(-8px) scale(1.08);
+        }
+        .custom-map-marker.dragging .marker-shadow {
+          transform: scale(0.6);
+          opacity: 0.4;
         }
       `}</style>
 
@@ -350,44 +486,41 @@ export const LocationPickerMap = ({
       <button
         onClick={handleLocateCurrent}
         disabled={isLocating}
-        className={`absolute bottom-24 right-4 z-20 w-11 h-11 bg-white hover:bg-slate-50 text-slate-700 hover:text-brand-emerald shadow-[0_4px_15px_rgba(0,0,0,0.1)] border border-slate-100 rounded-full flex items-center justify-center active:scale-95 transition-all cursor-pointer ${
+        className={`absolute bottom-20 right-4 z-20 w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 hover:text-brand-emerald shadow-[0_4px_15px_rgba(0,0,0,0.08)] border border-slate-100 rounded-full flex items-center justify-center active:scale-95 transition-all cursor-pointer ${
           isLocating ? 'opacity-70 cursor-not-allowed' : ''
         }`}
         title="Lấy vị trí hiện tại"
       >
         {isLocating ? (
-          <div className="w-5 h-5 border-2 border-brand-emerald border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand-emerald border-t-transparent rounded-full animate-spin" />
         ) : (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         )}
       </button>
 
-      {/* Coordinates & Location Footer details panel */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-slate-100/80 p-4 flex flex-col gap-3">
-        <div className="flex flex-col gap-1 text-left">
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-ping" />
-              Địa chỉ hiện tại
-            </span>
-            <span className="bg-slate-100 px-2 py-0.5 rounded-md text-[8px] font-bold text-slate-500 tracking-wider">
-              {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-            </span>
+      {/* ULTRA-COMPACT BOTTOM SINGLE-ROW FLOATING BAR */}
+      <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-2xl p-2.5 flex flex-row items-center justify-between gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.08)] select-none">
+        
+        {/* Left Side: Pin Icon & Resolved Address (Truncated) */}
+        <div className="flex items-center gap-2 min-w-0 flex-1 select-none">
+          <div className="w-6 h-6 rounded-full bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center flex-shrink-0 animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald" />
           </div>
-          <p className="text-[11px] font-bold text-slate-700 min-h-[32px] line-clamp-2">
-            {address || (isDragging ? 'Đang xác định vị trí...' : 'Vui lòng di chuyển bản đồ để chọn địa chỉ')}
-          </p>
+          <span className="text-[10px] font-bold text-slate-700 truncate" title={address}>
+            {address || (isDragging ? 'Đang xác định vị trí...' : 'Kéo thả ghim để chọn vị trí')}
+          </span>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-slate-50 pt-3">
+        {/* Right Side: Confirm / Cancel Buttons */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-slate-100 text-slate-500 hover:bg-slate-50 font-extrabold text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 font-black text-[9px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
             >
               Hủy
             </button>
@@ -396,14 +529,15 @@ export const LocationPickerMap = ({
             type="button"
             onClick={handleConfirm}
             disabled={!address || isDragging}
-            className={`bg-brand-emerald hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider px-6 py-2.5 rounded-xl active:scale-95 transition-all cursor-pointer border-b-2 border-emerald-900 shadow-md ${
+            className={`bg-brand-emerald hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider px-4 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer border-b-2 border-emerald-900 shadow-xs ${
               (!address || isDragging) ? 'opacity-55 cursor-not-allowed border-b-0' : ''
             }`}
           >
-            Xác nhận vị trí
+            Xác nhận
           </button>
         </div>
       </div>
     </div>
   );
 };
+export default LocationPickerMap;

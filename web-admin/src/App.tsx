@@ -4,6 +4,7 @@ import { Dashboard } from "@/pages/Dashboard/Dashboard";
 import { FacilityAuditing } from "@/pages/Facilities/FacilityAuditing";
 import { UserManagement } from "@/pages/Users/UserManagement";
 import { OwnerManagement } from "@/pages/Users/OwnerManagement";
+import { StaffManagement } from "@/pages/Users/StaffManagement";
 import { LoginPage } from "@/pages/Auth/LoginPage";
 import { PermissionSettings } from "@/pages/Settings/PermissionSettings";
 
@@ -27,6 +28,8 @@ function App() {
         return <UserManagement />;
       case "owners":
         return <OwnerManagement />;
+      case "staff":
+        return <StaffManagement />;
       case "settings":
         return <PermissionSettings />;
       default:

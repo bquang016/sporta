@@ -15,11 +15,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE u.role = :role AND (:search IS NULL OR :search = '' OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) ORDER BY u.createdAt DESC")
+    @Query("SELECT u FROM User u WHERE u.role = :role AND (u.isDeleted IS NULL OR u.isDeleted = false) AND (:search IS NULL OR :search = '' OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) ORDER BY u.createdAt DESC")
     List<User> findByRoleAndSearch(@Param("role") Role role, @Param("search") String search);
 
-    @Query("SELECT u FROM User u WHERE (:search IS NULL OR :search = '' OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) ORDER BY u.createdAt DESC")
+    @Query("SELECT u FROM User u WHERE (u.isDeleted IS NULL OR u.isDeleted = false) AND (:search IS NULL OR :search = '' OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) ORDER BY u.createdAt DESC")
     List<User> findBySearch(@Param("search") String search);
+
+    @Query("SELECT u FROM User u WHERE u.isDeleted IS NULL OR u.isDeleted = false ORDER BY u.createdAt DESC")
+    List<User> findAllActiveOrderByCreatedAtDesc();
 
     List<User> findAllByOrderByCreatedAtDesc();
 }

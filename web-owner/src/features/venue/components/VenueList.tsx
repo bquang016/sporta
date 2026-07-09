@@ -117,30 +117,55 @@ export const VenueList = ({ venues, courts, openMenuId, setOpenMenuId, onEdit, o
           return `Giá từ: ${formatVND(min || 0)} - ${formatVND(max || 0)} / ca`;
         };
 
+        const isPending = venue.approvalStatus === 'PENDING';
         return (
           <div
             key={venue.id}
-            className="bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+            onClick={() => {
+              if (isPending) {
+                onEdit(venue);
+              }
+            }}
+            className={`bg-white border border-slate-200/60 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
+              isPending ? 'cursor-pointer' : ''
+            }`}
           >
             <div className="space-y-2">
               {/* Header row: name + 3-dot menu */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <h4 className="font-black text-slate-800 text-sm tracking-tight truncate">{venue.name}</h4>
-                  <VenueCardMenu
-                    venueId={venue.id}
-                    openMenuId={openMenuId}
-                    setOpenMenuId={setOpenMenuId}
-                    onEdit={() => onEdit(venue)}
-                    onChangeStatus={() => onChangeStatus(venue.id)}
-                  />
+                  {!isPending && (
+                    <VenueCardMenu
+                      venueId={venue.id}
+                      openMenuId={openMenuId}
+                      setOpenMenuId={setOpenMenuId}
+                      onEdit={() => onEdit(venue)}
+                      onChangeStatus={() => onChangeStatus(venue.id)}
+                    />
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {venue.hasPendingRevision && (
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-yellow-300 bg-yellow-50 text-yellow-700">
+                      Chờ duyệt thay đổi
+                    </span>
+                  )}
+                  {isPending && (
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 animate-pulse">
+                      Chờ duyệt
+                    </span>
+                  )}
+                  {venue.approvalStatus === 'DRAFT' && (
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600">
+                      Bản nháp
+                    </span>
+                  )}
                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${statusColor}`}>
                     {statusLabel}
                   </span>
                   <span className="text-[9px] font-black text-brand-emerald bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                    {venueCourts.length} san bai
+                    {venueCourts.length} sân bãi
                   </span>
                 </div>
               </div>

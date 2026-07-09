@@ -1,4 +1,4 @@
-import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse } from '../types';
+import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse, VenueDraftRequest } from '../types';
 
 const BASE_URL = 'http://localhost:8387/api/v1';
 
@@ -105,6 +105,51 @@ export const courtService = {
       body: JSON.stringify(data),
     });
     return handleResponse(res, 'Lỗi khi cập nhật thông tin cụm sân');
+  },
+
+  async createVenueDraft(data: VenueDraftRequest): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/draft`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res, 'Lỗi khi tạo bản nháp cụm sân');
+  },
+
+  async updateVenueDraft(id: string, data: VenueDraftRequest): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/draft`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res, 'Lỗi khi cập nhật bản nháp cụm sân');
+  },
+
+  async submitVenueForApproval(id: string): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/submit`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Lỗi khi gửi yêu cầu duyệt cụm sân');
+  },
+
+  async cancelVenueSubmission(id: string): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/cancel-submit`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Lỗi khi hủy yêu cầu duyệt cụm sân');
+  },
+
+  async deleteVenueDraft(id: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/draft`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Lỗi khi xóa bản nháp cụm sân');
+    }
   },
 
   async getCourtPriceRules(courtId: string): Promise<CourtPriceRuleResponse[]> {

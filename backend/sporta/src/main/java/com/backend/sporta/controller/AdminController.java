@@ -1,6 +1,7 @@
 package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.UpdatePermissionRequest;
+import com.backend.sporta.dto.CreateAdminRequest;
 import com.backend.sporta.entity.RolePermission;
 import com.backend.sporta.entity.User;
 import com.backend.sporta.entity.UserStatus;
@@ -11,11 +12,14 @@ import com.backend.sporta.repository.RolePermissionRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.LockReasonRepository;
 import com.backend.sporta.repository.LockLogRepository;
+import com.backend.sporta.repository.OwnerRegistrationRepository;
+import com.backend.sporta.entity.OwnerRegistration;
 import com.backend.sporta.exception.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Map;
@@ -37,6 +41,15 @@ public class AdminController {
 
     @Autowired
     private LockLogRepository lockLogRepository;
+
+    @Autowired
+    private OwnerRegistrationRepository ownerRegistrationRepository;
+
+    @Autowired
+    private com.backend.sporta.service.AuthService authService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @GetMapping("/permissions")
     public ResponseEntity<List<RolePermission>> getAdminPermissions() {
@@ -116,10 +129,66 @@ public class AdminController {
             if (search != null && !search.trim().isEmpty()) {
                 users = userRepository.findBySearch(search);
             } else {
-                users = userRepository.findAllByOrderByCreatedAtDesc();
+                users = userRepository.findAllActiveOrderByCreatedAtDesc();
             }
         }
         return ResponseEntity.ok(users);
+    }
+
+    @PostMapping("/users/create-admin")
+    public ResponseEntity<?> createAdmin(@RequestBody CreateAdminRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User superAdmin = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin Super Admin", 404));
+        
+        if (superAdmin.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Bạn không có quyền thực hiện thao tác này. Chỉ Super Admin mới có quyền tạo Admin.", 403);
+        }
+        
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException("Email này đã được đăng ký trong hệ thống.", 400);
+        }
+        
+        User admin = User.builder()
+                .fullName(request.getFullName().trim())
+                .email(request.getEmail().trim())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.ADMIN)
+                .status(UserStatus.ACTIVE)
+                .mustChangePassword(false)
+                .isDeleted(false)
+                .build();
+                
+        userRepository.save(admin);
+        return ResponseEntity.ok(Map.of("message", "Tạo tài khoản vận hành Admin thành công."));
+    }
+
+    @PostMapping("/users/{id}/deactivate")
+    public ResponseEntity<?> deactivateAdmin(@PathVariable("id") Long userId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User superAdmin = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin Super Admin", 404));
+        
+        if (superAdmin.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Bạn không có quyền thực hiện thao tác này. Chỉ Super Admin mới có quyền vô hiệu hóa Admin.", 403);
+        }
+        
+        User adminToDeactivate = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin Admin cần vô hiệu hóa", 404));
+        
+        if (superAdmin.getId().equals(adminToDeactivate.getId())) {
+            throw new CustomException("Bạn không thể tự vô hiệu hóa tài khoản của chính mình.", 400);
+        }
+        
+        if (adminToDeactivate.getRole() != Role.ADMIN) {
+            throw new CustomException("Chỉ có thể vô hiệu hóa tài khoản nhân sự có vai trò ADMIN.", 400);
+        }
+        
+        adminToDeactivate.setIsDeleted(true);
+        adminToDeactivate.setStatus(UserStatus.INACTIVE);
+        userRepository.save(adminToDeactivate);
+        
+        return ResponseEntity.ok(Map.of("message", "Đã vô hiệu hóa tài khoản Admin thành công."));
     }
 
     @PostMapping("/users/{id}/lock")
@@ -257,5 +326,60 @@ public class AdminController {
         
         lockReasonRepository.delete(reason);
         return ResponseEntity.ok(Map.of("message", "Đã xóa lý do khóa thành công."));
+    }
+
+    @GetMapping("/registrations")
+    public ResponseEntity<List<OwnerRegistration>> getOwnerRegistrations() {
+        return ResponseEntity.ok(ownerRegistrationRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    @GetMapping("/registrations/{id}")
+    public ResponseEntity<OwnerRegistration> getOwnerRegistrationDetail(@PathVariable("id") java.util.UUID id) {
+        OwnerRegistration registration = ownerRegistrationRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin đăng ký.", 404));
+        return ResponseEntity.ok(registration);
+    }
+
+    @PostMapping("/registrations/{id}/approve")
+    public ResponseEntity<?> approveRegistration(@PathVariable("id") java.util.UUID id) {
+        String temporaryPassword = authService.approveOwnerRegistration(id);
+        return ResponseEntity.ok(Map.of(
+            "message", "Đã duyệt đơn đăng ký thành công.",
+            "temporaryPassword", temporaryPassword
+        ));
+    }
+
+    @PostMapping("/registrations/{id}/reject")
+    public ResponseEntity<?> rejectRegistration(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        authService.rejectOwnerRegistration(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối đơn đăng ký thành công."));
+    }
+
+    @Autowired
+    private com.backend.sporta.service.VenueService venueService;
+
+    @GetMapping("/venue-revisions/pending")
+    public ResponseEntity<List<com.backend.sporta.dto.VenueRevisionResponse>> getPendingVenueRevisions() {
+        return ResponseEntity.ok(venueService.getPendingRevisions());
+    }
+
+    @PostMapping("/venue-revisions/{id}/approve")
+    public ResponseEntity<?> approveVenueRevision(@PathVariable("id") java.util.UUID id) {
+        venueService.approveRevision(id);
+        return ResponseEntity.ok(Map.of("message", "Đã phê duyệt thay đổi thông tin sân thành công."));
+    }
+
+    @PostMapping("/venue-revisions/{id}/reject")
+    public ResponseEntity<?> rejectVenueRevision(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        venueService.rejectRevision(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu thay đổi thành công."));
     }
 }

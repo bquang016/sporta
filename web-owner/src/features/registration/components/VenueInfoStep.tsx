@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Setup Wizard — Step 2: Venue Info + Images
+// Setup Wizard — Step 2: Venue Info + Images (Refactored to match VenueFormScreen)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import type { VenueInfo } from '../types';
-import { SPORT_TYPE_OPTIONS } from '../types';
+import { LocationPickerMap } from '../../venue/components/LocationPickerMap';
+import { Dropdown } from '../../../components/ui/Dropdown';
 
 interface VenueInfoStepProps {
   venueInfo: VenueInfo;
@@ -12,342 +13,324 @@ interface VenueInfoStepProps {
   isLoading: boolean;
 }
 
-/* Icons */
-const BuildingIcon = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-  </svg>
-);
-
-const LocationIcon = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
-/* Reusable input */
-const InputField = ({
-  id, label, icon, value, onChange, placeholder, disabled
-}: {
-  id: string; label: string; icon: React.ReactNode; value: string;
-  onChange: (val: string) => void; placeholder: string; disabled?: boolean;
-}) => (
-  <div className="space-y-1.5">
-    <label htmlFor={id} className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-      {label}
-    </label>
-    <div className="relative">
-      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
-      <input
-        id={id} type="text" placeholder={placeholder} value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 font-bold text-xs text-slate-700 placeholder-slate-400
-                   focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white transition-all"
-        disabled={disabled}
-      />
-    </div>
-  </div>
-);
-
-/* Reusable Select */
-const SelectField = ({
-  id, label, icon, value, onChange, options, placeholder, disabled
-}: {
-  id: string; label: string; icon: React.ReactNode; value: string;
-  onChange: (val: string) => void; options: {code: number, name: string}[]; placeholder: string; disabled?: boolean;
-}) => (
-  <div className="space-y-1.5">
-    <label htmlFor={id} className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-      {label}
-    </label>
-    <div className="relative">
-      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
-      <select
-        id={id} value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 font-bold text-xs text-slate-700
-                   focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white transition-all appearance-none cursor-pointer"
-        disabled={disabled || options.length === 0}
-      >
-        <option value="" disabled>{placeholder}</option>
-        {options.map((opt) => (
-          <option key={opt.code} value={opt.name}>{opt.name}</option>
-        ))}
-      </select>
-      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-    </div>
-  </div>
-);
-
 export const VenueInfoStep = ({
   venueInfo,
   onVenueInfoChange,
   isLoading,
 }: VenueInfoStepProps) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const detailInputRef = useRef<HTMLInputElement>(null);
 
-  const [provinces, setProvinces] = useState<{code: number, name: string}[]>([]);
-  const [districts, setDistricts] = useState<{code: number, name: string}[]>([]);
-  const [wards, setWards] = useState<{code: number, name: string}[]>([]);
+  const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+    const hours = Math.floor(i / 2).toString().padStart(2, '0');
+    const minutes = (i % 2 === 0 ? '00' : '30');
+    return `${hours}:${minutes}`;
+  });
+  const hourDropdownOptions = TIME_OPTIONS.map(t => ({ value: t, label: t }));
 
-  const [selectedProvinceCode, setSelectedProvinceCode] = useState<number | null>(null);
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | null>(null);
+  const SPORT_OPTIONS = [
+    { value: '1', label: 'Bóng đá' },
+    { value: '2', label: 'Cầu lông' },
+    { value: '3', label: 'Pickleball' },
+    { value: '4', label: 'Bóng rổ' }
+  ];
 
-  // Initial load for provinces
-  useEffect(() => {
-    fetch('https://provinces.open-api.vn/api/p/')
-      .then(res => res.json())
-      .then(data => {
-        setProvinces(data);
-        // Pre-select if value exists
-        if (venueInfo.province) {
-          const p = data.find((x: any) => x.name === venueInfo.province);
-          if (p) setSelectedProvinceCode(p.code);
-        }
-      })
-      .catch(err => console.error("Failed to load provinces", err));
-  }, []);
-
-  // When province changes, fetch districts
-  useEffect(() => {
-    if (selectedProvinceCode) {
-      fetch(`https://provinces.open-api.vn/api/p/${selectedProvinceCode}?depth=2`)
-        .then(res => res.json())
-        .then(data => {
-          setDistricts(data.districts || []);
-          // Pre-select if value exists
-          if (venueInfo.district) {
-            const d = (data.districts || []).find((x: any) => x.name === venueInfo.district);
-            if (d) setSelectedDistrictCode(d.code);
-          }
-        })
-        .catch(err => console.error("Failed to load districts", err));
-    } else {
-      setDistricts([]);
-    }
-  }, [selectedProvinceCode]);
-
-  // When district changes, fetch wards
-  useEffect(() => {
-    if (selectedDistrictCode) {
-      fetch(`https://provinces.open-api.vn/api/d/${selectedDistrictCode}?depth=2`)
-        .then(res => res.json())
-        .then(data => setWards(data.wards || []))
-        .catch(err => console.error("Failed to load wards", err));
-    } else {
-      setWards([]);
-    }
-  }, [selectedDistrictCode]);
-
-  const handleProvinceChange = (name: string) => {
-    const p = provinces.find(x => x.name === name);
-    if (p) {
-      setSelectedProvinceCode(p.code);
-      setSelectedDistrictCode(null);
-      setWards([]);
-      onVenueInfoChange({ ...venueInfo, province: name, district: '', ward: '' });
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onVenueInfoChange({ ...venueInfo, coverImage: file });
     }
   };
 
-  const handleDistrictChange = (name: string) => {
-    const d = districts.find(x => x.name === name);
-    if (d) {
-      setSelectedDistrictCode(d.code);
-      onVenueInfoChange({ ...venueInfo, district: name, ward: '' });
+  const handleDetailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      onVenueInfoChange({ 
+        ...venueInfo, 
+        detailImages: [...venueInfo.detailImages, ...Array.from(files)] 
+      });
     }
   };
 
-  const handleWardChange = (name: string) => {
-    onVenueInfoChange({ ...venueInfo, ward: name });
+  const removeDetailImage = (index: number) => {
+    const updated = venueInfo.detailImages.filter((_, i) => i !== index);
+    onVenueInfoChange({ ...venueInfo, detailImages: updated });
   };
 
-  const handleSportToggle = (sportValue: string) => {
-    const current = venueInfo.sportTypes;
-    const updated = current.includes(sportValue)
-      ? current.filter((s) => s !== sportValue)
-      : [...current, sportValue];
-    onVenueInfoChange({ ...venueInfo, sportTypes: updated });
-  };
+  const getDurationWarning = (): string | null => {
+    if (!venueInfo.openingTime || !venueInfo.closingTime || !venueInfo.shiftDurationMinutes) return null;
+    try {
+      const [openH, openM] = venueInfo.openingTime.split(':').map(Number);
+      const [closeH, closeM] = venueInfo.closingTime.split(':').map(Number);
+      if (isNaN(openH) || isNaN(openM) || isNaN(closeH) || isNaN(closeM)) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      onVenueInfoChange({ ...venueInfo, images: [...venueInfo.images, ...newFiles] });
+      let totalMin = (closeH * 60 + closeM) - (openH * 60 + openM);
+      if (totalMin <= 0) {
+        totalMin += 24 * 60;
+      }
+
+      if (totalMin % venueInfo.shiftDurationMinutes !== 0) {
+        return 'Cảnh báo: Thời gian đóng/mở cửa không khớp với thời lượng ca, sẽ có ca bị dư/thiếu giờ';
+      }
+    } catch (e) {
+      // ignore
     }
+    return null;
   };
-
-  const removeFile = (index: number) => {
-    const updated = venueInfo.images.filter((_, i) => i !== index);
-    onVenueInfoChange({ ...venueInfo, images: updated });
-  };
+  const durationWarning = getDurationWarning();
 
   return (
-    <div className="animate-fadeIn space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-xl bg-brand-emerald/10 border-2 border-brand-emerald/20 text-brand-emerald flex items-center justify-center mx-auto mb-3">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-black text-slate-800 tracking-tight">Thông tin cụm sân</h3>
-        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-          Địa chỉ, loại sân và hình ảnh cụm sân của bạn
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {/* Venue name */}
-        <InputField id="setup-venue-name" label="Tên cụm sân" icon={BuildingIcon}
-          value={venueInfo.venueName}
-          onChange={(val) => onVenueInfoChange({ ...venueInfo, venueName: val })}
-          placeholder="Sân bóng Thành Công" disabled={isLoading} />
-
-        {/* Address */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <SelectField id="setup-province" label="Tỉnh / Thành phố" icon={LocationIcon}
-            value={venueInfo.province}
-            onChange={handleProvinceChange}
-            options={provinces}
-            placeholder="Chọn Tỉnh/Thành" disabled={isLoading || provinces.length === 0} />
-            
-          <SelectField id="setup-district" label="Quận / Huyện" icon={LocationIcon}
-            value={venueInfo.district}
-            onChange={handleDistrictChange}
-            options={districts}
-            placeholder="Chọn Quận/Huyện" disabled={isLoading || districts.length === 0 || !venueInfo.province} />
-            
-          <SelectField id="setup-ward" label="Phường / Xã" icon={LocationIcon}
-            value={venueInfo.ward}
-            onChange={handleWardChange}
-            options={wards}
-            placeholder="Chọn Phường/Xã" disabled={isLoading || wards.length === 0 || !venueInfo.district} />
+    <div className="animate-fadeIn flex flex-col md:flex-row gap-6 min-h-[600px]">
+      
+      {/* LEFT PANEL: Form */}
+      <div className="flex-1 flex flex-col space-y-6">
+        <div className="text-left">
+          <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border-2 border-brand-emerald/20 text-brand-emerald flex items-center justify-center mb-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-black text-slate-800 tracking-tight">Thông tin cụm sân</h3>
+          <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
+            Điền đầy đủ thông tin để hoàn tất hồ sơ đăng ký cụm sân của bạn
+          </p>
         </div>
 
-        {/* Description */}
+        {/* ① Tên cụm sân */}
         <div className="space-y-1.5">
-          <label htmlFor="setup-description" className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-            Mô tả cụm sân
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-0.5">
+            Tên cụm sân <span className="text-red-500">*</span>
           </label>
-          <textarea
-            id="setup-description"
-            placeholder="Mô tả về cụm sân, vị trí, đặc điểm nổi bật..."
-            value={venueInfo.description}
-            onChange={(e) => onVenueInfoChange({ ...venueInfo, description: e.target.value })}
-            rows={3}
-            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 font-bold text-xs text-slate-700 placeholder-slate-400
-                       focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white transition-all resize-none"
+          <input
+            type="text"
+            placeholder="VD: Cụm Sân Thể Thao Cầu Giấy"
+            value={venueInfo.name}
+            onChange={e => onVenueInfoChange({ ...venueInfo, name: e.target.value })}
             disabled={isLoading}
+            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-brand-emerald transition-all"
           />
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-slate-100" />
-
-        {/* Sport types */}
+        {/* ② Môn thể thao */}
         <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-            Loại sân
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-0.5">
+            Môn thể thao chính <span className="text-red-500">*</span>
           </label>
-          <div className="flex flex-wrap gap-2">
-            {SPORT_TYPE_OPTIONS.map((sport) => {
-              const isSelected = venueInfo.sportTypes.includes(sport.value);
-              return (
-                <button
-                  key={sport.value} type="button"
-                  onClick={() => handleSportToggle(sport.value)}
-                  disabled={isLoading}
-                  className={`
-                    px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider
-                    border transition-all duration-200 cursor-pointer
-                    ${isSelected
-                      ? 'bg-brand-emerald text-white border-brand-emerald shadow-sm shadow-brand-emerald/20'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-brand-emerald/40 hover:text-brand-emerald'
-                    }
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                >
-                  {sport.label}
-                </button>
-              );
-            })}
+          <div className={isLoading ? "opacity-50 pointer-events-none" : ""}>
+            <Dropdown
+              options={SPORT_OPTIONS}
+              value={venueInfo.sportId}
+              onChange={val => onVenueInfoChange({ ...venueInfo, sportId: val })}
+              placeholder="Chọn môn thể thao chính"
+              className="w-full"
+            />
           </div>
         </div>
 
-        {/* Sub-court count */}
+        {/* ③ Giờ mở / đóng cửa */}
         <div className="space-y-1.5">
-          <label htmlFor="setup-court-count" className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-            Số lượng sân con
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+            Thời gian hoạt động
           </label>
-          <div className="flex items-center gap-3">
-            <button type="button"
-              onClick={() => onVenueInfoChange({ ...venueInfo, subCourtCount: Math.max(1, venueInfo.subCourtCount - 1) })}
-              disabled={isLoading || venueInfo.subCourtCount <= 1}
-              className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-black text-sm
-                         flex items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >−</button>
-            <input id="setup-court-count" type="number" min={1}
-              value={venueInfo.subCourtCount}
-              onChange={(e) => onVenueInfoChange({ ...venueInfo, subCourtCount: Math.max(1, parseInt(e.target.value) || 1) })}
-              className="w-16 text-center py-2 rounded-xl border border-slate-200 bg-slate-50/60 font-black text-sm text-slate-700
-                         focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10"
-              disabled={isLoading} />
-            <button type="button"
-              onClick={() => onVenueInfoChange({ ...venueInfo, subCourtCount: venueInfo.subCourtCount + 1 })}
-              disabled={isLoading}
-              className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-black text-sm
-                         flex items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >+</button>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-slate-100" />
-
-        {/* Image upload */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-0.5">
-            Hình ảnh sân
-          </label>
-          <button type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="w-full border-2 border-dashed border-slate-200 hover:border-brand-emerald/40 rounded-xl p-4
-                       flex flex-col items-center gap-1.5 transition-colors cursor-pointer group
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-brand-emerald/10 text-slate-400 group-hover:text-brand-emerald flex items-center justify-center transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+          <div className={`grid grid-cols-2 gap-3 ${isLoading ? "opacity-50 pointer-events-none" : ""}`}>
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold text-slate-400 block">Mở cửa</span>
+              <Dropdown
+                options={hourDropdownOptions}
+                value={venueInfo.openingTime}
+                onChange={val => onVenueInfoChange({ ...venueInfo, openingTime: val })}
+                className="w-full"
+              />
             </div>
-            <span className="text-[9px] font-black text-slate-400 group-hover:text-brand-emerald uppercase tracking-wider transition-colors">
-              Nhấn để tải ảnh lên
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold text-slate-400 block">Đóng cửa</span>
+              <Dropdown
+                options={hourDropdownOptions}
+                value={venueInfo.closingTime}
+                onChange={val => onVenueInfoChange({ ...venueInfo, closingTime: val })}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ③.5 Thời lượng ca */}
+        <div className="space-y-1.5">
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-0.5">
+            Thời lượng ca (phút) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            min={1}
+            placeholder="VD: 30"
+            value={venueInfo.shiftDurationMinutes || ''}
+            onChange={e => {
+              const val = parseInt(e.target.value);
+              onVenueInfoChange({ ...venueInfo, shiftDurationMinutes: isNaN(val) ? 30 : val });
+            }}
+            disabled={isLoading}
+            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-brand-emerald transition-all"
+          />
+          {durationWarning && (
+            <p className="text-[10px] text-amber-600 font-bold flex items-start gap-1 bg-amber-50 border border-amber-100 p-2 rounded-lg leading-normal mt-1 animate-fadeIn">
+              <span className="mt-0.5 flex-shrink-0">⚠</span>
+              <span>{durationWarning}</span>
+            </p>
+          )}
+        </div>
+
+        {/* ④ Địa chỉ (Text input cho mobile) */}
+        <div className="space-y-1.5 md:hidden">
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-0.5">
+            Địa chỉ cụm sân <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Nhập địa chỉ cụm sân..."
+              value={venueInfo.location}
+              onChange={e => onVenueInfoChange({ ...venueInfo, location: e.target.value })}
+              disabled={isLoading}
+              className="w-full text-xs font-bold text-slate-700 pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-brand-emerald transition-all"
+            />
+            <svg className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* ⑤ Mô tả */}
+        <div className="space-y-1.5">
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+            Giới thiệu & Tiện ích
+          </label>
+          <textarea
+            placeholder="Mô tả các dịch vụ, tiện ích, bãi đậu xe, phòng tắm, trà nước..."
+            value={venueInfo.description}
+            onChange={e => onVenueInfoChange({ ...venueInfo, description: e.target.value })}
+            disabled={isLoading}
+            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus:bg-white focus:outline-none focus:border-brand-emerald focus:ring-2 focus:ring-emerald-100 h-20 resize-none transition-all"
+          />
+        </div>
+
+        {/* ⑥ Phụ thu */}
+        <div className="space-y-3 pt-3 pb-2 border-t border-b border-slate-100">
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={venueInfo.hasSurcharge}
+                onChange={(e) => onVenueInfoChange({ ...venueInfo, hasSurcharge: e.target.checked })}
+                disabled={isLoading}
+                className="w-4 h-4 text-brand-emerald rounded border-slate-300 focus:ring-brand-emerald cursor-pointer"
+              />
+            </div>
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider group-hover:text-slate-800 transition-colors">
+              Áp dụng Phụ thu chung (VD: Trà đá, Dọn dẹp...)
             </span>
-            <span className="text-[8px] text-slate-400 font-medium">
-              JPG, PNG — tối đa 10 ảnh
-            </span>
+          </label>
+
+          {venueInfo.hasSurcharge && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fadeIn">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                  Số tiền phụ thu (VNĐ) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="VD: 20000"
+                  value={venueInfo.surchargeAmount || ''}
+                  onChange={(e) => onVenueInfoChange({ ...venueInfo, surchargeAmount: Number(e.target.value) })}
+                  disabled={isLoading}
+                  className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100 bg-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                  Mô tả phụ thu <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Phí dọn dẹp sân bãi"
+                  value={venueInfo.surchargeDescription}
+                  onChange={(e) => onVenueInfoChange({ ...venueInfo, surchargeDescription: e.target.value })}
+                  disabled={isLoading}
+                  className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100 bg-white"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ⑦ Ảnh bìa */}
+        <div className="space-y-2">
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+            Ảnh bìa cụm sân
+          </label>
+          <div className="flex gap-4 items-start">
+            <div className="w-28 h-20 bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl overflow-hidden relative flex-shrink-0 flex items-center justify-center">
+              {venueInfo.coverImage ? (
+                <img src={URL.createObjectURL(venueInfo.coverImage)} alt="Cover preview" className="w-full h-full object-cover" />
+              ) : (
+                <svg className="w-5 h-5 text-slate-350" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              )}
+            </div>
+
+            <div className="flex-1">
+              <input type="file" accept="image/*" ref={coverInputRef} onChange={handleCoverChange} className="hidden" />
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-brand-emerald border border-emerald-150 font-extrabold text-[9px] px-3 py-2 rounded-xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Tải ảnh bìa lên
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ⑧ Ảnh chi tiết */}
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
+              Ảnh chi tiết
+            </label>
+            <span className="text-[9px] text-slate-400 font-bold">{venueInfo.detailImages.length} ảnh</span>
+          </div>
+
+          <input type="file" accept="image/*" multiple ref={detailInputRef} onChange={handleDetailChange} className="hidden" />
+          <button
+            type="button"
+            onClick={() => detailInputRef.current?.click()}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-extrabold text-[9px] px-3.5 py-2.5 rounded-xl active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <svg className="w-3.5 h-3.5 text-slate-450" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm ảnh chi tiết
           </button>
 
-          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
-
-          {/* File previews */}
-          {venueInfo.images.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              {venueInfo.images.map((file, i) => (
-                <div key={i} className="relative rounded-lg overflow-hidden group aspect-square">
-                  <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => removeFile(i)}
-                    className="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+          {venueInfo.detailImages.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {venueInfo.detailImages.map((file, index) => (
+                <div key={index} className="aspect-video bg-white rounded-xl border border-slate-200 overflow-hidden relative group">
+                  <img src={URL.createObjectURL(file)} alt={`Detail ${index}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeDetailImage(index)}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center cursor-pointer"
+                    title="Xóa ảnh"
                   >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -355,6 +338,48 @@ export const VenueInfoStep = ({
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* RIGHT PANEL: Map (Hidden on mobile) */}
+      <div className="hidden md:flex flex-col flex-1 relative bg-slate-100 rounded-xl overflow-hidden border border-slate-200 min-h-[500px]">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-slate-200/80 flex items-center gap-1.5 pointer-events-none">
+          <svg className="w-3 h-3 text-brand-emerald" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+          </svg>
+          <span className="text-[9px] font-black text-slate-600 uppercase tracking-wider">Chọn vị trí trên bản đồ</span>
+        </div>
+
+        <div className="absolute top-16 left-4 right-4 z-20">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Nhập địa chỉ cụm sân..."
+              value={venueInfo.location}
+              onChange={e => onVenueInfoChange({ ...venueInfo, location: e.target.value })}
+              disabled={isLoading}
+              className="w-full text-xs font-bold text-slate-700 pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-brand-emerald transition-all"
+            />
+            <svg className="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        <div className={isLoading ? "opacity-50 pointer-events-none h-full" : "h-full"}>
+          <LocationPickerMap
+            fullHeight
+            initialLocation={{ lat: venueInfo.latitude || 21.028511, lng: venueInfo.longitude || 105.804817 }}
+            initialAddress={venueInfo.location}
+            onChange={(data) => {
+              onVenueInfoChange({ 
+                ...venueInfo, 
+                location: data.address, 
+                latitude: data.lat, 
+                longitude: data.lng 
+              });
+            }}
+          />
         </div>
       </div>
     </div>

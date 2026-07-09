@@ -49,17 +49,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 User user = userRepository.findByEmail(email).orElse(null);
                 if (user != null) {
-                    if (user.getStatus() == UserStatus.BANNED) {
+                    if (user.getIsDeleted() || user.getStatus() == UserStatus.INACTIVE || user.getStatus() == UserStatus.BANNED) {
                         isBanned = true;
-                        LockLog latestLog = lockLogRepository.findFirstByUserIdAndActionOrderByCreatedAtDesc(user.getId(), "LOCK")
-                                .orElse(null);
-                        String reason = latestLog != null
-                                ? latestLog.getReasonCategory() + " - " + latestLog.getReasonDetail()
-                                : "Không xác định";
-                        bannedMessage = String.format(
-                            "{\"message\": \"Tài khoản của bạn đã bị khóa. Lý do: %s. Vui lòng liên hệ hotline Sporta để được hỗ trợ.\"}",
-                            reason
-                        );
+                        if (user.getStatus() == UserStatus.BANNED) {
+                            LockLog latestLog = lockLogRepository.findFirstByUserIdAndActionOrderByCreatedAtDesc(user.getId(), "LOCK")
+                                    .orElse(null);
+                            String reason = latestLog != null
+                                    ? latestLog.getReasonCategory() + " - " + latestLog.getReasonDetail()
+                                    : "Không xác định";
+                            bannedMessage = String.format(
+                                "{\"message\": \"Tài khoản của bạn đã bị khóa. Lý do: %s. Vui lòng liên hệ hotline Sporta để được hỗ trợ.\"}",
+                                reason
+                            );
+                        } else {
+                            bannedMessage = "{\"message\": \"Tài khoản của bạn đã bị ngừng hoạt động hoặc xóa.\"}";
+                        }
                     } else {
                         String role = tokenProvider.getRoleFromToken(jwt);
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

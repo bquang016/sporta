@@ -96,6 +96,10 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Email hoặc mật khẩu không đúng", 401));
 
+        if (user.getIsDeleted()) {
+            throw new CustomException("Tài khoản của bạn đã bị ngừng hoạt động hoặc xóa.", 403);
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Email hoặc mật khẩu không đúng", 401);
         }
@@ -325,7 +329,7 @@ public class AuthService {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @Transactional
-    public void approveOwnerRegistration(UUID registrationId) {
+    public String approveOwnerRegistration(UUID registrationId) {
         OwnerRegistration reg = ownerRegistrationRepository.findById(registrationId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy đơn đăng ký.", 404));
 
@@ -376,56 +380,63 @@ public class AuthService {
                 .registrationImages(reg.getRegistrationImages())
                 .description(reg.getDescription())
                 .status(com.backend.sporta.enums.VenueStatus.PENDING_APPROVAL)
+                .openingTime(java.time.LocalTime.of(5, 0))
+                .closingTime(java.time.LocalTime.of(22, 0))
                 .build();
         venue = venueRepository.save(venue);
 
 
         // 6. Create Courts and CourtPricing
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            java.util.List<java.util.Map<String, Object>> courtsList = mapper.readValue(reg.getCourtsJson(),
-                    mapper.getTypeFactory().constructCollectionType(java.util.List.class, java.util.Map.class));
-            
-            for (java.util.Map<String, Object> courtData : courtsList) {
-                String courtName = (String) courtData.getOrDefault("name", "Sân " + (courtsList.indexOf(courtData) + 1));
-                String courtSportType = (String) courtData.getOrDefault("sportType", "");
-
-                // Find Sport entity
-                Sport sport = sportRepository.findAll().stream()
-                        .filter(s -> s.getName().equalsIgnoreCase(courtSportType))
-                        .findFirst()
-                        .orElse(sportRepository.findAll().isEmpty() ? null : sportRepository.findAll().get(0));
-
-                if (sport == null) {
-                    continue; // Skip if no sport found
-                }
-
-                Court court = Court.builder()
-                        .venue(venue)
-                        .name(courtName)
-                        .price(0.0)
-                        .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
-                        .build();
-                court = courtRepository.save(court);
-
-                // Create pricing slots
-                @SuppressWarnings("unchecked")
-                java.util.List<java.util.Map<String, Object>> pricingSlots = 
-                        (java.util.List<java.util.Map<String, Object>>) courtData.getOrDefault("pricingSlots", java.util.Collections.emptyList());
+        if (reg.getCourtsJson() != null && !reg.getCourtsJson().trim().isEmpty()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                java.util.List<java.util.Map<String, Object>> courtsList = mapper.readValue(reg.getCourtsJson(),
+                        mapper.getTypeFactory().constructCollectionType(java.util.List.class, java.util.Map.class));
                 
-                for (java.util.Map<String, Object> slot : pricingSlots) {
-                    CourtPricing pricing = CourtPricing.builder()
-                            .court(court)
-                            .slotLabel((String) slot.getOrDefault("label", ""))
-                            .startTime((String) slot.getOrDefault("startTime", ""))
-                            .endTime((String) slot.getOrDefault("endTime", ""))
-                            .price(((Number) slot.getOrDefault("price", 0)).doubleValue())
+                for (java.util.Map<String, Object> courtData : courtsList) {
+                    String courtName = (String) courtData.getOrDefault("name", "Sân " + (courtsList.indexOf(courtData) + 1));
+                    String courtSportType = (String) courtData.getOrDefault("sportType", "");
+
+                    // Find Sport entity
+                    Sport sport = sportRepository.findAll().stream()
+                            .filter(s -> s.getName().equalsIgnoreCase(courtSportType))
+                            .findFirst()
+                            .orElse(sportRepository.findAll().isEmpty() ? null : sportRepository.findAll().get(0));
+
+                    if (sport == null) {
+                        continue; // Skip if no sport found
+                    }
+
+                    Court court = Court.builder()
+                            .venue(venue)
+                            .name(courtName)
+                            .price(0.0)
+                            .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
                             .build();
-                    courtPricingRepository.save(pricing);
+                    court = courtRepository.save(court);
+
+                    // Create pricing slots
+                    @SuppressWarnings("unchecked")
+                    java.util.List<java.util.Map<String, Object>> pricingSlots = 
+                            (java.util.List<java.util.Map<String, Object>>) courtData.getOrDefault("pricingSlots", java.util.Collections.emptyList());
+                    
+                    if (pricingSlots != null) {
+                        for (java.util.Map<String, Object> slot : pricingSlots) {
+                            CourtPricing pricing = CourtPricing.builder()
+                                    .court(court)
+                                    .slotLabel((String) slot.getOrDefault("label", ""))
+                                    .startTime((String) slot.getOrDefault("startTime", ""))
+                                    .endTime((String) slot.getOrDefault("endTime", ""))
+                                    .price(((Number) slot.getOrDefault("price", 0)).doubleValue())
+                                    .build();
+                            courtPricingRepository.save(pricing);
+                        }
+                    }
                 }
+            } catch (Exception e) {
+                // Ignore if courts JSON is invalid or null
+                System.err.println("Failed to parse courtsJson: " + e.getMessage());
             }
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            // Ignore if courts JSON is invalid — not critical
         }
 
         // 7. Update registration status
@@ -433,7 +444,13 @@ public class AuthService {
         ownerRegistrationRepository.save(reg);
 
         // 8. Send email with account credentials
-        emailService.sendAccountApprovedEmail(reg.getEmail(), rawPassword);
+        try {
+            emailService.sendAccountApprovedEmail(reg.getEmail(), rawPassword);
+        } catch (Exception e) {
+            System.err.println("Failed to send email: " + e.getMessage());
+        }
+        
+        return rawPassword;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

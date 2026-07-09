@@ -32,6 +32,11 @@ interface OperationsContextType {
   changeVenueStatus: (venueId: string, status: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED') => Promise<void>;
   updateVenueInfo: (id: string, name: string, location: string, description: string, openingTime: string, closingTime: string, sportId: number, coverImage: string, detailImages: string[], shiftDurationMinutes: number, latitude?: number, longitude?: number, hasSurcharge?: boolean, surchargeAmount?: number, surchargeDescription?: string) => Promise<void>;
   createVenueInfo: (name: string, location: string, description: string, openingTime: string, closingTime: string, sportId: number, coverImage: string, detailImages: string[], shiftDurationMinutes: number, latitude?: number, longitude?: number, hasSurcharge?: boolean, surchargeAmount?: number, surchargeDescription?: string) => Promise<void>;
+  createVenueDraft: (data: any) => Promise<VenueResponse>;
+  updateVenueDraft: (id: string, data: any) => Promise<VenueResponse>;
+  submitVenueForApproval: (id: string) => Promise<VenueResponse>;
+  cancelVenueSubmission: (id: string) => Promise<VenueResponse>;
+  deleteVenueDraft: (id: string) => Promise<void>;
   
   // Court/Facility Actions
   toggleCourtStatus: (courtId: string) => void;
@@ -213,9 +218,19 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
     surchargeDescription?: string
   ) => {
     try {
+      const existingVenue = venues.find(v => v.id === id);
+      const province = existingVenue?.province || '';
+      const district = existingVenue?.district || '';
+      const ward = existingVenue?.ward || '';
+      const addressDetail = existingVenue?.addressDetail || '';
+
       const updated = await courtService.updateVenue(id, {
         name,
         location,
+        province,
+        district,
+        ward,
+        addressDetail,
         description,
         openingTime,
         closingTime,
@@ -257,6 +272,10 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
       const created = await courtService.createVenue({
         name,
         location,
+        province: '',
+        district: '',
+        ward: '',
+        addressDetail: '',
         description,
         openingTime,
         closingTime,
@@ -275,6 +294,72 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
     } catch (err: any) {
       console.error(err);
       throw new Error(err.message || 'Lỗi khi tạo cụm sân mới');
+    }
+  };
+
+  // Create venue draft
+  const createVenueDraft = async (data: any) => {
+    try {
+      const created = await courtService.createVenueDraft(data);
+      setVenues(prev => [...prev, created]);
+      setSelectedVenueId(created.id);
+      return created;
+    } catch (err: any) {
+      console.error(err);
+      throw new Error(err.message || 'Lỗi khi tạo bản nháp cụm sân');
+    }
+  };
+
+  // Update venue draft
+  const updateVenueDraft = async (id: string, data: any) => {
+    try {
+      const updated = await courtService.updateVenueDraft(id, data);
+      setVenues(prev => prev.map(v => v.id === id ? updated : v));
+      // Reload courts lists since updating draft can sync/modify courts list
+      const fetchedCourts = await courtService.getCourts();
+      setCourts(fetchedCourts);
+      return updated;
+    } catch (err: any) {
+      console.error(err);
+      throw new Error(err.message || 'Lỗi khi cập nhật bản nháp cụm sân');
+    }
+  };
+
+  // Submit venue for approval
+  const submitVenueForApproval = async (id: string) => {
+    try {
+      const updated = await courtService.submitVenueForApproval(id);
+      setVenues(prev => prev.map(v => v.id === id ? updated : v));
+      return updated;
+    } catch (err: any) {
+      console.error(err);
+      throw new Error(err.message || 'Lỗi khi gửi yêu cầu duyệt cụm sân');
+    }
+  };
+
+  // Cancel venue submission
+  const cancelVenueSubmission = async (id: string) => {
+    try {
+      const updated = await courtService.cancelVenueSubmission(id);
+      setVenues(prev => prev.map(v => v.id === id ? updated : v));
+      return updated;
+    } catch (err: any) {
+      console.error(err);
+      throw new Error(err.message || 'Lỗi khi hủy yêu cầu duyệt cụm sân');
+    }
+  };
+
+  // Delete venue draft
+  const deleteVenueDraft = async (id: string) => {
+    try {
+      await courtService.deleteVenueDraft(id);
+      setVenues(prev => prev.filter(v => v.id !== id));
+      if (selectedVenueId === id) {
+        setSelectedVenueId(null);
+      }
+    } catch (err: any) {
+      console.error(err);
+      throw new Error(err.message || 'Lỗi khi xóa bản nháp cụm sân');
     }
   };
 
@@ -363,6 +448,11 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
         changeVenueStatus,
         updateVenueInfo,
         createVenueInfo,
+        createVenueDraft,
+        updateVenueDraft,
+        submitVenueForApproval,
+        cancelVenueSubmission,
+        deleteVenueDraft,
         toggleCourtStatus,
         bulkToggleMaintenance,
         bulkApplySurcharge,
