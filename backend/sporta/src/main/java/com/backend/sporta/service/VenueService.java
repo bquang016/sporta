@@ -165,16 +165,27 @@ public class VenueService {
         if (!venue.getName().equals(request.getName()) || !venue.getLocation().equals(newLocation)) {
             hasSensitiveChanges = true;
             try {
-                String pendingData = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of(
-                    "name", request.getName(),
-                    "location", newLocation,
-                    "province", request.getProvince() != null ? request.getProvince() : "",
-                    "district", request.getDistrict() != null ? request.getDistrict() : "",
-                    "ward", request.getWard() != null ? request.getWard() : "",
-                    "addressDetail", request.getAddressDetail() != null ? request.getAddressDetail() : "",
-                    "latitude", request.getLatitude() != null ? request.getLatitude() : 0.0,
-                    "longitude", request.getLongitude() != null ? request.getLongitude() : 0.0
-                ));
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.backend.sporta.dto.VenueRevisionData revisionData = com.backend.sporta.dto.VenueRevisionData.builder()
+                        .name(request.getName())
+                        .location(newLocation)
+                        .province(request.getProvince())
+                        .district(request.getDistrict())
+                        .ward(request.getWard())
+                        .addressDetail(request.getAddressDetail())
+                        .latitude(request.getLatitude())
+                        .longitude(request.getLongitude())
+                        .build();
+                
+                String pendingData = mapper.writeValueAsString(revisionData);
+                
+                // Nếu đã có bản nháp đang chờ duyệt, hủy nó đi (Ghi đè bằng yêu cầu mới)
+                java.util.List<VenueRevision> existingRevisions = venueRevisionRepository.findByVenueIdAndStatusOrderByCreatedAtDesc(venue.getId(), ApprovalStatus.PENDING);
+                for (VenueRevision rev : existingRevisions) {
+                    rev.setStatus(ApprovalStatus.REJECTED);
+                    rev.setReviewerNotes("Bị thay thế bởi yêu cầu cập nhật mới.");
+                    venueRevisionRepository.save(rev);
+                }
                 
                 VenueRevision revision = VenueRevision.builder()
                         .venue(venue)
@@ -187,7 +198,7 @@ public class VenueService {
             }
         }
 
-        // Chỉ cập nhật Tên & Địa chỉ vào thực thể gốc khi KHÔNG CÓ THAY ĐỔI NHẠY CẢM
+        // Nếu KHÔNG có thay đổi nhạy cảm HOẶC chúng ta chỉ cập nhật các trường không nhạy cảm
         if (!hasSensitiveChanges) {
             venue.setName(request.getName());
             venue.setLocation(newLocation);
@@ -641,5 +652,71 @@ public class VenueService {
 
         // Delete venue (venue images are cascade deleted via CascadeType.ALL)
         venueRepository.delete(venue);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<com.backend.sporta.dto.VenueRevisionResponse> getPendingRevisions() {
+        return venueRevisionRepository.findByStatusOrderByCreatedAtDesc(ApprovalStatus.PENDING).stream().map(rev -> {
+            Venue v = rev.getVenue();
+            return com.backend.sporta.dto.VenueRevisionResponse.builder()
+                    .id(rev.getId())
+                    .venueId(v.getId())
+                    .venueName(v.getName())
+                    .ownerEmail(v.getOwner() != null && v.getOwner().getUser() != null ? v.getOwner().getUser().getEmail() : "")
+                    .pendingData(rev.getPendingData())
+                    .status(rev.getStatus())
+                    .createdAt(rev.getCreatedAt())
+                    .oldName(v.getName())
+                    .oldLocation(v.getLocation())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void approveRevision(UUID id) {
+        VenueRevision rev = venueRevisionRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy yêu cầu cập nhật", 404));
+        
+        if (rev.getStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Yêu cầu này không ở trạng thái chờ duyệt", 400);
+        }
+        
+        Venue venue = rev.getVenue();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.backend.sporta.dto.VenueRevisionData data = mapper.readValue(rev.getPendingData(), com.backend.sporta.dto.VenueRevisionData.class);
+            
+            venue.setName(data.getName());
+            venue.setLocation(data.getLocation());
+            venue.setProvince(data.getProvince());
+            venue.setDistrict(data.getDistrict());
+            venue.setWard(data.getWard());
+            venue.setAddressDetail(data.getAddressDetail());
+            venue.setLatitude(data.getLatitude());
+            venue.setLongitude(data.getLongitude());
+            
+            venueRepository.save(venue);
+            
+            rev.setStatus(ApprovalStatus.APPROVED);
+            rev.setReviewedAt(java.time.LocalDateTime.now());
+            venueRevisionRepository.save(rev);
+        } catch (Exception e) {
+            throw new CustomException("Lỗi phân tích dữ liệu cập nhật: " + e.getMessage(), 500);
+        }
+    }
+
+    @Transactional
+    public void rejectRevision(UUID id, String reason) {
+        VenueRevision rev = venueRevisionRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy yêu cầu cập nhật", 404));
+        
+        if (rev.getStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Yêu cầu này không ở trạng thái chờ duyệt", 400);
+        }
+        
+        rev.setStatus(ApprovalStatus.REJECTED);
+        rev.setReviewedAt(java.time.LocalDateTime.now());
+        rev.setReviewerNotes(reason);
+        venueRevisionRepository.save(rev);
     }
 }
