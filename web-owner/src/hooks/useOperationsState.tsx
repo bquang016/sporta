@@ -35,6 +35,7 @@ interface OperationsContextType {
   createVenueDraft: (data: any) => Promise<VenueResponse>;
   updateVenueDraft: (id: string, data: any) => Promise<VenueResponse>;
   submitVenueForApproval: (id: string) => Promise<VenueResponse>;
+  cancelVenueSubmission: (id: string) => Promise<VenueResponse>;
   deleteVenueDraft: (id: string) => Promise<void>;
   
   // Court/Facility Actions
@@ -217,9 +218,19 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
     surchargeDescription?: string
   ) => {
     try {
+      const existingVenue = venues.find(v => v.id === id);
+      const province = existingVenue?.province || '';
+      const district = existingVenue?.district || '';
+      const ward = existingVenue?.ward || '';
+      const addressDetail = existingVenue?.addressDetail || '';
+
       const updated = await courtService.updateVenue(id, {
         name,
         location,
+        province,
+        district,
+        ward,
+        addressDetail,
         description,
         openingTime,
         closingTime,
@@ -261,6 +272,10 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
       const created = await courtService.createVenue({
         name,
         location,
+        province: '',
+        district: '',
+        ward: '',
+        addressDetail: '',
         description,
         openingTime,
         closingTime,
@@ -319,6 +334,18 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
     } catch (err: any) {
       console.error(err);
       throw new Error(err.message || 'Lỗi khi gửi yêu cầu duyệt cụm sân');
+    }
+  };
+
+  // Cancel venue submission
+  const cancelVenueSubmission = async (id: string) => {
+    try {
+      const updated = await courtService.cancelVenueSubmission(id);
+      setVenues(prev => prev.map(v => v.id === id ? updated : v));
+      return updated;
+    } catch (err: any) {
+      console.error(err);
+      throw new Error(err.message || 'Lỗi khi hủy yêu cầu duyệt cụm sân');
     }
   };
 
@@ -424,6 +451,7 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
         createVenueDraft,
         updateVenueDraft,
         submitVenueForApproval,
+        cancelVenueSubmission,
         deleteVenueDraft,
         toggleCourtStatus,
         bulkToggleMaintenance,

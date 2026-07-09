@@ -27,7 +27,7 @@ export const BarChart = ({ courts, getCourtOpStatus, getCourtDetails, formatVND,
   if (courts.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-xs text-slate-400 font-bold">
-        Chua co du lieu san bai
+        Chưa có dữ liệu sân bãi
       </div>
     );
   }

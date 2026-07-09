@@ -173,12 +173,23 @@ export const LocationPickerMap = ({
     });
     mapRef.current = map;
 
+    // Suppress external Goong map stylesheet resource warnings
+    map.on('error', (e: any) => {
+      const msg = e?.error?.message || '';
+      if (msg.includes('Source layer') || msg.includes('Image')) {
+        return;
+      }
+      console.warn('Goong Map style resource warning:', msg);
+    });
+
     const resizeObserver = new ResizeObserver(() => {
       if (mapRef.current) {
         mapRef.current.resize();
       }
     });
-    resizeObserver.observe(mapContainerRef.current);
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
 
     // Add Navigation Control
     map.addControl(new goongjs.NavigationControl({ showCompass: false }), 'top-right');
