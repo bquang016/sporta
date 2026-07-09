@@ -46,6 +46,9 @@ public class AdminController {
     private OwnerRegistrationRepository ownerRegistrationRepository;
 
     @Autowired
+    private com.backend.sporta.service.AuthService authService;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @GetMapping("/permissions")
@@ -335,5 +338,24 @@ public class AdminController {
         OwnerRegistration registration = ownerRegistrationRepository.findById(id)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin đăng ký.", 404));
         return ResponseEntity.ok(registration);
+    }
+
+    @PostMapping("/registrations/{id}/approve")
+    public ResponseEntity<?> approveRegistration(@PathVariable("id") java.util.UUID id) {
+        String temporaryPassword = authService.approveOwnerRegistration(id);
+        return ResponseEntity.ok(Map.of(
+            "message", "Đã duyệt đơn đăng ký thành công.",
+            "temporaryPassword", temporaryPassword
+        ));
+    }
+
+    @PostMapping("/registrations/{id}/reject")
+    public ResponseEntity<?> rejectRegistration(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        authService.rejectOwnerRegistration(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối đơn đăng ký thành công."));
     }
 }

@@ -52,12 +52,26 @@ export const RegistrationDetailModal: React.FC<RegistrationDetailModalProps> = (
   };
 
   const getSportNames = (sportTypesJson: string) => {
+    const SPORT_NAMES_VI: Record<string, string> = {
+      'football': 'Bóng đá',
+      'badminton': 'Cầu lông',
+      'tennis': 'Quần vợt',
+      'basketball': 'Bóng rổ',
+      'volleyball': 'Bóng chuyền',
+      'table_tennis': 'Bóng bàn',
+      'billiards': 'Bida',
+      'pickleball': 'Pickleball',
+      'swimming': 'Bơi lội'
+    };
+
     try {
       const parsed = JSON.parse(sportTypesJson);
-      if (Array.isArray(parsed)) return parsed.join(', ');
-      return sportTypesJson;
+      if (Array.isArray(parsed)) {
+        return parsed.map(sport => SPORT_NAMES_VI[sport.toLowerCase()] || sport).join(', ');
+      }
+      return SPORT_NAMES_VI[sportTypesJson.toLowerCase()] || sportTypesJson;
     } catch {
-      return sportTypesJson;
+      return SPORT_NAMES_VI[sportTypesJson.toLowerCase()] || sportTypesJson;
     }
   };
 

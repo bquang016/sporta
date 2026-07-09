@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { RegistrationDetailModal } from './RegistrationDetailModal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Modal } from '@/components/ui/Modal';
 
 export const FacilityAuditing: React.FC = () => {
     const [registrations, setRegistrations] = useState<any[]>([]);
@@ -12,6 +14,16 @@ export const FacilityAuditing: React.FC = () => {
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedRegistrationId, setSelectedRegistrationId] = useState<string | null>(null);
+
+    // Approval State
+    const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+    const [isApproveSuccessOpen, setIsApproveSuccessOpen] = useState(false);
+    const [temporaryPassword, setTemporaryPassword] = useState('');
+
+    // Rejection State
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const fetchRegistrations = async () => {
         setIsLoading(true);
@@ -41,6 +53,51 @@ export const FacilityAuditing: React.FC = () => {
     const openDetail = (id: string) => {
         setSelectedRegistrationId(id);
         setIsDetailModalOpen(true);
+    };
+
+    const handleApprove = async () => {
+        if (!selectedRegistrationId) return;
+        setIsProcessing(true);
+        try {
+            const res = await fetch(`http://localhost:8387/api/v1/admin/registrations/${selectedRegistrationId}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                }
+            });
+            if (!res.ok) throw new Error('Duyệt thất bại');
+            const data = await res.json();
+            setTemporaryPassword(data.temporaryPassword);
+            setIsApproveSuccessOpen(true);
+            fetchRegistrations();
+        } catch (err: any) {
+            alert('Lỗi: ' + err.message);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleReject = async () => {
+        if (!selectedRegistrationId || !rejectReason.trim()) return;
+        setIsProcessing(true);
+        try {
+            const res = await fetch(`http://localhost:8387/api/v1/admin/registrations/${selectedRegistrationId}/reject`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reason: rejectReason })
+            });
+            if (!res.ok) throw new Error('Từ chối thất bại');
+            setIsRejectModalOpen(false);
+            setRejectReason('');
+            fetchRegistrations();
+        } catch (err: any) {
+            alert('Lỗi: ' + err.message);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const renderStatus = (status: string) => {
@@ -112,7 +169,16 @@ export const FacilityAuditing: React.FC = () => {
                                         <td className="px-6 py-4 text-right space-x-2">
                                             <Button variant="ghost" size="sm" onClick={() => openDetail(reg.id)}>Xem Chi Tiết</Button>
                                             {reg.status === 'PENDING' && (
-                                                <Button variant="primary" size="sm">Duyệt</Button>
+                                                <>
+                                                    <Button variant="danger" size="sm" onClick={() => {
+                                                        setSelectedRegistrationId(reg.id);
+                                                        setIsRejectModalOpen(true);
+                                                    }}>Từ chối</Button>
+                                                    <Button variant="primary" size="sm" onClick={() => {
+                                                        setSelectedRegistrationId(reg.id);
+                                                        setIsApproveConfirmOpen(true);
+                                                    }}>Duyệt</Button>
+                                                </>
                                             )}
                                         </td>
                                     </tr>
@@ -134,6 +200,76 @@ export const FacilityAuditing: React.FC = () => {
                 onClose={() => setIsDetailModalOpen(false)} 
                 registrationId={selectedRegistrationId} 
             />
+
+            {/* Approval Confirmation */}
+            <ConfirmModal
+                isOpen={isApproveConfirmOpen}
+                onClose={() => setIsApproveConfirmOpen(false)}
+                onConfirm={handleApprove}
+                title="Xác nhận duyệt đăng ký"
+                message="Bạn có chắc chắn muốn phê duyệt cơ sở vật chất này? Hệ thống sẽ tạo tài khoản Chủ Sân tự động."
+                confirmText={isProcessing ? "Đang xử lý..." : "Duyệt"}
+                cancelText="Hủy"
+                variant="success"
+            />
+
+            {/* Approval Success / Password Modal */}
+            <Modal
+                isOpen={isApproveSuccessOpen}
+                onClose={() => setIsApproveSuccessOpen(false)}
+                title="Duyệt Thành Công"
+                maxWidth="sm"
+                footer={
+                    <Button onClick={() => setIsApproveSuccessOpen(false)} className="w-full">
+                        Đóng
+                    </Button>
+                }
+            >
+                <div className="py-4 text-center space-y-4">
+                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 className="text-lg font-bold text-slate-800">Tạo Tài Khoản Thành Công</h4>
+                        <p className="text-sm text-slate-500 mt-2">Do hệ thống Email đang bảo trì, vui lòng gửi mật khẩu tạm thời này cho chủ sân để họ có thể đăng nhập:</p>
+                    </div>
+                    <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
+                        <div className="text-2xl font-mono font-black tracking-widest text-slate-800">
+                            {temporaryPassword}
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Rejection Modal */}
+            <Modal
+                isOpen={isRejectModalOpen}
+                onClose={() => !isProcessing && setIsRejectModalOpen(false)}
+                title="Từ chối đăng ký"
+                maxWidth="md"
+                dotColor="bg-red-500"
+                footer={
+                    <div className="flex gap-3 w-full">
+                        <Button variant="ghost" className="flex-1" onClick={() => setIsRejectModalOpen(false)} disabled={isProcessing}>Hủy</Button>
+                        <Button variant="danger" className="flex-1" onClick={handleReject} disabled={isProcessing || !rejectReason.trim()}>
+                            {isProcessing ? 'Đang xử lý...' : 'Từ chối'}
+                        </Button>
+                    </div>
+                }
+            >
+                <div className="space-y-4 py-2">
+                    <p className="text-sm text-slate-600">Vui lòng nhập lý do từ chối để thông báo cho chủ sân biết (bắt buộc):</p>
+                    <textarea
+                        className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald outline-none transition-all"
+                        rows={4}
+                        placeholder="Ví dụ: Hình ảnh CCCD bị mờ, không rõ ràng..."
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                </div>
+            </Modal>
         </div>
     );
 };
