@@ -10,6 +10,8 @@ import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.OwnerRegistrationRepository;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.UserRepository;
+import com.backend.sporta.repository.LockLogRepository;
+import com.backend.sporta.entity.LockLog;
 import com.backend.sporta.repository.UserSportRepository;
 import com.backend.sporta.repository.VenueRepository;
 import com.backend.sporta.repository.CourtRepository;
@@ -83,6 +85,9 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private LockLogRepository lockLogRepository;
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  LOGIN
     // ═══════════════════════════════════════════════════════════════════════════
@@ -91,8 +96,24 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Email hoặc mật khẩu không đúng", 401));
 
+        if (user.getIsDeleted()) {
+            throw new CustomException("Tài khoản của bạn đã bị ngừng hoạt động hoặc xóa.", 403);
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Email hoặc mật khẩu không đúng", 401);
+        }
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            if (user.getStatus() == UserStatus.BANNED) {
+                LockLog latestLog = lockLogRepository.findFirstByUserIdAndActionOrderByCreatedAtDesc(user.getId(), "LOCK")
+                        .orElse(null);
+                String reason = latestLog != null
+                        ? latestLog.getReasonCategory() + " - " + latestLog.getReasonDetail()
+                        : "Không xác định";
+                throw new CustomException("Tài khoản của bạn đã bị khóa. Lý do: " + reason + ". Vui lòng liên hệ hotline Sporta để được hỗ trợ.", 403);
+            }
+            throw new CustomException("Tài khoản của bạn không ở trạng thái hoạt động.", 403);
         }
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
@@ -500,7 +521,15 @@ public class AuthService {
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
                 if (user.getStatus() != UserStatus.ACTIVE) {
-                    throw new CustomException("Tài khoản của bạn đã bị khóa.", 403);
+                    if (user.getStatus() == UserStatus.BANNED) {
+                        LockLog latestLog = lockLogRepository.findFirstByUserIdAndActionOrderByCreatedAtDesc(user.getId(), "LOCK")
+                                .orElse(null);
+                        String reason = latestLog != null
+                                ? latestLog.getReasonCategory() + " - " + latestLog.getReasonDetail()
+                                : "Không xác định";
+                        throw new CustomException("Tài khoản của bạn đã bị khóa. Lý do: " + reason + ". Vui lòng liên hệ hotline Sporta để được hỗ trợ.", 403);
+                    }
+                    throw new CustomException("Tài khoản của bạn không ở trạng thái hoạt động.", 403);
                 }
                 String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
                 return GoogleLoginResponse.builder()

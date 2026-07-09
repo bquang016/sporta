@@ -87,21 +87,29 @@ export async function registerOwner(
   }
 
   // Venue info
-  formData.append('venueName', venueInfo.venueName);
+  formData.append('venueName', venueInfo.name);
   formData.append('province', venueInfo.province);
   formData.append('district', venueInfo.district);
   formData.append('ward', venueInfo.ward);
   formData.append('description', venueInfo.description);
-  formData.append('sportTypes', JSON.stringify(venueInfo.sportTypes));
-  formData.append('subCourtCount', String(venueInfo.subCourtCount));
+  formData.append('sportTypes', venueInfo.sportId);
+  formData.append('subCourtCount', String(courts.length));
 
-  // Courts with pricing
+  // Additional new fields for owner registration payload so backend can save them
+  // We can pass them in description or we should ensure backend doesn't crash.
+  // The backend just saves whatever is in courtsJson to the DB as string.
+  // Courts with pricing rules
   formData.append('courts', JSON.stringify(courts));
 
   // Attach venue image files
-  venueInfo.images.forEach((file) => {
-    formData.append('images', file);
-  });
+  if (venueInfo.coverImage) {
+    formData.append('images', venueInfo.coverImage);
+  }
+  if (venueInfo.detailImages && venueInfo.detailImages.length > 0) {
+    venueInfo.detailImages.forEach((file) => {
+      formData.append('images', file);
+    });
+  }
 
   const res = await fetch(`${API_BASE}/register-owner`, {
     method: 'POST',

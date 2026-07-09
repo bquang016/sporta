@@ -6,8 +6,10 @@ import logoHorizontal from '../../../assets/logo/light/logo-horizontal_1600x400p
 import { useSetupWizard } from '../hooks/useSetupWizard';
 import { SetupStepIndicator } from '../components/SetupStepIndicator';
 import { PersonalInfoStep } from '../components/PersonalInfoStep';
-import { VenueInfoStep } from '../components/VenueInfoStep';
-import { CourtsStep } from '../components/CourtsStep';
+import { VenueBasicStep } from '../components/VenueBasicStep';
+import { VenueCourtsStep } from '../components/VenueCourtsStep';
+import { VenueImagesStep } from '../components/VenueImagesStep';
+import { VenueOperatingStep } from '../components/VenueOperatingStep';
 import { ReviewStep } from '../components/ReviewStep';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { SETUP_STEPS } from '../types';
@@ -54,7 +56,7 @@ export const SetupPage = () => {
           <div className="absolute -bottom-[10%] -left-[10%] w-[45%] h-[45%] bg-brand-yellow/[0.02] rounded-full blur-[100px]" />
         </div>
 
-        <div className="max-w-2xl mx-auto px-4 lg:px-8 py-6 lg:py-10">
+        <div className={`mx-auto px-4 lg:px-8 py-6 lg:py-10 transition-all duration-300 ${wizard.currentStep.startsWith('venue') ? 'max-w-6xl' : 'max-w-2xl'}`}>
           {/* Error banner */}
           {wizard.errorMsg && (
             <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] font-bold text-red-600 flex items-center gap-2 animate-fadeIn">
@@ -80,16 +82,36 @@ export const SetupPage = () => {
                 />
               )}
 
-              {wizard.currentStep === 'venue' && (
-                <VenueInfoStep
+              {wizard.currentStep === 'venue-basic' && (
+                <VenueBasicStep
                   venueInfo={wizard.venueInfo}
                   onVenueInfoChange={wizard.setVenueInfo}
                   isLoading={wizard.isLoading}
                 />
               )}
 
-              {wizard.currentStep === 'courts' && (
-                <CourtsStep
+              {wizard.currentStep === 'venue-courts' && (
+                <VenueCourtsStep
+                  venueInfo={wizard.venueInfo}
+                  onVenueInfoChange={wizard.setVenueInfo}
+                  courts={wizard.courts}
+                  onCourtsChange={wizard.setCourts}
+                  isLoading={wizard.isLoading}
+                />
+              )}
+
+              {wizard.currentStep === 'venue-images' && (
+                <VenueImagesStep
+                  venueInfo={wizard.venueInfo}
+                  onVenueInfoChange={wizard.setVenueInfo}
+                  isLoading={wizard.isLoading}
+                />
+              )}
+
+              {wizard.currentStep === 'venue-operating' && (
+                <VenueOperatingStep
+                  venueInfo={wizard.venueInfo}
+                  onVenueInfoChange={wizard.setVenueInfo}
                   courts={wizard.courts}
                   onCourtsChange={wizard.setCourts}
                   isLoading={wizard.isLoading}

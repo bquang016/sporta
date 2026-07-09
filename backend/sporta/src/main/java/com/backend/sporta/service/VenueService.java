@@ -63,6 +63,15 @@ public class VenueService {
                 .collect(Collectors.toList());
     }
 
+    public List<VenueResponse> getAllActiveVenues() {
+        return venueRepository.findByStatusAndApprovalStatus(
+                com.backend.sporta.enums.VenueStatus.ACTIVE,
+                com.backend.sporta.enums.ApprovalStatus.APPROVED
+        ).stream()
+                .map(venue -> mapToResponse(venue, checkHasPendingRevision(venue.getId())))
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public VenueResponse createVenue(VenueRequest request, String email) {
         Owner owner = ownerRepository.findByUserEmail(email)
@@ -219,7 +228,7 @@ public class VenueService {
                         .build());
             }
             venueImageRepository.saveAll(detailImages);
-            venue.setImages(detailImages);
+            venue.getImages().addAll(detailImages);
         }
 
         Venue updatedVenue = venueRepository.save(venue);
@@ -375,7 +384,7 @@ public class VenueService {
                         .build());
             }
             venueImageRepository.saveAll(detailImages);
-            venue.setImages(detailImages);
+            venue.getImages().addAll(detailImages);
         }
 
         syncCourts(venue, request.getCourts(), email);
@@ -593,6 +602,7 @@ public class VenueService {
                 .hasPendingRevision(hasPendingRevision)
                 .minPrice(venue.getMinPrice())
                 .maxPrice(venue.getMaxPrice())
+                .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .build();
     }
 

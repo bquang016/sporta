@@ -1,4 +1,3 @@
-import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 
@@ -10,7 +9,8 @@ interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'success' | 'danger' | 'warning' | 'logout';
+  variant?: 'success' | 'danger' | 'warning' | 'logout' | 'unlock';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export const ConfirmModal = ({
@@ -21,8 +21,12 @@ export const ConfirmModal = ({
   message,
   confirmText = 'Xác nhận',
   cancelText = 'Hủy',
-  variant = 'success'
+  variant = 'success',
+  maxWidth
 }: ConfirmModalProps) => {
+  const isUnlock = variant === 'unlock';
+  const modalMaxWidth = maxWidth || (isUnlock ? 'md' : 'sm');
+  const dotColor = variant === 'unlock' ? 'bg-brand-yellow' : 'bg-brand-emerald';
   
   const iconConfig = {
     success: {
@@ -34,6 +38,15 @@ export const ConfirmModal = ({
       ),
       confirmBtn: 'secondary' as const
     },
+    unlock: {
+      bg: 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/20',
+      svg: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+        </svg>
+      ),
+      confirmBtn: 'primary' as const
+    },
     danger: {
       bg: 'bg-red-50 text-red-600 border-red-100',
       svg: (
@@ -41,7 +54,7 @@ export const ConfirmModal = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       ),
-      confirmBtn: 'primary' as const // Danger actions usually map to primary yellow CTA, but let's make it a red danger button if possible, or primary. Let's customize standard button styles.
+      confirmBtn: 'primary' as const
     },
     warning: {
       bg: 'bg-amber-50 text-amber-600 border-amber-100',
@@ -66,11 +79,12 @@ export const ConfirmModal = ({
   const currentIcon = iconConfig[variant];
 
   const footer = (
-    <div className="flex gap-2 w-full">
+    <div className="flex gap-3 w-full">
       <Button
         variant="ghost"
         onClick={onClose}
-        className="flex-1"
+        size={isUnlock ? 'md' : 'sm'}
+        className={`flex-1 font-bold ${isUnlock ? 'text-base' : 'text-sm py-2'}`}
       >
         {cancelText}
       </Button>
@@ -79,10 +93,13 @@ export const ConfirmModal = ({
           onConfirm();
           onClose();
         }}
-        className={`flex-1 font-bold py-2.5 px-4 rounded-xl text-sm transition-all focus:outline-none ${
+        className={`flex-1 font-bold rounded-xl transition-all focus:outline-none shadow-sm ${
+          isUnlock ? 'text-base py-2.5 px-4' : 'text-sm py-2.5 px-4'
+        } ${
           variant === 'success' ? 'bg-brand-emerald hover:bg-emerald-800 text-white' :
-          variant === 'danger' || variant === 'logout' ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm' :
-          'bg-brand-yellow hover:bg-yellow-400 text-brand-emerald shadow-sm'
+          variant === 'danger' || variant === 'logout' ? 'bg-red-600 hover:bg-red-700 text-white' :
+          variant === 'unlock' ? 'bg-brand-yellow hover:bg-yellow-400 text-brand-emerald' :
+          'bg-brand-yellow hover:bg-yellow-400 text-brand-emerald'
         }`}
       >
         {confirmText}
@@ -95,15 +112,18 @@ export const ConfirmModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      maxWidth="sm"
+      maxWidth={modalMaxWidth}
+      dotColor={dotColor}
       footer={footer}
     >
-      <div className="flex flex-col items-center text-center py-2 space-y-4">
+      <div className={`flex flex-col items-center text-center py-2 ${isUnlock ? 'space-y-5' : 'space-y-4'}`}>
         {/* Icon container */}
         <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${currentIcon.bg} shadow-sm`}>
           {currentIcon.svg}
         </div>
-        <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs">{message}</p>
+        <p className={`font-bold leading-relaxed ${isUnlock ? 'text-sm text-slate-600 max-w-md' : 'text-xs text-slate-500 max-w-xs'}`}>
+          {message}
+        </p>
       </div>
     </Modal>
   );

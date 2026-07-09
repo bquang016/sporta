@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -279,7 +279,7 @@ export const PermissionSettings = () => {
                 className="!text-sm flex items-center gap-2 px-5 py-2.5 disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-500 font-bold"
               >
                 {isSaving ? (
-                  <LoadingSpinner size="sm" color="current" />
+                  <LoadingSpinner size="sm" color="primary" />
                 ) : (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />

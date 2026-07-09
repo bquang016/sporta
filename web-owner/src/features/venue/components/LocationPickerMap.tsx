@@ -182,6 +182,15 @@ export const LocationPickerMap = ({
       console.warn('Goong Map style resource warning:', msg);
     });
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.resize();
+      }
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     // Add Navigation Control
     map.addControl(new goongjs.NavigationControl({ showCompass: false }), 'top-right');
 
@@ -262,6 +271,7 @@ export const LocationPickerMap = ({
 
     // Cleanup on unmount
     return () => {
+      resizeObserver.disconnect();
       if (geocodeTimeoutRef.current) {
         clearTimeout(geocodeTimeoutRef.current);
       }
