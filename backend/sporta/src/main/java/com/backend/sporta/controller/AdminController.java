@@ -358,4 +358,28 @@ public class AdminController {
         authService.rejectOwnerRegistration(id, reason.trim());
         return ResponseEntity.ok(Map.of("message", "Đã từ chối đơn đăng ký thành công."));
     }
+
+    @Autowired
+    private com.backend.sporta.service.VenueService venueService;
+
+    @GetMapping("/venue-revisions/pending")
+    public ResponseEntity<List<com.backend.sporta.dto.VenueRevisionResponse>> getPendingVenueRevisions() {
+        return ResponseEntity.ok(venueService.getPendingRevisions());
+    }
+
+    @PostMapping("/venue-revisions/{id}/approve")
+    public ResponseEntity<?> approveVenueRevision(@PathVariable("id") java.util.UUID id) {
+        venueService.approveRevision(id);
+        return ResponseEntity.ok(Map.of("message", "Đã phê duyệt thay đổi thông tin sân thành công."));
+    }
+
+    @PostMapping("/venue-revisions/{id}/reject")
+    public ResponseEntity<?> rejectVenueRevision(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        venueService.rejectRevision(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu thay đổi thành công."));
+    }
 }

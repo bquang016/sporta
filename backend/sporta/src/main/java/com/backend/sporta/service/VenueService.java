@@ -156,10 +156,28 @@ public class VenueService {
         // KIỂM TRA THAY ĐỔI NHẠY CẢM để tạo bản nháp
         if (!venue.getName().equals(request.getName()) || !venue.getLocation().equals(newLocation)) {
             hasSensitiveChanges = true;
-            venue.setApprovalStatus(ApprovalStatus.PENDING);
             try {
-                // Thay vì dùng objectMapper, ta dùng luôn .toString() của Java
-                String pendingData = request.toString(); 
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.backend.sporta.dto.VenueRevisionData revisionData = com.backend.sporta.dto.VenueRevisionData.builder()
+                        .name(request.getName())
+                        .location(newLocation)
+                        .province(request.getProvince())
+                        .district(request.getDistrict())
+                        .ward(request.getWard())
+                        .addressDetail(request.getAddressDetail())
+                        .latitude(request.getLatitude())
+                        .longitude(request.getLongitude())
+                        .build();
+                
+                String pendingData = mapper.writeValueAsString(revisionData);
+                
+                // Nếu đã có bản nháp đang chờ duyệt, hủy nó đi (Ghi đè bằng yêu cầu mới)
+                java.util.List<VenueRevision> existingRevisions = venueRevisionRepository.findByVenueIdAndStatusOrderByCreatedAtDesc(venue.getId(), ApprovalStatus.PENDING);
+                for (VenueRevision rev : existingRevisions) {
+                    rev.setStatus(ApprovalStatus.REJECTED);
+                    rev.setReviewerNotes("Bị thay thế bởi yêu cầu cập nhật mới.");
+                    venueRevisionRepository.save(rev);
+                }
                 
                 VenueRevision revision = VenueRevision.builder()
                         .venue(venue)
@@ -170,18 +188,19 @@ public class VenueService {
             } catch (Exception e) {
                 throw new CustomException("Lỗi xử lý dữ liệu bản nháp", 500);
             }
-        } else {
-            venue.setApprovalStatus(ApprovalStatus.APPROVED);
         }
 
-        venue.setName(request.getName());
-        venue.setLocation(newLocation);
-        venue.setProvince(request.getProvince());
-        venue.setDistrict(request.getDistrict());
-        venue.setWard(request.getWard());
-        venue.setAddressDetail(request.getAddressDetail());
-        venue.setLatitude(request.getLatitude());
-        venue.setLongitude(request.getLongitude());
+        // Nếu KHÔNG có thay đổi nhạy cảm HOẶC chúng ta chỉ cập nhật các trường không nhạy cảm
+        if (!hasSensitiveChanges) {
+            venue.setName(request.getName());
+            venue.setLocation(newLocation);
+            venue.setProvince(request.getProvince());
+            venue.setDistrict(request.getDistrict());
+            venue.setWard(request.getWard());
+            venue.setAddressDetail(request.getAddressDetail());
+            venue.setLatitude(request.getLatitude());
+            venue.setLongitude(request.getLongitude());
+        }
 
         // Cập nhật các trường không nhạy cảm
         Sport sport = null;
@@ -547,5 +566,71 @@ public class VenueService {
 
         // Delete venue (venue images are cascade deleted via CascadeType.ALL)
         venueRepository.delete(venue);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<com.backend.sporta.dto.VenueRevisionResponse> getPendingRevisions() {
+        return venueRevisionRepository.findByStatusOrderByCreatedAtDesc(ApprovalStatus.PENDING).stream().map(rev -> {
+            Venue v = rev.getVenue();
+            return com.backend.sporta.dto.VenueRevisionResponse.builder()
+                    .id(rev.getId())
+                    .venueId(v.getId())
+                    .venueName(v.getName())
+                    .ownerEmail(v.getOwner() != null && v.getOwner().getUser() != null ? v.getOwner().getUser().getEmail() : "")
+                    .pendingData(rev.getPendingData())
+                    .status(rev.getStatus())
+                    .createdAt(rev.getCreatedAt())
+                    .oldName(v.getName())
+                    .oldLocation(v.getLocation())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void approveRevision(UUID id) {
+        VenueRevision rev = venueRevisionRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy yêu cầu cập nhật", 404));
+        
+        if (rev.getStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Yêu cầu này không ở trạng thái chờ duyệt", 400);
+        }
+        
+        Venue venue = rev.getVenue();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.backend.sporta.dto.VenueRevisionData data = mapper.readValue(rev.getPendingData(), com.backend.sporta.dto.VenueRevisionData.class);
+            
+            venue.setName(data.getName());
+            venue.setLocation(data.getLocation());
+            venue.setProvince(data.getProvince());
+            venue.setDistrict(data.getDistrict());
+            venue.setWard(data.getWard());
+            venue.setAddressDetail(data.getAddressDetail());
+            venue.setLatitude(data.getLatitude());
+            venue.setLongitude(data.getLongitude());
+            
+            venueRepository.save(venue);
+            
+            rev.setStatus(ApprovalStatus.APPROVED);
+            rev.setReviewedAt(java.time.LocalDateTime.now());
+            venueRevisionRepository.save(rev);
+        } catch (Exception e) {
+            throw new CustomException("Lỗi phân tích dữ liệu cập nhật: " + e.getMessage(), 500);
+        }
+    }
+
+    @Transactional
+    public void rejectRevision(UUID id, String reason) {
+        VenueRevision rev = venueRevisionRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy yêu cầu cập nhật", 404));
+        
+        if (rev.getStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Yêu cầu này không ở trạng thái chờ duyệt", 400);
+        }
+        
+        rev.setStatus(ApprovalStatus.REJECTED);
+        rev.setReviewedAt(java.time.LocalDateTime.now());
+        rev.setReviewerNotes(reason);
+        venueRevisionRepository.save(rev);
     }
 }
