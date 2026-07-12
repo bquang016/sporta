@@ -1,60 +1,85 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-const getBaseUrl = () => {
+// ─── Base URL ─────────────────────────────────────────────────────────────────
+
+const getBaseUrl = (): string => {
   if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  // Fallback to local Spring Boot backend address
-  return 'http://localhost:8387/api/v1';
+  return 'http://192.168.1.11:8387/api/v1';
 };
 
-const getToken = async (): Promise<string> => {
-  if (Platform.OS === 'web') {
-    return localStorage.getItem('accessToken') || '';
-  }
+export const BASE_URL = getBaseUrl();
+
+// ─── Token helper ─────────────────────────────────────────────────────────────
+
+let cachedToken: string | null = null;
+
+export const clearCachedToken = () => {
+  cachedToken = null;
+};
+
+const getToken = async (): Promise<string | null> => {
+  if (cachedToken) return cachedToken;
   try {
-    return (await SecureStore.getItemAsync('accessToken')) || '';
-  } catch (error) {
-    return '';
+    if (Platform.OS === 'web') {
+      cachedToken = localStorage.getItem('accessToken');
+    } else {
+      cachedToken = await SecureStore.getItemAsync('accessToken');
+    }
+    return cachedToken;
+  } catch {
+    return null;
   }
 };
 
-export const requestApi = async (
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<any> => {
-  const token = await getToken();
+// ─── Error type ───────────────────────────────────────────────────────────────
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+// ─── Core fetch wrapper ───────────────────────────────────────────────────────
+
+/**
+ * Wrapper dùng chung cho mọi API call.
+ * - Tự động gắn `Authorization: Bearer <token>` nếu có token.
+ * - Ném `ApiError` có `.status` khi response không OK.
+ */
+export const apiFetch = async <T = unknown>(
+  path: string,
+  options: RequestInit = {},
+  requiresAuth = false,
+): Promise<T> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (requiresAuth) {
+    const token = await getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${getBaseUrl()}${endpoint}`, {
+  const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    let parsedError;
-    try {
-      parsedError = JSON.parse(errorText);
-    } catch (e) {
-      parsedError = { message: errorText };
-    }
-    throw new Error(parsedError.message || parsedError.error || 'Đã xảy ra lỗi hệ thống');
+    const errorData = await response.json().catch(() => ({}));
+    throw new ApiError(
+      errorData.message || errorData.error || `HTTP ${response.status}`,
+      response.status,
+    );
   }
 
-  // Handle No Content (204)
-  if (response.status === 204) {
-    return null;
-  }
-
-  // Check if response has content before parsing JSON
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  // 204 No Content
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 };
