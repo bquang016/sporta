@@ -43,9 +43,9 @@ const MOCK_AVATARS: AvatarItem[] = [
 
 const SPORTS_LIST = [
   { id: 1, name: 'Bóng đá', icon: 'sports-soccer' },
-  { id: 2, name: 'Bóng rổ', icon: 'sports-basketball' },
-  { id: 3, name: 'Cầu lông', icon: 'sports-cricket' },
-  { id: 4, name: 'Pickleball', icon: 'sports-tennis' }
+  { id: 2, name: 'Cầu lông', icon: 'sports-cricket' },
+  { id: 3, name: 'Pickleball', icon: 'sports-tennis' },
+  { id: 4, name: 'Bóng rổ', icon: 'sports-basketball' }
 ];
 
 export function CreateClubScreen() {

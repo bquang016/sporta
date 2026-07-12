@@ -292,10 +292,13 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             throw new RuntimeException("Không thể bổ nhiệm Trưởng nhóm làm Phó nhóm");
         }
 
-        // Limit to maximum 1 SUB_LEADER
-        long subLeadersCount = clubMemberRepository.countByClubIdAndRoleAndStatus(clubId, ClubMemberRole.SUB_LEADER, ClubMemberStatus.APPROVED);
-        if (subLeadersCount >= 1) {
-            throw new RuntimeException("Câu lạc bộ đã có 1 Phó câu lạc bộ rồi. Vui lòng hạ chức Phó câu lạc bộ hiện tại trước.");
+        // Tự động hạ cấp Phó câu lạc bộ cũ về làm Thành viên thường (nếu có)
+        List<ClubMember> currentSubLeaders = clubMemberRepository.findByClubIdAndRoleAndStatus(clubId, ClubMemberRole.SUB_LEADER, ClubMemberStatus.APPROVED);
+        for (ClubMember currentSub : currentSubLeaders) {
+            if (!currentSub.getUser().getId().equals(userId)) {
+                currentSub.setRole(ClubMemberRole.MEMBER);
+                clubMemberRepository.save(currentSub);
+            }
         }
 
         memberToAssign.setRole(ClubMemberRole.SUB_LEADER);

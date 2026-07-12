@@ -183,7 +183,7 @@ export function ClubDetailJoinedScreen() {
     if (!club) return;
     Alert.alert(
       'Bổ nhiệm Phó câu lạc bộ',
-      `Bạn có chắc chắn muốn phong chức Phó câu lạc bộ cho "${member.name}" không? Mỗi câu lạc bộ chỉ có tối đa 1 Phó câu lạc bộ.`,
+      `Bạn có chắc chắn muốn phong chức Phó câu lạc bộ cho "${member.name}" không? Nếu đã có Phó câu lạc bộ khác, họ sẽ tự động trở thành Thành viên thường.`,
       [
         { text: 'Hủy', style: 'cancel' },
         { 
