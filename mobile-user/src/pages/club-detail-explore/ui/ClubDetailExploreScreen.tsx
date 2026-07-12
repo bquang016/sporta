@@ -10,7 +10,7 @@ import { useClubs, ClubDetailHeader } from '../../../entities/club';
 export function ClubDetailExploreScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { clubs, joinClub } = useClubs();
+  const { clubs, joinedClubs, joinClub } = useClubs();
 
   // Custom Modal Alert State
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -18,7 +18,7 @@ export function ClubDetailExploreScreen() {
   const [modalMessage, setModalMessage] = useState('');
   const [modalIcon, setModalIcon] = useState<'check-circle' | 'mail-outline'>('check-circle');
 
-  const club = clubs.find(c => c.id === id);
+  const club = clubs.find(c => String(c.id) === String(id)) || joinedClubs.find(c => String(c.id) === String(id));
 
   if (!club) {
     return (

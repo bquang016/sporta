@@ -12,6 +12,7 @@ import { SportCategories } from '../../../features/sport-categories';
 import { AuthCtaBanner } from '../../../features/auth-cta';
 import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
 import { MatchCard, Match } from '../../../entities/match';
+import { clubStore } from '../../../entities/club';
 
 
 const HOT_MATCHES: Match[] = [
@@ -181,6 +182,7 @@ export function HomeScreen() {
 
   const handleLogout = async () => {
     try {
+      clubStore.reset();
       if (Platform.OS === 'web') {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('userName');

@@ -15,9 +15,10 @@ export interface CoverPickerModalProps {
   onClose: () => void;
   covers: CoverItem[];
   onSelectCover: (cover: CoverItem) => void;
+  onPickFromLibrary?: () => void;
 }
 
-export function CoverPickerModal({ visible, onClose, covers, onSelectCover }: CoverPickerModalProps) {
+export function CoverPickerModal({ visible, onClose, covers, onSelectCover, onPickFromLibrary }: CoverPickerModalProps) {
   return (
     <Modal
       visible={visible}
@@ -28,11 +29,24 @@ export function CoverPickerModal({ visible, onClose, covers, onSelectCover }: Co
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Chọn ảnh bìa mẫu</Text>
+            <Text style={styles.modalTitle}>Chọn ảnh bìa</Text>
             <TouchableOpacity onPress={onClose}>
               <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
             </TouchableOpacity>
           </View>
+
+          {onPickFromLibrary && (
+            <TouchableOpacity 
+              style={styles.libraryButton}
+              activeOpacity={0.8}
+              onPress={onPickFromLibrary}
+            >
+              <MaterialIcons name="photo-library" size={20} color={COLORS.primary} />
+              <Text style={styles.libraryButtonText}>Chọn từ thư viện của máy</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.sectionLabel}>Hoặc chọn ảnh mẫu có sẵn:</Text>
           <ScrollView contentContainerStyle={styles.modalGrid}>
             {covers.map((cover) => (
               <TouchableOpacity
@@ -65,7 +79,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.marginMobile,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xl,
-    maxHeight: '60%',
+    maxHeight: '75%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -80,6 +94,29 @@ const styles = StyleSheet.create({
     fontFamily: 'HankenGrotesk-Bold',
     fontWeight: '700',
     color: COLORS.onSurface,
+  },
+  libraryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.primaryOpacity08,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity30,
+    borderRadius: BORDER_RADIUS.default,
+    marginTop: SPACING.md,
+    gap: SPACING.base,
+  },
+  libraryButtonText: {
+    color: COLORS.primary,
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '600',
+  },
+  sectionLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurfaceVariant,
+    marginTop: SPACING.md,
+    marginBottom: -4,
   },
   modalGrid: {
     paddingVertical: SPACING.md,
