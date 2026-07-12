@@ -7,6 +7,7 @@ import { OwnerManagement } from "@/pages/Users/OwnerManagement";
 import { StaffManagement } from "@/pages/Users/StaffManagement";
 import { LoginPage } from "@/pages/Auth/LoginPage";
 import { PermissionSettings } from "@/pages/Settings/PermissionSettings";
+import { TransactionManagement } from "@/pages/Transactions/TransactionManagement";
 
 // A simple wrapper to check auth and permissions
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -30,6 +31,8 @@ function App() {
         return <OwnerManagement />;
       case "staff":
         return <StaffManagement />;
+      case "transactions":
+        return <TransactionManagement />;
       case "settings":
         return <PermissionSettings />;
       default:
