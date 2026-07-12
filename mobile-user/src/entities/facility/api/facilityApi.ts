@@ -1,25 +1,21 @@
-import { Platform } from 'react-native';
+import { apiFetch } from '../../../shared/api/apiClient';
+import { VenueResponse, VenueDetail, SlotInfo } from '../model/facility.types';
 
-const getBaseUrl = () => {
-  if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  return 'http://192.168.1.2:8387/api/v1'; // Fallback to PC IP instead of localhost for mobile
-};
+// ─── List (existing) ──────────────────────────────────────────────────────────
 
-const BASE_URL = `${getBaseUrl()}/public/venues`;
+export const fetchActiveFacilities = (): Promise<VenueResponse[]> =>
+  apiFetch<VenueResponse[]>('/public/venues');
 
-export const fetchActiveFacilities = async () => {
-  const response = await fetch(BASE_URL, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+// ─── Detail (venue + courts + priceRules) ─────────────────────────────────────
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to fetch facilities');
-  }
+export const fetchVenueDetail = (venueId: string): Promise<VenueDetail> =>
+  apiFetch<VenueDetail>(`/public/venues/${venueId}`);
 
-  return response.json();
-};
+// ─── Schedule (slot grid for one date) ───────────────────────────────────────
+
+/**
+ * @param date  Format: "YYYY-MM-DD"
+ * @returns     Flat list of SlotInfo — one entry per (court × time) cell
+ */
+export const fetchVenueSchedule = (venueId: string, date: string): Promise<SlotInfo[]> =>
+  apiFetch<SlotInfo[]>(`/public/venues/${venueId}/schedule?date=${date}`);

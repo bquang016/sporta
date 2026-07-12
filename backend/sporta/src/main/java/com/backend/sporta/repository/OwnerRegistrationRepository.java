@@ -14,4 +14,5 @@ public interface OwnerRegistrationRepository extends JpaRepository<OwnerRegistra
     Optional<OwnerRegistration> findByEmail(String email);
     List<OwnerRegistration> findByStatus(RegistrationStatus status);
     boolean existsByEmailAndStatus(String email, RegistrationStatus status);
+    List<OwnerRegistration> findAllByOrderByCreatedAtDesc();
 }

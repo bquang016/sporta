@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useOperations } from '../../../../hooks/useOperationsState';
 import { useToast } from '../../../../components/ui/Toast';
 import type { CourtDraftDto, VenueResponse } from '../../types';
@@ -46,8 +46,8 @@ interface VenueWizardContextType {
   setOpeningTime: (val: string) => void;
   closingTime: string;
   setClosingTime: (val: string) => void;
-  shiftDurationMinutes: number;
-  setShiftDurationMinutes: (val: number) => void;
+  shiftDurationMinutes: number | undefined;
+  setShiftDurationMinutes: (val: number | undefined) => void;
   hasSurcharge: boolean;
   setHasSurcharge: (val: boolean) => void;
   surchargeAmount: number | undefined;
@@ -57,8 +57,14 @@ interface VenueWizardContextType {
 
   // Actions
   loading: boolean;
+  isCreateMode: boolean;
+  initialVenue?: VenueResponse | null;
+  isReadOnly: boolean;
+  isPureEditMode: boolean;
   saveDraft: (silent?: boolean) => Promise<string | null>;
+  updateExistingVenue: () => Promise<boolean>;
   submitForApproval: () => Promise<boolean>;
+  cancelSubmission: () => Promise<boolean>;
   resetWizard: () => void;
   loadFromExistingVenue: (venue: VenueResponse, venueCourts: any[]) => void;
 }
@@ -78,11 +84,14 @@ interface VenueWizardProviderProps {
   onClose: () => void;
   initialVenue?: VenueResponse | null;
   initialCourts?: any[];
+  isReadOnly?: boolean;
 }
 
-export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCourts = [] }: VenueWizardProviderProps) => {
+export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCourts = [], isReadOnly = false }: VenueWizardProviderProps) => {
   const { showToast } = useToast();
-  const { createVenueDraft, updateVenueDraft, submitVenueForApproval, refreshData } = useOperations();
+  const { createVenueDraft, updateVenueDraft, submitVenueForApproval, cancelVenueSubmission, refreshData, updateVenueInfo } = useOperations();
+  const isCreateMode = !initialVenue;
+  const isPureEditMode = !!initialVenue && initialVenue.approvalStatus !== 'DRAFT';
   
   const [step, setStep] = useState(1);
   const [venueId, setVenueId] = useState<string | null>(null);
@@ -106,7 +115,7 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
   
   const [openingTime, setOpeningTime] = useState('06:00');
   const [closingTime, setClosingTime] = useState('22:00');
-  const [shiftDurationMinutes, setShiftDurationMinutes] = useState(60);
+  const [shiftDurationMinutes, setShiftDurationMinutes] = useState<number | undefined>(undefined);
   const [hasSurcharge, setHasSurcharge] = useState(false);
   const [surchargeAmount, setSurchargeAmount] = useState<number | undefined>(undefined);
   const [surchargeDescription, setSurchargeDescription] = useState('');
@@ -131,7 +140,7 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     setDetailImages([]);
     setOpeningTime('06:00');
     setClosingTime('22:00');
-    setShiftDurationMinutes(60);
+    setShiftDurationMinutes(undefined);
     setHasSurcharge(false);
     setSurchargeAmount(undefined);
     setSurchargeDescription('');
@@ -145,17 +154,17 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     setDistrict(venue.district || '');
     setWard(venue.ward || '');
     setAddressDetail(venue.addressDetail || '');
-    setLatitude(venue.latitude);
-    setLongitude(venue.longitude);
+    setLatitude(venue.latitude !== null && venue.latitude !== undefined ? venue.latitude : undefined);
+    setLongitude(venue.longitude !== null && venue.longitude !== undefined ? venue.longitude : undefined);
     setDescription(venue.description || '');
     setSportId(venue.sport?.id ? String(venue.sport.id) : '1');
     setCoverImage(venue.coverImage || '');
     setDetailImages(venue.images?.map(img => img.imageUrl) || []);
     setOpeningTime(venue.openingTime?.substring(0, 5) || '06:00');
     setClosingTime(venue.closingTime?.substring(0, 5) || '22:00');
-    setShiftDurationMinutes(venue.shiftDurationMinutes || 60);
+    setShiftDurationMinutes(venue.shiftDurationMinutes !== null && venue.shiftDurationMinutes !== undefined ? venue.shiftDurationMinutes : undefined);
     setHasSurcharge(venue.hasSurcharge || false);
-    setSurchargeAmount(venue.surchargeAmount);
+    setSurchargeAmount(venue.surchargeAmount !== null && venue.surchargeAmount !== undefined ? venue.surchargeAmount : undefined);
     setSurchargeDescription(venue.surchargeDescription || '');
     
     // Map court price rules from global store if available
@@ -172,11 +181,24 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     setCourts(mappedCourts);
   };
 
+  const isInitializedRef = useRef(false);
+
   // Load draft from localStorage on startup if available, otherwise load default
   useEffect(() => {
+    if (isInitializedRef.current) return;
+    isInitializedRef.current = true;
+
     const loadState = () => {
+      if (isReadOnly) {
+        setStep(5);
+        if (initialVenue) {
+          loadFromExistingVenue(initialVenue, initialCourts);
+        }
+        return;
+      }
+
       const key = initialVenue ? `sporta_venue_draft_${initialVenue.id}` : 'sporta_venue_draft_new';
-      const saved = localStorage.getItem(key);
+      const saved = !isPureEditMode ? localStorage.getItem(key) : null;
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -226,6 +248,9 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
 
   // Auto-save form state to localStorage on any modification
   useEffect(() => {
+    if (isReadOnly || isPureEditMode) {
+      return;
+    }
     // Avoid saving initial default empty state
     if (!name && !location && courts.length === 0 && !coverImage && detailImages.length === 0) {
       return;
@@ -320,6 +345,7 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
   };
 
   const saveDraft = async (silent = false) => {
+    if (isReadOnly) return null;
     try {
       setLoading(true);
       const payload = buildPayload();
@@ -351,7 +377,46 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     }
   };
 
+  const updateExistingVenue = async () => {
+    if (isReadOnly || !venueId) return false;
+    try {
+      setLoading(true);
+      
+      const formattedOpeningTime = openingTime && openingTime.length === 5 ? `${openingTime}:00` : openingTime;
+      const formattedClosingTime = closingTime && closingTime.length === 5 ? `${closingTime}:00` : closingTime;
+
+      await updateVenueInfo(
+        venueId,
+        name || 'Cụm sân chưa đặt tên',
+        location,
+        description,
+        formattedOpeningTime,
+        formattedClosingTime,
+        parseInt(sportId),
+        coverImage,
+        detailImages,
+        shiftDurationMinutes || 60,
+        latitude,
+        longitude,
+        hasSurcharge,
+        surchargeAmount,
+        surchargeDescription
+      );
+      
+      showToast('success', 'Cập nhật thông tin cụm sân thành công!');
+      await refreshData();
+      setLoading(false);
+      return true;
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', err.message || 'Lỗi khi cập nhật thông tin cụm sân');
+      setLoading(false);
+      return false;
+    }
+  };
+
   const submitForApproval = async () => {
+    if (isReadOnly) return false;
     // 1. Strict validation
     if (!name.trim() || name === 'Cụm sân chưa đặt tên') {
       showToast('error', 'Vui lòng nhập tên cụm sân hợp lệ ở Bước 1');
@@ -406,6 +471,24 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     }
   };
 
+  const cancelSubmission = async () => {
+    if (!venueId) return false;
+    try {
+      setLoading(true);
+      await cancelVenueSubmission(venueId);
+      showToast('success', 'Đã hủy yêu cầu duyệt cụm sân thành công! Cụm sân đã trở lại trạng thái Bản nháp.');
+      await refreshData();
+      setLoading(false);
+      onClose();
+      return true;
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', err.message || 'Lỗi khi hủy yêu cầu duyệt cụm sân');
+      setLoading(false);
+      return false;
+    }
+  };
+
   return (
     <VenueWizardContext.Provider
       value={{
@@ -452,8 +535,14 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
         surchargeDescription,
         setSurchargeDescription,
         loading,
+        isCreateMode,
+        initialVenue,
+        isReadOnly,
+        isPureEditMode,
         saveDraft,
+        updateExistingVenue,
         submitForApproval,
+        cancelSubmission,
         resetWizard,
         loadFromExistingVenue
       }}

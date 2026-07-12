@@ -12,6 +12,8 @@ import com.backend.sporta.repository.RolePermissionRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.LockReasonRepository;
 import com.backend.sporta.repository.LockLogRepository;
+import com.backend.sporta.repository.OwnerRegistrationRepository;
+import com.backend.sporta.entity.OwnerRegistration;
 import com.backend.sporta.exception.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,12 @@ public class AdminController {
 
     @Autowired
     private LockLogRepository lockLogRepository;
+
+    @Autowired
+    private OwnerRegistrationRepository ownerRegistrationRepository;
+
+    @Autowired
+    private com.backend.sporta.service.AuthService authService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -318,5 +326,60 @@ public class AdminController {
         
         lockReasonRepository.delete(reason);
         return ResponseEntity.ok(Map.of("message", "Đã xóa lý do khóa thành công."));
+    }
+
+    @GetMapping("/registrations")
+    public ResponseEntity<List<OwnerRegistration>> getOwnerRegistrations() {
+        return ResponseEntity.ok(ownerRegistrationRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    @GetMapping("/registrations/{id}")
+    public ResponseEntity<OwnerRegistration> getOwnerRegistrationDetail(@PathVariable("id") java.util.UUID id) {
+        OwnerRegistration registration = ownerRegistrationRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin đăng ký.", 404));
+        return ResponseEntity.ok(registration);
+    }
+
+    @PostMapping("/registrations/{id}/approve")
+    public ResponseEntity<?> approveRegistration(@PathVariable("id") java.util.UUID id) {
+        String temporaryPassword = authService.approveOwnerRegistration(id);
+        return ResponseEntity.ok(Map.of(
+            "message", "Đã duyệt đơn đăng ký thành công.",
+            "temporaryPassword", temporaryPassword
+        ));
+    }
+
+    @PostMapping("/registrations/{id}/reject")
+    public ResponseEntity<?> rejectRegistration(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        authService.rejectOwnerRegistration(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối đơn đăng ký thành công."));
+    }
+
+    @Autowired
+    private com.backend.sporta.service.VenueService venueService;
+
+    @GetMapping("/venue-revisions/pending")
+    public ResponseEntity<List<com.backend.sporta.dto.VenueRevisionResponse>> getPendingVenueRevisions() {
+        return ResponseEntity.ok(venueService.getPendingRevisions());
+    }
+
+    @PostMapping("/venue-revisions/{id}/approve")
+    public ResponseEntity<?> approveVenueRevision(@PathVariable("id") java.util.UUID id) {
+        venueService.approveRevision(id);
+        return ResponseEntity.ok(Map.of("message", "Đã phê duyệt thay đổi thông tin sân thành công."));
+    }
+
+    @PostMapping("/venue-revisions/{id}/reject")
+    public ResponseEntity<?> rejectVenueRevision(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        venueService.rejectRevision(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu thay đổi thành công."));
     }
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useVenueWizard } from './VenueWizardContext';
 import { useToast } from '../../../../components/ui/Toast';
 import type { CourtDraftDto } from '../../types';
+import { CurrencyInput } from '../../../../components/ui/CurrencyInput';
 
 export const Step2Facilities = () => {
   const { showToast } = useToast();
@@ -9,11 +10,12 @@ export const Step2Facilities = () => {
     sportId,
     setSportId,
     courts,
-    setCourts
+    setCourts,
+    isPureEditMode
   } = useVenueWizard();
 
   const [newCourtName, setNewCourtName] = useState('');
-  const [newCourtPrice, setNewCourtPrice] = useState('100000');
+  const [newCourtPrice, setNewCourtPrice] = useState<number>(100000);
 
   const SPORT_OPTIONS = [
     { 
@@ -68,8 +70,7 @@ export const Step2Facilities = () => {
       return;
     }
 
-    const priceNum = parseFloat(newCourtPrice);
-    if (!newCourtPrice || isNaN(priceNum) || priceNum <= 0) {
+    if (newCourtPrice <= 0) {
       showToast('warning', 'Giá thuê sân phải là số lớn hơn 0');
       return;
     }
@@ -82,13 +83,14 @@ export const Step2Facilities = () => {
 
     const newCourt: CourtDraftDto = {
       name: newCourtName.trim(),
-      price: priceNum,
+      price: newCourtPrice,
       status: 'ACTIVE',
       priceRules: []
     };
 
     setCourts(prev => [...prev, newCourt]);
     setNewCourtName('');
+    setNewCourtPrice(100000);
     showToast('success', `Đã thêm ${newCourt.name} vào danh sách`);
   };
 
@@ -122,9 +124,14 @@ export const Step2Facilities = () => {
             return (
               <div
                 key={opt.id}
-                onClick={() => setSportId(opt.id)}
-                className={`border-2 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all active:scale-95 ${
-                  isSelected ? opt.activeClass : `border-slate-100 bg-white text-slate-500 ${opt.bgClass}`
+                onClick={() => {
+                  if (isPureEditMode) return;
+                  setSportId(opt.id);
+                }}
+                className={`border-2 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 transition-all ${
+                  isPureEditMode ? 'cursor-default opacity-80' : 'cursor-pointer active:scale-95'
+                } ${
+                  isSelected ? opt.activeClass : `border-slate-100 bg-white text-slate-500 ${!isPureEditMode ? opt.bgClass : ''}`
                 }`}
               >
                 {opt.icon}
@@ -138,47 +145,47 @@ export const Step2Facilities = () => {
       <div className="w-full h-px bg-slate-100 my-4" />
 
       {/* ② Form thêm sân */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/50 border border-slate-100 rounded-3xl p-5 shadow-xs">
-        <div className="md:col-span-3 space-y-0.5">
-          <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Đăng ký sân lẻ</h4>
-          <p className="text-[9px] text-slate-400 font-bold">Thêm các sân lẻ thuộc cụm sân và đặt giá thuê cơ bản.</p>
-        </div>
+      {!isPureEditMode && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/50 border border-slate-100 rounded-3xl p-5 shadow-xs">
+          <div className="md:col-span-3 space-y-0.5">
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Đăng ký sân lẻ</h4>
+            <p className="text-[9px] text-slate-400 font-bold">Thêm các sân lẻ thuộc cụm sân và đặt giá thuê cơ bản.</p>
+          </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tên sân</label>
-          <input
-            type="text"
-            placeholder="Ví dụ: Sân 1, Sân A"
-            value={newCourtName}
-            onChange={e => setNewCourtName(e.target.value)}
-            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100"
-          />
-        </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tên sân</label>
+            <input
+              type="text"
+              placeholder="Ví dụ: Sân 1, Sân A"
+              value={newCourtName}
+              onChange={e => setNewCourtName(e.target.value)}
+              className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100"
+            />
+          </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Giá thuê cơ bản (VND / ca)</label>
-          <input
-            type="number"
-            placeholder="Ví dụ: 100000"
-            value={newCourtPrice}
-            onChange={e => setNewCourtPrice(e.target.value)}
-            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100"
-          />
-        </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Giá thuê cơ bản (VND / ca)</label>
+            <CurrencyInput
+              value={newCourtPrice}
+              onChange={setNewCourtPrice}
+              placeholder="Ví dụ: 100.000"
+            />
+          </div>
 
-        <div className="flex items-end">
-          <button
-            type="button"
-            onClick={handleAddCourt}
-            className="w-full bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs py-3.5 rounded-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-1.5 shadow-md border-b-2 border-emerald-950"
-          >
-            <svg className="w-3.5 h-3.5 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-            </svg>
-            Thêm sân lẻ
-          </button>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={handleAddCourt}
+              className="w-full bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs py-3.5 rounded-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-1.5 shadow-md border-b-2 border-emerald-950"
+            >
+              <svg className="w-3.5 h-3.5 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm sân lẻ
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ③ Danh sách sân trực thuộc */}
       <div className="space-y-3">
@@ -211,16 +218,18 @@ export const Step2Facilities = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleRemoveCourt(index)}
-                  className="p-2 rounded-lg bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 hover:text-red-700 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-2xs"
-                  title="Xóa sân này"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {!isPureEditMode && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCourt(index)}
+                    className="p-2 rounded-lg bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 hover:text-red-700 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-2xs"
+                    title="Xóa sân này"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </div>
             ))}
           </div>
