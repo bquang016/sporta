@@ -43,6 +43,11 @@ export const useAuth = () => {
       }
 
       localStorage.setItem('accessToken', data.accessToken);
+      if (data.mustChangePassword) {
+        localStorage.setItem('mustChangePassword', 'true');
+      } else {
+        localStorage.removeItem('mustChangePassword');
+      }
       navigate('/', { replace: true });
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi kết nối máy chủ. Vui lòng thử lại sau.');

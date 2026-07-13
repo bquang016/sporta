@@ -48,14 +48,14 @@ export const useProfile = () => {
     }, 800);
   };
 
-  const handlePasswordSave = (e: React.FormEvent) => {
+  const handlePasswordSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setMessage({ type: 'error', text: 'Vui lòng nhập đầy đủ tất cả các trường mật khẩu!' });
       return;
     }
-    if (passwordData.newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' });
+    if (passwordData.newPassword.length < 8) {
+      setMessage({ type: 'error', text: 'Mật khẩu mới phải có tối thiểu 8 ký tự!' });
       return;
     }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -64,11 +64,34 @@ export const useProfile = () => {
     }
 
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('http://localhost:8387/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.oldPassword.trim(),
+          newPassword: passwordData.newPassword.trim(),
+          confirmPassword: passwordData.confirmPassword.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Đổi mật khẩu thất bại.');
+      }
+
       setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setMessage({ type: 'success', text: 'Đổi mật khẩu tài khoản thành công!' });
-    }, 800);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Lỗi kết nối máy chủ. Vui lòng thử lại sau.' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTabChange = (tabName: string) => {

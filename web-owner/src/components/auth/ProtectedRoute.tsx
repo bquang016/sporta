@@ -5,6 +5,8 @@ import { MobileLayout } from '../layout/MobileLayout';
 import { DesktopLayout } from '../layout/DesktopLayout';
 import { getLoggedInUser } from '../../utils/auth';
 
+import ForceChangePasswordModal from '../../features/auth/components/ForceChangePasswordModal';
+
 export const ProtectedRoute = () => {
   const user = getLoggedInUser();
   const isMobile = useIsMobile();
@@ -26,11 +28,16 @@ export const ProtectedRoute = () => {
     );
   }
 
+  const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+
   // Wrap the nested route content (Outlet) inside the Layout
   return (
-    <Layout>
-      <Outlet />
-    </Layout>
+    <>
+      <Layout>
+        <Outlet />
+      </Layout>
+      {mustChangePassword && <ForceChangePasswordModal />}
+    </>
   );
 };
 

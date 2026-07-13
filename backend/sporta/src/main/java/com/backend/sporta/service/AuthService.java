@@ -5,6 +5,7 @@ import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.Gender;
 import com.backend.sporta.enums.RegistrationStatus;
 import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.UserStatus;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.OwnerRegistrationRepository;
