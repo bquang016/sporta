@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   'owners': 'Quản Lý Chủ Sân',
   'users': 'Quản Lý Người Dùng',
   'transactions': 'Quản Lý Đặt Sân & Giao Dịch',
+  'reconciliations': 'Quản Lý Đối Soát',
   'settings': 'Cài Đặt Hệ Thống',
   'staff': 'Nhân Sự Nội Bộ',
 };
@@ -102,6 +103,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           )}
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_TRANSACTIONS')) && (
             <NavItem id="transactions" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="transaction" label="Quản lý giao dịch" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_RECONCILIATION') || permissions.includes('MANAGE_TRANSACTIONS')) && (
+            <NavItem id="reconciliations" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="reconciliation" label="Quản lý đối soát" isCollapsed={isSidebarCollapsed} />
           )}
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_SYSTEM')) && (
             <NavItem id="settings" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
@@ -385,6 +389,12 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 8h6m-6 4h6m-2 5H9M11 3v2m2-2v2M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    case 'reconciliation':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
     default:

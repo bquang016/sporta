@@ -236,7 +236,7 @@ export const StaffManagement = () => {
             </div>
           ) : (
             /* Table Data */
-            <table className="w-full text-left text-xs whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/50 sticky top-0 backdrop-blur-sm z-10 select-none">
                 <tr>
                   <th className="px-6 py-3.5">Mã Admin</th>

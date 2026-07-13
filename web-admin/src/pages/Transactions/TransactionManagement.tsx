@@ -592,7 +592,7 @@ export const TransactionManagement: React.FC = () => {
               <p className="text-xs text-slate-400 font-semibold max-w-sm">Không tìm thấy bất kỳ giao dịch nào phù hợp với bộ lọc hiện tại.</p>
             </div>
           ) : (
-            <table className="w-full text-left text-xs whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/50 sticky top-0 backdrop-blur-sm z-10 select-none">
                 <tr>
                   <th className="px-6 py-3.5">Mã Giao Dịch</th>
@@ -612,13 +612,13 @@ export const TransactionManagement: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-bold text-slate-800">{tx.playerName}</span>
-                        <span className="text-[10px] text-slate-400 font-medium font-mono">{tx.playerEmail}</span>
+                        <span className="text-xs text-slate-400 font-medium font-mono">{tx.playerEmail}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-bold text-slate-800">{tx.facilityCluster}</span>
-                        <span className="text-[10px] text-slate-500 font-bold">{tx.courtName} ({tx.sportType})</span>
+                        <span className="text-xs text-slate-500 font-bold">{tx.courtName} ({tx.sportType})</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -630,7 +630,7 @@ export const TransactionManagement: React.FC = () => {
                             day: 'numeric'
                           })}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-bold">{tx.bookingSlot}</span>
+                        <span className="text-xs text-slate-400 font-bold">{tx.bookingSlot}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">{getPaymentMethodBadge(tx.paymentMethod)}</td>
