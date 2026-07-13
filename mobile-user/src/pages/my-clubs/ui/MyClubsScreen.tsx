@@ -1,21 +1,30 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, TextInput } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, TextInput, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui';
 import { useClubs, ClubCard, SportsFilter } from '../../../entities/club';
 
 export function MyClubsScreen() {
   const router = useRouter();
-  const { clubs, joinedIds } = useClubs();
+  const { clubs, joinedIds, loading, joinedClubs, refreshClubs } = useClubs();
   const [selectedSport, setSelectedSport] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // Filter only clubs that user has joined
-  const joinedClubs = clubs.filter(club => joinedIds.includes(club.id));
+  useFocusEffect(
+    useCallback(() => {
+      let sportId: number | undefined;
+      if (selectedSport === 'football') sportId = 1;
+      else if (selectedSport === 'basketball') sportId = 2;
+      else if (selectedSport === 'badminton') sportId = 3;
+      else if (selectedSport === 'pickleball') sportId = 4;
+
+      refreshClubs(sportId, searchQuery);
+    }, [selectedSport, searchQuery])
+  );
 
   const filteredJoinedClubs = joinedClubs.filter(club => {
     // Filter by search query
@@ -43,7 +52,7 @@ export function MyClubsScreen() {
           <TouchableOpacity 
             style={styles.backButton} 
             activeOpacity={0.7} 
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(tabs)/clubs')}
           >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
           </TouchableOpacity>
@@ -93,7 +102,24 @@ export function MyClubsScreen() {
       </View>
 
       {/* Clubs List */}
-      <ScrollView contentContainerStyle={styles.scrollList} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollList} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => {
+              let sportId: number | undefined;
+              if (selectedSport === 'football') sportId = 1;
+              else if (selectedSport === 'basketball') sportId = 2;
+              else if (selectedSport === 'badminton') sportId = 3;
+              else if (selectedSport === 'pickleball') sportId = 4;
+              refreshClubs(sportId, searchQuery);
+            }}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         {filteredJoinedClubs.length > 0 ? (
           filteredJoinedClubs.map((club) => (
             <ClubCard 
