@@ -57,12 +57,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             disabled={disabled}
             className={cn(
-              'w-full px-4 py-2.5 font-sans text-sm font-normal text-slate-800 bg-white border border-slate-200 rounded-xl transition-all duration-200 outline-none',
-              'placeholder-slate-400 hover:border-slate-300 focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white',
-              'disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed',
-              prefixIcon ? 'pl-11' : '',
-              suffixIcon ? 'pr-11' : '',
-              error ? 'border-red-500 hover:border-red-500 focus:border-red-500 focus:ring-red-500/10' : '',
+              'w-full px-3.5 py-2.5 font-sans text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl transition-all duration-200 outline-none',
+              'placeholder-slate-400 hover:bg-slate-100 focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald focus:bg-white',
+              'disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed',
+              prefixIcon ? 'pl-10' : '',
+              suffixIcon ? 'pr-10' : '',
+              error ? 'border-error hover:border-error focus:border-error focus:ring-error/10' : '',
               inputClassName,
               className
             )}

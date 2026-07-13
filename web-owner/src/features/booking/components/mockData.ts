@@ -14,12 +14,17 @@ export interface BookingSlot {
   bookingType?: 'regular' | 'matchmaking';
   maxPlayers?: number;
   skillLevel?: string;
+  price?: number;
+  ticketSessionId?: string;
+  bookedSlots?: number;
+  maxSlots?: number;
+  pricePerTicket?: number;
 }
 
 export interface Facility {
   id: string;
   name: string;
-  type: '5v5' | '7v7' | '11v11';
+  type?: string;
   pricePerHour: number;
 }
 

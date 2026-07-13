@@ -10,7 +10,7 @@ export const BookingCardView = ({ isMobile }: { isMobile: boolean }) => {
       allBlocks.push({
         ...block,
         facilityName: facility.name,
-        facilityType: facility.type,
+        facilityType: facility.type || '',
         pricePerHour: facility.pricePerHour
       });
     }

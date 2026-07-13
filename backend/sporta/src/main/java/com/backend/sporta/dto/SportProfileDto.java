@@ -1,6 +1,6 @@
 package com.backend.sporta.dto;
 
-import com.backend.sporta.entity.SportLevel;
+import com.backend.sporta.enums.SportLevel;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 

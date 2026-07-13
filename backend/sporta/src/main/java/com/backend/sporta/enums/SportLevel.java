@@ -1,9 +1,10 @@
-package com.backend.sporta.entity;
+package com.backend.sporta.enums;
 
 public enum SportLevel {
     WEAK,
     WEAK_AVERAGE,
     AVERAGE,
     AVERAGE_GOOD,
-    GOOD
+    GOOD,
+    ALL
 }

@@ -1,38 +1,84 @@
-import { useState, useMemo } from 'react';
-import { 
-  MOCK_FACILITIES, 
-  generateTimes, 
-  formatPrice, 
-  type SlotStatus, 
-  type BookingSlot, 
-  type Facility,
-  MOCK_SLOTS
-} from '../components/mockData';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { generateTimes, type SlotStatus, type BookingSlot, type Facility } from '../components/mockData';
+import { scheduleService } from '../services/scheduleService';
+import { courtService } from '../../venue/services/courtService';
+import type { CourtResponse } from '../../venue/types';
 
-export const useBookingMatrix = () => {
-  const times = useMemo(() => generateTimes(), []);
+export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => {
+  // ─── STATE QUẢN LÝ DỮ LIỆU LỊCH ĐẶT THỰC TẾ ───────────────────
+  const [slots, setSlots] = useState<BookingSlot[]>([]);
+  const [rawCourts, setRawCourts] = useState<CourtResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // ─── STATE QUẢN LÝ DỮ LIỆU LỊCH ĐẶT ───────────────────────
-  const [slots, setSlots] = useState<BookingSlot[]>(MOCK_SLOTS);
+  // Ca cấu hình động từ sân
+  const [shiftMinutes, setShiftMinutes] = useState(30);
+  const [sportName, setSportName] = useState('');
+  const [times, setTimes] = useState<string[]>([]);
+
+  // Quản lý Ngày bằng Date object thực tế
+  const [date, setDate] = useState<Date>(() => new Date());
+  
+  // Tìm kiếm & Lọc
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCourtType, setSelectedCourtType] = useState<string>('all');
-  const [currentDate, setCurrentDate] = useState<string>('Hôm nay, 11/06/2026');
   
   // States cho Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showKpis, setShowKpis] = useState(false);
-  
+
+  // Tạo khung giờ động dựa trên chính sách chia ca của cụm sân
+  const generateDynamicTimes = (duration: number): string[] => {
+    const t: string[] = [];
+    let currentMin = 6 * 60; // 06:00
+    const endMin = 22 * 60;  // 22:00
+    while (currentMin <= endMin) {
+      const h = Math.floor(currentMin / 60);
+      const m = currentMin % 60;
+      t.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+      currentMin += duration;
+    }
+    return t;
+  };
+
+  // Formatting date labels
+  const formatDateLabel = (d: Date): string => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+    if (d.toDateString() === today.toDateString()) {
+      return `Hôm nay, ${dateStr}`;
+    } else if (d.toDateString() === yesterday.toDateString()) {
+      return `Hôm qua, ${dateStr}`;
+    } else if (d.toDateString() === tomorrow.toDateString()) {
+      return `Ngày mai, ${dateStr}`;
+    }
+    return dateStr;
+  };
+
+  const getApiDateStr = (d: Date): string => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const currentDate = useMemo(() => formatDateLabel(date), [date]);
+
   // Dữ liệu phục vụ cho Quick Booking
   const [quickBookingData, setQuickBookingData] = useState({
-    facilityId: MOCK_FACILITIES[0].id,
+    facilityId: '',
     customerName: '',
     startTime: '08:00',
     endTime: '09:30',
     status: 'booked' as SlotStatus,
     bookingType: 'regular' as 'regular' | 'matchmaking',
     maxPlayers: 10,
-    skillLevel: 'Trung bình'
+    skillLevel: 'ALL'
   });
 
   // Dữ liệu phục vụ cho xem chi tiết
@@ -47,7 +93,71 @@ export const useBookingMatrix = () => {
     bookingType?: 'regular' | 'matchmaking';
     maxPlayers?: number;
     skillLevel?: string;
+    ticketSessionId?: string;
+    bookedSlots?: number;
+    maxSlots?: number;
+    pricePerTicket?: number;
   } | null>(null);
+
+  // Fetch dữ liệu thực tế từ API
+  const fetchSchedule = useCallback(async () => {
+    if (!venueId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const _ = refreshCounter;
+      // 1. Fetch danh sách sân của cụm sân này
+      const allCourts = await courtService.getCourts();
+      const filteredCourts = allCourts.filter(c => c.venueId === venueId);
+      setRawCourts(filteredCourts);
+
+      if (filteredCourts.length > 0) {
+        setQuickBookingData(prev => ({
+          ...prev,
+          facilityId: filteredCourts[0].id
+        }));
+      }
+
+      // Tìm cụm sân hiện tại để xác định ca
+      const venueList = await courtService.getVenues();
+      const currentVenue = venueList.find(v => v.id === venueId);
+      const venueShift = currentVenue?.shiftDurationMinutes || 30;
+      setShiftMinutes(venueShift);
+      setSportName(currentVenue?.sport?.name || '');
+      
+      const dynamicTimes = generateDynamicTimes(venueShift);
+      setTimes(dynamicTimes);
+
+      // 2. Fetch sơ đồ đặt sân ngày được chọn
+      const dateStr = getApiDateStr(date);
+      const apiSlots = await scheduleService.getSchedule(venueId, dateStr);
+
+      const mapped: BookingSlot[] = apiSlots.map(s => ({
+        id: `slot-${s.courtId}-${s.time}`,
+        facilityId: s.courtId,
+        time: s.time,
+        status: s.status as SlotStatus,
+        price: s.price,
+        customerName: s.customerName,
+        bookingType: s.status === 'matchmaking' ? 'matchmaking' : 'regular',
+        ticketSessionId: s.ticketSessionId,
+        bookedSlots: s.bookedSlots,
+        maxSlots: s.maxSlots,
+        skillLevel: s.sportLevel,
+        pricePerTicket: s.pricePerTicket
+      }));
+
+      setSlots(mapped);
+    } catch (err: any) {
+      setError(err.message || 'Không thể tải lịch đặt sân');
+    } finally {
+      setLoading(false);
+    }
+  }, [venueId, date]);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
 
   const getSlot = (facilityId: string, time: string): BookingSlot | undefined => {
     return slots.find(s => s.facilityId === facilityId && s.time === time);
@@ -55,13 +165,28 @@ export const useBookingMatrix = () => {
 
   /** Nhóm slot liên tiếp cùng trạng thái + cùng khách hàng thành các block đặt sân */
   const getBookingBlocksForRow = (facilityId: string) => {
-    const blocks: { startTime: string; endTime: string; status: SlotStatus; customerName?: string; slotCount: number }[] = [];
-    let current: { startTime: string; endTime: string; status: SlotStatus; customerName?: string; slotCount: number } | null = null;
+    const blocks: {
+      startTime: string;
+      endTime: string;
+      status: SlotStatus;
+      customerName?: string;
+      slotCount: number;
+      ticketSessionId?: string;
+    }[] = [];
+    let current: {
+      startTime: string;
+      endTime: string;
+      status: SlotStatus;
+      customerName?: string;
+      slotCount: number;
+      ticketSessionId?: string;
+    } | null = null;
 
     for (const time of times) {
       const slot = getSlot(facilityId, time);
       const status = slot?.status || 'available';
       const name = slot?.customerName;
+      const tSessionId = slot?.ticketSessionId;
 
       if (status === 'available') {
         if (current) {
@@ -71,10 +196,14 @@ export const useBookingMatrix = () => {
         continue;
       }
 
-      // Lọc theo từ khóa tìm kiếm nếu có
       const matchesSearch = !searchTerm || (name && name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      if (current && current.status === status && current.customerName === name) {
+      // Gom nhóm: Cùng trạng thái, cùng khách hàng (nếu là booking thường), hoặc cùng ca xé vé
+      const isSameGroup = current && 
+        current.status === status && 
+        (status === 'matchmaking' ? current.ticketSessionId === tSessionId : current.customerName === name);
+
+      if (isSameGroup && current) {
         current.endTime = time;
         current.slotCount++;
       } else {
@@ -86,7 +215,8 @@ export const useBookingMatrix = () => {
           endTime: time, 
           status, 
           customerName: matchesSearch ? name : undefined, 
-          slotCount: 1 
+          slotCount: 1,
+          ticketSessionId: tSessionId
         };
       }
     }
@@ -96,55 +226,65 @@ export const useBookingMatrix = () => {
     return blocks;
   };
 
-  // ─── BỘ LỌC FACILITIES CHỌN THEO LOẠI SÂN ────────────────────
+  // Trả về toàn bộ sân của cụm sân hiện tại lọc theo từ khóa tìm kiếm sân
   const filteredFacilities = useMemo(() => {
-    if (selectedCourtType === 'all') return MOCK_FACILITIES;
-    return MOCK_FACILITIES.filter(f => f.type === selectedCourtType);
-  }, [selectedCourtType]);
+    const mapped: Facility[] = rawCourts.map(c => ({
+      id: c.id,
+      name: c.name,
+      type: '', // Sân đa môn, bỏ bóng đá cụ thể
+      pricePerHour: c.price
+    }));
 
-  // ─── TÍNH TOÁN CÁC CHỈ SỐ KPI ĐỘNG ─────────────────────────
+    if (!searchTerm) return mapped;
+    return mapped.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [rawCourts, searchTerm]);
+
+  // Chỉ số KPIs
   const kpis = useMemo(() => {
-    const totalSlotsPossible = MOCK_FACILITIES.length * times.length;
+    const totalSlotsPossible = Math.max(1, rawCourts.length * times.length);
     let bookedCount = 0;
     let pendingCount = 0;
     let maintenanceCount = 0;
     let totalRevenue = 0;
     let bookingBlockCount = 0;
 
-    // Duyệt qua tất cả slots để tính toán
     slots.forEach(slot => {
-      const facility = MOCK_FACILITIES.find(f => f.id === slot.facilityId);
+      const facility = rawCourts.find(f => f.id === slot.facilityId);
       if (!facility) return;
 
       if (slot.status === 'booked') {
         bookedCount++;
-        totalRevenue += (facility.pricePerHour * 0.5); // Mỗi slot 30 phút = 0.5h
+        totalRevenue += (facility.price * (shiftMinutes / 60));
       } else if (slot.status === 'pending') {
         pendingCount++;
       } else if (slot.status === 'maintenance') {
         maintenanceCount++;
+      } else if (slot.status === 'matchmaking') {
+        bookedCount++;
+        if (slot.bookedSlots && slot.pricePerTicket) {
+          totalRevenue += (slot.pricePerTicket / times.length);
+        }
       }
     });
 
-    // Tính số lượng block đặt sân thực tế (lượt đặt)
-    MOCK_FACILITIES.forEach(f => {
+    rawCourts.forEach(f => {
       const blocks = getBookingBlocksForRow(f.id);
-      bookingBlockCount += blocks.filter(b => b.status === 'booked' || b.status === 'pending').length;
+      bookingBlockCount += blocks.filter(b => b.status === 'booked' || b.status === 'pending' || b.status === 'matchmaking').length;
     });
 
     const occupancyRate = Math.round(((bookedCount + pendingCount + maintenanceCount) / totalSlotsPossible) * 100);
-    const activeCourts = MOCK_FACILITIES.filter(f => {
+    const activeCourts = rawCourts.filter(f => {
       const facilitySlots = slots.filter(s => s.facilityId === f.id && s.status === 'maintenance');
-      return facilitySlots.length < times.length / 2; // Ít hơn 50% thời gian bảo trì
+      return facilitySlots.length < times.length / 2;
     }).length;
 
     return {
       occupancyRate,
       totalRevenue,
       bookingBlockCount,
-      activeCourtsText: `${activeCourts}/${MOCK_FACILITIES.length}`
+      activeCourtsText: `${activeCourts}/${rawCourts.length}`
     };
-  }, [slots, times]);
+  }, [slots, times, rawCourts, shiftMinutes]);
 
   const getCellStyle = (status: SlotStatus): string => {
     switch (status) {
@@ -163,13 +303,36 @@ export const useBookingMatrix = () => {
     }
   };
 
-  const handlePrevDay = () => setCurrentDate('Hôm qua, 10/06/2026');
-  const handleNextDay = () => setCurrentDate('Ngày mai, 12/06/2026');
-  const handleToday = () => setCurrentDate('Hôm nay, 11/06/2026');
+  const handlePrevDay = () => {
+    setDate(prev => {
+      const nextD = new Date(prev);
+      nextD.setDate(nextD.getDate() - 1);
+      return nextD;
+    });
+  };
+
+  const handleNextDay = () => {
+    setDate(prev => {
+      const nextD = new Date(prev);
+      nextD.setDate(nextD.getDate() + 1);
+      return nextD;
+    });
+  };
+
+  const handleToday = () => {
+    setDate(new Date());
+  };
 
   const handleCellClick = (facilityId: string, time: string, status: SlotStatus) => {
-    const facility = MOCK_FACILITIES.find(f => f.id === facilityId);
-    if (!facility) return;
+    const court = rawCourts.find(c => c.id === facilityId);
+    if (!court) return;
+
+    const facility: Facility = {
+      id: court.id,
+      name: court.name,
+      type: '',
+      pricePerHour: court.price
+    };
 
     if (status === 'available') {
       const timeIdx = times.indexOf(time);
@@ -182,7 +345,7 @@ export const useBookingMatrix = () => {
         status: 'booked',
         bookingType: 'regular',
         maxPlayers: 10,
-        skillLevel: 'Trung bình'
+        skillLevel: 'ALL'
       });
       setIsBookingModalOpen(true);
     } else {
@@ -194,11 +357,15 @@ export const useBookingMatrix = () => {
         const startIdx = times.indexOf(b.startTime);
         const endIdx = times.indexOf(b.endTime);
         const currentIdx = times.indexOf(time);
+        
+        if (status === 'matchmaking') {
+          return currentIdx >= startIdx && currentIdx <= endIdx && b.status === status && b.ticketSessionId === slot.ticketSessionId;
+        }
         return currentIdx >= startIdx && currentIdx <= endIdx && b.status === status && b.customerName === slot.customerName;
       });
 
       if (block) {
-        const durationHours = (block.slotCount * 30) / 60;
+        const durationHours = (block.slotCount * shiftMinutes) / 60;
         const totalPrice = facility.pricePerHour * durationHours;
 
         const startIdx = times.indexOf(block.startTime);
@@ -212,15 +379,19 @@ export const useBookingMatrix = () => {
 
         setSelectedBookingDetail({
           facility,
-          customerName: block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : (block.status === 'matchmaking' ? 'Trận ghép xé vé' : 'Khách vãng lai')),
+          customerName: status === 'matchmaking' ? 'Ca xé vé ghép cặp' : (block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : 'Khách lẻ')),
           startTime: block.startTime,
           endTime: block.endTime,
           status: block.status,
           slotIds,
-          price: totalPrice,
-          bookingType: slot.bookingType || (block.status === 'matchmaking' ? 'matchmaking' : 'regular'),
+          price: status === 'matchmaking' ? (slot.pricePerTicket || 0) : totalPrice,
+          bookingType: status === 'matchmaking' ? 'matchmaking' : 'regular',
           maxPlayers: slot.maxPlayers,
-          skillLevel: slot.skillLevel
+          skillLevel: slot.skillLevel,
+          ticketSessionId: slot.ticketSessionId,
+          bookedSlots: slot.bookedSlots,
+          maxSlots: slot.maxSlots,
+          pricePerTicket: slot.pricePerTicket
         });
         setIsDetailModalOpen(true);
       }
@@ -242,36 +413,20 @@ export const useBookingMatrix = () => {
       return;
     }
 
-    const newSlotsToAdd: BookingSlot[] = [];
     const facilityId = quickBookingData.facilityId;
     const name = quickBookingData.status === 'maintenance' ? undefined : quickBookingData.customerName;
 
-    let isOverlapped = false;
-    for (let i = startIdx; i < endIdx; i++) {
-      const t = times[i];
-      const existingSlot = getSlot(facilityId, t);
-      if (existingSlot && existingSlot.status !== 'available') {
-        isOverlapped = true;
-        break;
-      }
-    }
-
-    if (isOverlapped) {
-      alert('Khung giờ này đã có sân được đặt hoặc đang bảo trì! Vui lòng chọn khung giờ khác.');
-      return;
-    }
-
+    const newSlotsToAdd: BookingSlot[] = [];
     for (let i = startIdx; i < endIdx; i++) {
       const t = times[i];
       newSlotsToAdd.push({
         id: `slot-${facilityId}-${t}-${Date.now()}`,
         facilityId,
         time: t,
-        status: quickBookingData.bookingType === 'matchmaking' ? 'matchmaking' : quickBookingData.status,
-        customerName: quickBookingData.bookingType === 'matchmaking' ? (quickBookingData.customerName.trim() || 'Trận ghép xé vé') : name,
-        bookingType: quickBookingData.bookingType,
-        maxPlayers: quickBookingData.bookingType === 'matchmaking' ? quickBookingData.maxPlayers : undefined,
-        skillLevel: quickBookingData.bookingType === 'matchmaking' ? quickBookingData.skillLevel : undefined
+        status: quickBookingData.status,
+        customerName: name,
+        price: 0,
+        bookingType: 'regular'
       });
     }
 
@@ -282,52 +437,50 @@ export const useBookingMatrix = () => {
 
     setSlots([...updatedSlots, ...newSlotsToAdd]);
     setIsBookingModalOpen(false);
-    setQuickBookingData({
-      facilityId: MOCK_FACILITIES[0].id,
-      customerName: '',
-      startTime: '08:00',
-      endTime: '09:30',
-      status: 'booked',
-      bookingType: 'regular',
-      maxPlayers: 10,
-      skillLevel: 'Trung bình'
-    });
   };
 
   const handleCancelBooking = () => {
     if (!selectedBookingDetail) return;
-    
     const slotIdsToRemove = selectedBookingDetail.slotIds;
     const updatedSlots = slots.filter(s => !slotIdsToRemove.includes(s.id));
-    
     setSlots(updatedSlots);
     setIsDetailModalOpen(false);
     setSelectedBookingDetail(null);
   };
 
-  const isBlockStart = (facilityId: string, time: string, status: SlotStatus, customerName?: string): boolean => {
+  const isBlockStart = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string): boolean => {
     if (status === 'available') return false;
     const idx = times.indexOf(time);
     if (idx === 0) return true;
     const prevTime = times[idx - 1];
     const prevSlot = getSlot(facilityId, prevTime);
     if (!prevSlot) return true;
+
+    if (status === 'matchmaking') {
+      return prevSlot.status !== status || prevSlot.ticketSessionId !== ticketSessionId;
+    }
     return prevSlot.status !== status || prevSlot.customerName !== customerName;
   };
 
-  const getBlockSpan = (facilityId: string, timeIndex: number, status: SlotStatus, customerName?: string): number => {
+  const getBlockSpan = (facilityId: string, timeIndex: number, status: SlotStatus, customerName?: string, ticketSessionId?: string): number => {
     let count = 1;
     for (let i = timeIndex + 1; i < times.length; i++) {
       const nextSlot = getSlot(facilityId, times[i]);
-      if (!nextSlot || nextSlot.status !== status || nextSlot.customerName !== customerName) break;
+      if (!nextSlot || nextSlot.status !== status) break;
+      
+      if (status === 'matchmaking') {
+        if (nextSlot.ticketSessionId !== ticketSessionId) break;
+      } else {
+        if (nextSlot.customerName !== customerName) break;
+      }
       count++;
     }
     return count;
   };
 
-  const isInsideBlock = (facilityId: string, time: string, status: SlotStatus, customerName?: string): boolean => {
+  const isInsideBlock = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string): boolean => {
     if (status === 'available') return false;
-    return !isBlockStart(facilityId, time, status, customerName);
+    return !isBlockStart(facilityId, time, status, customerName, ticketSessionId);
   };
 
   const handleConfirmDeposit = () => {
@@ -344,8 +497,6 @@ export const useBookingMatrix = () => {
     setSlots,
     searchTerm,
     setSearchTerm,
-    selectedCourtType,
-    setSelectedCourtType,
     currentDate,
     isBookingModalOpen,
     setIsBookingModalOpen,
@@ -369,6 +520,11 @@ export const useBookingMatrix = () => {
     isBlockStart,
     getBlockSpan,
     isInsideBlock,
-    handleConfirmDeposit
+    handleConfirmDeposit,
+    loading,
+    error,
+    fetchSchedule,
+    shiftMinutes,
+    sportName
   };
 };

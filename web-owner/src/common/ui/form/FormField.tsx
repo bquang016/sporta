@@ -26,10 +26,10 @@ export const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
         {label && (
           <label
             htmlFor={id}
-            className="text-xs font-semibold tracking-wider uppercase text-slate-500 select-none flex items-center gap-0.5"
+            className="text-xs font-semibold tracking-wider uppercase text-outline select-none flex items-center gap-0.5"
           >
             {label}
-            {required && <span className="text-red-500 font-bold" aria-hidden="true">*</span>}
+            {required && <span className="text-error font-bold" aria-hidden="true">*</span>}
           </label>
         )}
 
@@ -37,13 +37,13 @@ export const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
 
         {error ? (
           <span
-            className="text-xs text-red-600 font-medium animate-fadeIn"
+            className="text-xs text-error font-medium animate-fadeIn"
             role="alert"
           >
             {error}
           </span>
         ) : helperText ? (
-          <span className="text-xs text-slate-400 font-medium">
+          <span className="text-xs text-on-surface-variant font-medium">
             {helperText}
           </span>
         ) : null}

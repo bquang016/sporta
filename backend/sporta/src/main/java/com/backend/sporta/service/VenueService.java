@@ -22,6 +22,8 @@ import com.backend.sporta.entity.VenueRevision;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.BookingDetailRepository;
 import com.backend.sporta.repository.CourtPriceRuleRepository;
+import com.backend.sporta.repository.TicketSessionRepository;
+import com.backend.sporta.entity.TicketSession;
 import com.backend.sporta.repository.OwnerRepository;
 import com.backend.sporta.repository.SportRepository;
 import com.backend.sporta.repository.VenueImageRepository;
@@ -72,6 +74,9 @@ public class VenueService {
 
     @Autowired
     private BookingDetailRepository bookingDetailRepository;
+
+    @Autowired
+    private TicketSessionRepository ticketSessionRepository;
 
     public List<VenueResponse> getVenuesByOwnerEmail(String email) {
         return venueRepository.findByOwnerUserEmail(email).stream()
@@ -177,6 +182,7 @@ public class VenueService {
         // Java DayOfWeek: MONDAY=1 ... SUNDAY=7
         int dayOfWeekValue = date.getDayOfWeek().getValue();
 
+        List<TicketSession> ticketSessions = ticketSessionRepository.findByVenueIdAndPlayDate(venueId, date);
         List<SlotResponse> result = new ArrayList<>();
 
         for (Court court : courts) {
@@ -193,14 +199,53 @@ public class VenueService {
                 final LocalTime currentSlot = slotTime;
                 String timeStr = String.format("%02d:%02d", currentSlot.getHour(), currentSlot.getMinute());
 
-                // Xác định status
+                // Xác định status & thông tin chi tiết
                 String status;
-                if (isToday && !currentSlot.isAfter(now)) {
+                UUID ticketSessionId = null;
+                Integer bookedSlotsCount = null;
+                Integer maxSlotsCount = null;
+                String sportLevel = null;
+                Double pricePerTicket = null;
+                String customerName = null;
+
+                // Kiểm tra xem slot có thuộc ca xé vé không
+                TicketSession matchedSession = null;
+                for (TicketSession ts : ticketSessions) {
+                    if (ts.getCourt().getId().equals(court.getId())
+                            && !currentSlot.isBefore(ts.getStartTime())
+                            && currentSlot.isBefore(ts.getEndTime())) {
+                        matchedSession = ts;
+                        break;
+                    }
+                }
+
+                if (matchedSession != null) {
+                    status = "matchmaking";
+                    ticketSessionId = matchedSession.getId();
+                    bookedSlotsCount = matchedSession.getBookedSlots();
+                    maxSlotsCount = matchedSession.getMaxSlots();
+                    sportLevel = matchedSession.getSportLevel().name();
+                    pricePerTicket = matchedSession.getPricePerTicket().doubleValue();
+                    customerName = "Ca xé vé";
+                } else if (isToday && !currentSlot.isAfter(now)) {
                     status = "locked";
                 } else {
                     boolean isBooked = bookedSlots.stream()
                             .anyMatch(b -> b.getStartTime().equals(currentSlot));
                     status = isBooked ? "booked" : "available";
+
+                    if (isBooked) {
+                        com.backend.sporta.entity.BookingDetail bd = bookedSlots.stream()
+                                .filter(b -> b.getStartTime().equals(currentSlot))
+                                .findFirst().orElse(null);
+                        if (bd != null && bd.getBooking() != null) {
+                            if (bd.getBooking().getUser() != null) {
+                                customerName = bd.getBooking().getUser().getFullName();
+                            } else {
+                                customerName = "Khách vãng lai";
+                            }
+                        }
+                    }
                 }
 
                 // Tính giá: ưu tiên SHIFT rule trước
@@ -245,6 +290,12 @@ public class VenueService {
                         .time(timeStr)
                         .status(status)
                         .price(price)
+                        .ticketSessionId(ticketSessionId)
+                        .bookedSlots(bookedSlotsCount)
+                        .maxSlots(maxSlotsCount)
+                        .sportLevel(sportLevel)
+                        .pricePerTicket(pricePerTicket)
+                        .customerName(customerName)
                         .build());
 
                 slotTime = slotTime.plusMinutes(shiftMinutes);
