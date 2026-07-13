@@ -4,7 +4,7 @@ import com.backend.sporta.dto.UpdatePermissionRequest;
 import com.backend.sporta.dto.CreateAdminRequest;
 import com.backend.sporta.entity.RolePermission;
 import com.backend.sporta.entity.User;
-import com.backend.sporta.entity.UserStatus;
+import com.backend.sporta.enums.UserStatus;
 import com.backend.sporta.entity.LockReason;
 import com.backend.sporta.entity.LockLog;
 import com.backend.sporta.enums.Role;

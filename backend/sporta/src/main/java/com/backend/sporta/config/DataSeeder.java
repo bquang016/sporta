@@ -3,7 +3,7 @@ package com.backend.sporta.config;
 import com.backend.sporta.entity.Sport;
 import com.backend.sporta.entity.User;
 import com.backend.sporta.enums.Role;
-import com.backend.sporta.entity.UserStatus;
+import com.backend.sporta.enums.UserStatus;
 import com.backend.sporta.entity.Owner;
 import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.VenueImage;

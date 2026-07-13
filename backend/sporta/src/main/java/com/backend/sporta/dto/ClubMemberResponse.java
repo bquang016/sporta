@@ -1,0 +1,19 @@
+package com.backend.sporta.dto;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ClubMemberResponse {
+    private Long id;
+    private Long userId;
+    private String name;
+    private String role; // "Trưởng nhóm", "Phó nhóm", "Thành viên"
+    private Integer elo;
+    private String avatar;
+    private String status; // "PENDING", "APPROVED", "REJECTED"
+    private String joinedAt;
+}

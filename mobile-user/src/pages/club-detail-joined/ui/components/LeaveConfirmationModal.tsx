@@ -8,9 +8,10 @@ export interface LeaveConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   clubName: string;
+  isDelete?: boolean;
 }
 
-export function LeaveConfirmationModal({ visible, onClose, onConfirm, clubName }: LeaveConfirmationModalProps) {
+export function LeaveConfirmationModal({ visible, onClose, onConfirm, clubName, isDelete }: LeaveConfirmationModalProps) {
   return (
     <Modal
       visible={visible}
@@ -26,9 +27,11 @@ export function LeaveConfirmationModal({ visible, onClose, onConfirm, clubName }
             color={COLORS.error} 
             style={styles.modalAlertIcon}
           />
-          <Text style={styles.alertModalTitle}>Rời câu lạc bộ</Text>
+          <Text style={styles.alertModalTitle}>{isDelete ? 'Giải tán câu lạc bộ' : 'Rời câu lạc bộ'}</Text>
           <Text style={styles.alertModalMessage}>
-            Bạn có chắc chắn muốn rời khỏi câu lạc bộ "{clubName}" không?
+            {isDelete 
+              ? `Bạn là thành viên cuối cùng (Trưởng nhóm). Rời câu lạc bộ đồng nghĩa với việc câu lạc bộ "${clubName}" sẽ bị giải tán hoàn toàn khỏi ứng dụng. Bạn có chắc chắn muốn giải tán câu lạc bộ?`
+              : `Bạn có chắc chắn muốn rời khỏi câu lạc bộ "${clubName}" không?`}
           </Text>
           <View style={styles.alertModalActions}>
             <TouchableOpacity
@@ -43,7 +46,7 @@ export function LeaveConfirmationModal({ visible, onClose, onConfirm, clubName }
               activeOpacity={0.7}
               onPress={onConfirm}
             >
-              <Text style={styles.alertConfirmText}>Đồng ý rời</Text>
+              <Text style={styles.alertConfirmText}>{isDelete ? 'Giải tán' : 'Đồng ý rời'}</Text>
             </TouchableOpacity>
           </View>
         </View>
