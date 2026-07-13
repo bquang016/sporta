@@ -3,6 +3,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { formatPrice } from './mockData';
 import { useBookingMatrix } from '../hooks/useBookingMatrix';
+import { isPastSlot } from '../../../utils/timeUtils';
 import { ticketService } from '../../venue/services/ticketService';
 import { getSportLevelLabel } from '../../venue/hooks/useTicketSessions';
 import { Copy, Check, Users, Award, Tag, Ticket, Clock, Calendar } from 'lucide-react';
@@ -19,6 +20,7 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
     searchTerm,
     setSearchTerm,
     currentDate,
+    date,
     isBookingModalOpen,
     setIsBookingModalOpen,
     isDetailModalOpen,
@@ -254,7 +256,7 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
             <tr className="sticky top-0 z-30">
               <th
                 style={{ position: 'sticky', left: 0, zIndex: 40, minWidth: 160 }}
-                className="h-12 bg-slate-900 text-white text-xs font-black uppercase tracking-wider border-b border-r border-slate-800/80 text-center"
+                className="h-12 bg-slate-200 text-slate-800 text-xs font-black uppercase tracking-wider border-b border-r border-slate-350 text-center"
               >
                 Sân bóng
               </th>
@@ -265,10 +267,10 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   <th
                     key={time}
                     style={{ minWidth: 84 }}
-                    className={`h-12 text-[11px] font-extrabold tracking-wider px-1 border-b text-center border-slate-800/20 ${
+                    className={`h-12 text-[11px] font-extrabold tracking-wider px-1 border-b text-center border-slate-250 ${
                       isHour
-                        ? 'bg-slate-900 text-brand-yellow border-r border-r-slate-500'
-                        : 'bg-slate-800 text-slate-300 border-r border-r-slate-700'
+                        ? 'bg-slate-100 text-slate-800 border-r border-r-slate-300'
+                        : 'bg-slate-50 text-slate-600 border-r border-r-slate-200'
                     }`}
                   >
                     {time}
@@ -282,11 +284,11 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
               <tr key={facility.id} className="group/row hover:bg-slate-50/30">
                 <td
                   style={{ position: 'sticky', left: 0, zIndex: 20, minWidth: 160 }}
-                  className="h-13 bg-slate-900 text-white border-b border-r border-slate-800/80 shadow-[4px_0_12px_rgba(0,0,0,0.1)] text-center"
+                  className="h-13 bg-slate-100 text-slate-800 border-b border-r border-slate-200 shadow-[4px_0_12px_rgba(0,0,0,0.02)] text-center font-bold"
                 >
                   <div className="flex flex-col items-center justify-center px-3">
-                    <span className="text-sm font-black text-slate-100">{facility.name}</span>
-                    <span className="text-[10px] text-brand-yellow font-bold uppercase tracking-wider mt-0.5">{sportName || 'Sân đấu'}</span>
+                    <span className="text-sm font-black text-slate-800">{facility.name}</span>
+                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-wider mt-0.5">{sportName || 'Sân đấu'}</span>
                   </div>
                 </td>
 
@@ -300,6 +302,7 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   }
 
                   const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName, slot?.ticketSessionId) : 1;
+                  const isPast = isPastSlot(date, time);
 
                   return (
                     <td
@@ -309,7 +312,9 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                       style={{ minWidth: span > 1 ? undefined : 84 }}
                       className={`h-13 p-0 border-b border-slate-200/70 transition-all cursor-pointer ${
                         isHourBorder ? 'border-l-2 border-l-slate-400/80' : ''
-                      } ${status === 'available' ? 'border-r border-r-slate-350' : ''}`}
+                      } ${status === 'available' ? 'border-r border-r-slate-350' : ''} ${
+                        isPast ? 'opacity-40 bg-slate-100 pointer-events-none select-none' : ''
+                      }`}
                     >
                       {status === 'available' ? (
                         <div className={`h-full w-full flex items-center justify-center ${getCellStyle(status)} group`}>
@@ -462,9 +467,14 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   selectedBookingDetail.status === 'booked' ? 'bg-emerald-100 text-emerald-800' :
                   selectedBookingDetail.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                   selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' :
+                  selectedBookingDetail.status === 'locked' ? 'bg-slate-150 text-slate-700' :
                   'bg-red-100 text-red-800'
                 }`}>
-                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' : selectedBookingDetail.status === 'pending' ? 'Đang giữ' : selectedBookingDetail.status === 'matchmaking' ? 'Ca xé vé ghép' : 'Bảo trì'}
+                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' :
+                   selectedBookingDetail.status === 'pending' ? 'Đang giữ' :
+                   selectedBookingDetail.status === 'matchmaking' ? 'Ca xé vé ghép' :
+                   selectedBookingDetail.status === 'locked' ? 'Đã quá giờ' :
+                   selectedBookingDetail.status === 'maintenance' ? 'Bảo trì' : 'Không xác định'}
                 </span>
               </div>
             </div>
@@ -521,9 +531,9 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   Xác nhận đã đặt cọc
                 </button>
               )}
-              {selectedBookingDetail.status !== 'matchmaking' && (
+              {(selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && (
                 <button onClick={handleCancelBooking} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
-                  {selectedBookingDetail.status === 'maintenance' ? 'Hủy lịch bảo trì' : 'Hủy lịch đặt sân này'}
+                  Hủy lịch đặt sân này
                 </button>
               )}
             </div>

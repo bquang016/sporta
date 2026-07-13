@@ -298,6 +298,8 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         return 'bg-gradient-to-r from-indigo-600 to-purple-800 text-white font-bold shadow-md border border-indigo-700/40 hover:brightness-105 transition-all';
       case 'maintenance':
         return 'bg-stripes-red text-red-800 font-bold border border-red-200 hover:brightness-105 transition-all';
+      case 'locked':
+        return 'bg-slate-100 text-slate-400 border border-slate-200/50 cursor-not-allowed select-none opacity-60';
       default:
         return 'bg-white';
     }
@@ -324,6 +326,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   };
 
   const handleCellClick = (facilityId: string, time: string, status: SlotStatus) => {
+    if (status === 'locked') return; // Chặn click vào ca đã qua giờ
     const court = rawCourts.find(c => c.id === facilityId);
     if (!court) return;
 
@@ -498,6 +501,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     searchTerm,
     setSearchTerm,
     currentDate,
+    date,
     isBookingModalOpen,
     setIsBookingModalOpen,
     isDetailModalOpen,

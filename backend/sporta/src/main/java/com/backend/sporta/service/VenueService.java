@@ -219,6 +219,9 @@ public class VenueService {
                     }
                 }
 
+                boolean isBooked = bookedSlots.stream()
+                        .anyMatch(b -> b.getStartTime().equals(currentSlot));
+
                 if (matchedSession != null) {
                     status = "matchmaking";
                     ticketSessionId = matchedSession.getId();
@@ -227,25 +230,22 @@ public class VenueService {
                     sportLevel = matchedSession.getSportLevel().name();
                     pricePerTicket = matchedSession.getPricePerTicket().doubleValue();
                     customerName = "Ca xé vé";
+                } else if (isBooked) {
+                    status = "booked";
+                    com.backend.sporta.entity.BookingDetail bd = bookedSlots.stream()
+                            .filter(b -> b.getStartTime().equals(currentSlot))
+                            .findFirst().orElse(null);
+                    if (bd != null && bd.getBooking() != null) {
+                        if (bd.getBooking().getUser() != null) {
+                            customerName = bd.getBooking().getUser().getFullName();
+                        } else {
+                            customerName = "Khách vãng lai";
+                        }
+                    }
                 } else if (isToday && !currentSlot.isAfter(now)) {
                     status = "locked";
                 } else {
-                    boolean isBooked = bookedSlots.stream()
-                            .anyMatch(b -> b.getStartTime().equals(currentSlot));
-                    status = isBooked ? "booked" : "available";
-
-                    if (isBooked) {
-                        com.backend.sporta.entity.BookingDetail bd = bookedSlots.stream()
-                                .filter(b -> b.getStartTime().equals(currentSlot))
-                                .findFirst().orElse(null);
-                        if (bd != null && bd.getBooking() != null) {
-                            if (bd.getBooking().getUser() != null) {
-                                customerName = bd.getBooking().getUser().getFullName();
-                            } else {
-                                customerName = "Khách vãng lai";
-                            }
-                        }
-                    }
+                    status = "available";
                 }
 
                 // Tính giá: ưu tiên SHIFT rule trước
@@ -707,6 +707,28 @@ public class VenueService {
         Venue updatedVenue = venueRepository.save(venue);
         return mapToResponse(updatedVenue, false);
     }
+
+    @Transactional
+    public VenueResponse approveVenueTemporary(UUID id, String email) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin cụm sân", 404));
+
+        if (venue.getOwner() == null || venue.getOwner().getUser() == null ||
+                !venue.getOwner().getUser().getEmail().equals(email)) {
+            throw new CustomException("Bạn không có quyền thao tác cụm sân này", 403);
+        }
+
+        if (venue.getApprovalStatus() != com.backend.sporta.enums.ApprovalStatus.PENDING) {
+            throw new CustomException("Cụm sân không ở trạng thái chờ duyệt", 400);
+        }
+
+        venue.setApprovalStatus(com.backend.sporta.enums.ApprovalStatus.APPROVED);
+        venue.setStatus(com.backend.sporta.enums.VenueStatus.ACTIVE);
+
+        Venue updatedVenue = venueRepository.save(venue);
+        return mapToResponse(updatedVenue, false);
+    }
+
 
     private void syncCourts(Venue venue, List<CourtDraftDto> courtsList, String ownerEmail) {
         if (courtsList == null) {

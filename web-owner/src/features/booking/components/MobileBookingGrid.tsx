@@ -3,6 +3,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { formatPrice } from './mockData';
 import { useBookingMatrix } from '../hooks/useBookingMatrix';
+import { isPastSlot } from '../../../utils/timeUtils';
 import { ticketService } from '../../venue/services/ticketService';
 import { getSportLevelLabel } from '../../venue/hooks/useTicketSessions';
 import { Copy, Check, Users, Award, Tag, Ticket, Clock } from 'lucide-react';
@@ -36,6 +37,7 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
     searchTerm,
     setSearchTerm,
     currentDate,
+    date,
     isBookingModalOpen,
     setIsBookingModalOpen,
     isDetailModalOpen,
@@ -151,11 +153,11 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
             <table className="border-collapse w-full">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-30 bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider h-11 border-b border-r border-slate-850 px-3 text-center min-w-[90px]">
+                  <th className="sticky left-0 z-30 bg-slate-200 text-slate-800 text-[10px] font-black uppercase tracking-wider h-11 border-b border-r border-slate-300 px-3 text-center min-w-[90px]">
                     Sân
                   </th>
                   {times.map(t => (
-                    <th key={t} className={`h-11 text-[10px] font-black text-slate-350 tracking-wider px-1 text-center min-w-[70px] border-b border-slate-800/10 ${t.endsWith(':00') ? 'bg-slate-900 text-brand-yellow' : 'bg-slate-800'}`}>
+                    <th key={t} className={`h-11 text-[10px] font-black text-slate-600 tracking-wider px-1 text-center min-w-[70px] border-b border-slate-200 ${t.endsWith(':00') ? 'bg-slate-100 text-slate-850' : 'bg-slate-50'}`}>
                       {t}
                     </th>
                   ))}
@@ -164,9 +166,9 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
               <tbody>
                 {filteredFacilities.map(facility => (
                   <tr key={facility.id} className="border-b border-slate-150">
-                    <td className="sticky left-0 z-20 bg-slate-900 text-white text-xs font-black px-2 py-3.5 text-center border-r border-slate-850 shadow-sm min-w-[90px]">
+                    <td className="sticky left-0 z-20 bg-slate-100 text-slate-800 text-xs font-black px-2 py-3.5 text-center border-r border-slate-200 shadow-sm min-w-[90px]">
                       <span className="block">{facility.name}</span>
-                      <span className="block text-[8px] text-brand-yellow/80 uppercase tracking-widest mt-0.5">{sportName || 'Sân đấu'}</span>
+                      <span className="block text-[8px] text-brand-emerald/80 uppercase tracking-widest mt-0.5">{sportName || 'Sân đấu'}</span>
                     </td>
                     {times.map((time, colIdx) => {
                       const slot = slots.find(s => s.facilityId === facility.id && s.time === time);
@@ -178,13 +180,16 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
                       }
 
                       const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName, slot?.ticketSessionId) : 1;
+                      const isPast = isPastSlot(date, time);
 
                       return (
                         <td
                           key={`${facility.id}-${time}`}
                           colSpan={span}
                           onClick={() => handleCellClick(facility.id, time, status)}
-                          className={`p-0 text-center h-12 transition-all ${isHourBorder ? 'border-l border-slate-300' : ''}`}
+                          className={`p-0 text-center h-12 transition-all ${isHourBorder ? 'border-l border-slate-300' : ''} ${
+                            isPast ? 'opacity-40 bg-slate-100 pointer-events-none select-none' : ''
+                          }`}
                         >
                           {status === 'available' ? (
                             <div className="w-full h-full hover:bg-emerald-50/50 flex items-center justify-center text-emerald-600/0 hover:text-emerald-500 font-extrabold text-xs transition-colors duration-150">
@@ -285,9 +290,14 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
                   selectedBookingDetail.status === 'booked' ? 'bg-emerald-100 text-emerald-800' :
                   selectedBookingDetail.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                   selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' :
+                  selectedBookingDetail.status === 'locked' ? 'bg-slate-150 text-slate-700' :
                   'bg-red-100 text-red-800'
                 }`}>
-                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' : selectedBookingDetail.status === 'pending' ? 'Đang giữ' : selectedBookingDetail.status === 'matchmaking' ? 'Ca xé vé ghép' : 'Bảo trì'}
+                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' :
+                   selectedBookingDetail.status === 'pending' ? 'Đang giữ' :
+                   selectedBookingDetail.status === 'matchmaking' ? 'Ca xé vé ghép' :
+                   selectedBookingDetail.status === 'locked' ? 'Đã quá giờ' :
+                   selectedBookingDetail.status === 'maintenance' ? 'Bảo trì' : 'Không xác định'}
                 </span>
               </div>
             </div>
@@ -344,9 +354,9 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
                   Xác nhận đã đặt cọc
                 </button>
               )}
-              {selectedBookingDetail.status !== 'matchmaking' && (
+              {(selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && (
                 <button onClick={handleCancelBooking} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
-                  {selectedBookingDetail.status === 'maintenance' ? 'Hủy bảo trì' : 'Hủy lịch đặt'}
+                  Hủy lịch đặt
                 </button>
               )}
             </div>
