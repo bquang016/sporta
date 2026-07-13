@@ -2,7 +2,7 @@ package com.backend.sporta.security;
 
 import com.backend.sporta.service.TokenBlacklistService;
 import com.backend.sporta.entity.User;
-import com.backend.sporta.entity.UserStatus;
+import com.backend.sporta.enums.UserStatus;
 import com.backend.sporta.entity.LockLog;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.repository.LockLogRepository;

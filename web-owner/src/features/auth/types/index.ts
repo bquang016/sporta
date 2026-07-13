@@ -1,5 +1,6 @@
 export interface LoginResponse {
   accessToken: string;
+  mustChangePassword?: boolean;
 }
 
 export interface UserPayload {
