@@ -3,7 +3,7 @@ package com.backend.sporta.config;
 import com.backend.sporta.entity.Sport;
 import com.backend.sporta.entity.User;
 import com.backend.sporta.enums.Role;
-import com.backend.sporta.entity.UserStatus;
+import com.backend.sporta.enums.UserStatus;
 import com.backend.sporta.entity.Owner;
 import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.VenueImage;
@@ -72,6 +72,26 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Bỏ qua việc xóa constraint users_status_check (có thể không tồn tại).");
         }
 
+        try {
+            jdbcTemplate.execute("ALTER TABLE courts DROP CONSTRAINT IF EXISTS courts_status_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint courts_status_check.");
+        }
+
+        // Fix for all orphaned NOT NULL constraints on "courts" due to schema migration
+        try {
+            java.util.List<String> validColumns = java.util.Arrays.asList("id", "venue_id", "name", "price", "status", "created_at", "updated_at");
+            java.util.List<String> cols = jdbcTemplate.queryForList("SELECT column_name FROM information_schema.columns WHERE table_name = 'courts' AND is_nullable = 'NO'", String.class);
+            for (String col : cols) {
+                if (!validColumns.contains(col.toLowerCase())) {
+                    jdbcTemplate.execute("ALTER TABLE courts ALTER COLUMN " + col + " DROP NOT NULL");
+                    System.out.println("Data Seeder: Đã gỡ bỏ NOT NULL cho cột thừa trên bảng courts: " + col);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc sửa cột time trên courts.");
+        }
+
         if (lockReasonRepository.count() == 0) {
             // Seed Player reasons
             lockReasonRepository.save(LockReason.builder().role(Role.PLAYER).reasonText("Bom sân / Đặt lịch ảo liên tục không đến.").isDefault(true).build());
@@ -92,6 +112,12 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE venues DROP CONSTRAINT IF EXISTS venues_approval_status_check");
         } catch (Exception e) {
             System.out.println("Data Seeder: Bỏ qua việc xóa constraint venues_approval_status_check (có thể không tồn tại).");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE venues DROP CONSTRAINT IF EXISTS venues_status_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint venues_status_check.");
         }
 
         // Ensure column "address_detail" exists

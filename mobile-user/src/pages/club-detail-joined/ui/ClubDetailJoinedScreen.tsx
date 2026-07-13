@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, StatusBar, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button, Card } from '../../../shared/ui';
 import { useClubs, ClubDetailHeader } from '../../../entities/club';
@@ -14,13 +15,14 @@ import { MembersModal, MemberItem } from './components/MembersModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { MatchmakeModal } from './components/MatchmakeModal';
 import { PollCard, PollData } from './components/PollCard';
+import { getClubMembersApi } from '../../../shared/api/clubs';
 
 // Mock Members for Joined Clubs to look premium
 const MOCK_MEMBERS: MemberItem[] = [
-  { id: 'm-1', name: 'Nguyễn Văn Hùng', role: 'Trưởng nhóm', elo: 1540, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80' },
-  { id: 'm-2', name: 'Trần Thị Mai', role: 'Phó nhóm', elo: 1420, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
-  { id: 'm-3', name: 'Phạm Minh Hoàng', role: 'Thành viên', elo: 1250, avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80' },
-  { id: 'm-4', name: 'Lê Hoàng Sơn', role: 'Thành viên', elo: 1180, avatar: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=100&auto=format&fit=crop&q=80' },
+  { id: 'm-1', userId: 0, name: 'Nguyễn Văn Hùng', role: 'Trưởng nhóm', elo: 1540, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80' },
+  { id: 'm-2', userId: 0, name: 'Trần Thị Mai', role: 'Phó nhóm', elo: 1420, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
+  { id: 'm-3', userId: 0, name: 'Phạm Minh Hoàng', role: 'Thành viên', elo: 1250, avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80' },
+  { id: 'm-4', userId: 0, name: 'Lê Hoàng Sơn', role: 'Thành viên', elo: 1180, avatar: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=100&auto=format&fit=crop&q=80' },
 ];
 
 const MOCK_MATCH_HISTORY: MatchItem[] = [
@@ -59,13 +61,17 @@ const MOCK_MATCH_HISTORY: MatchItem[] = [
 export function ClubDetailJoinedScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { clubs, leaveClub } = useClubs();
+  const { clubs, joinedClubs, leaveClub, deleteClub, transferLeadership, refreshClubs, assignSubLeader, demoteSubLeader, removeMember } = useClubs();
 
   // Custom Leave Confirmation Modal State
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
+  const [isDeleteLeaveMode, setIsDeleteLeaveMode] = useState(false);
   
   // Custom Members Modal State
   const [isMembersModalVisible, setIsMembersModalVisible] = useState(false);
+  const [members, setMembers] = useState<MemberItem[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState<string>('');
 
   // Custom Invite Modal State
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
@@ -87,7 +93,162 @@ export function ClubDetailJoinedScreen() {
   const [teamB, setTeamB] = useState<string[]>([]);
   const [matchmadeTeams, setMatchmadeTeams] = useState<{ teamA: string[]; teamB: string[] } | null>(null);
 
-  const club = clubs.find(c => c.id === id);
+  const club = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
+
+  // Determine current user role
+  const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : (club?.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên');
+
+  // Load current user's name to match against members list and get currentUserId
+  useEffect(() => {
+    const loadUserName = async () => {
+      try {
+        if (Platform.OS === 'web') {
+          setCurrentUserName(localStorage.getItem('userName') || '');
+        } else {
+          setCurrentUserName(await SecureStore.getItemAsync('userName') || '');
+        }
+      } catch (e) {
+        console.error('Lỗi load userName từ storage:', e);
+      }
+    };
+    loadUserName();
+  }, []);
+
+  const currentUserMember = members.find(m => m.name === currentUserName);
+  const currentUserId = currentUserMember ? Number(currentUserMember.userId) : undefined;
+
+  const fetchMembers = async () => {
+    if (!club) return;
+    setLoadingMembers(true);
+    try {
+      const data = await getClubMembersApi(Number(club.id));
+      const mapped: MemberItem[] = (data || []).map(m => {
+        // ELO ảo: random từ 1200 - 1500 nếu elo null hoặc = 1200
+        const virtualElo = m.elo && m.elo !== 1200 ? m.elo : (1000 + (Number(m.userId) % 300) + 150);
+        
+        let roleText = m.role;
+        if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') roleText = 'Trưởng câu lạc bộ';
+        else if (m.role === 'Phó nhóm' || m.role === 'SUB_LEADER' || m.role === 'Phó câu lạc bộ') roleText = 'Phó câu lạc bộ';
+        else roleText = 'Thành viên';
+
+        return {
+          id: m.id,
+          userId: Number(m.userId),
+          name: m.name,
+          role: roleText,
+          elo: virtualElo,
+          avatar: m.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+        };
+      });
+      setMembers(mapped);
+    } catch (err) {
+      console.error('Lỗi tải thành viên:', err);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isMembersModalVisible) {
+      fetchMembers();
+    }
+  }, [isMembersModalVisible]);
+
+  const handleTransferLeadership = (member: MemberItem) => {
+    if (!club) return;
+    Alert.alert(
+      'Xác nhận chuyển nhượng',
+      `Bạn có chắc chắn muốn chuyển quyền Trưởng câu lạc bộ cho "${member.name}" không? Bạn sẽ trở thành Thành viên thường sau khi chuyển nhượng.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Đồng ý', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await transferLeadership(club.id, member.userId);
+              Alert.alert('Thành công', `Đã chuyển nhượng quyền Trưởng câu lạc bộ cho "${member.name}" thành công!`);
+              setIsMembersModalVisible(false);
+              await refreshClubs();
+            } catch (err: any) {
+              Alert.alert('Lỗi', err.message || 'Chuyển nhượng quyền Trưởng câu lạc bộ thất bại.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleAssignSubLeader = (member: MemberItem) => {
+    if (!club) return;
+    Alert.alert(
+      'Bổ nhiệm Phó câu lạc bộ',
+      `Bạn có chắc chắn muốn phong chức Phó câu lạc bộ cho "${member.name}" không? Nếu đã có Phó câu lạc bộ khác, họ sẽ tự động trở thành Thành viên thường.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Bổ nhiệm', 
+          onPress: async () => {
+            try {
+              await assignSubLeader(club.id, member.userId);
+              Alert.alert('Thành công', `Đã bổ nhiệm "${member.name}" làm Phó câu lạc bộ thành công!`);
+              await Promise.all([fetchMembers(), refreshClubs()]);
+            } catch (err: any) {
+              Alert.alert('Lỗi', err.message || 'Bổ nhiệm Phó câu lạc bộ thất bại.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDemoteSubLeader = (member: MemberItem) => {
+    if (!club) return;
+    Alert.alert(
+      'Hạ chức Phó câu lạc bộ',
+      `Bạn có chắc chắn muốn hạ chức Phó câu lạc bộ của "${member.name}" xuống Thành viên thường không?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Hạ chức', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await demoteSubLeader(club.id, member.userId);
+              Alert.alert('Thành công', `Đã hạ chức "${member.name}" xuống Thành viên thường.`);
+              await Promise.all([fetchMembers(), refreshClubs()]);
+            } catch (err: any) {
+              Alert.alert('Lỗi', err.message || 'Hạ chức Phó câu lạc bộ thất bại.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleKickMember = (member: MemberItem) => {
+    if (!club) return;
+    Alert.alert(
+      'Trục xuất thành viên',
+      `Bạn có chắc chắn muốn đuổi "${member.name}" khỏi câu lạc bộ không? Hành động này không thể hoàn tác.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Trục xuất', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeMember(club.id, member.userId);
+              Alert.alert('Thành công', `Đã đuổi "${member.name}" khỏi câu lạc bộ.`);
+              await Promise.all([fetchMembers(), refreshClubs()]);
+            } catch (err: any) {
+              Alert.alert('Lỗi', err.message || 'Trục xuất thành viên thất bại.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   if (!club) {
     return (
@@ -246,14 +407,43 @@ export function ClubDetailJoinedScreen() {
   };
 
   const handleLeavePress = () => {
+    const numMembers = members.length;
+    
+    if (numMembers >= 2 && currentUserRole === 'Trưởng câu lạc bộ') {
+      Alert.alert(
+        'Không thể rời nhóm',
+        'Bạn là Trưởng câu lạc bộ. Bạn bắt buộc phải chuyển quyền Trưởng câu lạc bộ cho một thành viên khác trước khi rời khỏi câu lạc bộ.'
+      );
+      return;
+    }
+
+    if (numMembers <= 1) {
+      setIsDeleteLeaveMode(true);
+    } else {
+      setIsDeleteLeaveMode(false);
+    }
+
+    setIsMembersModalVisible(false);
     setIsLeaveModalVisible(true);
   };
 
-  const handleConfirmLeave = () => {
+  const handleConfirmLeave = async () => {
     setIsLeaveModalVisible(false);
     setIsMembersModalVisible(false);
-    leaveClub(club.id);
-    router.back();
+    try {
+      if (isDeleteLeaveMode) {
+        console.log('[ClubDetail] Last member (leader) leaving, deleting club:', club.id);
+        await deleteClub(club.id);
+        Alert.alert('Thành công', 'Đã giải tán câu lạc bộ thành công.');
+      } else {
+        console.log('[ClubDetail] Leaving club:', club.id);
+        await leaveClub(club.id);
+        Alert.alert('Thành công', 'Bạn đã rời câu lạc bộ thành công.');
+      }
+      router.replace('/(tabs)/clubs');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Thực hiện hành động thất bại.');
+    }
   };
 
   return (
@@ -341,15 +531,22 @@ export function ClubDetailJoinedScreen() {
         onClose={() => setIsLeaveModalVisible(false)}
         onConfirm={handleConfirmLeave}
         clubName={club.name}
+        isDelete={isDeleteLeaveMode}
       />
 
       {/* Group Members Full Screen Modal */}
       <MembersModal 
         visible={isMembersModalVisible}
         onClose={() => setIsMembersModalVisible(false)}
-        membersCount={club.members}
-        members={MOCK_MEMBERS}
+        membersCount={members.length > 0 ? members.length : club.members}
+        members={members}
         onLeavePress={handleLeavePress}
+        currentUserRole={currentUserRole}
+        currentUserId={currentUserId}
+        onTransferLeadership={handleTransferLeadership}
+        onAssignSubLeader={handleAssignSubLeader}
+        onDemoteSubLeader={handleDemoteSubLeader}
+        onKickMember={handleKickMember}
       />
 
       {/* Invite Friend Modal */}

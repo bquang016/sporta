@@ -21,3 +21,4 @@ public interface CourtRepository extends JpaRepository<Court, UUID> {
     @Query("SELECT MAX(c.price) FROM Court c WHERE c.venue.id = :venueId AND c.status = com.backend.sporta.enums.CourtStatus.ACTIVE")
     Double findMaxPriceByVenueIdAndStatusActive(@Param("venueId") UUID venueId);
 }
+

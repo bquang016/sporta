@@ -1,188 +1,188 @@
 import { useState, useEffect } from 'react';
+import { 
+  getAvailableClubsApi, 
+  getJoinedClubsApi, 
+  joinClubApi, 
+  leaveClubApi, 
+  createClubApi,
+  deleteClubApi,
+  transferLeadershipApi,
+  getClubMembersApi,
+  assignSubLeaderApi,
+  demoteSubLeaderApi,
+  removeMemberApi
+} from '../../../shared/api/clubs';
 
 export interface Club {
-  id: string;
+  id: number | string;
   name: string;
   sport: string;
   sportIcon: string;
   members: number;
   maxMembers: number;
-  activityLevel: 'Rất sôi nổi' | 'Trung bình' | 'Mới thành lập';
+  activityLevel: string;
   description: string;
   isPrivate: boolean;
   coverImage?: string;
   avatarImage?: string;
   area?: string;
   averageElo?: number;
+  userStatus?: string;
 }
 
-const INITIAL_MOCK_CLUBS: Club[] = [
-  {
-    id: 'club-1',
-    name: 'FC Đống Đa Warriors',
-    sport: 'Bóng đá',
-    sportIcon: 'sports-soccer',
-    members: 42,
-    maxMembers: 50,
-    activityLevel: 'Rất sôi nổi',
-    description: 'Nơi tập hợp anh em đam mê bóng đá phủi khu vực Đống Đa, giao lưu hàng tuần.',
-    isPrivate: false,
-    area: 'Quận Đống Đa, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1450,
-  },
-  {
-    id: 'club-2',
-    name: 'Hanoi Badminton Friends',
-    sport: 'Cầu lông',
-    sportIcon: 'sports-cricket',
-    members: 128,
-    maxMembers: 150,
-    activityLevel: 'Rất sôi nổi',
-    description: 'CLB giao lưu cầu lông mọi trình độ tại Hà Nội. Sinh hoạt tối thứ 3, 5, 7.',
-    isPrivate: false,
-    area: 'Quận Cầu Giấy, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1600,
-  },
-  {
-    id: 'club-3',
-    name: 'Saigon Pickleball Club',
-    sport: 'Pickleball',
-    sportIcon: 'sports-tennis',
-    members: 18,
-    maxMembers: 30,
-    activityLevel: 'Trung bình',
-    description: 'Hội những người chơi Pickleball mới nổi tại Sài Gòn, giao lưu học hỏi vui vẻ.',
-    isPrivate: false,
-    area: 'Quận 1, TP. Hồ Chí Minh',
-    coverImage: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1250,
-  },
-  {
-    id: 'club-4',
-    name: 'BK Dunkers',
-    sport: 'Bóng rổ',
-    sportIcon: 'sports-basketball',
-    members: 15,
-    maxMembers: 40,
-    activityLevel: 'Mới thành lập',
-    description: 'Cộng đồng bóng rổ cựu sinh viên Bách Khoa, tập luyện cuối tuần.',
-    isPrivate: true,
-    area: 'Quận Hai Bà Trưng, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1500,
-  },
-  {
-    id: 'club-5',
-    name: 'Cầu Giấy United FC',
-    sport: 'Bóng đá',
-    sportIcon: 'sports-soccer',
-    members: 24,
-    maxMembers: 35,
-    activityLevel: 'Trung bình',
-    description: 'Đội bóng giao hữu hàng tuần sân cỏ nhân tạo khu vực Cầu Giấy, tìm đối tác giao lưu.',
-    isPrivate: false,
-    area: 'Quận Cầu Giấy, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1350,
-  },
-  {
-    id: 'club-6',
-    name: 'Pickleball Hanoi Elite',
-    sport: 'Pickleball',
-    sportIcon: 'sports-tennis',
-    members: 35,
-    maxMembers: 60,
-    activityLevel: 'Rất sôi nổi',
-    description: 'Cộng đồng Pickleball hàng đầu tại Hà Nội. Sân chơi chuyên nghiệp, bài bản.',
-    isPrivate: true,
-    area: 'Quận Tây Hồ, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1750,
-  },
-  {
-    id: 'club-7',
-    name: 'Hanoi Heat Juniors',
-    sport: 'Bóng rổ',
-    sportIcon: 'sports-basketball',
-    members: 28,
-    maxMembers: 50,
-    activityLevel: 'Rất sôi nổi',
-    description: 'Nơi ươm mầm tài năng bóng rổ trẻ Hà Nội, sinh hoạt sáng chủ nhật.',
-    isPrivate: false,
-    area: 'Quận Nam Từ Liêm, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1300,
-  },
-  {
-    id: 'club-8',
-    name: 'Vinh Tuy Badminton Club',
-    sport: 'Cầu lông',
-    sportIcon: 'sports-cricket',
-    members: 14,
-    maxMembers: 25,
-    activityLevel: 'Trung bình',
-    description: 'CLB cầu lông phong trào khu vực Minh Khai, Vĩnh Tuy. Chào đón người mới.',
-    isPrivate: false,
-    area: 'Quận Hai Bà Trưng, Hà Nội',
-    coverImage: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=60',
-    avatarImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    averageElo: 1400,
-  }
-];
-
 class ClubStore {
-  private clubs: Club[] = INITIAL_MOCK_CLUBS;
-  private joinedClubIds: Set<string> = new Set(['club-1']); // Default joined club
+  private clubs: Club[] = [];
+  private joinedClubs: Club[] = [];
+  private joinedClubIds: Set<number | string> = new Set();
   private listeners: (() => void)[] = [];
 
   getClubs() {
     return this.clubs;
   }
 
+  getJoinedClubs() {
+    return this.joinedClubs;
+  }
+
   getJoinedClubIds() {
     return Array.from(this.joinedClubIds);
   }
 
-  joinClub(id: string) {
-    if (this.joinedClubIds.has(id)) return;
-    this.joinedClubIds.add(id);
-    const club = this.clubs.find(c => c.id === id);
-    if (club && club.members < club.maxMembers) {
-      club.members += 1;
-    }
+  reset() {
+    this.clubs = [];
+    this.joinedClubs = [];
+    this.joinedClubIds = new Set();
     this.notify();
   }
 
-  leaveClub(id: string) {
-    if (!this.joinedClubIds.has(id)) return;
-    this.joinedClubIds.delete(id);
-    const club = this.clubs.find(c => c.id === id);
-    if (club && club.members > 0) {
-      club.members -= 1;
+  async fetchClubs(sportId?: number, query?: string) {
+    try {
+      console.log('[ClubStore] Calling getAvailableClubsApi with:', { sportId, query });
+      const data = await getAvailableClubsApi(sportId, query);
+      console.log('[ClubStore] getAvailableClubsApi success, count:', data?.length);
+      this.clubs = data || [];
+      this.notify();
+    } catch (error) {
+      console.error('[ClubStore] Lỗi tải danh sách CLB khám phá:', error);
     }
-    this.notify();
   }
 
-  createClub(clubData: Omit<Club, 'id' | 'members'>) {
-    const newClub: Club = {
-      ...clubData,
-      id: `club-${Date.now()}`,
-      members: 1, // The creator is automatically the first member
-      averageElo: 1200, // Default average Elo for new clubs
-    };
-    this.clubs.unshift(newClub); // Add to the top of the explore list
-    this.joinedClubIds.add(newClub.id); // Add to joined list
-    this.notify();
-    return newClub;
+  async fetchJoinedClubs(sportId?: number, query?: string) {
+    try {
+      console.log('[ClubStore] Calling getJoinedClubsApi with:', { sportId, query });
+      const data = await getJoinedClubsApi(sportId, query);
+      console.log('[ClubStore] getJoinedClubsApi success, count:', data?.length, 'data:', JSON.stringify(data));
+      this.joinedClubs = data || [];
+      this.joinedClubIds = new Set(this.joinedClubs.map(c => c.id));
+      this.notify();
+    } catch (error) {
+      console.error('[ClubStore] Lỗi tải danh sách CLB đã tham gia:', error);
+    }
+  }
+
+  async joinClub(id: number | string) {
+    const numericId = typeof id === 'string' ? parseInt(id.replace('club-', ''), 10) : id;
+    if (isNaN(numericId)) return;
+
+    try {
+      await joinClubApi(numericId);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi tham gia CLB:', error);
+      throw error;
+    }
+  }
+
+  async leaveClub(id: number | string) {
+    const numericId = typeof id === 'string' ? parseInt(id.replace('club-', ''), 10) : id;
+    if (isNaN(numericId)) return;
+
+    const club = this.joinedClubs.find(c => String(c.id) === String(id));
+
+    try {
+      if (club && club.members <= 1) {
+        console.log('[ClubStore] Creator is the last member, deleting club:', numericId);
+        await deleteClubApi(numericId);
+      } else {
+        console.log('[ClubStore] Leaving club:', numericId);
+        await leaveClubApi(numericId);
+      }
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi rời/xóa CLB:', error);
+      throw error;
+    }
+  }
+
+  async deleteClub(id: number | string) {
+    const numericId = typeof id === 'string' ? parseInt(id.replace('club-', ''), 10) : id;
+    if (isNaN(numericId)) return;
+    try {
+      await deleteClubApi(numericId);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi xóa CLB:', error);
+      throw error;
+    }
+  }
+
+  async transferLeadership(clubId: number | string, userId: number) {
+    const numericClubId = typeof clubId === 'string' ? parseInt(clubId.replace('club-', ''), 10) : clubId;
+    if (isNaN(numericClubId)) return;
+    try {
+      await transferLeadershipApi(numericClubId, userId);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi chuyển nhượng Trưởng nhóm:', error);
+      throw error;
+    }
+  }
+
+  async assignSubLeader(clubId: number | string, userId: number) {
+    const numericClubId = typeof clubId === 'string' ? parseInt(clubId.replace('club-', ''), 10) : clubId;
+    if (isNaN(numericClubId)) return;
+    try {
+      await assignSubLeaderApi(numericClubId, userId);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi bổ nhiệm Phó nhóm:', error);
+      throw error;
+    }
+  }
+
+  async demoteSubLeader(clubId: number | string, userId: number) {
+    const numericClubId = typeof clubId === 'string' ? parseInt(clubId.replace('club-', ''), 10) : clubId;
+    if (isNaN(numericClubId)) return;
+    try {
+      await demoteSubLeaderApi(numericClubId, userId);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi hạ chức Phó nhóm:', error);
+      throw error;
+    }
+  }
+
+  async removeMember(clubId: number | string, userId: number) {
+    const numericClubId = typeof clubId === 'string' ? parseInt(clubId.replace('club-', ''), 10) : clubId;
+    if (isNaN(numericClubId)) return;
+    try {
+      await removeMemberApi(numericClubId, userId);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+    } catch (error) {
+      console.error('Lỗi trục xuất thành viên:', error);
+      throw error;
+    }
+  }
+
+  async createClub(clubData: any) {
+    try {
+      const newClub = await createClubApi(clubData);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+      return newClub;
+    } catch (error) {
+      console.error('Lỗi tạo CLB:', error);
+      throw error;
+    }
   }
 
   subscribe(listener: () => void) {
@@ -200,21 +200,41 @@ class ClubStore {
 export const clubStore = new ClubStore();
 
 export function useClubs() {
-  const [clubs, setClubs] = useState(clubStore.getClubs());
-  const [joinedIds, setJoinedIds] = useState(clubStore.getJoinedClubIds());
+  const [clubs, setClubs] = useState<Club[]>(clubStore.getClubs());
+  const [joinedClubs, setJoinedClubs] = useState<Club[]>(clubStore.getJoinedClubs());
+  const [joinedIds, setJoinedIds] = useState<(number | string)[]>(clubStore.getJoinedClubIds());
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     return clubStore.subscribe(() => {
       setClubs([...clubStore.getClubs()]);
+      setJoinedClubs([...clubStore.getJoinedClubs()]);
       setJoinedIds(clubStore.getJoinedClubIds());
     });
   }, []);
 
+  const refreshClubs = async (sportId?: number, query?: string) => {
+    setLoading(true);
+    await Promise.all([
+      clubStore.fetchClubs(sportId, query),
+      clubStore.fetchJoinedClubs(sportId, query)
+    ]);
+    setLoading(false);
+  };
+
   return {
     clubs,
+    joinedClubs,
     joinedIds,
-    joinClub: (id: string) => clubStore.joinClub(id),
-    leaveClub: (id: string) => clubStore.leaveClub(id),
-    createClub: (clubData: Omit<Club, 'id' | 'members'>) => clubStore.createClub(clubData),
+    loading,
+    refreshClubs,
+    joinClub: (id: number | string) => clubStore.joinClub(id),
+    leaveClub: (id: number | string) => clubStore.leaveClub(id),
+    deleteClub: (id: number | string) => clubStore.deleteClub(id),
+    transferLeadership: (clubId: number | string, userId: number) => clubStore.transferLeadership(clubId, userId),
+    assignSubLeader: (clubId: number | string, userId: number) => clubStore.assignSubLeader(clubId, userId),
+    demoteSubLeader: (clubId: number | string, userId: number) => clubStore.demoteSubLeader(clubId, userId),
+    removeMember: (clubId: number | string, userId: number) => clubStore.removeMember(clubId, userId),
+    createClub: (clubData: any) => clubStore.createClub(clubData),
   };
 }

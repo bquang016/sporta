@@ -15,9 +15,10 @@ export interface AvatarPickerModalProps {
   onClose: () => void;
   avatars: AvatarItem[];
   onSelectAvatar: (avatar: AvatarItem) => void;
+  onPickFromLibrary?: () => void;
 }
 
-export function AvatarPickerModal({ visible, onClose, avatars, onSelectAvatar }: AvatarPickerModalProps) {
+export function AvatarPickerModal({ visible, onClose, avatars, onSelectAvatar, onPickFromLibrary }: AvatarPickerModalProps) {
   return (
     <Modal
       visible={visible}
@@ -28,11 +29,25 @@ export function AvatarPickerModal({ visible, onClose, avatars, onSelectAvatar }:
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Chọn ảnh đại diện mẫu</Text>
+            <Text style={styles.modalTitle}>Chọn ảnh đại diện</Text>
             <TouchableOpacity onPress={onClose}>
               <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
             </TouchableOpacity>
           </View>
+          
+          {onPickFromLibrary && (
+            <TouchableOpacity 
+              style={styles.libraryButton}
+              activeOpacity={0.8}
+              onPress={onPickFromLibrary}
+            >
+              <MaterialIcons name="photo-library" size={20} color={COLORS.primary} />
+              <Text style={styles.libraryButtonText}>Chọn từ thư viện của máy</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.sectionLabel}>Hoặc chọn ảnh mẫu có sẵn:</Text>
+
           <ScrollView contentContainerStyle={styles.modalGridAvatars}>
             {avatars.map((avatar) => (
               <TouchableOpacity
@@ -65,7 +80,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.marginMobile,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xl,
-    maxHeight: '60%',
+    maxHeight: '75%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -80,6 +95,29 @@ const styles = StyleSheet.create({
     fontFamily: 'HankenGrotesk-Bold',
     fontWeight: '700',
     color: COLORS.onSurface,
+  },
+  libraryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.primaryOpacity08,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity30,
+    borderRadius: BORDER_RADIUS.default,
+    marginTop: SPACING.md,
+    gap: SPACING.base,
+  },
+  libraryButtonText: {
+    color: COLORS.primary,
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '600',
+  },
+  sectionLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurfaceVariant,
+    marginTop: SPACING.md,
+    marginBottom: -4,
   },
   modalGridAvatars: {
     paddingVertical: SPACING.md,

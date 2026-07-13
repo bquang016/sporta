@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface VenueRevisionRepository extends JpaRepository<VenueRevision, UUID> {
     List<VenueRevision> findByVenueIdOrderByCreatedAtDesc(UUID venueId);
+    List<VenueRevision> findByVenueIdAndStatusOrderByCreatedAtDesc(UUID venueId, com.backend.sporta.enums.ApprovalStatus status);
+    List<VenueRevision> findByStatusOrderByCreatedAtDesc(com.backend.sporta.enums.ApprovalStatus status);
 }

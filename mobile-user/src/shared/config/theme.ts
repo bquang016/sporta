@@ -86,6 +86,7 @@ export const COLORS = {
   // Warning/amber colors
   amber: '#B45309',
   amberStar: '#D97706',
+  purple: '#9333EA',
   amberOpacity10: 'rgba(180, 83, 9, 0.1)',
   blackOpacity05: 'rgba(0, 0, 0, 0.05)',
   blackOpacity15: 'rgba(0, 0, 0, 0.15)',

@@ -5,6 +5,7 @@ import lombok.*;
 
 import com.backend.sporta.enums.Gender;
 import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.UserStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

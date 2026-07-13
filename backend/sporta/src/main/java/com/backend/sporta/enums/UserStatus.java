@@ -1,4 +1,4 @@
-package com.backend.sporta.entity;
+package com.backend.sporta.enums;
 
 public enum UserStatus {
     ACTIVE,
