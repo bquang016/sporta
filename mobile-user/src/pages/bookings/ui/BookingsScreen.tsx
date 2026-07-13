@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
 
 export function BookingsScreen() {
   return (
@@ -15,16 +16,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1A1A1A',
+    ...TYPOGRAPHY.headlineMd,
+    color: COLORS.onSurface,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Modal, Image,
@@ -12,50 +12,18 @@ import { Card } from '../../../shared/ui/Card';
 import { CalendarPicker } from '../../../shared/ui/CalendarPicker';
 import { useVenueDetail } from '../../../entities/facility/model/useVenueDetail';
 import type { SlotInfo } from '../../../entities/facility/model/facility.types';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const SLOT_WIDTH = 50;
-const SLOT_HEIGHT = 50;
-const HEADER_HEIGHT = 44;
-const FROZEN_COL_WIDTH = 100;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const formatFullDate = (date: Date): string => {
-  const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-  return `${days[date.getDay()]}, ${date.getDate()} Tháng ${date.getMonth() + 1}, ${date.getFullYear()}`;
-};
-
-const isToday = (date: Date): boolean => {
-  const today = new Date();
-  return date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate();
-};
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
+import { BookingMatrix } from '../../../features/booking-matrix';
 
 export function BookingDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { facilityId } = useLocalSearchParams<{ facilityId: string }>();
 
-  // ── Date state
+  // ── State
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
-
-  // ── Menu state
   const [showMenu, setShowMenu] = useState(false);
-
-  // ── Time state (for red line)
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // ── Selected slots: key = `${courtId}|${time}`
   const [selectedSlotKeys, setSelectedSlotKeys] = useState<Set<string>>(new Set());
-
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [hasScrolled, setHasScrolled] = useState(false);
 
   // ── Fetch venue detail + schedule
   const { venue, slots, loading, error, refetch } = useVenueDetail(
@@ -63,84 +31,24 @@ export function BookingDetailScreen() {
     selectedDate,
   );
 
-  // ── Update clock every minute
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
   // ── Reset selection when date changes
-  useEffect(() => {
+  const handleDateChange = (newDate: Date) => {
+    setSelectedDate(newDate);
     setSelectedSlotKeys(new Set());
-    setHasScrolled(false);
-  }, [selectedDate]);
+  };
 
   const handlePrevDay = () => {
-    if (isToday(selectedDate)) return;
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() - 1);
-    setSelectedDate(newDate);
+    handleDateChange(newDate);
   };
 
   const handleNextDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + 1);
-    setSelectedDate(newDate);
+    handleDateChange(newDate);
   };
 
-  // ── Group slots by courtId for grid rendering
-  const courtIds = useMemo(() => {
-    if (!venue) return [];
-    return venue.courts.map(c => c.id);
-  }, [venue]);
-
-  const times = useMemo(() => {
-    if (!slots.length) return [];
-    // Collect unique times from first court (all courts share same time grid)
-    const firstCourtId = courtIds[0];
-    if (!firstCourtId) return [];
-    return slots
-      .filter(s => s.courtId === firstCourtId)
-      .map(s => s.time)
-      .sort();
-  }, [slots, courtIds]);
-
-  // ── Quick lookup: `${courtId}|${time}` → SlotInfo
-  const slotMap = useMemo(() => {
-    const map = new Map<string, SlotInfo>();
-    slots.forEach(s => map.set(`${s.courtId}|${s.time}`, s));
-    return map;
-  }, [slots]);
-
-  // ── Red line position
-  const startHour = useMemo(() => {
-    if (!times.length) return 5;
-    const [h] = times[0].split(':').map(Number);
-    return h;
-  }, [times]);
-
-  const redLinePosition = useMemo(() => {
-    if (!isToday(selectedDate)) return null;
-    const nowH = currentTime.getHours();
-    const nowM = currentTime.getMinutes();
-    if (nowH < startHour) return null;
-    return ((nowH - startHour) * 60 + nowM) * (SLOT_WIDTH / 30);
-  }, [currentTime, selectedDate, startHour]);
-
-  // ── Auto-scroll to now
-  useEffect(() => {
-    if (!loading && times.length > 0 && redLinePosition !== null && scrollViewRef.current && !hasScrolled) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({
-          x: Math.max(0, redLinePosition - SLOT_WIDTH * 1.5),
-          animated: true,
-        });
-        setHasScrolled(true);
-      }, 500);
-    }
-  }, [loading, times.length, redLinePosition, hasScrolled]);
-
-  // ── Toggle slot selection
   const toggleSlot = (slot: SlotInfo) => {
     if (slot.status !== 'available') return;
     const key = `${slot.courtId}|${slot.time}`;
@@ -151,6 +59,13 @@ export function BookingDetailScreen() {
       return next;
     });
   };
+
+  // ── Quick lookup: `${courtId}|${time}` → SlotInfo
+  const slotMap = useMemo(() => {
+    const map = new Map<string, SlotInfo>();
+    slots.forEach(s => map.set(`${s.courtId}|${s.time}`, s));
+    return map;
+  }, [slots]);
 
   // ── Compute summary
   const selectedSlotList = useMemo(() => {
@@ -168,7 +83,6 @@ export function BookingDetailScreen() {
   const handleContinue = () => {
     if (!venue || selectedSlotList.length === 0) return;
 
-    // Encode selected slots as JSON param
     const slotsParam = encodeURIComponent(JSON.stringify(selectedSlotList));
     router.push({
       pathname: '/booking/payment' as any,
@@ -183,14 +97,6 @@ export function BookingDetailScreen() {
       },
     });
   };
-
-  // ── Legend
-  const renderLegendItem = (color: string, label: string) => (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendBox, { backgroundColor: color }]} />
-      <Text style={styles.legendText}>{label}</Text>
-    </View>
-  );
 
   // ── Loading / Error states
   if (loading) {
@@ -214,8 +120,6 @@ export function BookingDetailScreen() {
     );
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
   return (
     <View style={styles.container}>
       {/* Calendar Modal */}
@@ -224,7 +128,7 @@ export function BookingDetailScreen() {
         selectedDate={selectedDate}
         minimumDate={new Date()}
         onConfirm={date => {
-          setSelectedDate(date);
+          handleDateChange(date);
         }}
         onClose={() => setShowCalendar(false)}
       />
@@ -249,19 +153,22 @@ export function BookingDetailScreen() {
 
       {/* Menu Modal */}
       <Modal visible={showMenu} transparent={true} animationType="fade" onRequestClose={() => setShowMenu(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
-          <View style={[styles.menuDropdown, { top: insets.top + 48 }]}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle share */ }}>
-              <MaterialIcons name="share" size={20} color={COLORS.onSurface} />
-              <Text style={styles.menuItemText}>Chia sẻ sân</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle report */ }}>
-              <MaterialIcons name="report" size={20} color={COLORS.error} />
-              <Text style={[styles.menuItemText, { color: COLORS.error }]}>Báo cáo sân</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.modalOverlayWrapper}>
+          <View style={styles.modalOverlayBackground} />
+          <TouchableOpacity style={styles.modalOverlayTouch} activeOpacity={1} onPress={() => setShowMenu(false)}>
+            <View style={[styles.menuDropdown, { top: insets.top + 48 }]}>
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle share */ }}>
+                <MaterialIcons name="share" size={20} color={COLORS.onSurface} />
+                <Text style={styles.menuItemText}>Chia sẻ sân</Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle report */ }}>
+                <MaterialIcons name="report" size={20} color={COLORS.error} />
+                <Text style={[styles.menuItemText, { color: COLORS.error }]}>Báo cáo sân</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </View>
       </Modal>
 
       <ScrollView style={styles.content} bounces={false}>
@@ -287,123 +194,23 @@ export function BookingDetailScreen() {
               <Image source={{ uri: venue.coverImage }} style={styles.venueImage} />
             ) : (
               <View style={[styles.venueImage, styles.venueImagePlaceholder]}>
-                <MaterialIcons name="image" size={32} color="rgba(255,255,255,0.5)" />
+                <MaterialIcons name="image" size={32} color={COLORS.surfaceContainerHighest} />
               </View>
             )}
           </View>
         </Card>
 
-        {/* Date selector */}
-        <View style={styles.dateSelectorWrapper}>
-          <TouchableOpacity
-            onPress={handlePrevDay}
-            style={styles.dateArrowBtn}
-            disabled={isToday(selectedDate)}
-          >
-            <MaterialIcons
-              name="chevron-left"
-              size={28}
-              color={isToday(selectedDate) ? COLORS.outlineVariant : COLORS.onSurface}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dateSelectorCenter}
-            onPress={() => setShowCalendar(true)}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
-            <Text style={styles.dateText}>{formatFullDate(selectedDate)}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleNextDay} style={styles.dateArrowBtn}>
-            <MaterialIcons name="chevron-right" size={28} color={COLORS.onSurface} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Legends */}
-        <View style={styles.legendRow}>
-          {renderLegendItem(COLORS.surface, 'Trống')}
-          {renderLegendItem(COLORS.error, 'Đã đặt')}
-          {renderLegendItem(COLORS.surfaceVariant, 'Khoá')}
-          {renderLegendItem(COLORS.secondary, 'Đang chọn')}
-          {renderLegendItem((COLORS as any).purple, 'Xé vé')}
-        </View>
-
-        {/* Grid */}
-        {times.length === 0 ? (
-          <View style={styles.emptyGrid}>
-            <Text style={styles.stateText}>Không có khung giờ nào cho ngày này</Text>
-          </View>
-        ) : (
-          <View style={styles.gridOuterContainer}>
-            {/* Frozen left column */}
-            <View style={styles.frozenColumn}>
-              <View style={[styles.headerCell, { height: HEADER_HEIGHT }]}>
-                <Text style={styles.cellText}>Giờ</Text>
-              </View>
-              {venue.courts.map(court => (
-                <View key={court.id} style={[styles.courtCell, { backgroundColor: COLORS.surfaceContainerLow }]}>
-                  <Text style={styles.courtNameText} numberOfLines={4}>{court.name}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Scrollable area */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              ref={scrollViewRef}
-              contentContainerStyle={styles.scrollableGridContent}
-            >
-              <View style={styles.scrollableGridWrapper}>
-                {/* Time header */}
-                <View style={styles.gridRow}>
-                  {times.map(time => (
-                    <View key={`header-${time}`} style={[styles.timeHeaderCell, { height: HEADER_HEIGHT }]}>
-                      <Text style={styles.cellText}>{time}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Slot rows */}
-                {venue.courts.map(court => (
-                  <View key={court.id} style={styles.gridRow}>
-                    {times.map(time => {
-                      const slot = slotMap.get(`${court.id}|${time}`);
-                      const isSelected = selectedSlotKeys.has(`${court.id}|${time}`);
-                      const status = slot?.status ?? 'locked';
-                      const isOwnerSplit = slot?.isOwnerSplit;
-
-                      let bgColor = COLORS.surface;
-                      if (isSelected) bgColor = COLORS.secondary;
-                      else if (status === 'booked') bgColor = COLORS.error;
-                      else if (status === 'locked') bgColor = COLORS.surfaceVariant;
-                      else if (isOwnerSplit) bgColor = (COLORS as any).purple;
-
-                      return (
-                        <TouchableOpacity
-                          key={`${court.id}-${time}`}
-                          style={[styles.slotCell, { backgroundColor: bgColor }]}
-                          onPress={() => slot && toggleSlot(slot)}
-                          activeOpacity={status === 'available' ? 0.7 : 1}
-                        />
-                      );
-                    })}
-                  </View>
-                ))}
-
-                {/* Red line */}
-                {redLinePosition !== null && (
-                  <View style={[styles.redLine, { left: redLinePosition }]}>
-                    <View style={styles.redLineDot} />
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-        <View style={{ height: SPACING.xl }} />
+        {/* Feature: Booking Matrix */}
+        <BookingMatrix
+          venue={venue}
+          slots={slots}
+          selectedDate={selectedDate}
+          selectedSlotKeys={selectedSlotKeys}
+          onToggleSlot={toggleSlot}
+          onPrevDay={handlePrevDay}
+          onNextDay={handleNextDay}
+          onOpenCalendar={() => setShowCalendar(true)}
+        />
       </ScrollView>
 
       {/* Bottom bar */}
@@ -428,8 +235,6 @@ export function BookingDetailScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.lg },
@@ -449,8 +254,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
   },
   headerCenter: { flex: 1, alignItems: 'center' },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: 2 },
-  phoneText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant },
   title: { ...TYPOGRAPHY.labelMd, color: COLORS.onPrimary },
   iconBtn: { padding: SPACING.xs },
 
@@ -463,50 +266,8 @@ const styles = StyleSheet.create({
   venuePhoneText: { ...TYPOGRAPHY.labelMd, color: COLORS.onPrimary },
   venueLocationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xs },
   venueLocationText: { ...TYPOGRAPHY.labelSm, color: COLORS.onPrimary, flex: 1, marginTop: 2, opacity: 0.9 },
-  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(255, 255, 255, 0.15)' },
+  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.surfaceVariant },
   venueImagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
-
-  dateSelectorWrapper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md, paddingHorizontal: SPACING.sm },
-  dateArrowBtn: { padding: SPACING.xs },
-  dateSelectorCenter: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, backgroundColor: COLORS.surfaceContainerLow, borderRadius: BORDER_RADIUS.full },
-  dateText: { ...TYPOGRAPHY.labelMd, color: COLORS.primary },
-
-  legendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.base, gap: SPACING.md, flexWrap: 'wrap' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-  legendBox: { width: 16, height: 16, borderRadius: BORDER_RADIUS.sm, borderWidth: 1, borderColor: COLORS.outlineVariant },
-  legendText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant },
-
-  emptyGrid: { padding: SPACING.xl, alignItems: 'center' },
-
-  gridOuterContainer: {
-    flexDirection: 'row', borderWidth: 1, borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default, overflow: 'hidden', marginTop: SPACING.md,
-    backgroundColor: COLORS.surface,
-  },
-  frozenColumn: {
-    width: FROZEN_COL_WIDTH, borderRightWidth: 1, borderRightColor: COLORS.outlineVariant,
-    backgroundColor: COLORS.surfaceContainerLowest, zIndex: 2,
-  },
-  headerCell: { justifyContent: 'center', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: COLORS.outlineVariant, backgroundColor: COLORS.surface },
-  courtCell: { height: SLOT_HEIGHT, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.outlineVariant },
-  courtNameText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurface },
-  scrollableGridContent: { flexGrow: 1 },
-  scrollableGridWrapper: { position: 'relative' },
-  gridRow: { flexDirection: 'row' },
-  timeHeaderCell: {
-    width: SLOT_WIDTH, justifyContent: 'center', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: COLORS.outlineVariant,
-    borderRightWidth: 1, borderRightColor: COLORS.outlineVariant,
-    backgroundColor: COLORS.surface,
-  },
-  cellText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurface },
-  slotCell: {
-    width: SLOT_WIDTH, height: SLOT_HEIGHT,
-    borderBottomWidth: 1, borderBottomColor: COLORS.outlineVariant,
-    borderRightWidth: 1, borderRightColor: COLORS.outlineVariant,
-  },
-  redLine: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: COLORS.error, zIndex: 10, alignItems: 'center' },
-  redLineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error, marginTop: HEADER_HEIGHT / 2 - 4 },
 
   bottomBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -517,7 +278,13 @@ const styles = StyleSheet.create({
   selectedCountText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant },
   totalPriceText: { ...TYPOGRAPHY.headlineMd, color: COLORS.primary },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.1)' },
+  modalOverlayWrapper: { flex: 1 },
+  modalOverlayBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.onSurface,
+    opacity: 0.2,
+  },
+  modalOverlayTouch: { flex: 1 },
   menuDropdown: {
     position: 'absolute', right: SPACING.md,
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.default,
