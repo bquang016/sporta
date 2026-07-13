@@ -31,6 +31,13 @@ const PERMISSION_GROUPS = [
     ]
   },
   {
+    groupName: 'QUẢN LÝ GIAO DỊCH',
+    features: [
+      { key: 'MANAGE_TRANSACTIONS', name: 'Quản lý đặt sân & giao dịch', desc: 'Xem danh sách đặt sân, lịch sử giao dịch và can thiệp hoàn tiền' },
+      { key: 'MANAGE_RECONCILIATION', name: 'Quản lý đối soát', desc: 'Xem số dư cần thanh toán, thực hiện và xác nhận đối soát với chủ sân' }
+    ]
+  },
+  {
     groupName: 'CÀI ĐẶT HỆ THỐNG',
     features: [
       { key: 'MANAGE_SYSTEM', name: 'Cài đặt chung', desc: 'Thay đổi tên web, logo và cấu hình hệ thống' }
