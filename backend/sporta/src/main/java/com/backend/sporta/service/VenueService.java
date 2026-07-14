@@ -619,6 +619,10 @@ public class VenueService {
             throw new CustomException("Vui lòng nhập vị trí cụm sân", 400);
         }
 
+        if (venue.getLatitude() == null || venue.getLongitude() == null) {
+            throw new CustomException("Vui lòng chọn vị trí trên bản đồ", 400);
+        }
+
         if (venue.getSport() == null) {
             throw new CustomException("Vui lòng chọn môn thể thao", 400);
         }
@@ -864,6 +868,42 @@ public class VenueService {
 
         // Delete venue (venue images are cascade deleted via CascadeType.ALL)
         venueRepository.delete(venue);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<VenueResponse> getPendingNewVenues() {
+        return venueRepository.findAll().stream()
+                .filter(v -> v.getApprovalStatus() == ApprovalStatus.PENDING)
+                .map(venue -> mapToResponse(venue, false))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void approveNewVenue(UUID id) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy cụm sân", 404));
+
+        if (venue.getApprovalStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Cụm sân không ở trạng thái chờ duyệt", 400);
+        }
+
+        venue.setApprovalStatus(ApprovalStatus.APPROVED);
+        venue.setStatus(VenueStatus.ACTIVE);
+        venueRepository.save(venue);
+    }
+
+    @Transactional
+    public void rejectNewVenue(UUID id, String reason) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy cụm sân", 404));
+
+        if (venue.getApprovalStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Cụm sân không ở trạng thái chờ duyệt", 400);
+        }
+
+        venue.setApprovalStatus(ApprovalStatus.REJECTED);
+        // Có thể lưu thêm lý do từ chối vào một trường note (nếu VenueEntity có hỗ trợ)
+        venueRepository.save(venue);
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)

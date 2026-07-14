@@ -381,6 +381,7 @@ public class AuthService {
                 .registrationImages(reg.getRegistrationImages())
                 .description(reg.getDescription())
                 .status(com.backend.sporta.enums.VenueStatus.PENDING_APPROVAL)
+                .approvalStatus(com.backend.sporta.enums.ApprovalStatus.DRAFT)
                 .openingTime(java.time.LocalTime.of(5, 0))
                 .closingTime(java.time.LocalTime.of(22, 0))
                 .build();

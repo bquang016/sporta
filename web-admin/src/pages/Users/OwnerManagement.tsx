@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { getLoggedInAdmin } from '@/utils/auth';
 import { SmartLockModal } from '@/components/users/SmartLockModal';
+import { UserAuditing } from './UserAuditing';
 
 interface User {
   id: number;
@@ -53,6 +54,7 @@ export const OwnerManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'OWNERS' | 'NEW_REGISTRATIONS'>('OWNERS');
 
   // Modals status
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -169,11 +171,37 @@ export const OwnerManagement: React.FC = () => {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-on-background">Quản Lý Chủ Sân</h1>
-          <p className="text-on-surface-variant mt-1 text-sm">Quản lý tài khoản, trạng thái hoạt động của Chủ Sân (Owners).</p>
+          <p className="text-on-surface-variant mt-1 text-sm">Quản lý tài khoản, yêu cầu đăng ký và trạng thái hoạt động của Chủ Sân (Owners).</p>
         </div>
       </div>
 
-      {/* Card Wrapper */}
+      {/* TABS */}
+      <div className="flex border-b border-outline-variant/30">
+        <button
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'OWNERS'
+              ? 'border-brand-emerald text-brand-emerald'
+              : 'border-transparent text-on-surface-variant hover:text-on-surface'
+          }`}
+          onClick={() => setActiveTab('OWNERS')}
+        >
+          Danh sách chủ sân
+        </button>
+        <button
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'NEW_REGISTRATIONS'
+              ? 'border-brand-emerald text-brand-emerald'
+              : 'border-transparent text-on-surface-variant hover:text-on-surface'
+          }`}
+          onClick={() => setActiveTab('NEW_REGISTRATIONS')}
+        >
+          Yêu cầu đăng ký mới
+        </button>
+      </div>
+
+      {activeTab === 'NEW_REGISTRATIONS' ? (
+        <UserAuditing />
+      ) : (
       <Card className="overflow-hidden flex flex-col flex-1 min-h-0 shadow-sm border border-slate-200/80 rounded-2xl">
         {/* Search Header */}
         <form onSubmit={handleSearchSubmit} className="p-4 border-b border-outline-variant/10 flex gap-4 flex-shrink-0 bg-slate-50/50">
@@ -291,6 +319,7 @@ export const OwnerManagement: React.FC = () => {
           )}
         </div>
       </Card>
+      )}
 
       {/* Lock Popup Smart Action Modal */}
       <SmartLockModal
