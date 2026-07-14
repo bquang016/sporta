@@ -14,6 +14,8 @@ public class SlotResponse {
     private String time;           // "HH:mm" — giờ bắt đầu ca, e.g. "16:30"
     private String status;         // "available" | "booked" | "locked" | "matchmaking"
     private Double price;          // Giá đã tính cuối cùng (sau khi áp priceRules)
+    private UUID bookingId;
+    private Boolean isManual;
     private UUID ticketSessionId;
     private Integer bookedSlots;
     private Integer maxSlots;

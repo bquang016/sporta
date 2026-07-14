@@ -48,4 +48,11 @@ public class OwnerTicketController {
         List<TestTicketResponse> response = ticketSessionService.getTestTickets(sessionId);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/ticket-sessions/{id}/cancel")
+    public ResponseEntity<?> cancelTicketSession(@PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        ticketSessionService.cancelTicketSession(id, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Hủy ca xé vé thành công"));
+    }
 }

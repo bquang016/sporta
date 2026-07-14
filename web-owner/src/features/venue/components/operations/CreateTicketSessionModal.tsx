@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../../../../common/ui/overlay/Modal';
 import { DatePicker } from '../../../../common/ui/form/DatePicker';
-import { TimePicker } from '../../../../common/ui/form/TimePicker';
 import { Dropdown } from '../../../../components/ui/Dropdown';
 import { NumberInput } from '../../../../common/ui/form/NumberInput';
 import { CurrencyInput } from '../../../../components/ui/CurrencyInput';
-import type { CourtResponse } from '../../types';
+import { scheduleService } from '../../../booking/services/scheduleService';
+import type { CourtResponse, VenueResponse } from '../../types';
 import type { SportLevel } from '../../types/ticket.types';
+import { useToast } from '../../../../components/ui/Toast';
 
 interface CreateTicketSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
   courts: CourtResponse[];
+  venues: VenueResponse[];
   onCreate: (data: {
     courtId: string;
     playDate: string;
@@ -27,8 +29,10 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
   isOpen,
   onClose,
   courts,
+  venues,
   onCreate,
 }) => {
+  const { showToast } = useToast();
   const activeCourts = courts.filter(c => c.status === 'ACTIVE');
   
   const [courtId, setCourtId] = useState('');
@@ -36,14 +40,19 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
-  const [startTime, setStartTime] = useState('08:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [pricePerTicket, setPricePerTicket] = useState(50000);
   const [maxSlots, setMaxSlots] = useState(10);
   const [sportLevel, setSportLevel] = useState<SportLevel>('ALL');
   
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Availability schedule
+  const [apiSlots, setApiSlots] = useState<any[]>([]);
+  const [loadingShifts, setLoadingShifts] = useState(false);
+  const [selectedShiftId, setSelectedShiftId] = useState('');
 
   // Reset states when open
   useEffect(() => {
@@ -55,14 +64,41 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
       }
       const today = new Date();
       setPlayDate(today.toISOString().split('T')[0]);
-      setStartTime('08:00');
-      setEndTime('10:00');
       setPricePerTicket(50000);
       setMaxSlots(10);
       setSportLevel('ALL');
       setErrorMsg(null);
+      setSelectedShiftId('');
+      setStartTime('');
+      setEndTime('');
     }
   }, [isOpen, courts]);
+
+  // Fetch schedule of this venue when date or court selection changes
+  useEffect(() => {
+    const fetchShifts = async () => {
+      const court = courts.find(c => c.id === courtId);
+      if (!court || !playDate) {
+        setApiSlots([]);
+        return;
+      }
+
+      setLoadingShifts(true);
+      try {
+        const slotsData = await scheduleService.getSchedule(court.venueId, playDate);
+        setApiSlots(slotsData || []);
+      } catch (err) {
+        console.error('Error fetching court slots:', err);
+        setApiSlots([]);
+      } finally {
+        setLoadingShifts(false);
+      }
+    };
+
+    if (isOpen && courtId && playDate) {
+      fetchShifts();
+    }
+  }, [courtId, playDate, courts, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +113,7 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
     }
 
     if (!startTime || !endTime) {
-      setErrorMsg('Vui lòng chọn khung giờ bắt đầu và kết thúc');
+      setErrorMsg('Vui lòng chọn ca chơi');
       return;
     }
 
@@ -110,6 +146,7 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
         maxSlots,
         sportLevel,
       });
+      showToast('success', 'Tạo ca xé vé mới thành công!');
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi khi tạo ca xé vé');
@@ -136,6 +173,92 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
     { value: 'AVERAGE_GOOD', label: 'Trung bình - Khá' },
     { value: 'GOOD', label: 'Khá - Tốt (Advanced)' },
   ];
+
+  const selectedCourt = useMemo(() => courts.find(c => c.id === courtId), [courts, courtId]);
+  const selectedVenue = useMemo(() => venues.find(v => v.id === selectedCourt?.venueId), [venues, selectedCourt]);
+
+  // Compute availability list
+  const shiftOptions = useMemo(() => {
+    if (!selectedVenue || !selectedCourt) return [];
+
+    const duration = selectedVenue.shiftDurationMinutes || 30;
+    const opening = selectedVenue.openingTime || '06:00';
+    const closing = selectedVenue.closingTime || '22:00';
+
+    let startMin = 6 * 60;
+    let endMin = 22 * 60;
+
+    const parseTimeToMinutesLocal = (t: string): number => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    if (opening) startMin = parseTimeToMinutesLocal(opening);
+    if (closing) endMin = parseTimeToMinutesLocal(closing);
+
+    const options = [];
+    let currentMin = startMin;
+    let shiftIndex = 1;
+
+    const formatMinutesToTime = (min: number) => {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
+    while (currentMin < endMin) {
+      const nextMin = currentMin + duration;
+      if (nextMin > endMin) break;
+
+      const startTimeStr = formatMinutesToTime(currentMin);
+      const endTimeStr = formatMinutesToTime(nextMin);
+
+      // Check if court has any busy slot at this time
+      const matchingSlot = apiSlots.find(s => s.courtId === selectedCourt.id && s.time === startTimeStr);
+      const isAvailable = !matchingSlot || matchingSlot.status === 'available';
+
+      if (isAvailable) {
+        options.push({
+          value: `${startTimeStr}-${endTimeStr}`,
+          label: `Ca ${shiftIndex}: ${startTimeStr} - ${endTimeStr}`,
+        });
+      }
+
+      currentMin = nextMin;
+      shiftIndex++;
+    }
+
+    return options;
+  }, [selectedVenue, selectedCourt, apiSlots]);
+
+  // Sync selected shift options
+  useEffect(() => {
+    if (shiftOptions.length > 0) {
+      const exists = shiftOptions.some(opt => opt.value === selectedShiftId);
+      if (!exists) {
+        setSelectedShiftId(shiftOptions[0].value);
+        const [start, end] = shiftOptions[0].value.split('-');
+        setStartTime(start);
+        setEndTime(end);
+      }
+    } else {
+      setSelectedShiftId('');
+      setStartTime('');
+      setEndTime('');
+    }
+  }, [shiftOptions, selectedShiftId]);
+
+  const handleShiftChange = (val: string) => {
+    setSelectedShiftId(val);
+    if (val) {
+      const [start, end] = val.split('-');
+      setStartTime(start);
+      setEndTime(end);
+    } else {
+      setStartTime('');
+      setEndTime('');
+    }
+  };
 
   return (
     <Modal
@@ -180,8 +303,8 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
           </div>
         ) : (
           <>
-            <div className="space-y-1.5 flex flex-col w-full text-left font-sans select-none">
-              <label className="text-xs font-semibold tracking-wider uppercase text-slate-500 flex items-center gap-0.5">
+            <div className="space-y-1 flex flex-col w-full text-left font-sans select-none">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-0.5">
                 Chọn sân
                 <span className="text-red-500 font-bold">*</span>
               </label>
@@ -197,22 +320,25 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
               label="Ngày chơi"
               value={playDate}
               onChange={(e) => setPlayDate(e.target.value)}
+              labelClassName="text-[10px] font-black text-slate-400 uppercase tracking-wide"
               required
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <TimePicker
-                label="Giờ bắt đầu"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                required
+            <div className="space-y-1 flex flex-col w-full text-left font-sans select-none">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-0.5">
+                Chọn ca chơi
+                <span className="text-red-500 font-bold">*</span>
+              </label>
+              <Dropdown
+                options={shiftOptions}
+                value={selectedShiftId}
+                onChange={handleShiftChange}
+                placeholder={loadingShifts ? "Đang tải danh sách ca..." : "Chọn ca chơi"}
+                disabled={loadingShifts || shiftOptions.length === 0}
               />
-              <TimePicker
-                label="Giờ kết thúc"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                required
-              />
+              {shiftOptions.length === 0 && !loadingShifts && (
+                <span className="text-[10px] text-amber-600 font-bold mt-1">Không có ca nào trống cho sân và ngày này</span>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -238,8 +364,8 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
               </div>
             </div>
 
-            <div className="space-y-1.5 flex flex-col w-full text-left font-sans select-none">
-              <label className="text-xs font-semibold tracking-wider uppercase text-slate-500 flex items-center gap-0.5">
+            <div className="space-y-1 flex flex-col w-full text-left font-sans select-none">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-0.5">
                 Yêu cầu Trình độ
                 <span className="text-red-500 font-bold">*</span>
               </label>

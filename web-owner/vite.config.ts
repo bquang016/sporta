@@ -8,4 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    host: true, // Thêm dòng này để mở cổng ra mạng LAN
+  }
 })

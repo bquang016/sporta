@@ -6,6 +6,7 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { courtService } from '../../venue/services/courtService';
 import { useTicketSessions } from '../../venue/hooks/useTicketSessions';
 import { CreateTicketSessionModal } from '../../venue/components/operations/CreateTicketSessionModal';
+import { Dropdown } from '../../../components/ui/Dropdown';
 import type { VenueResponse, CourtResponse } from '../../venue/types';
 import { Ticket, MapPin, Plus } from 'lucide-react';
 
@@ -98,19 +99,17 @@ export const MatrixPage = () => {
 
           {/* Venue Switcher */}
           {venues.length > 0 && (
-            <div className="mt-4 relative z-10 flex items-center gap-2 bg-white/10 px-3 py-2 rounded-2xl border border-white/15">
-              <MapPin className="w-4 h-4 text-brand-yellow flex-shrink-0" />
-              <select
+            <div className="mt-4 relative z-10">
+              <Dropdown
+                options={venues.map(v => ({
+                  value: v.id,
+                  label: v.name,
+                  icon: <MapPin className="w-3.5 h-3.5 text-brand-emerald" />
+                }))}
                 value={selectedVenueId || ''}
-                onChange={handleVenueChange}
-                className="bg-transparent text-xs font-extrabold text-white outline-none border-none w-full cursor-pointer"
-              >
-                {venues.map(v => (
-                  <option key={v.id} value={v.id} className="text-slate-800 font-bold bg-white">
-                    {v.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedVenueId(val || null)}
+                className="w-full text-slate-800 font-bold"
+              />
             </div>
           )}
 
@@ -136,7 +135,12 @@ export const MatrixPage = () => {
           viewMode === 'grid' ? (
             <MobileBookingGrid venueId={selectedVenueId} refreshCounter={refreshCounter} />
           ) : (
-            <BookingCardView isMobile={true} />
+            <BookingCardView 
+              isMobile={true} 
+              venueId={selectedVenueId} 
+              refreshCounter={refreshCounter} 
+              onRefresh={() => setRefreshCounter(prev => prev + 1)} 
+            />
           )
         ) : (
           <div className="p-8 text-center text-xs text-slate-400 font-bold">
@@ -148,6 +152,7 @@ export const MatrixPage = () => {
           isOpen={isCreateTicketSessionOpen}
           onClose={() => setIsCreateTicketSessionOpen(false)}
           courts={activeCourts}
+          venues={venues}
           onCreate={handleCreateSessionSuccess}
         />
       </div>
@@ -172,20 +177,16 @@ export const MatrixPage = () => {
 
           {/* Venue Switcher */}
           {venues.length > 0 && (
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-3.5 py-1.5 rounded-xl ml-4">
-              <MapPin className="w-4 h-4 text-brand-emerald" />
-              <select
-                value={selectedVenueId || ''}
-                onChange={handleVenueChange}
-                className="bg-transparent text-xs font-black text-slate-700 outline-none border-none cursor-pointer"
-              >
-                {venues.map(v => (
-                  <option key={v.id} value={v.id} className="text-slate-800 font-bold">
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Dropdown
+              options={venues.map(v => ({
+                value: v.id,
+                label: v.name,
+                icon: <MapPin className="w-3.5 h-3.5 text-brand-emerald" />
+              }))}
+              value={selectedVenueId || ''}
+              onChange={(val) => setSelectedVenueId(val || null)}
+              className="min-w-[220px] ml-4 text-slate-800 font-bold"
+            />
           )}
         </div>
 
@@ -208,7 +209,7 @@ export const MatrixPage = () => {
           <div className="flex gap-4 items-center border-l border-slate-100 pl-4">
             <LegendItem color="bg-emerald-50 border-emerald-250" label="Trống" />
             <LegendItem color="bg-brand-emerald" label="Đã đặt" />
-            <LegendItem color="bg-amber-400" label="Đang giữ" />
+            <LegendItem color="bg-amber-400" label="Đặt thủ công" />
             <LegendItem color="bg-indigo-650 bg-gradient-to-r from-indigo-600 to-purple-600" label="Xé vé" />
             <LegendItem color="bg-stripes-red" label="Bảo trì" />
           </div>
@@ -221,8 +222,13 @@ export const MatrixPage = () => {
           viewMode === 'grid' ? (
             <DesktopBookingGrid venueId={selectedVenueId} refreshCounter={refreshCounter} />
           ) : (
-            <div className="rounded-2xl border border-surface-variant bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-visible">
-              <BookingCardView isMobile={false} />
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-visible">
+              <BookingCardView 
+                isMobile={false} 
+                venueId={selectedVenueId} 
+                refreshCounter={refreshCounter} 
+                onRefresh={() => setRefreshCounter(prev => prev + 1)} 
+              />
             </div>
           )
         ) : (
@@ -236,6 +242,7 @@ export const MatrixPage = () => {
         isOpen={isCreateTicketSessionOpen}
         onClose={() => setIsCreateTicketSessionOpen(false)}
         courts={activeCourts}
+        venues={venues}
         onCreate={handleCreateSessionSuccess}
       />
     </div>

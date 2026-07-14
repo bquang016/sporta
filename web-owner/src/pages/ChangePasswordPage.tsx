@@ -55,7 +55,8 @@ export const ChangePasswordPage = () => {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8387/api/v1/auth/change-password', {
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      const response = await fetch(`http://${host}:8387/api/v1/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
-const BASE_URL = 'http://localhost:8387/api/v1';
+const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const BASE_URL = `http://${host}:8387/api/v1`;
 
 const getHeaders = () => {
   const token = localStorage.getItem('accessToken');
@@ -27,6 +28,8 @@ export interface ApiSlotResponse {
   time: string;           // "HH:mm"
   status: 'available' | 'booked' | 'locked' | 'matchmaking';
   price: number;
+  bookingId?: string;
+  isManual?: boolean;
   ticketSessionId?: string;
   bookedSlots?: number;
   maxSlots?: number;
@@ -42,5 +45,41 @@ export const scheduleService = {
       headers: getHeaders(),
     });
     return handleResponse(res, 'Không thể tải lịch đặt sân của ngày này');
+  },
+
+  async createBooking(request: {
+    slots: {
+      courtId: string;
+      bookingDate: string;
+      startTime: string;
+      endTime: string;
+    }[];
+    paymentMethod: string;
+    status?: 'CONFIRMED' | 'PENDING';
+    isManual?: boolean;
+    customerName?: string;
+  }): Promise<any> {
+    const res = await fetch(`${BASE_URL}/bookings`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(request),
+    });
+    return handleResponse(res, 'Không thể đặt sân');
+  },
+
+  async cancelBooking(bookingId: string): Promise<any> {
+    const res = await fetch(`${BASE_URL}/bookings/${bookingId}/cancel`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Không thể hủy đơn đặt sân');
+  },
+
+  async cancelTicketSession(sessionId: string): Promise<any> {
+    const res = await fetch(`${BASE_URL}/owner/ticket-sessions/${sessionId}/cancel`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Không thể hủy ca xé vé');
   }
 };

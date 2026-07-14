@@ -182,7 +182,9 @@ public class VenueService {
         // Java DayOfWeek: MONDAY=1 ... SUNDAY=7
         int dayOfWeekValue = date.getDayOfWeek().getValue();
 
-        List<TicketSession> ticketSessions = ticketSessionRepository.findByVenueIdAndPlayDate(venueId, date);
+        List<TicketSession> ticketSessions = ticketSessionRepository.findByVenueIdAndPlayDate(venueId, date).stream()
+                .filter(ts -> ts.getStatus() != com.backend.sporta.enums.TicketSessionStatus.CANCELLED)
+                .collect(Collectors.toList());
         List<SlotResponse> result = new ArrayList<>();
 
         for (Court court : courts) {
@@ -198,9 +200,9 @@ public class VenueService {
             while (slotTime.isBefore(close)) {
                 final LocalTime currentSlot = slotTime;
                 String timeStr = String.format("%02d:%02d", currentSlot.getHour(), currentSlot.getMinute());
-
-                // Xác định status & thông tin chi tiết
                 String status;
+                UUID bookingId = null;
+                Boolean isManual = null;
                 UUID ticketSessionId = null;
                 Integer bookedSlotsCount = null;
                 Integer maxSlotsCount = null;
@@ -236,7 +238,17 @@ public class VenueService {
                             .filter(b -> b.getStartTime().equals(currentSlot))
                             .findFirst().orElse(null);
                     if (bd != null && bd.getBooking() != null) {
-                        if (bd.getBooking().getUser() != null) {
+                        bookingId = bd.getBooking().getId();
+                        isManual = bd.getBooking().getIsManual();
+                        if (bd.getBooking().getStatus() == com.backend.sporta.enums.BookingStatus.PENDING) {
+                            status = "pending";
+                        }
+                        if (bd.getBooking().getIsManual() != null && bd.getBooking().getIsManual()) {
+                            customerName = bd.getBooking().getCustomerName();
+                            if (customerName == null || customerName.isEmpty()) {
+                                customerName = "Đặt thủ công";
+                            }
+                        } else if (bd.getBooking().getUser() != null) {
                             customerName = bd.getBooking().getUser().getFullName();
                         } else {
                             customerName = "Khách vãng lai";
@@ -290,6 +302,8 @@ public class VenueService {
                         .time(timeStr)
                         .status(status)
                         .price(price)
+                        .bookingId(bookingId)
+                        .isManual(isManual)
                         .ticketSessionId(ticketSessionId)
                         .bookedSlots(bookedSlotsCount)
                         .maxSlots(maxSlotsCount)

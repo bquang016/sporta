@@ -44,7 +44,13 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
     isInsideBlock,
     handleConfirmDeposit,
     shiftMinutes,
-    sportName
+    sportName,
+    closingTime,
+    shiftOptions,
+    selectedShiftId,
+    handleShiftChange,
+    isConfirmCancelOpen,
+    setIsConfirmCancelOpen
   } = useBookingMatrix(venueId, refreshCounter);
 
   return (
@@ -303,6 +309,20 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
 
                   const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName, slot?.ticketSessionId) : 1;
                   const isPast = isPastSlot(date, time);
+                  const isLocked = status === 'locked' || (status === 'available' && isPast);
+
+                  if (isLocked) {
+                    return (
+                      <td
+                        key={`${facility.id}-${time}`}
+                        colSpan={span}
+                        style={{ minWidth: span > 1 ? undefined : 84 }}
+                        className={`h-13 p-0 border-b border-slate-200/70 border-r border-r-slate-250 bg-stripes-past opacity-55 pointer-events-none select-none ${
+                          isHourBorder ? 'border-l-2 border-l-slate-400/80' : ''
+                        }`}
+                      />
+                    );
+                  }
 
                   return (
                     <td
@@ -313,7 +333,7 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                       className={`h-13 p-0 border-b border-slate-200/70 transition-all cursor-pointer ${
                         isHourBorder ? 'border-l-2 border-l-slate-400/80' : ''
                       } ${status === 'available' ? 'border-r border-r-slate-350' : ''} ${
-                        isPast ? 'opacity-40 bg-slate-100 pointer-events-none select-none' : ''
+                        isPast ? 'opacity-60 pointer-events-none select-none' : ''
                       }`}
                     >
                       {status === 'available' ? (
@@ -381,59 +401,35 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tên khách hàng / Tên giải</label>
-            <input
-              type="text"
-              placeholder="Nhập tên khách..."
-              value={quickBookingData.customerName}
-              onChange={(e) => setQuickBookingData({...quickBookingData, customerName: e.target.value})}
-              disabled={quickBookingData.status === 'maintenance'}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald disabled:bg-slate-100 font-sans"
-            />
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn ca chơi</label>
+            {shiftOptions.length > 0 ? (
+              <Dropdown
+                options={shiftOptions}
+                value={selectedShiftId}
+                onChange={handleShiftChange}
+                className="w-full text-xs font-medium font-sans"
+              />
+            ) : (
+              <div className="text-xs text-red-500 font-bold border border-red-200 bg-red-50 p-3 rounded-xl">
+                Không còn ca trống nào trong ngày của sân này.
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-end">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giờ bắt đầu</label>
-              <Dropdown
-                options={times.map(t => ({ value: t, label: t }))}
-                value={quickBookingData.startTime}
-                onChange={(val) => setQuickBookingData({...quickBookingData, startTime: val})}
-              />
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giá sân</label>
+              <div className="px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-xs font-black text-slate-700 flex items-center h-10 select-none">
+                {formatPrice(slots.find(s => s.facilityId === quickBookingData.facilityId && s.time === quickBookingData.startTime)?.price || 0)} / ca
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giờ kết thúc</label>
-              <Dropdown
-                options={times.map(t => ({ value: t, label: t }))}
-                value={quickBookingData.endTime}
-                onChange={(val) => setQuickBookingData({...quickBookingData, endTime: val})}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Trạng thái đặt</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['booked', 'pending', 'maintenance'].map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setQuickBookingData({
-                    ...quickBookingData,
-                    status: st as any,
-                    customerName: st === 'maintenance' ? '' : quickBookingData.customerName
-                  })}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    quickBookingData.status === st 
-                      ? st === 'booked' ? 'bg-brand-emerald text-white border-brand-emerald'
-                        : st === 'pending' ? 'bg-amber-400 text-amber-950 border-amber-400'
-                        : 'bg-red-500 text-white border-red-500'
-                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
-                  {st === 'booked' ? 'Đã đặt' : st === 'pending' ? 'Đang giữ' : 'Bảo trì'}
-                </button>
-              ))}
+              <div className="flex h-10 items-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-brand-emerald text-[10px] font-black uppercase tracking-wider select-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  CHỦ SÂN SPORTA
+                </span>
+              </div>
             </div>
           </div>
 
@@ -471,7 +467,7 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   'bg-red-100 text-red-800'
                 }`}>
                   {selectedBookingDetail.status === 'booked' ? 'Đã đặt' :
-                   selectedBookingDetail.status === 'pending' ? 'Đang giữ' :
+                   selectedBookingDetail.status === 'pending' ? 'Đặt thủ công' :
                    selectedBookingDetail.status === 'matchmaking' ? 'Ca xé vé ghép' :
                    selectedBookingDetail.status === 'locked' ? 'Đã quá giờ' :
                    selectedBookingDetail.status === 'maintenance' ? 'Bảo trì' : 'Không xác định'}
@@ -531,14 +527,62 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   Xác nhận đã đặt cọc
                 </button>
               )}
-              {(selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && (
-                <button onClick={handleCancelBooking} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
-                  Hủy lịch đặt sân này
+              {(selectedBookingDetail.status === 'matchmaking' || 
+                ((selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && selectedBookingDetail.isManual)) ? (
+                <button onClick={() => setIsConfirmCancelOpen(true)} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer border border-red-100">
+                  {selectedBookingDetail.status === 'matchmaking' ? 'Hủy ca xé vé này' : 'Hủy lịch đặt sân này'}
                 </button>
+              ) : (
+                (selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 text-slate-500 text-[10px] font-extrabold rounded-xl text-center uppercase tracking-wider">
+                    Không thể hủy lịch đặt của khách đặt qua App
+                  </div>
+                )
               )}
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ─── 5.1. MODAL XÁC NHẬN HỦY ───────────────────────────────── */}
+      <Modal 
+        isOpen={isConfirmCancelOpen} 
+        onClose={() => setIsConfirmCancelOpen(false)} 
+        title="Xác nhận hủy lịch" 
+        maxWidth="sm"
+        footer={
+          <div className="flex gap-2 justify-end w-full select-none font-sans">
+            <button 
+              type="button"
+              onClick={() => setIsConfirmCancelOpen(false)} 
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-black text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Quay lại
+            </button>
+            <button 
+              type="button"
+              onClick={async () => {
+                setIsConfirmCancelOpen(false);
+                await handleCancelBooking();
+              }} 
+              className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black transition-colors cursor-pointer border border-red-200"
+            >
+              Đồng ý hủy
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 font-sans text-left select-none">
+          <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-3 mx-auto">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-black text-slate-800 text-center uppercase tracking-tight">Bạn có chắc chắn muốn hủy?</h4>
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
+            Hành động này sẽ giải phóng khung giờ chơi và không thể hoàn tác. Các bên liên quan sẽ nhận được thông báo.
+          </p>
+        </div>
       </Modal>
     </div>
   );

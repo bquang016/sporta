@@ -29,6 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       inputClassName,
       wrapperClassName,
       type = 'text',
+      labelClassName,
       ...props
     },
     ref
@@ -43,6 +44,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         required={required}
         disabled={disabled}
         id={inputId}
+        labelClassName={labelClassName}
         className={cn(fullWidth ? 'w-full' : 'w-auto', wrapperClassName)}
       >
         <div className="relative flex items-center w-full">

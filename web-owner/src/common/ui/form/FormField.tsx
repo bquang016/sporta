@@ -10,10 +10,11 @@ export interface FormFieldProps {
   id?: string;
   className?: string;
   children: React.ReactNode;
+  labelClassName?: string;
 }
 
 export const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
-  ({ label, helperText, error, required, disabled, id, className, children }, ref) => {
+  ({ label, helperText, error, required, disabled, id, className, children, labelClassName }, ref) => {
     return (
       <div
         ref={ref}
@@ -26,7 +27,10 @@ export const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
         {label && (
           <label
             htmlFor={id}
-            className="text-xs font-semibold tracking-wider uppercase text-outline select-none flex items-center gap-0.5"
+            className={cn(
+              "select-none flex items-center gap-0.5",
+              labelClassName || "text-xs font-semibold tracking-wider uppercase text-outline"
+            )}
           >
             {label}
             {required && <span className="text-error font-bold" aria-hidden="true">*</span>}

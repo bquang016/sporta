@@ -11,6 +11,7 @@ export interface BookingSlot {
   status: SlotStatus;
   customerName?: string;
   bookingId?: string;
+  isManual?: boolean;
   bookingType?: 'regular' | 'matchmaking';
   maxPlayers?: number;
   skillLevel?: string;

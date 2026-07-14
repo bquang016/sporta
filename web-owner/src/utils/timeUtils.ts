@@ -43,3 +43,47 @@ export const isPastSlot = (slotDate: Date | string, slotTime: string): boolean =
 
   return false;
 };
+
+/**
+ * Tạo danh sách các ca giờ (HH:mm) cách nhau 30 phút dựa trên thời gian mở cửa và đóng cửa của cụm sân.
+ */
+export const generateTimesRange = (opening?: string, closing?: string): string[] => {
+  // Mặc định từ 06:00 đến 22:00 nếu không có cấu hình
+  let startHour = 6;
+  let startMin = 0;
+  let endHour = 22;
+  let endMin = 0;
+
+  if (opening) {
+    const parts = opening.split(':');
+    if (parts.length >= 2) {
+      startHour = parseInt(parts[0], 10);
+      startMin = parseInt(parts[1], 10);
+    }
+  }
+
+  if (closing) {
+    const parts = closing.split(':');
+    if (parts.length >= 2) {
+      endHour = parseInt(parts[0], 10);
+      endMin = parseInt(parts[1], 10);
+    }
+  }
+
+  const times: string[] = [];
+  let h = startHour;
+  let m = startMin;
+
+  while (h < endHour || (h === endHour && m < endMin)) {
+    const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    times.push(timeStr);
+    
+    m += 30;
+    if (m >= 60) {
+      h += 1;
+      m = 0;
+    }
+  }
+
+  return times;
+};

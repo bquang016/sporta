@@ -11,7 +11,8 @@ import type {
   SubCourt,
 } from '../types';
 
-const API_BASE = 'http://localhost:8387/api/v1/auth';
+const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const API_BASE = `http://${host}:8387/api/v1/auth`;
 
 /**
  * Send OTP code to the given email address.

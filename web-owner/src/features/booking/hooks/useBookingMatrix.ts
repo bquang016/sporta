@@ -3,11 +3,16 @@ import { generateTimes, type SlotStatus, type BookingSlot, type Facility } from 
 import { scheduleService } from '../services/scheduleService';
 import { courtService } from '../../venue/services/courtService';
 import type { CourtResponse } from '../../venue/types';
+import { useToast } from '../../../components/ui/Toast';
 
 export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => {
+  const { showToast } = useToast();
+
   // ─── STATE QUẢN LÝ DỮ LIỆU LỊCH ĐẶT THỰC TẾ ───────────────────
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [rawCourts, setRawCourts] = useState<CourtResponse[]>([]);
+  const [currentVenue, setCurrentVenue] = useState<any>(null);
+  const [selectedShiftId, setSelectedShiftId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -15,6 +20,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   const [shiftMinutes, setShiftMinutes] = useState(30);
   const [sportName, setSportName] = useState('');
   const [times, setTimes] = useState<string[]>([]);
+  const [closingTime, setClosingTime] = useState('22:00');
 
   // Quản lý Ngày bằng Date object thực tế
   const [date, setDate] = useState<Date>(() => new Date());
@@ -28,11 +34,28 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   const [showKpis, setShowKpis] = useState(false);
 
   // Tạo khung giờ động dựa trên chính sách chia ca của cụm sân
-  const generateDynamicTimes = (duration: number): string[] => {
+  // Tạo khung giờ động dựa trên chính sách chia ca và giờ hoạt động của cụm sân
+  const generateDynamicTimes = (duration: number, opening?: string, closing?: string): string[] => {
+    let startMin = 6 * 60; // Mặc định 06:00
+    let endMin = 22 * 60;  // Mặc định 22:00
+
+    if (opening) {
+      const parts = opening.split(':');
+      if (parts.length >= 2) {
+        startMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      }
+    }
+
+    if (closing) {
+      const parts = closing.split(':');
+      if (parts.length >= 2) {
+        endMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      }
+    }
+
     const t: string[] = [];
-    let currentMin = 6 * 60; // 06:00
-    const endMin = 22 * 60;  // 22:00
-    while (currentMin <= endMin) {
+    let currentMin = startMin;
+    while (currentMin < endMin) {
       const h = Math.floor(currentMin / 60);
       const m = currentMin % 60;
       t.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
@@ -94,10 +117,14 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     maxPlayers?: number;
     skillLevel?: string;
     ticketSessionId?: string;
+    bookingId?: string;
+    isManual?: boolean;
     bookedSlots?: number;
     maxSlots?: number;
     pricePerTicket?: number;
   } | null>(null);
+
+  const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
 
   // Fetch dữ liệu thực tế từ API
   const fetchSchedule = useCallback(async () => {
@@ -121,12 +148,22 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       // Tìm cụm sân hiện tại để xác định ca
       const venueList = await courtService.getVenues();
       const currentVenue = venueList.find(v => v.id === venueId);
+      setCurrentVenue(currentVenue || null);
       const venueShift = currentVenue?.shiftDurationMinutes || 30;
       setShiftMinutes(venueShift);
       setSportName(currentVenue?.sport?.name || '');
       
-      const dynamicTimes = generateDynamicTimes(venueShift);
+      const dynamicTimes = generateDynamicTimes(venueShift, currentVenue?.openingTime, currentVenue?.closingTime);
       setTimes(dynamicTimes);
+
+      let closeStr = '22:00';
+      if (currentVenue?.closingTime) {
+        const parts = currentVenue.closingTime.split(':');
+        if (parts.length >= 2) {
+          closeStr = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+        }
+      }
+      setClosingTime(closeStr);
 
       // 2. Fetch sơ đồ đặt sân ngày được chọn
       const dateStr = getApiDateStr(date);
@@ -141,6 +178,8 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         customerName: s.customerName,
         bookingType: s.status === 'matchmaking' ? 'matchmaking' : 'regular',
         ticketSessionId: s.ticketSessionId,
+        bookingId: s.bookingId,
+        isManual: s.isManual,
         bookedSlots: s.bookedSlots,
         maxSlots: s.maxSlots,
         skillLevel: s.sportLevel,
@@ -153,7 +192,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     } finally {
       setLoading(false);
     }
-  }, [venueId, date]);
+  }, [venueId, date, refreshCounter]);
 
   useEffect(() => {
     fetchSchedule();
@@ -172,6 +211,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       customerName?: string;
       slotCount: number;
       ticketSessionId?: string;
+      isManual?: boolean;
     }[] = [];
     let current: {
       startTime: string;
@@ -180,6 +220,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       customerName?: string;
       slotCount: number;
       ticketSessionId?: string;
+      isManual?: boolean;
     } | null = null;
 
     for (const time of times) {
@@ -187,6 +228,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       const status = slot?.status || 'available';
       const name = slot?.customerName;
       const tSessionId = slot?.ticketSessionId;
+      const isManual = slot?.isManual;
 
       if (status === 'available') {
         if (current) {
@@ -199,8 +241,11 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       const matchesSearch = !searchTerm || (name && name.toLowerCase().includes(searchTerm.toLowerCase()));
 
       // Gom nhóm: Cùng trạng thái, cùng khách hàng (nếu là booking thường), hoặc cùng ca xé vé
+      // Tuyệt đối không gộp các ca đặt thủ công (isManual === true)
       const isSameGroup = current && 
         current.status === status && 
+        !isManual &&
+        !current.isManual &&
         (status === 'matchmaking' ? current.ticketSessionId === tSessionId : current.customerName === name);
 
       if (isSameGroup && current) {
@@ -216,7 +261,8 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
           status, 
           customerName: matchesSearch ? name : undefined, 
           slotCount: 1,
-          ticketSessionId: tSessionId
+          ticketSessionId: tSessionId,
+          isManual
         };
       }
     }
@@ -338,8 +384,21 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     };
 
     if (status === 'available') {
-      const timeIdx = times.indexOf(time);
-      const endT = timeIdx < times.length - 2 ? times[timeIdx + 2] : times[times.length - 1];
+      const duration = currentVenue?.shiftDurationMinutes || 30;
+      const parseTimeToMinutesLocal = (t: string): number => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const startMin = parseTimeToMinutesLocal(time);
+      const endMin = startMin + duration;
+
+      const formatMinutesToTime = (min: number) => {
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      };
+      const endT = formatMinutesToTime(endMin);
+
       setQuickBookingData({
         facilityId,
         customerName: '',
@@ -350,6 +409,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         maxPlayers: 10,
         skillLevel: 'ALL'
       });
+      setSelectedShiftId(`${time}-${endT}`);
       setIsBookingModalOpen(true);
     } else {
       const slot = getSlot(facilityId, time);
@@ -380,11 +440,24 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
           if (s) slotIds.push(s.id);
         }
 
+        const parseTimeToMinutesLocal = (t: string): number => {
+          const [h, m] = t.split(':').map(Number);
+          return h * 60 + m;
+        };
+        const formatMinutesToTime = (min: number) => {
+          const h = Math.floor(min / 60) % 24;
+          const m = min % 60;
+          return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        };
+        const startMin = parseTimeToMinutesLocal(block.startTime);
+        const actualEndMin = startMin + block.slotCount * shiftMinutes;
+        const actualEndTime = formatMinutesToTime(actualEndMin);
+
         setSelectedBookingDetail({
           facility,
           customerName: status === 'matchmaking' ? 'Ca xé vé ghép cặp' : (block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : 'Khách lẻ')),
           startTime: block.startTime,
-          endTime: block.endTime,
+          endTime: actualEndTime,
           status: block.status,
           slotIds,
           price: status === 'matchmaking' ? (slot.pricePerTicket || 0) : totalPrice,
@@ -392,6 +465,8 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
           maxPlayers: slot.maxPlayers,
           skillLevel: slot.skillLevel,
           ticketSessionId: slot.ticketSessionId,
+          bookingId: slot.bookingId,
+          isManual: slot.isManual,
           bookedSlots: slot.bookedSlots,
           maxSlots: slot.maxSlots,
           pricePerTicket: slot.pricePerTicket
@@ -401,63 +476,193 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     }
   };
 
-  const handleQuickBookingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickBookingData.customerName.trim() && quickBookingData.status !== 'maintenance' && quickBookingData.bookingType !== 'matchmaking') {
-      alert('Vui lòng nhập tên khách hàng hoặc tên đơn đặt!');
-      return;
+  // Generate and filter available shifts for the quick booking form (Level 1 filtration)
+  const shiftOptions = useMemo(() => {
+    if (!currentVenue || !quickBookingData.facilityId) return [];
+
+    const duration = currentVenue.shiftDurationMinutes || 30;
+    const opening = currentVenue.openingTime || '06:00';
+    const closing = currentVenue.closingTime || '22:00';
+
+    let startMin = 6 * 60;
+    let endMin = 22 * 60;
+
+    const parseTimeToMinutesLocal = (t: string): number => {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    if (opening) startMin = parseTimeToMinutesLocal(opening);
+    if (closing) endMin = parseTimeToMinutesLocal(closing);
+
+    const options = [];
+    let currentMin = startMin;
+    let shiftIndex = 1;
+
+    const formatMinutesToTime = (min: number) => {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
+    while (currentMin < endMin) {
+      const nextMin = currentMin + duration;
+      if (nextMin > endMin) break;
+
+      const startTimeStr = formatMinutesToTime(currentMin);
+      const endTimeStr = formatMinutesToTime(nextMin);
+
+      // Check if court has any busy slot at this time (booked, pending, maintenance)
+      // Level 1: Hide slots that are already booked, pending, or under maintenance from dropdown
+      const matchingSlot = slots.find(s => s.facilityId === quickBookingData.facilityId && s.time === startTimeStr);
+      const isAvailable = !matchingSlot || matchingSlot.status === 'available';
+
+      if (isAvailable) {
+        options.push({
+          value: `${startTimeStr}-${endTimeStr}`,
+          label: `Ca ${shiftIndex}: ${startTimeStr} - ${endTimeStr}`,
+        });
+      }
+
+      currentMin = nextMin;
+      shiftIndex++;
     }
 
+    return options;
+  }, [currentVenue, quickBookingData.facilityId, slots, times]);
+
+  useEffect(() => {
+    if (shiftOptions.length > 0) {
+      const exists = shiftOptions.some(opt => opt.value === selectedShiftId);
+      if (!exists) {
+        setSelectedShiftId(shiftOptions[0].value);
+        const [start, end] = shiftOptions[0].value.split('-');
+        setQuickBookingData(prev => ({
+          ...prev,
+          startTime: start,
+          endTime: end
+        }));
+      }
+    } else {
+      setSelectedShiftId('');
+      setQuickBookingData(prev => ({
+        ...prev,
+        startTime: '',
+        endTime: ''
+      }));
+    }
+  }, [shiftOptions, selectedShiftId]);
+
+  const handleShiftChange = (val: string) => {
+    setSelectedShiftId(val);
+    if (val) {
+      const [start, end] = val.split('-');
+      setQuickBookingData(prev => ({
+        ...prev,
+        startTime: start,
+        endTime: end
+      }));
+    } else {
+      setQuickBookingData(prev => ({
+        ...prev,
+        startTime: '',
+        endTime: ''
+      }));
+    }
+  };
+
+  const handleQuickBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const startIdx = times.indexOf(quickBookingData.startTime);
-    const endIdx = times.indexOf(quickBookingData.endTime);
+    let endIdx = times.indexOf(quickBookingData.endTime);
+    if (endIdx === -1 && quickBookingData.endTime === closingTime) {
+      endIdx = times.length;
+    }
 
     if (startIdx >= endIdx) {
       alert('Thời gian kết thúc phải sau thời gian bắt đầu!');
       return;
     }
 
-    const facilityId = quickBookingData.facilityId;
-    const name = quickBookingData.status === 'maintenance' ? undefined : quickBookingData.customerName;
+    setLoading(true);
+    setError(null);
+    try {
+      const dateStr = getApiDateStr(date);
+      const facilityId = quickBookingData.facilityId;
+      
+      // Build slots payload split by shiftDurationMinutes
+      const slotsPayload = [];
+      for (let i = startIdx; i < endIdx; i++) {
+        const t = times[i];
+        const nextT = i < times.length - 1 ? times[i + 1] : closingTime;
+        slotsPayload.push({
+          courtId: facilityId,
+          bookingDate: dateStr,
+          startTime: t,
+          endTime: nextT
+        });
+      }
 
-    const newSlotsToAdd: BookingSlot[] = [];
-    for (let i = startIdx; i < endIdx; i++) {
-      const t = times[i];
-      newSlotsToAdd.push({
-        id: `slot-${facilityId}-${t}-${Date.now()}`,
-        facilityId,
-        time: t,
-        status: quickBookingData.status,
-        customerName: name,
-        price: 0,
-        bookingType: 'regular'
+      await scheduleService.createBooking({
+        slots: slotsPayload,
+        paymentMethod: 'manual',
+        status: 'CONFIRMED',
+        isManual: true,
+        customerName: 'CHỦ SÂN SPORTA'
       });
+
+      showToast('success', 'Đặt sân thủ công thành công!');
+      setIsBookingModalOpen(false);
+      await fetchSchedule();
+    } catch (err: any) {
+      // Level 2: if conflict occurs (e.g. booked by someone else in the meantime), show transparent warning message
+      alert(err.message || 'Lỗi khi đặt sân thủ công');
+    } finally {
+      setLoading(false);
     }
-
-    const updatedSlots = slots.filter(s => {
-      const inRange = s.facilityId === facilityId && times.indexOf(s.time) >= startIdx && times.indexOf(s.time) < endIdx;
-      return !inRange;
-    });
-
-    setSlots([...updatedSlots, ...newSlotsToAdd]);
-    setIsBookingModalOpen(false);
   };
 
-  const handleCancelBooking = () => {
+  const handleCancelBooking = async () => {
     if (!selectedBookingDetail) return;
-    const slotIdsToRemove = selectedBookingDetail.slotIds;
-    const updatedSlots = slots.filter(s => !slotIdsToRemove.includes(s.id));
-    setSlots(updatedSlots);
-    setIsDetailModalOpen(false);
-    setSelectedBookingDetail(null);
+
+    setLoading(true);
+    setError(null);
+    try {
+      if (selectedBookingDetail.status === 'matchmaking' && selectedBookingDetail.ticketSessionId) {
+        // Cancel ticket session (xé vé)
+        await scheduleService.cancelTicketSession(selectedBookingDetail.ticketSessionId);
+        showToast('success', 'Hủy ca xé vé thành công!');
+      } else if (selectedBookingDetail.bookingId) {
+        // Cancel manual booking
+        await scheduleService.cancelBooking(selectedBookingDetail.bookingId);
+        showToast('success', 'Hủy lịch đặt sân thành công!');
+      } else {
+        throw new Error('Không thể xác định ID đặt sân để hủy');
+      }
+
+      setIsDetailModalOpen(false);
+      setSelectedBookingDetail(null);
+      await fetchSchedule();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi hủy lịch đặt sân');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isBlockStart = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string): boolean => {
     if (status === 'available') return false;
+    const slot = getSlot(facilityId, time);
+    if (slot?.isManual) return true; // Lịch đặt thủ công luôn bắt đầu block mới
+
     const idx = times.indexOf(time);
     if (idx === 0) return true;
     const prevTime = times[idx - 1];
     const prevSlot = getSlot(facilityId, prevTime);
     if (!prevSlot) return true;
+    if (prevSlot.isManual) return true; // Không gộp với lịch đặt thủ công trước đó
 
     if (status === 'matchmaking') {
       return prevSlot.status !== status || prevSlot.ticketSessionId !== ticketSessionId;
@@ -466,10 +671,14 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   };
 
   const getBlockSpan = (facilityId: string, timeIndex: number, status: SlotStatus, customerName?: string, ticketSessionId?: string): number => {
+    const slot = getSlot(facilityId, times[timeIndex]);
+    if (slot?.isManual) return 1; // Lịch đặt thủ công có độ rộng mặc định là 1 ca
+
     let count = 1;
     for (let i = timeIndex + 1; i < times.length; i++) {
       const nextSlot = getSlot(facilityId, times[i]);
       if (!nextSlot || nextSlot.status !== status) break;
+      if (nextSlot.isManual) break; // Gặp lịch đặt thủ công thì dừng lại không gộp tiếp
       
       if (status === 'matchmaking') {
         if (nextSlot.ticketSessionId !== ticketSessionId) break;
@@ -529,6 +738,12 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     error,
     fetchSchedule,
     shiftMinutes,
-    sportName
+    sportName,
+    closingTime,
+    shiftOptions,
+    selectedShiftId,
+    handleShiftChange,
+    isConfirmCancelOpen,
+    setIsConfirmCancelOpen
   };
 };

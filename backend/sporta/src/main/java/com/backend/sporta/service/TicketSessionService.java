@@ -275,4 +275,17 @@ public class TicketSessionService {
                 .status(session.getStatus())
                 .build();
     }
+
+    @Transactional
+    public void cancelTicketSession(UUID sessionId, String email) {
+        TicketSession session = ticketSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy ca xé vé", 404));
+
+        if (!session.getVenue().getOwner().getUser().getEmail().equals(email)) {
+            throw new CustomException("Bạn không có quyền hủy ca xé vé này", 403);
+        }
+
+        session.setStatus(TicketSessionStatus.CANCELLED);
+        ticketSessionRepository.save(session);
+    }
 }
