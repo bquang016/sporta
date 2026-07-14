@@ -130,6 +130,21 @@ public class VenueService {
 
         String ownerPhone = (venue.getOwner() != null) ? venue.getOwner().getPhoneNumber() : null;
 
+        String finalCoverImage = venue.getCoverImage();
+        if (finalCoverImage == null && venue.getRegistrationImages() != null && !venue.getRegistrationImages().trim().isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                java.util.List<String> imageUrls = mapper.readValue(venue.getRegistrationImages(),
+                        mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
+                if (!imageUrls.isEmpty()) {
+                    finalCoverImage = imageUrls.get(0);
+                    if (detailImages.isEmpty()) {
+                        detailImages = imageUrls;
+                    }
+                }
+            } catch (Exception e) {}
+        }
+
         return VenueDetailResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -140,7 +155,7 @@ public class VenueService {
                 .openingTime(venue.getOpeningTime())
                 .closingTime(venue.getClosingTime())
                 .shiftDurationMinutes(venue.getShiftDurationMinutes())
-                .coverImage(venue.getCoverImage())
+                .coverImage(finalCoverImage)
                 .detailImages(detailImages)
                 .hasSurcharge(venue.getHasSurcharge())
                 .surchargeAmount(venue.getSurchargeAmount())
@@ -619,6 +634,10 @@ public class VenueService {
             throw new CustomException("Vui lòng nhập vị trí cụm sân", 400);
         }
 
+        if (venue.getLatitude() == null || venue.getLongitude() == null) {
+            throw new CustomException("Vui lòng chọn vị trí trên bản đồ", 400);
+        }
+
         if (venue.getSport() == null) {
             throw new CustomException("Vui lòng chọn môn thể thao", 400);
         }
@@ -796,6 +815,18 @@ public class VenueService {
                 ? venue.getImages().stream().map(VenueImage::getImageUrl).collect(Collectors.toList())
                 : new ArrayList<>();
 
+        String finalCoverImage = venue.getCoverImage();
+        if (finalCoverImage == null && venue.getRegistrationImages() != null && !venue.getRegistrationImages().trim().isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                java.util.List<String> imageUrls = mapper.readValue(venue.getRegistrationImages(),
+                        mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
+                if (!imageUrls.isEmpty()) {
+                    finalCoverImage = imageUrls.get(0);
+                }
+            } catch (Exception e) {}
+        }
+
         return VenueResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -810,7 +841,7 @@ public class VenueService {
                 .openingTime(venue.getOpeningTime())
                 .closingTime(venue.getClosingTime())
                 .shiftDurationMinutes(venue.getShiftDurationMinutes())
-                .coverImage(venue.getCoverImage())
+                .coverImage(finalCoverImage)
                 .detailImages(detailImageUrls)
                 .hasSurcharge(venue.getHasSurcharge())
                 .surchargeAmount(venue.getSurchargeAmount())
@@ -864,6 +895,42 @@ public class VenueService {
 
         // Delete venue (venue images are cascade deleted via CascadeType.ALL)
         venueRepository.delete(venue);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<VenueResponse> getPendingNewVenues() {
+        return venueRepository.findAll().stream()
+                .filter(v -> v.getApprovalStatus() == ApprovalStatus.PENDING)
+                .map(venue -> mapToResponse(venue, false))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void approveNewVenue(UUID id) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy cụm sân", 404));
+
+        if (venue.getApprovalStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Cụm sân không ở trạng thái chờ duyệt", 400);
+        }
+
+        venue.setApprovalStatus(ApprovalStatus.APPROVED);
+        venue.setStatus(VenueStatus.ACTIVE);
+        venueRepository.save(venue);
+    }
+
+    @Transactional
+    public void rejectNewVenue(UUID id, String reason) {
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy cụm sân", 404));
+
+        if (venue.getApprovalStatus() != ApprovalStatus.PENDING) {
+            throw new CustomException("Cụm sân không ở trạng thái chờ duyệt", 400);
+        }
+
+        venue.setApprovalStatus(ApprovalStatus.REJECTED);
+        // Có thể lưu thêm lý do từ chối vào một trường note (nếu VenueEntity có hỗ trợ)
+        venueRepository.save(venue);
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
