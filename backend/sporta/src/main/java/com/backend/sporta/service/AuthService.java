@@ -372,6 +372,26 @@ public class AuthService {
                 .build();
         owner = ownerRepository.save(owner);
 
+        // Parse registrationImages to set coverImage and VenueImage list
+        String coverImage = null;
+        java.util.List<VenueImage> venueImagesList = new java.util.ArrayList<>();
+        if (reg.getRegistrationImages() != null && !reg.getRegistrationImages().trim().isEmpty()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                java.util.List<String> imageUrls = mapper.readValue(reg.getRegistrationImages(),
+                        mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
+                if (!imageUrls.isEmpty()) {
+                    coverImage = imageUrls.get(0);
+                    // Add all to VenueImage
+                    for (String url : imageUrls) {
+                        venueImagesList.add(VenueImage.builder().imageUrl(url).build());
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to parse registrationImages: " + e.getMessage());
+            }
+        }
+
         // 4. Create Venue
         Venue venue = Venue.builder()
                 .owner(owner)
@@ -383,6 +403,7 @@ public class AuthService {
                 .sportTypes(reg.getSportTypes())
                 .subCourtCount(reg.getSubCourtCount())
                 .registrationImages(reg.getRegistrationImages())
+                .coverImage(coverImage)
                 .description(reg.getDescription())
                 .status(com.backend.sporta.enums.VenueStatus.ACTIVE)
                 .approvalStatus(com.backend.sporta.enums.ApprovalStatus.APPROVED)
@@ -391,6 +412,13 @@ public class AuthService {
                 .openingTime(java.time.LocalTime.of(5, 0))
                 .closingTime(java.time.LocalTime.of(22, 0))
                 .build();
+        
+        // Associate venue images with venue
+        for (VenueImage vi : venueImagesList) {
+            vi.setVenue(venue);
+        }
+        venue.setImages(venueImagesList);
+
         venue = venueRepository.save(venue);
 
 

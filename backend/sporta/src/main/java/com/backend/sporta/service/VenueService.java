@@ -130,6 +130,21 @@ public class VenueService {
 
         String ownerPhone = (venue.getOwner() != null) ? venue.getOwner().getPhoneNumber() : null;
 
+        String finalCoverImage = venue.getCoverImage();
+        if (finalCoverImage == null && venue.getRegistrationImages() != null && !venue.getRegistrationImages().trim().isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                java.util.List<String> imageUrls = mapper.readValue(venue.getRegistrationImages(),
+                        mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
+                if (!imageUrls.isEmpty()) {
+                    finalCoverImage = imageUrls.get(0);
+                    if (detailImages.isEmpty()) {
+                        detailImages = imageUrls;
+                    }
+                }
+            } catch (Exception e) {}
+        }
+
         return VenueDetailResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -140,7 +155,7 @@ public class VenueService {
                 .openingTime(venue.getOpeningTime())
                 .closingTime(venue.getClosingTime())
                 .shiftDurationMinutes(venue.getShiftDurationMinutes())
-                .coverImage(venue.getCoverImage())
+                .coverImage(finalCoverImage)
                 .detailImages(detailImages)
                 .hasSurcharge(venue.getHasSurcharge())
                 .surchargeAmount(venue.getSurchargeAmount())
@@ -800,6 +815,18 @@ public class VenueService {
                 ? venue.getImages().stream().map(VenueImage::getImageUrl).collect(Collectors.toList())
                 : new ArrayList<>();
 
+        String finalCoverImage = venue.getCoverImage();
+        if (finalCoverImage == null && venue.getRegistrationImages() != null && !venue.getRegistrationImages().trim().isEmpty()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                java.util.List<String> imageUrls = mapper.readValue(venue.getRegistrationImages(),
+                        mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
+                if (!imageUrls.isEmpty()) {
+                    finalCoverImage = imageUrls.get(0);
+                }
+            } catch (Exception e) {}
+        }
+
         return VenueResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -814,7 +841,7 @@ public class VenueService {
                 .openingTime(venue.getOpeningTime())
                 .closingTime(venue.getClosingTime())
                 .shiftDurationMinutes(venue.getShiftDurationMinutes())
-                .coverImage(venue.getCoverImage())
+                .coverImage(finalCoverImage)
                 .detailImages(detailImageUrls)
                 .hasSurcharge(venue.getHasSurcharge())
                 .surchargeAmount(venue.getSurchargeAmount())
