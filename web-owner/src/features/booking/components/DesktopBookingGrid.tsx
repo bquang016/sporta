@@ -1,17 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
-import { MOCK_FACILITIES, formatPrice } from './mockData';
+import { formatPrice } from './mockData';
 import { useBookingMatrix } from '../hooks/useBookingMatrix';
+import { isPastSlot } from '../../../utils/timeUtils';
+import { ticketService } from '../../venue/services/ticketService';
+import { getSportLevelLabel } from '../../venue/hooks/useTicketSessions';
+import { Copy, Check, Users, Award, Tag, Ticket, Clock, Calendar } from 'lucide-react';
 
-export const DesktopBookingGrid = () => {
+interface DesktopBookingGridProps {
+  venueId: string;
+  refreshCounter: number;
+}
+
+export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId, refreshCounter }) => {
   const {
     times,
+    slots,
     searchTerm,
     setSearchTerm,
-    selectedCourtType,
-    setSelectedCourtType,
     currentDate,
+    date,
     isBookingModalOpen,
     setIsBookingModalOpen,
     isDetailModalOpen,
@@ -30,10 +39,19 @@ export const DesktopBookingGrid = () => {
     handleCellClick,
     handleQuickBookingSubmit,
     handleCancelBooking,
+    isBlockStart,
     getBlockSpan,
     isInsideBlock,
-    handleConfirmDeposit
-  } = useBookingMatrix();
+    handleConfirmDeposit,
+    shiftMinutes,
+    sportName,
+    closingTime,
+    shiftOptions,
+    selectedShiftId,
+    handleShiftChange,
+    isConfirmCancelOpen,
+    setIsConfirmCancelOpen
+  } = useBookingMatrix(venueId, refreshCounter);
 
   return (
     <div className="w-full flex flex-col gap-5 min-h-0">
@@ -94,7 +112,7 @@ export const DesktopBookingGrid = () => {
           )}
           <button 
             onClick={() => setShowKpis(!showKpis)}
-            className="flex items-center gap-1.5 text-xs font-black text-brand-emerald hover:text-emerald-950 transition-colors focus:outline-none"
+            className="flex items-center gap-1.5 text-xs font-black text-brand-emerald hover:text-emerald-950 transition-colors focus:outline-none cursor-pointer"
           >
             <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${showKpis ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
@@ -188,61 +206,46 @@ export const DesktopBookingGrid = () => {
       {/* ─── 2. THANH BỘ LỌC FILTER TOOLBAR ──────────────────── */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/85 shadow-[0_4px_18px_rgba(0,0,0,0.02)] flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Ô Tìm kiếm khách hàng */}
+          {/* Ô Tìm kiếm sân hoặc khách */}
           <div className="relative">
-            <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-450 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
-              placeholder="Tìm khách đặt sân..."
+              placeholder="Tìm kiếm sân hoặc khách đặt..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald w-56 font-medium placeholder-slate-400 transition-all"
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald w-64 font-medium placeholder-slate-400 transition-all font-sans"
             />
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')} 
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-600 text-xs font-bold"
               >
                 ✕
               </button>
             )}
-          </div>
-
-          {/* Lọc Loại Sân */}
-          <div className="flex bg-slate-100 rounded-xl p-1 gap-1 border border-slate-200/50">
-            {['all', '5v5', '7v7', '11v11'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setSelectedCourtType(type)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  selectedCourtType === type ? 'bg-white text-brand-emerald shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                {type === 'all' ? 'Tất cả sân' : `Sân ${type.replace('v', ' đấu ')}`}
-              </button>
-            ))}
           </div>
         </div>
 
         {/* Chọn ngày & Nút đặt nhanh */}
         <div className="flex items-center gap-3">
           <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-            <button onClick={handlePrevDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+            <button onClick={handlePrevDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={handleToday} className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border-x border-slate-200 hover:bg-slate-50 transition-colors">
+            <button onClick={handleToday} className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border-x border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
               {currentDate}
             </button>
-            <button onClick={handleNextDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+            <button onClick={handleNextDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
             </button>
           </div>
 
           <button
             onClick={() => setIsBookingModalOpen(true)}
-            className="flex items-center gap-1.5 bg-brand-emerald text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-emerald-950 hover:shadow-md active:scale-95 transition-all"
+            className="flex items-center gap-1.5 bg-brand-emerald text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-emerald-950 hover:shadow-md active:scale-95 transition-all cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -252,14 +255,14 @@ export const DesktopBookingGrid = () => {
         </div>
       </div>
 
-      {/* ─── 3. BẢNG MA TRẬN ĐẶT SÂN ───────────────────────── */}
+      {/* ─── 3. BẢNG MA TRẬN ĐẶT SÂN (FORM MA TRẬN GỘP KHỐI TRUYỀN THỐNG) ─── */}
       <div className="matrix-scroll overflow-x-auto overflow-y-visible rounded-3xl border border-slate-200/80 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.06)] select-none">
         <table className="border-collapse w-full">
           <thead>
             <tr className="sticky top-0 z-30">
               <th
                 style={{ position: 'sticky', left: 0, zIndex: 40, minWidth: 160 }}
-                className="h-12 bg-slate-900 text-white text-xs font-black uppercase tracking-wider border-b border-r border-slate-800/80 text-center"
+                className="h-12 bg-slate-200 text-slate-800 text-xs font-black uppercase tracking-wider border-b border-r border-slate-350 text-center"
               >
                 Sân bóng
               </th>
@@ -270,10 +273,10 @@ export const DesktopBookingGrid = () => {
                   <th
                     key={time}
                     style={{ minWidth: 84 }}
-                    className={`h-12 text-[11px] font-extrabold tracking-wider px-1 border-b text-center border-slate-800/20 ${
+                    className={`h-12 text-[11px] font-extrabold tracking-wider px-1 border-b text-center border-slate-250 ${
                       isHour
-                        ? 'bg-slate-900 text-brand-yellow border-r border-r-slate-500'
-                        : 'bg-slate-800 text-slate-300 border-r border-r-slate-700'
+                        ? 'bg-slate-100 text-slate-800 border-r border-r-slate-300'
+                        : 'bg-slate-50 text-slate-600 border-r border-r-slate-200'
                     }`}
                   >
                     {time}
@@ -287,24 +290,39 @@ export const DesktopBookingGrid = () => {
               <tr key={facility.id} className="group/row hover:bg-slate-50/30">
                 <td
                   style={{ position: 'sticky', left: 0, zIndex: 20, minWidth: 160 }}
-                  className="h-13 bg-slate-900 text-white border-b border-r border-slate-800/80 shadow-[4px_0_12px_rgba(0,0,0,0.1)] text-center"
+                  className="h-13 bg-slate-100 text-slate-800 border-b border-r border-slate-200 shadow-[4px_0_12px_rgba(0,0,0,0.02)] text-center font-bold"
                 >
                   <div className="flex flex-col items-center justify-center px-3">
-                    <span className="text-sm font-black text-slate-100">{facility.name}</span>
-                    <span className="text-[10px] text-brand-yellow font-bold uppercase tracking-wider mt-0.5">{facility.type}</span>
+                    <span className="text-sm font-black text-slate-800">{facility.name}</span>
+                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-wider mt-0.5">{sportName || 'Sân đấu'}</span>
                   </div>
                 </td>
 
                 {times.map((time, colIdx) => {
-                  const slot = useBookingMatrix().slots.find(s => s.facilityId === facility.id && s.time === time);
+                  const slot = slots.find(s => s.facilityId === facility.id && s.time === time);
                   const status = slot?.status || 'available';
                   const isHourBorder = time.endsWith(':00');
 
-                  if (isInsideBlock(facility.id, time, status, slot?.customerName)) {
+                  if (isInsideBlock(facility.id, time, status, slot?.customerName, slot?.ticketSessionId)) {
                     return null;
                   }
 
-                  const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName) : 1;
+                  const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName, slot?.ticketSessionId) : 1;
+                  const isPast = isPastSlot(date, time);
+                  const isLocked = status === 'locked' || (status === 'available' && isPast);
+
+                  if (isLocked) {
+                    return (
+                      <td
+                        key={`${facility.id}-${time}`}
+                        colSpan={span}
+                        style={{ minWidth: span > 1 ? undefined : 84 }}
+                        className={`h-13 p-0 border-b border-slate-200/70 border-r border-r-slate-250 bg-stripes-past opacity-55 pointer-events-none select-none ${
+                          isHourBorder ? 'border-l-2 border-l-slate-400/80' : ''
+                        }`}
+                      />
+                    );
+                  }
 
                   return (
                     <td
@@ -312,9 +330,11 @@ export const DesktopBookingGrid = () => {
                       colSpan={span}
                       onClick={() => handleCellClick(facility.id, time, status)}
                       style={{ minWidth: span > 1 ? undefined : 84 }}
-                      className={`h-13 p-0 border-b border-slate-200/70 transition-all ${
+                      className={`h-13 p-0 border-b border-slate-200/70 transition-all cursor-pointer ${
                         isHourBorder ? 'border-l-2 border-l-slate-400/80' : ''
-                      } ${status === 'available' ? 'border-r border-r-slate-350' : ''}`}
+                      } ${status === 'available' ? 'border-r border-r-slate-350' : ''} ${
+                        isPast ? 'opacity-60 pointer-events-none select-none' : ''
+                      }`}
                     >
                       {status === 'available' ? (
                         <div className={`h-full w-full flex items-center justify-center ${getCellStyle(status)} group`}>
@@ -336,8 +356,8 @@ export const DesktopBookingGrid = () => {
                               </svg>
                             )}
                             {status === 'matchmaking' && (
-                              <svg className="w-3.5 h-3.5 text-white/80 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                              <svg className="w-3.5 h-3.5 text-white/90 flex-shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                               </svg>
                             )}
                             {status === 'maintenance' && (
@@ -345,14 +365,14 @@ export const DesktopBookingGrid = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01" />
                               </svg>
                             )}
-                            <span className="text-xs font-bold truncate">
+                            <span className="text-xs font-black truncate uppercase tracking-wide">
                               {status === 'matchmaking' 
-                                ? `Xé vé: ${slot?.customerName || 'Trận ghép'} (${slot?.maxPlayers}ng - ${slot?.skillLevel})`
+                                ? `🎫 XÉ VÉ (${slot?.bookedSlots}/${slot?.maxSlots})`
                                 : (slot?.customerName || (status === 'maintenance' ? 'BẢO TRÌ' : ''))}
                             </span>
                           </div>
                           <span className="text-[9px] font-extrabold opacity-75 whitespace-nowrap bg-black/10 px-1.5 py-0.5 rounded">
-                            {span * 30}p
+                            {span * shiftMinutes}p
                           </span>
                         </div>
                       )}
@@ -371,9 +391,9 @@ export const DesktopBookingGrid = () => {
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn Sân</label>
             <Dropdown
-              options={MOCK_FACILITIES.map(f => ({
+              options={filteredFacilities.map(f => ({
                 value: f.id,
-                label: `${f.name} (${f.type} - ${formatPrice(f.pricePerHour)}/h)`
+                label: `${f.name} (${formatPrice(f.pricePerHour)}/h)`
               }))}
               value={quickBookingData.facilityId}
               onChange={(val) => setQuickBookingData({...quickBookingData, facilityId: val})}
@@ -381,109 +401,40 @@ export const DesktopBookingGrid = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Loại giờ</label>
-            <Dropdown
-              options={[
-                { value: 'regular', label: 'Giờ thường' },
-                { value: 'matchmaking', label: 'Xé vé' }
-              ]}
-              value={quickBookingData.bookingType}
-              onChange={(val) => setQuickBookingData({...quickBookingData, bookingType: val as 'regular' | 'matchmaking'})}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tên khách hàng / Tên giải</label>
-            <input
-              type="text"
-              placeholder="Nhập tên khách..."
-              value={quickBookingData.customerName}
-              onChange={(e) => setQuickBookingData({...quickBookingData, customerName: e.target.value})}
-              disabled={quickBookingData.status === 'maintenance' && quickBookingData.bookingType !== 'matchmaking'}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald disabled:bg-slate-100"
-            />
-          </div>
-
-          {quickBookingData.bookingType === 'matchmaking' && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200/50">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Số lượng người tối đa</label>
-                <input
-                  type="number"
-                  min="2"
-                  max="30"
-                  value={quickBookingData.maxPlayers}
-                  onChange={(e) => setQuickBookingData({...quickBookingData, maxPlayers: parseInt(e.target.value) || 10})}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Trình độ yêu cầu</label>
-                <Dropdown
-                  options={[
-                    { value: 'Yếu', label: 'Yếu' },
-                    { value: 'Trung bình yếu', label: 'Trung bình yếu' },
-                    { value: 'Trung bình khá', label: 'Trung bình khá' },
-                    { value: 'Khá', label: 'Khá' },
-                    { value: 'Bán chuyên', label: 'Bán chuyên' },
-                    { value: 'Chuyên nghiệp', label: 'Chuyên nghiệp' }
-                  ]}
-                  value={quickBookingData.skillLevel}
-                  onChange={(val) => setQuickBookingData({...quickBookingData, skillLevel: val})}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giờ bắt đầu</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn ca chơi</label>
+            {shiftOptions.length > 0 ? (
               <Dropdown
-                options={times.map(t => ({ value: t, label: t }))}
-                value={quickBookingData.startTime}
-                onChange={(val) => setQuickBookingData({...quickBookingData, startTime: val})}
+                options={shiftOptions}
+                value={selectedShiftId}
+                onChange={handleShiftChange}
+                className="w-full text-xs font-medium font-sans"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giờ kết thúc</label>
-              <Dropdown
-                options={times.map(t => ({ value: t, label: t }))}
-                value={quickBookingData.endTime}
-                onChange={(val) => setQuickBookingData({...quickBookingData, endTime: val})}
-              />
-            </div>
+            ) : (
+              <div className="text-xs text-red-500 font-bold border border-red-200 bg-red-50 p-3 rounded-xl">
+                Không còn ca trống nào trong ngày của sân này.
+              </div>
+            )}
           </div>
 
-          {quickBookingData.bookingType === 'regular' && (
+          <div className="grid grid-cols-2 gap-3 items-end">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Trạng thái đặt</label>
-              <div className="grid grid-cols-3 gap-2">
-                {['booked', 'pending', 'maintenance'].map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setQuickBookingData({
-                      ...quickBookingData,
-                      status: st as any,
-                      customerName: st === 'maintenance' ? '' : quickBookingData.customerName
-                    })}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                      quickBookingData.status === st 
-                        ? st === 'booked' ? 'bg-brand-emerald text-white border-brand-emerald'
-                          : st === 'pending' ? 'bg-amber-400 text-amber-950 border-amber-400'
-                          : 'bg-red-500 text-white border-red-500'
-                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    {st === 'booked' ? 'Đã đặt' : st === 'pending' ? 'Đang giữ' : 'Bảo trì'}
-                  </button>
-                ))}
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giá sân</label>
+              <div className="px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-xs font-black text-slate-700 flex items-center h-10 select-none">
+                {formatPrice(slots.find(s => s.facilityId === quickBookingData.facilityId && s.time === quickBookingData.startTime)?.price || 0)} / ca
               </div>
             </div>
-          )}
+            <div>
+              <div className="flex h-10 items-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-brand-emerald text-[10px] font-black uppercase tracking-wider select-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  CHỦ SÂN SPORTA
+                </span>
+              </div>
+            </div>
+          </div>
 
           <div className="pt-2">
-            <button type="submit" className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+            <button type="submit" className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
               Xác nhận đặt lịch
             </button>
           </div>
@@ -493,8 +444,8 @@ export const DesktopBookingGrid = () => {
       {/* ─── 5. MODAL: CHI TIẾT ĐẶT SÂN ─────────────────────────────── */}
       <Modal isOpen={isDetailModalOpen && !!selectedBookingDetail} onClose={() => setIsDetailModalOpen(false)} title="Thông tin lịch đặt" maxWidth="sm">
         {selectedBookingDetail && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl">
+          <div className="space-y-4 font-sans select-none">
+            <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                 selectedBookingDetail.status === 'booked' ? 'bg-emerald-600 text-white' :
                 selectedBookingDetail.status === 'pending' ? 'bg-amber-400 text-amber-950' :
@@ -503,18 +454,23 @@ export const DesktopBookingGrid = () => {
               }`}>
                 {selectedBookingDetail.status === 'booked' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
                 {selectedBookingDetail.status === 'pending' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-                {selectedBookingDetail.status === 'matchmaking' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
+                {selectedBookingDetail.status === 'matchmaking' && <svg className="w-5 h-5 text-white animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" /></svg>}
                 {selectedBookingDetail.status === 'maintenance' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" /></svg>}
               </div>
               <div>
-                <h4 className="text-sm font-black text-slate-800">{selectedBookingDetail.customerName}</h4>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block ${
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{selectedBookingDetail.customerName}</h4>
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md mt-1 inline-block uppercase tracking-wider ${
                   selectedBookingDetail.status === 'booked' ? 'bg-emerald-100 text-emerald-800' :
                   selectedBookingDetail.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                  selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-100 text-indigo-800' :
+                  selectedBookingDetail.status === 'matchmaking' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' :
+                  selectedBookingDetail.status === 'locked' ? 'bg-slate-150 text-slate-700' :
                   'bg-red-100 text-red-800'
                 }`}>
-                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' : selectedBookingDetail.status === 'pending' ? 'Đang giữ' : selectedBookingDetail.status === 'matchmaking' ? 'Xé vé' : 'Bảo trì'}
+                  {selectedBookingDetail.status === 'booked' ? 'Đã đặt' :
+                   selectedBookingDetail.status === 'pending' ? 'Đặt thủ công' :
+                   selectedBookingDetail.status === 'matchmaking' ? 'Ca xé vé ghép' :
+                   selectedBookingDetail.status === 'locked' ? 'Đã quá giờ' :
+                   selectedBookingDetail.status === 'maintenance' ? 'Bảo trì' : 'Không xác định'}
                 </span>
               </div>
             </div>
@@ -522,49 +478,193 @@ export const DesktopBookingGrid = () => {
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="font-semibold text-slate-400">Sân bóng</span>
-                <span className="font-black text-slate-800">{selectedBookingDetail.facility.name} ({selectedBookingDetail.facility.type})</span>
+                <span className="font-black text-slate-800">{selectedBookingDetail.facility.name}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="font-semibold text-slate-400">Thời gian</span>
                 <span className="font-black text-brand-emerald">{selectedBookingDetail.startTime} – {selectedBookingDetail.endTime}</span>
               </div>
-              {selectedBookingDetail.status === 'matchmaking' && (
+              
+              {selectedBookingDetail.status === 'matchmaking' ? (
                 <>
                   <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                    <span className="font-semibold text-slate-400">Số lượng người tối đa</span>
-                    <span className="font-black text-slate-800">{selectedBookingDetail.maxPlayers || 10} người</span>
+                    <span className="font-semibold text-slate-400 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-400" /> Số lượng vé</span>
+                    <span className="font-black text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                      {selectedBookingDetail.bookedSlots || 0} / {selectedBookingDetail.maxSlots || 10} slots
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                    <span className="font-semibold text-slate-400">Trình độ yêu cầu</span>
-                    <span className="font-black text-indigo-600">{selectedBookingDetail.skillLevel || 'Chưa cập nhật'}</span>
+                    <span className="font-semibold text-slate-400 flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-slate-400" /> Trình độ yêu cầu</span>
+                    <span className="font-black text-slate-700">{getSportLevelLabel(selectedBookingDetail.skillLevel || 'ALL')}</span>
                   </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400 flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-slate-400" /> Giá vé/người</span>
+                    <span className="font-black text-brand-emerald text-sm">{formatPrice(selectedBookingDetail.pricePerTicket || 0)}</span>
+                  </div>
+                  
+                  {/* Inline Test Tickets Section */}
+                  <TestTicketsSection sessionId={selectedBookingDetail.ticketSessionId} />
                 </>
-              )}
-              <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                <span className="font-semibold text-slate-400">Giá thuê</span>
-                <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.facility.pricePerHour)}/h</span>
-              </div>
-              {selectedBookingDetail.status !== 'maintenance' && (
-                <div className="flex justify-between items-center py-2">
-                  <span className="font-semibold text-slate-400">Tổng tạm tính</span>
-                  <span className="font-black text-slate-800 text-sm">{formatPrice(selectedBookingDetail.price)}</span>
-                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400">Giá thuê</span>
+                    <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.facility.pricePerHour)}/h</span>
+                  </div>
+                  {selectedBookingDetail.status !== 'maintenance' && (
+                    <div className="flex justify-between items-center py-2">
+                      <span className="font-semibold text-slate-400">Tổng tạm tính</span>
+                      <span className="font-black text-slate-800 text-sm">{formatPrice(selectedBookingDetail.price)}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             <div className="pt-2 space-y-2">
               {selectedBookingDetail.status === 'pending' && (
-                <button onClick={handleConfirmDeposit} className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+                <button onClick={handleConfirmDeposit} className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
                   Xác nhận đã đặt cọc
                 </button>
               )}
-              <button onClick={handleCancelBooking} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors">
-                {selectedBookingDetail.status === 'maintenance' ? 'Hủy lịch bảo trì' : 'Hủy lịch đặt sân này'}
-              </button>
+              {(selectedBookingDetail.status === 'matchmaking' || 
+                ((selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && selectedBookingDetail.isManual)) ? (
+                <button onClick={() => setIsConfirmCancelOpen(true)} className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer border border-red-100">
+                  {selectedBookingDetail.status === 'matchmaking' ? 'Hủy ca xé vé này' : 'Hủy lịch đặt sân này'}
+                </button>
+              ) : (
+                (selectedBookingDetail.status === 'booked' || selectedBookingDetail.status === 'pending') && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 text-slate-500 text-[10px] font-extrabold rounded-xl text-center uppercase tracking-wider">
+                    Không thể hủy lịch đặt của khách đặt qua App
+                  </div>
+                )
+              )}
             </div>
           </div>
         )}
       </Modal>
+
+      {/* ─── 5.1. MODAL XÁC NHẬN HỦY ───────────────────────────────── */}
+      <Modal 
+        isOpen={isConfirmCancelOpen} 
+        onClose={() => setIsConfirmCancelOpen(false)} 
+        title="Xác nhận hủy lịch" 
+        maxWidth="sm"
+        footer={
+          <div className="flex gap-2 justify-end w-full select-none font-sans">
+            <button 
+              type="button"
+              onClick={() => setIsConfirmCancelOpen(false)} 
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-black text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Quay lại
+            </button>
+            <button 
+              type="button"
+              onClick={async () => {
+                setIsConfirmCancelOpen(false);
+                await handleCancelBooking();
+              }} 
+              className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black transition-colors cursor-pointer border border-red-200"
+            >
+              Đồng ý hủy
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 font-sans text-left select-none">
+          <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-3 mx-auto">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-black text-slate-800 text-center uppercase tracking-tight">Bạn có chắc chắn muốn hủy?</h4>
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
+            Hành động này sẽ giải phóng khung giờ chơi và không thể hoàn tác. Các bên liên quan sẽ nhận được thông báo.
+          </p>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ═══ Subcomponent hiển thị danh sách vé test trong chi tiết đặt sân ═══
+const TestTicketsSection: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const fetchTickets = async () => {
+      setLoading(true);
+      try {
+        const list = await ticketService.getTestTickets(sessionId);
+        setTickets(list);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTickets();
+  }, [sessionId]);
+
+  const handleCopy = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  if (!sessionId) return null;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-100 space-y-2.5 select-none">
+      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+        <Ticket className="w-3.5 h-3.5 text-slate-400" />
+        Vé test dùng để check-in thủ công
+      </h5>
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <div className="w-5 h-5 border-2 border-brand-emerald border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : tickets.length === 0 ? (
+        <p className="text-[10px] text-slate-400 font-semibold italic text-center py-2">Không có vé test nào cho ca này</p>
+      ) : (
+        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+          {tickets.map(t => (
+            <div key={t.ticketId} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-150/70">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-bold text-slate-700 block">{t.customerName}</span>
+                <span className="text-[9px] font-extrabold text-indigo-650 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100 uppercase tracking-wider font-mono">
+                  Mã: {t.shortCode}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(t.shortCode, t.ticketId)}
+                className={`text-[9px] font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider ${
+                  copiedId === t.ticketId
+                    ? 'bg-emerald-50 text-brand-emerald border-emerald-150'
+                    : 'bg-white text-slate-550 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {copiedId === t.ticketId ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Đã copy
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy mã
+                  </>
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@
 // Mock Data cho Sơ đồ sân — Sporta Web-Owner
 // ═══════════════════════════════════════════════════════════
 
-export type SlotStatus = 'available' | 'booked' | 'pending' | 'maintenance' | 'matchmaking';
+export type SlotStatus = 'available' | 'booked' | 'pending' | 'maintenance' | 'matchmaking' | 'locked';
 
 export interface BookingSlot {
   id: string;
@@ -11,15 +11,21 @@ export interface BookingSlot {
   status: SlotStatus;
   customerName?: string;
   bookingId?: string;
+  isManual?: boolean;
   bookingType?: 'regular' | 'matchmaking';
   maxPlayers?: number;
   skillLevel?: string;
+  price?: number;
+  ticketSessionId?: string;
+  bookedSlots?: number;
+  maxSlots?: number;
+  pricePerTicket?: number;
 }
 
 export interface Facility {
   id: string;
   name: string;
-  type: '5v5' | '7v7' | '11v11';
+  type?: string;
   pricePerHour: number;
 }
 

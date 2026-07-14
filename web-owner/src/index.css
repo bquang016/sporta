@@ -87,3 +87,7 @@
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+.bg-stripes-past {
+  background-image: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 6px, #e2e8f0 6px, #e2e8f0 12px);
+}

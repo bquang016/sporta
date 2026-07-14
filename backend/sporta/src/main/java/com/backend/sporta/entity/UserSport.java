@@ -2,6 +2,7 @@ package com.backend.sporta.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.backend.sporta.enums.SportLevel;
 
 @Entity
 @Table(name = "user_sports")

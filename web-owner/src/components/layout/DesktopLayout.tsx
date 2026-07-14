@@ -324,7 +324,8 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
             const token = localStorage.getItem('accessToken');
             try {
               if (token) {
-                await fetch('http://localhost:8387/api/v1/auth/logout', {
+                const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+                await fetch(`http://${host}:8387/api/v1/auth/logout`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${token}`

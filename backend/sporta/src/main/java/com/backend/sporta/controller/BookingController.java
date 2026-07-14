@@ -52,4 +52,15 @@ public class BookingController {
         List<BookingResponse> response = bookingService.getMyBookings(email);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * POST /api/v1/bookings/{id}/cancel
+     * Hủy đặt sân. Chủ sân chỉ được hủy nếu là đặt thủ công/ offline.
+     */
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelBooking(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        bookingService.cancelBooking(id, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Hủy đặt sân thành công"));
+    }
 }

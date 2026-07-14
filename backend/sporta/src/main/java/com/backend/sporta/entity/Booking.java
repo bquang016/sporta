@@ -48,6 +48,13 @@ public class Booking {
     @Builder.Default
     private BookingStatus status = BookingStatus.CONFIRMED;
 
+    @Column(name = "is_manual")
+    @Builder.Default
+    private Boolean isManual = false;
+
+    @Column(name = "customer_name")
+    private String customerName;
+
     /** Mã đặt sân định danh hiển thị cho người dùng, e.g. "SP-A3K9-X2" */
     @Column(name = "booking_code", nullable = false, unique = true, length = 20)
     private String bookingCode;
