@@ -1,10 +1,12 @@
 import { Card } from '@/components/ui/Card';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export interface DashboardMetric {
   label: string;
   value: string;
   change: string;
   isPositive: boolean;
+  tooltip?: string;
 }
 
 interface AdminKPIStatsProps {
@@ -35,12 +37,18 @@ const STYLES = [
     iconBg: 'bg-purple-50',
     iconText: 'text-purple-600',
     iconPath: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+  },
+  {
+    bgBlur: 'bg-brand-emerald/10',
+    iconBg: 'bg-brand-emerald/20',
+    iconText: 'text-brand-emerald',
+    iconPath: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   }
 ];
 
 export const AdminKPIStats = ({ metrics }: AdminKPIStatsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 w-full">
       {metrics.map((metric, idx) => {
         const style = STYLES[idx % STYLES.length];
         
@@ -48,7 +56,16 @@ export const AdminKPIStats = ({ metrics }: AdminKPIStatsProps) => {
           <Card key={idx} className="p-6 border-none shadow-[0_4px_16px_rgba(0,0,0,0.02)] hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-32 relative overflow-hidden group">
             <div className={`absolute top-0 right-0 -mr-4 -mt-4 w-20 h-20 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500 ${style.bgBlur}`}></div>
             <div className="flex justify-between items-start z-10">
-              <h3 className="text-[10px] font-extrabold text-outline uppercase tracking-wider">{metric.label}</h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-[10px] font-extrabold text-outline uppercase tracking-wider">{metric.label}</h3>
+                {metric.tooltip && (
+                  <Tooltip content={metric.tooltip} position="top">
+                    <svg className="w-3.5 h-3.5 text-outline cursor-pointer hover:text-brand-emerald transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </Tooltip>
+                )}
+              </div>
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${style.iconBg} ${style.iconText}`}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={style.iconPath} />
