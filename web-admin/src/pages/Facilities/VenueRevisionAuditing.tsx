@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Modal } from '@/components/ui/Modal';
-import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 export const VenueRevisionAuditing: React.FC = () => {
     const [revisions, setRevisions] = useState<any[]>([]);
