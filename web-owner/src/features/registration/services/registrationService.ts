@@ -92,6 +92,10 @@ export async function registerOwner(
   formData.append('district', venueInfo.district);
   formData.append('ward', venueInfo.ward);
   formData.append('description', venueInfo.description);
+  
+  if (venueInfo.latitude) formData.append('latitude', String(venueInfo.latitude));
+  if (venueInfo.longitude) formData.append('longitude', String(venueInfo.longitude));
+
   formData.append('sportTypes', venueInfo.sportId);
   formData.append('subCourtCount', String(courts.length));
 

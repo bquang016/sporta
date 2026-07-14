@@ -245,6 +245,8 @@ public class AuthService {
             String district,
             String ward,
             String sportTypes,
+            Double latitude,
+            Double longitude,
             int subCourtCount,
             String description,
             String courtsJson,
@@ -311,6 +313,8 @@ public class AuthService {
                 .district(district)
                 .ward(ward)
                 .sportTypes(sportTypes)
+                .latitude(latitude)
+                .longitude(longitude)
                 .subCourtCount(subCourtCount)
                 .description(description)
                 .registrationImages(imagesJson)
@@ -380,8 +384,10 @@ public class AuthService {
                 .subCourtCount(reg.getSubCourtCount())
                 .registrationImages(reg.getRegistrationImages())
                 .description(reg.getDescription())
-                .status(com.backend.sporta.enums.VenueStatus.PENDING_APPROVAL)
-                .approvalStatus(com.backend.sporta.enums.ApprovalStatus.DRAFT)
+                .status(com.backend.sporta.enums.VenueStatus.ACTIVE)
+                .approvalStatus(com.backend.sporta.enums.ApprovalStatus.APPROVED)
+                .latitude(reg.getLatitude() != null ? reg.getLatitude() : 10.762622)
+                .longitude(reg.getLongitude() != null ? reg.getLongitude() : 106.660172)
                 .openingTime(java.time.LocalTime.of(5, 0))
                 .closingTime(java.time.LocalTime.of(22, 0))
                 .build();

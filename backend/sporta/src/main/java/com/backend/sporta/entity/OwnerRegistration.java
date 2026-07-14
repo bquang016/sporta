@@ -48,6 +48,12 @@ public class OwnerRegistration {
     @Column(name = "ward")
     private String ward;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @Column(name = "sport_types", columnDefinition = "TEXT")
     private String sportTypes;
 
