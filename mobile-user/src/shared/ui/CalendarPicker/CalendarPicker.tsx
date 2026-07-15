@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../config/theme';
+import { Button } from '../Button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -207,9 +208,13 @@ export function CalendarPicker({
           </View>
 
           {/* ── Confirm Button ─────────────────────────── */}
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.8}>
-            <Text style={styles.confirmText}>Xác nhận</Text>
-          </TouchableOpacity>
+          <Button 
+            title="Xác nhận"
+            variant="primary"
+            size="md"
+            onPress={handleConfirm}
+            style={styles.confirmBtn}
+          />
         </Pressable>
       </Pressable>
     </Modal>
@@ -337,15 +342,7 @@ const styles = StyleSheet.create({
 
   // ── Confirm
   confirmBtn: {
-    backgroundColor: COLORS.secondary,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.xs,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
-    alignItems: 'center',
-  },
-  confirmText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSecondary,
   },
 });

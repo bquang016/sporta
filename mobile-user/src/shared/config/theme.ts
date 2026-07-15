@@ -1,49 +1,76 @@
 export const COLORS = {
   // Brand Core Colors (From design Visuals and YAML)
-  primary: '#064E3B',                  // Forest Green (30% Structure)
+  primary: '#064E3B',                  // Deep Emerald Green (30% Structure / Active)
   onPrimary: '#FFFFFF',
-  primaryContainer: '#FFFFFF',
-  onPrimaryContainer: '#747676',
+  primaryContainer: '#064E3B',         // Deep Emerald Green
+  onPrimaryContainer: '#80BEA6',
   
-  secondary: '#FACC15',                // Deep Golden Yellow (10% Action/Accent)
-  onSecondary: '#191C20',
-  secondaryContainer: '#ADEDD3',       // Light green mint for badges/chips
-  onSecondaryContainer: '#306D58',
+  secondary: '#FED01B',                // Dynamic Athletic Yellow (10% Action/Accent)
+  onSecondary: '#003527',              // Deep Emerald contrast text
+  secondaryContainer: '#FED01B',       // Dynamic Athletic Yellow
+  onSecondaryContainer: '#6F5900',
   
-  tertiary: '#735C00',                 // Yellowish / Bronze
+  tertiary: '#735C00',                 // Yellowish / Bronze (from MD3 secondary)
   onTertiary: '#FFFFFF',
-  tertiaryContainer: '#FFFFFF',
-  onTertiaryContainer: '#8E7300',
+  tertiaryContainer: '#FED01B',
+  onTertiaryContainer: '#6F5900',
   
   background: '#F9F9FF',               // Off-white Neutral background
-  onBackground: '#191C20',
+  onBackground: '#151C27',
   
-  surface: '#FFFFFF',                  // Pure white surface (60% Base)
-  onSurface: '#191C20',
-  surfaceVariant: '#E2E2E8',
-  onSurfaceVariant: '#444748',
+  surface: '#FFFFFF',                  // Pure white surface (from surface-container-lowest)
+  onSurface: '#151C27',
+  surfaceVariant: '#DCE2F3',
+  onSurfaceVariant: '#404944',
   
   // Tonal Layer Containers (From MD3 YAML)
-  surfaceDim: '#D9DADF',
+  surfaceDim: '#D3DAEA',
   surfaceBright: '#F9F9FF',
   surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F3F3F9',
-  surfaceContainer: '#EDEDF3',
-  surfaceContainerHigh: '#E7E8EE',
-  surfaceContainerHighest: '#E2E2E8',
+  surfaceContainerLow: '#F0F3FF',
+  surfaceContainer: '#E7EEFE',
+  surfaceContainerHigh: '#E2E8F8',
+  surfaceContainerHighest: '#DCE2F3',
   
-  outline: '#747878',
-  outlineVariant: '#C4C7C8',
+  outline: '#707974',
+  outlineVariant: '#BFC9C3',
+  surfaceTint: '#2B6954',
+  
+  inverseSurface: '#2A313D',
+  inverseOnSurface: '#EBF1FF',
+  inversePrimary: '#95D3BA',
   
   error: '#BA1A1A',
+  onError: '#FFFFFF',
   errorContainer: '#FFDAD6',
   onErrorContainer: '#93000A',
   
   // Custom brand helpers
   brandGreen: '#064E3B',
-  brandGold: '#FACC15',
+  brandGold: '#FED01B',
+  brandPrimaryDark: '#003527', // The #003527 color from YAML
+  
+  primaryFixed: '#B0F0D6',
+  primaryFixedDim: '#95D3BA',
+  onPrimaryFixed: '#002117',
+  onPrimaryFixedVariant: '#0B513D',
+  
+  secondaryFixed: '#FFE083',
+  secondaryFixedDim: '#EEC200',
+  onSecondaryFixed: '#231B00',
+  onSecondaryFixedVariant: '#574500',
+  
+  tertiaryFixed: '#FFDAD5',
+  tertiaryFixedDim: '#FFB4A9',
+  onTertiaryFixed: '#380D08',
+  onTertiaryFixedVariant: '#6E372F',
 
-  // Opacity variations for brand green (primary)
+  // Custom status text colors
+  successText: '#10B981',
+  errorText: '#BA1A1A',
+  grayText: '#707974',
+
+  // Keep other helpers used by existing pages
   primaryOpacity05: 'rgba(6, 78, 59, 0.05)',
   primaryOpacity06: 'rgba(6, 78, 59, 0.06)',
   primaryOpacity08: 'rgba(6, 78, 59, 0.08)',
@@ -54,45 +81,32 @@ export const COLORS = {
   primaryOpacity30: 'rgba(6, 78, 59, 0.3)',
   primaryOpacity40: 'rgba(6, 78, 59, 0.4)',
 
-  // Opacity variations for brand gold (secondary)
-  secondaryOpacity10: 'rgba(250, 204, 21, 0.1)',
-  secondaryOpacity15: 'rgba(250, 204, 21, 0.15)',
-  secondaryOpacity20: 'rgba(250, 204, 21, 0.2)',
+  secondaryOpacity10: 'rgba(254, 208, 27, 0.1)',
+  secondaryOpacity15: 'rgba(254, 208, 27, 0.15)',
+  secondaryOpacity20: 'rgba(254, 208, 27, 0.2)',
 
-  // Neutral black opacity overlay
+  blackOpacity05: 'rgba(0, 0, 0, 0.05)',
+  blackOpacity15: 'rgba(0, 0, 0, 0.15)',
+  blackOpacity20: 'rgba(0, 0, 0, 0.2)',
   blackOpacity30: 'rgba(0, 0, 0, 0.3)',
   blackOpacity50: 'rgba(0, 0, 0, 0.5)',
   blackOpacity60: 'rgba(0, 0, 0, 0.6)',
   
-  // Custom white opacity
   whiteOpacity70: 'rgba(255, 255, 255, 0.7)',
-
-  // Feedback opacities
+  whiteOpacity30: 'rgba(255, 255, 255, 0.3)',
+  whiteOpacity10: 'rgba(255, 255, 255, 0.1)',
   successOpacity10: 'rgba(16, 185, 129, 0.1)',
-  errorOpacity08: 'rgba(239, 68, 68, 0.08)',
-  errorOpacity10: 'rgba(239, 68, 68, 0.1)',
-  grayOpacity10: 'rgba(107, 114, 128, 0.1)',
-  grayOpacity20: 'rgba(116, 120, 120, 0.2)',
+  errorOpacity08: 'rgba(186, 26, 26, 0.08)',
+  errorOpacity10: 'rgba(186, 26, 26, 0.1)',
+  grayOpacity10: 'rgba(112, 121, 116, 0.1)',
+  grayOpacity20: 'rgba(112, 121, 116, 0.2)',
 
-  // Custom brand / sport specific colors
   sportTeal: '#0D9488',
   pickleball: '#0D9488',
-  
-  // Custom status text colors
-  successText: '#10B981',
-  errorText: '#EF4444',
-  grayText: '#6B7280',
-  
-  // Warning/amber colors
   amber: '#B45309',
   amberStar: '#D97706',
   purple: '#9333EA',
   amberOpacity10: 'rgba(180, 83, 9, 0.1)',
-  blackOpacity05: 'rgba(0, 0, 0, 0.05)',
-  blackOpacity15: 'rgba(0, 0, 0, 0.15)',
-  blackOpacity20: 'rgba(0, 0, 0, 0.2)',
-  
-  // Generic colors for clean mapping
   white: '#FFFFFF',
   shadowBlack: '#000000',
 };
@@ -104,7 +118,7 @@ export const SPACING = {
   md: 16,
   lg: 24,
   xl: 32,
-  marginMobile: 16, // Synced to 16px from design margin-mobile
+  marginMobile: 20, // Synced to 20px from new web-owner design margin-mobile
 };
 
 export const BORDER_RADIUS = {
@@ -118,54 +132,67 @@ export const BORDER_RADIUS = {
 
 export const TYPOGRAPHY = {
   headlineXl: {
-    fontFamily: 'HankenGrotesk-ExtraBold',
-    fontSize: 48,
-    fontWeight: '800' as const,
-    lineHeight: 56,
-    letterSpacing: -0.96, // -0.02em
-  },
-  headlineLg: {
     fontFamily: 'HankenGrotesk-Bold',
     fontSize: 32,
     fontWeight: '700' as const,
     lineHeight: 40,
-    letterSpacing: -0.32, // -0.01em
+    letterSpacing: -0.64, // -0.02em
   },
-  headlineLgMobile: {
+  headlineLg: {
     fontFamily: 'HankenGrotesk-Bold',
     fontSize: 24,
     fontWeight: '700' as const,
     lineHeight: 32,
+    letterSpacing: -0.24, // -0.01em
+  },
+  headlineLgMobile: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 22,
+    fontWeight: '700' as const,
+    lineHeight: 30,
   },
   headlineMd: {
     fontFamily: 'HankenGrotesk-SemiBold',
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '600' as const,
-    lineHeight: 32,
+    lineHeight: 24,
+  },
+  titleMd: {
+    fontFamily: 'HankenGrotesk-SemiBold',
+    fontSize: 18,
+    fontWeight: '600' as const,
+    lineHeight: 24,
   },
   bodyLg: {
-    fontFamily: 'HankenGrotesk-Regular',
-    fontSize: 18,
-    fontWeight: '400' as const,
-    lineHeight: 28,
-  },
-  bodyMd: {
     fontFamily: 'HankenGrotesk-Regular',
     fontSize: 16,
     fontWeight: '400' as const,
     lineHeight: 24,
   },
+  bodyMd: {
+    fontFamily: 'HankenGrotesk-Regular',
+    fontSize: 14,
+    fontWeight: '400' as const,
+    lineHeight: 20,
+  },
   labelMd: {
     fontFamily: 'HankenGrotesk-SemiBold',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600' as const,
-    lineHeight: 20,
-    letterSpacing: 0.7, // 0.05em
+    lineHeight: 16,
+    letterSpacing: 0.6, // 0.05em
   },
   labelSm: {
     fontFamily: 'HankenGrotesk-Medium',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500' as const,
-    lineHeight: 16,
+    lineHeight: 15,
+  },
+  titleLg: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 28,
+    fontWeight: '700' as const,
+    lineHeight: 34,
+    letterSpacing: -0.56,
   },
 };

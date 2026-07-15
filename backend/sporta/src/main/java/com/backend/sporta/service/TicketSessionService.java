@@ -53,7 +53,7 @@ public class TicketSessionService {
                     .password("$2a$10$Jk8Bv4c8.fH3p7F4/P.v2Ox2V/yD.H16U0kR1Z4Fw1Y8u0/x4/W/6") // bcrypt dummy
                     .fullName(fullName)
                     .role(com.backend.sporta.enums.Role.PLAYER)
-                    .status(com.backend.sporta.entity.UserStatus.ACTIVE)
+                    .status(com.backend.sporta.enums.UserStatus.ACTIVE)
                     .build();
             return userRepository.save(user);
         });

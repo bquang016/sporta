@@ -24,7 +24,7 @@ export const useFacilities = () => {
             location: venue.location,
             distance: '2.0km', // Mock value
             price: venue.minPrice != null ? `${Math.round(venue.minPrice / 1000)}k` : 'Liên hệ',
-            status: venue.status === 'ACTIVE' ? '🟢 Còn chỗ' : '🔴 Đóng cửa',
+            status: venue.status === 'ACTIVE' ? 'Còn chỗ' : 'Đóng cửa',
             statusType: venue.status === 'ACTIVE' ? 'success' : 'warning',
             imageUrl: venue.coverImage || 'https://via.placeholder.com/300x160?text=No+Image',
           };
