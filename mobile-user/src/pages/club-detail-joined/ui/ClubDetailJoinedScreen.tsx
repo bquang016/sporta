@@ -98,24 +98,61 @@ export function ClubDetailJoinedScreen() {
   // Determine current user role
   const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : (club?.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên');
 
-  // Load current user's name to match against members list and get currentUserId
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+
+  // Load current user ID from JWT Token
   useEffect(() => {
-    const loadUserName = async () => {
-      try {
-        if (Platform.OS === 'web') {
-          setCurrentUserName(localStorage.getItem('userName') || '');
-        } else {
-          setCurrentUserName(await SecureStore.getItemAsync('userName') || '');
+    const base64Decode = (str: string): string => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let buffer = '';
+      const cleaned = str.replace(/=+$/, '').replace(/-/g, '+').replace(/_/g, '/');
+      let bc = 0, bs = 0;
+      for (let i = 0; i < cleaned.length; i++) {
+        const char = cleaned.charAt(i);
+        const idx = chars.indexOf(char);
+        if (idx === -1) continue;
+        bs = bc % 4 ? bs * 64 + idx : idx;
+        if (bc++ % 4) {
+          buffer += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6)));
         }
+      }
+      return buffer;
+    };
+
+    const decodeJwt = (token: string): any => {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const decoded = base64Decode(parts[1]);
+        return JSON.parse(decodeURIComponent(
+          decoded.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+        ));
       } catch (e) {
-        console.error('Lỗi load userName từ storage:', e);
+        return null;
       }
     };
-    loadUserName();
-  }, []);
 
-  const currentUserMember = members.find(m => m.name === currentUserName);
-  const currentUserId = currentUserMember ? Number(currentUserMember.userId) : undefined;
+    const loadUserId = async () => {
+      try {
+        let token = '';
+        if (Platform.OS === 'web') {
+          token = localStorage.getItem('accessToken') || '';
+        } else {
+          token = await SecureStore.getItemAsync('accessToken') || '';
+        }
+        if (token) {
+          const payload = decodeJwt(token);
+          if (payload && payload.userId) {
+            setCurrentUserId(Number(payload.userId));
+            console.log('[ClubDetailJoinedScreen] Loaded currentUserId from JWT:', payload.userId);
+          }
+        }
+      } catch (e) {
+        console.error('Lỗi giải mã token lấy userId:', e);
+      }
+    };
+    loadUserId();
+  }, []);
 
   const fetchMembers = async () => {
     if (!club) return;
@@ -156,27 +193,37 @@ export function ClubDetailJoinedScreen() {
 
   const handleTransferLeadership = (member: MemberItem) => {
     if (!club) return;
-    Alert.alert(
-      'Xác nhận chuyển nhượng',
-      `Bạn có chắc chắn muốn chuyển quyền Trưởng câu lạc bộ cho "${member.name}" không? Bạn sẽ trở thành Thành viên thường sau khi chuyển nhượng.`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Đồng ý', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await transferLeadership(club.id, member.userId);
-              Alert.alert('Thành công', `Đã chuyển nhượng quyền Trưởng câu lạc bộ cho "${member.name}" thành công!`);
-              setIsMembersModalVisible(false);
-              await refreshClubs();
-            } catch (err: any) {
-              Alert.alert('Lỗi', err.message || 'Chuyển nhượng quyền Trưởng câu lạc bộ thất bại.');
+    setIsMembersModalVisible(false);
+    
+    setTimeout(() => {
+      Alert.alert(
+        'Xác nhận chuyển nhượng',
+        `Bạn có chắc chắn muốn chuyển quyền Trưởng câu lạc bộ cho "${member.name}" không? Bạn sẽ trở thành Thành viên thường sau khi chuyển nhượng.`,
+        [
+          { 
+            text: 'Hủy', 
+            style: 'cancel',
+            onPress: () => {
+              setIsMembersModalVisible(true);
+            }
+          },
+          { 
+            text: 'Đồng ý', 
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await transferLeadership(club.id, member.userId);
+                Alert.alert('Thành công', `Đã chuyển nhượng quyền Trưởng câu lạc bộ cho "${member.name}" thành công!`);
+                await refreshClubs();
+              } catch (err: any) {
+                Alert.alert('Lỗi', err.message || 'Chuyển nhượng quyền Trưởng câu lạc bộ thất bại.');
+                setIsMembersModalVisible(true);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }, 400);
   };
 
   const handleAssignSubLeader = (member: MemberItem) => {
@@ -228,26 +275,38 @@ export function ClubDetailJoinedScreen() {
 
   const handleKickMember = (member: MemberItem) => {
     if (!club) return;
-    Alert.alert(
-      'Trục xuất thành viên',
-      `Bạn có chắc chắn muốn đuổi "${member.name}" khỏi câu lạc bộ không? Hành động này không thể hoàn tác.`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Trục xuất', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeMember(club.id, member.userId);
-              Alert.alert('Thành công', `Đã đuổi "${member.name}" khỏi câu lạc bộ.`);
-              await Promise.all([fetchMembers(), refreshClubs()]);
-            } catch (err: any) {
-              Alert.alert('Lỗi', err.message || 'Trục xuất thành viên thất bại.');
+    setIsMembersModalVisible(false);
+    
+    setTimeout(() => {
+      Alert.alert(
+        'Trục xuất thành viên',
+        `Bạn có chắc chắn muốn đuổi "${member.name}" khỏi câu lạc bộ không? Hành động này không thể hoàn tác.`,
+        [
+          { 
+            text: 'Hủy', 
+            style: 'cancel',
+            onPress: () => {
+              setIsMembersModalVisible(true);
+            }
+          },
+          { 
+            text: 'Trục xuất', 
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await removeMember(club.id, member.userId);
+                Alert.alert('Thành công', `Đã đuổi "${member.name}" khỏi câu lạc bộ.`);
+                await Promise.all([fetchMembers(), refreshClubs()]);
+                setIsMembersModalVisible(true);
+              } catch (err: any) {
+                Alert.alert('Lỗi', err.message || 'Trục xuất thành viên thất bại.');
+                setIsMembersModalVisible(true);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }, 400);
   };
 
   if (!club) {
