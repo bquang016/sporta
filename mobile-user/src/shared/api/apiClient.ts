@@ -83,3 +83,43 @@ export const apiFetch = async <T = unknown>(
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 };
+
+// ─── Backward compatibility requestApi alias ───────────────────────────────────
+
+export const requestApi = async (
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<any> => {
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let parsedError;
+    try {
+      parsedError = JSON.parse(errorText);
+    } catch (e) {
+      parsedError = { message: errorText };
+    }
+    throw new Error(parsedError.message || parsedError.error || 'Đã xảy ra lỗi hệ thống');
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+};

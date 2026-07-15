@@ -18,9 +18,9 @@ export function MyClubsScreen() {
     useCallback(() => {
       let sportId: number | undefined;
       if (selectedSport === 'football') sportId = 1;
-      else if (selectedSport === 'basketball') sportId = 2;
-      else if (selectedSport === 'badminton') sportId = 3;
-      else if (selectedSport === 'pickleball') sportId = 4;
+      else if (selectedSport === 'badminton') sportId = 2;
+      else if (selectedSport === 'pickleball') sportId = 3;
+      else if (selectedSport === 'basketball') sportId = 4;
 
       refreshClubs(sportId, searchQuery);
     }, [selectedSport, searchQuery])
@@ -111,9 +111,9 @@ export function MyClubsScreen() {
             onRefresh={() => {
               let sportId: number | undefined;
               if (selectedSport === 'football') sportId = 1;
-              else if (selectedSport === 'basketball') sportId = 2;
-              else if (selectedSport === 'badminton') sportId = 3;
-              else if (selectedSport === 'pickleball') sportId = 4;
+              else if (selectedSport === 'badminton') sportId = 2;
+              else if (selectedSport === 'pickleball') sportId = 3;
+              else if (selectedSport === 'basketball') sportId = 4;
               refreshClubs(sportId, searchQuery);
             }}
             colors={[COLORS.primary]}
