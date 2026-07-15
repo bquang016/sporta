@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
@@ -8,13 +8,14 @@ export interface Category {
   name: string;
   iconType: 'material' | 'community';
   iconName: string;
+  color: string;
 }
 
 const CATEGORIES: Category[] = [
-  { id: 'soccer', name: 'Bóng đá', iconType: 'material', iconName: 'sports-soccer' },
-  { id: 'basketball', name: 'Bóng rổ', iconType: 'material', iconName: 'sports-basketball' },
-  { id: 'badminton', name: 'Cầu lông', iconType: 'community', iconName: 'badminton' },
-  { id: 'pickleball', name: 'Pickleball', iconType: 'material', iconName: 'sports-tennis' },
+  { id: 'soccer', name: 'Bóng đá', iconType: 'material', iconName: 'sports-soccer', color: COLORS.primary },
+  { id: 'basketball', name: 'Bóng rổ', iconType: 'material', iconName: 'sports-basketball', color: '#E65100' },
+  { id: 'badminton', name: 'Cầu lông', iconType: 'community', iconName: 'badminton', color: '#1565C0' },
+  { id: 'pickleball', name: 'Pickleball', iconType: 'material', iconName: 'sports-tennis', color: COLORS.sportTeal },
 ];
 
 interface SportCategoriesProps {
@@ -23,53 +24,57 @@ interface SportCategoriesProps {
 
 export function SportCategories({ onCategorySelect }: SportCategoriesProps) {
   return (
-    <View style={styles.grid}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContainer}
+    >
       {CATEGORIES.map((cat) => (
-        <TouchableOpacity 
-          key={cat.id} 
-          style={styles.item}
+        <TouchableOpacity
+          key={cat.id}
+          style={styles.chip}
           onPress={() => onCategorySelect?.(cat.id)}
           activeOpacity={0.7}
         >
-          <View style={styles.iconContainer}>
+          <View style={[styles.chipIcon, { backgroundColor: `${cat.color}15` }]}>
             {cat.iconType === 'material' ? (
-              <MaterialIcons name={cat.iconName as any} size={28} color={COLORS.primary} />
+              <MaterialIcons name={cat.iconName as any} size={18} color={cat.color} />
             ) : (
-              <MaterialCommunityIcons name={cat.iconName as any} size={28} color={COLORS.primary} />
+              <MaterialCommunityIcons name={cat.iconName as any} size={18} color={cat.color} />
             )}
           </View>
-          <Text style={styles.label}>{cat.name}</Text>
+          <Text style={styles.chipLabel}>{cat.name}</Text>
         </TouchableOpacity>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  scrollContainer: {
+    gap: SPACING.base,
     paddingVertical: SPACING.xs,
   },
-  item: {
+  chip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    flex: 1,
-  },
-  iconContainer: {
-    width: 56,
-    height: 56,
+    gap: SPACING.base,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.base,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  chipIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: BORDER_RADIUS.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  label: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: TYPOGRAPHY.labelSm.fontSize,
-    color: COLORS.onSurfaceVariant,
-    textAlign: 'center',
+  chipLabel: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurface,
   },
 });

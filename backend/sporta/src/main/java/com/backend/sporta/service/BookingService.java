@@ -67,7 +67,9 @@ public class BookingService {
                 .venue(venue)
                 .bookingCode(generateBookingCode())
                 .paymentMethod(request.getPaymentMethod())
-                .status(BookingStatus.CONFIRMED)
+                .status(request.getStatus() != null ? request.getStatus() : BookingStatus.CONFIRMED)
+                .isManual(request.getIsManual() != null ? request.getIsManual() : false)
+                .customerName(request.getCustomerName())
                 .build();
 
         // Sắp xếp các slot theo courtId để tránh deadlock khi có nhiều court cần lock
@@ -187,5 +189,30 @@ public class BookingService {
                 .playerEmail(booking.getUser().getEmail())
                 .createdAt(booking.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public void cancelBooking(UUID bookingId, String email) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy đơn đặt sân", 404));
+
+        // Check if requester is owner of the venue
+        boolean isVenueOwner = booking.getVenue().getOwner().getUser().getEmail().equals(email);
+
+        if (isVenueOwner) {
+            if (booking.getIsManual() == null || !booking.getIsManual()) {
+                throw new CustomException("Chủ sân không thể hủy lịch đặt của khách hàng đặt qua ứng dụng", 403);
+            }
+        } else {
+            // Player cancelling their own booking
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+            if (!booking.getUser().getId().equals(user.getId())) {
+                throw new CustomException("Bạn không có quyền hủy đơn đặt này", 403);
+            }
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
     }
 }

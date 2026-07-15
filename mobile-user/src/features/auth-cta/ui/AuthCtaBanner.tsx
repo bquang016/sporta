@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: COLORS.whiteOpacity30,
+    backgroundColor: COLORS.whiteOpacity10,
   },
   registerButtonText: {
     color: COLORS.onPrimary,

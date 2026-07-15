@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { COLORS, TYPOGRAPHY, SPACING } from '../../../shared/config/theme';
 
 export function WalletScreen() {
   return (
@@ -15,16 +16,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1A1A1A',
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: COLORS.onSurface,
+    marginBottom: SPACING.base,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
+    ...TYPOGRAPHY.bodyLg,
+    color: COLORS.onSurfaceVariant,
   },
 });

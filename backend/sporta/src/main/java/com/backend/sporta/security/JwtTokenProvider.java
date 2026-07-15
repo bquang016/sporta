@@ -72,6 +72,25 @@ public class JwtTokenProvider {
                 .getSubject();
     }
 
+    public String generateTicketToken(java.util.UUID ticketId, Long userId, java.util.UUID sessionId) {
+        return Jwts.builder()
+                .claim("ticketId", ticketId.toString())
+                .claim("userId", userId)
+                .claim("sessionId", sessionId.toString())
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + 30L * 24 * 60 * 60 * 1000))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public io.jsonwebtoken.Claims getClaimsFromToken(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
     public boolean validateToken(String token) {
         try {
             Jwts.parser()

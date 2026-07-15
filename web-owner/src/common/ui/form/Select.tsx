@@ -56,7 +56,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       >
         <div className="relative flex items-center w-full">
           {prefixIcon && (
-            <div className="absolute left-3.5 flex items-center justify-center text-slate-400 pointer-events-none select-none">
+            <div className="absolute left-3.5 flex items-center justify-center text-outline-variant pointer-events-none select-none">
               {prefixIcon}
             </div>
           )}
@@ -65,11 +65,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             disabled={disabled}
             className={cn(
-              'w-full px-4 py-2.5 pr-10 font-sans text-sm font-normal text-slate-800 bg-white border border-slate-200 rounded-xl transition-all duration-200 outline-none appearance-none cursor-pointer',
-              'placeholder-slate-400 hover:border-slate-300 focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 focus:bg-white',
-              'disabled:bg-slate-50 disabled:border-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed',
+              'w-full px-4 py-2.5 pr-10 font-sans text-sm font-normal text-on-surface bg-white border border-outline-variant rounded-xl transition-all duration-200 outline-none appearance-none cursor-pointer',
+              'placeholder-outline hover:border-outline focus:border-primary focus:ring-2 focus:ring-primary/10 focus:bg-white',
+              'disabled:bg-surface-container-low disabled:border-outline-variant/50 disabled:text-outline-variant disabled:cursor-not-allowed',
               prefixIcon ? 'pl-11' : '',
-              error ? 'border-red-500 hover:border-red-500 focus:border-red-500 focus:ring-red-500/10' : '',
+              error ? 'border-error hover:border-error focus:border-error focus:ring-error/10' : '',
               selectClassName,
               className
             )}
@@ -83,13 +83,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             )}
             {options
               ? options.map((opt) => (
-                  <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+                  <option key={opt.value} value={opt.value} disabled={opt.disabled} className="text-on-surface">
                     {opt.label}
                   </option>
                 ))
               : children}
           </select>
-          <div className="absolute right-3.5 flex items-center justify-center text-slate-400 pointer-events-none select-none">
+          <div className="absolute right-3.5 flex items-center justify-center text-outline-variant pointer-events-none select-none">
             <ChevronDown className="w-4 h-4" />
           </div>
         </div>

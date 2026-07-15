@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Avatar, Badge, Button } from '../../../shared/ui';
@@ -15,39 +15,55 @@ export interface Match {
   statusText: string;
   statusType: 'active' | 'full';
   eloType: 'gold' | 'silver';
+  imageUrl?: string; // Ảnh đại diện của sân
+  location?: string; // Địa điểm sân
+  distance?: string; // Khoảng cách
 }
 
 interface MatchCardProps {
   match: Match;
+  style?: any;
   onPress?: () => void;
   onJoinPress?: () => void;
 }
 
-export function MatchCard({ match, onPress, onJoinPress }: MatchCardProps) {
+export function MatchCard({ match, style, onPress, onJoinPress }: MatchCardProps) {
   const isFull = match.statusType === 'full';
   const progress = (match.joinedCount / match.maxCount) * 100;
   
   return (
     <TouchableOpacity 
-      style={styles.card} 
+      style={[styles.card, style]} 
       onPress={onPress} 
       activeOpacity={0.8}
     >
       <View style={styles.headerRow}>
         <View style={styles.iconContainer}>
-          <MaterialIcons name={match.sportIcon} size={24} color={COLORS.primary} />
+          {match.imageUrl ? (
+            <Image source={{ uri: match.imageUrl }} style={styles.avatarImage} />
+          ) : (
+            <MaterialIcons name={match.sportIcon} size={24} color={COLORS.primary} />
+          )}
         </View>
         <View style={styles.titleContainer}>
           <Text style={styles.title} numberOfLines={1}>
             {match.title}
           </Text>
           <View style={styles.timeContainer}>
-            <MaterialIcons name="schedule" size={16} color={COLORS.outline} />
+            <MaterialIcons name="schedule" size={12} color={COLORS.outline} />
             <Text style={styles.timeText}>{match.time}</Text>
           </View>
+          {(match.location || match.distance) && (
+            <View style={styles.locationContainer}>
+              <MaterialIcons name="location-on" size={12} color={COLORS.outline} />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {match.location}{match.distance ? ` • ${match.distance}` : ''}
+              </Text>
+            </View>
+          )}
         </View>
         <Badge 
-          text={`ELO: ${match.elo}`}
+          text={`Trình độ: ${match.elo}`}
           variant={isFull ? 'full' : (match.eloType === 'gold' ? 'gold' : 'silver')}
           size="sm"
         />
@@ -71,9 +87,9 @@ export function MatchCard({ match, onPress, onJoinPress }: MatchCardProps) {
       
       <View style={[styles.footerRow, isFull && styles.footerOpacity]}>
         <View style={styles.avatarsContainer}>
-          <Avatar size={32} style={[styles.avatar, { backgroundColor: '#CBD5E1', zIndex: 4 }]} />
-          <Avatar size={32} style={[styles.avatar, { backgroundColor: '#94A3B8', zIndex: 3 }]} />
-          <Avatar size={32} style={[styles.avatar, { backgroundColor: '#64748B', zIndex: 2 }]} />
+          <Avatar size={32} style={[styles.avatar, { backgroundColor: COLORS.outlineVariant, zIndex: 4 }]} />
+          <Avatar size={32} style={[styles.avatar, { backgroundColor: COLORS.outline, zIndex: 3 }]} />
+          <Avatar size={32} style={[styles.avatar, { backgroundColor: COLORS.onSurfaceVariant, zIndex: 2 }]} />
           <Avatar 
             size={32} 
             text={`+${match.joinedCount - 3 > 0 ? match.joinedCount - 3 : 1}`} 
@@ -97,10 +113,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
+    borderRadius: 20, // Bo tròn 20px tương tự FacilityCard để đồng bộ
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    shadowColor: '#000',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
@@ -117,9 +133,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BORDER_RADIUS.default,
-    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
+    backgroundColor: COLORS.primaryOpacity10,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   titleContainer: {
     flex: 1,
@@ -139,7 +160,17 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 14,
+    fontSize: 12,
+    color: COLORS.outline,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationText: {
+    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    fontSize: 11,
     color: COLORS.outline,
   },
   progressSection: {

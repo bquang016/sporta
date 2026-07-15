@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import type { VenueInfo, SubCourt, CourtPriceRuleRequest } from '../types';
+import type { VenueInfo, SubCourt } from '../types';
 import { useToast } from '../../../components/ui/Toast';
+import { CurrencyInput } from '../../../components/ui/CurrencyInput';
 
 interface VenueCourtsStepProps {
   venueInfo: VenueInfo;
@@ -20,11 +21,11 @@ export const VenueCourtsStep = ({
   const { showToast } = useToast();
   
   const [newCourtName, setNewCourtName] = useState('');
-  const [newCourtPrice, setNewCourtPrice] = useState('100000');
+  const [newCourtPrice, setNewCourtPrice] = useState<number>(100000);
 
   const SPORT_OPTIONS = [
     { 
-      id: 'football', 
+      id: '1', 
       name: 'Bóng đá', 
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -35,7 +36,7 @@ export const VenueCourtsStep = ({
       activeClass: "border-emerald-500 bg-emerald-50/30 text-emerald-700 shadow-xs"
     },
     { 
-      id: 'badminton', 
+      id: '2', 
       name: 'Cầu lông', 
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -46,7 +47,7 @@ export const VenueCourtsStep = ({
       activeClass: "border-orange-500 bg-orange-50/30 text-orange-700 shadow-xs"
     },
     { 
-      id: 'pickleball', 
+      id: '3', 
       name: 'Pickleball', 
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -57,7 +58,7 @@ export const VenueCourtsStep = ({
       activeClass: "border-sky-500 bg-sky-50/30 text-sky-700 shadow-xs"
     },
     { 
-      id: 'basketball', 
+      id: '4', 
       name: 'Bóng rổ', 
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
@@ -75,8 +76,7 @@ export const VenueCourtsStep = ({
       return;
     }
 
-    const priceNum = parseFloat(newCourtPrice);
-    if (!newCourtPrice || isNaN(priceNum) || priceNum <= 0) {
+    if (newCourtPrice <= 0) {
       showToast('warning', 'Giá thuê sân phải là số lớn hơn 0');
       return;
     }
@@ -88,13 +88,14 @@ export const VenueCourtsStep = ({
 
     const newCourt: SubCourt = {
       name: newCourtName.trim(),
-      price: priceNum,
+      price: newCourtPrice,
       status: 'ACTIVE',
       priceRules: []
     };
 
     onCourtsChange([...courts, newCourt]);
     setNewCourtName('');
+    setNewCourtPrice(100000);
     showToast('success', `Đã thêm ${newCourt.name} vào danh sách`);
   };
 
@@ -109,7 +110,7 @@ export const VenueCourtsStep = ({
   };
 
   return (
-    <div className="flex-grow overflow-y-auto px-8 py-6 space-y-6 select-none w-full max-w-4xl mx-auto font-sans animate-fadeIn">
+    <div className="flex-grow overflow-y-auto px-8 py-6 space-y-6 select-none max-w-4xl mx-auto w-full font-sans animate-fadeIn">
       <div className="space-y-1">
         <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Bước 2: Dịch vụ & Sân trực thuộc</h3>
         <p className="text-[10px] text-slate-400 font-semibold leading-normal">
@@ -164,13 +165,10 @@ export const VenueCourtsStep = ({
 
         <div className="space-y-1.5">
           <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Giá thuê cơ bản (VND / ca)</label>
-          <input
-            type="number"
-            placeholder="Ví dụ: 100000"
+          <CurrencyInput
             value={newCourtPrice}
-            onChange={e => setNewCourtPrice(e.target.value)}
-            disabled={isLoading}
-            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100"
+            onChange={val => setNewCourtPrice(val || 0)}
+            placeholder="Ví dụ: 100.000"
           />
         </div>
 

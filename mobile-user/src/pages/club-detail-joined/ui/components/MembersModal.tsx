@@ -47,7 +47,6 @@ export function MembersModal({
     if (Number(member.userId) === Number(currentUserId)) return false;
     if (member.role === 'Trưởng câu lạc bộ') return false;
     if (currentUserRole === 'Trưởng câu lạc bộ') return true;
-    if (currentUserRole === 'Phó câu lạc bộ' && member.role === 'Thành viên') return true;
     return false;
   };
 
@@ -141,7 +140,6 @@ export function MembersModal({
                   {selectedMemberForAction?.name} ({selectedMemberForAction?.role})
                 </Text>
               </View>
-
               <View style={styles.actionSheetOptions}>
                 {currentUserRole === 'Trưởng câu lạc bộ' && (
                   <>
@@ -159,51 +157,21 @@ export function MembersModal({
                       <Text style={styles.optionText}>Phân bổ thành Trưởng câu lạc bộ</Text>
                     </TouchableOpacity>
 
-                    {selectedMemberForAction?.role === 'Phó câu lạc bộ' ? (
-                      <TouchableOpacity 
-                        style={styles.actionOptionItem} 
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          if (selectedMemberForAction && onDemoteSubLeader) {
-                            onDemoteSubLeader(selectedMemberForAction);
-                            setSelectedMemberForAction(null);
-                          }
-                        }}
-                      >
-                        <MaterialIcons name="remove-circle-outline" size={22} color={COLORS.primary} style={styles.optionIcon} />
-                        <Text style={styles.optionText}>Hạ chức xuống Thành viên thường</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity 
-                        style={styles.actionOptionItem} 
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          if (selectedMemberForAction && onAssignSubLeader) {
-                            onAssignSubLeader(selectedMemberForAction);
-                            setSelectedMemberForAction(null);
-                          }
-                        }}
-                      >
-                        <MaterialIcons name="star-outline" size={22} color={COLORS.primary} style={styles.optionIcon} />
-                        <Text style={styles.optionText}>Phân bổ thành Phó câu lạc bộ</Text>
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity 
+                      style={styles.actionOptionItem} 
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        if (selectedMemberForAction && onKickMember) {
+                          onKickMember(selectedMemberForAction);
+                          setSelectedMemberForAction(null);
+                        }
+                      }}
+                    >
+                      <MaterialIcons name="person-remove" size={22} color={COLORS.error} style={styles.optionIcon} />
+                      <Text style={[styles.optionText, styles.dangerText]}>Đuổi khỏi câu lạc bộ</Text>
+                    </TouchableOpacity>
                   </>
                 )}
-
-                <TouchableOpacity 
-                  style={styles.actionOptionItem} 
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (selectedMemberForAction && onKickMember) {
-                      onKickMember(selectedMemberForAction);
-                      setSelectedMemberForAction(null);
-                    }
-                  }}
-                >
-                  <MaterialIcons name="person-remove" size={22} color={COLORS.error} style={styles.optionIcon} />
-                  <Text style={[styles.optionText, styles.dangerText]}>Đuổi khỏi câu lạc bộ</Text>
-                </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={[styles.actionOptionItem, styles.cancelOptionItem]} 

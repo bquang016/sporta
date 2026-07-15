@@ -11,7 +11,8 @@ import type {
   SubCourt,
 } from '../types';
 
-const API_BASE = 'http://localhost:8387/api/v1/auth';
+const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const API_BASE = `http://${host}:8387/api/v1/auth`;
 
 /**
  * Send OTP code to the given email address.
@@ -92,6 +93,10 @@ export async function registerOwner(
   formData.append('district', venueInfo.district);
   formData.append('ward', venueInfo.ward);
   formData.append('description', venueInfo.description);
+  
+  if (venueInfo.latitude) formData.append('latitude', String(venueInfo.latitude));
+  if (venueInfo.longitude) formData.append('longitude', String(venueInfo.longitude));
+
   formData.append('sportTypes', venueInfo.sportId);
   formData.append('subCourtCount', String(courts.length));
 

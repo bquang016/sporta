@@ -21,31 +21,22 @@ async function test() {
     const token = loginData.accessToken;
     console.log('Login success! Token acquired.');
 
-    console.log('--- GET JOINED CLUBS (/clubs/my) ---');
-    const myClubsRes = await fetch('http://localhost:8387/api/v1/clubs/my', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    // Test /clubs/my?sportId=2 (Cầu lông)
+    console.log('--- MY CLUBS - SPORT FILTER ID = 2 (Cầu lông) ---');
+    const resJoined2 = await fetch('http://localhost:8387/api/v1/clubs/my?sportId=2', {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
+    console.log('My clubs (Cầu lông):', await resJoined2.json());
 
-    console.log('Status /clubs/my:', myClubsRes.status);
-    const myClubs = await myClubsRes.json();
-    console.log('Joined clubs:', myClubs);
-
-    console.log('--- GET AVAILABLE CLUBS (/clubs) ---');
-    const availClubsRes = await fetch('http://localhost:8387/api/v1/clubs', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    // Test /clubs/my?sportId=3 (Pickleball)
+    console.log('--- MY CLUBS - SPORT FILTER ID = 3 (Pickleball) ---');
+    const resJoined3 = await fetch('http://localhost:8387/api/v1/clubs/my?sportId=3', {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    console.log('Status /clubs:', availClubsRes.status);
-    const availClubs = await availClubsRes.json();
-    console.log('Available clubs:', availClubs);
+    console.log('My clubs (Pickleball):', await resJoined3.json());
 
   } catch (err) {
-    console.error('Test failed with error:', err.message);
+    console.error('Test failed:', err.message);
   }
 }
 test();

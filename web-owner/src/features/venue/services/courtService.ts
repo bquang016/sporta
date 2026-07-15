@@ -1,6 +1,7 @@
 import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse, VenueDraftRequest } from '../types';
 
-const BASE_URL = 'http://localhost:8387/api/v1';
+const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const BASE_URL = `http://${host}:8387/api/v1`;
 
 const getHeaders = () => {
   const token = localStorage.getItem('accessToken');
@@ -140,6 +141,15 @@ export const courtService = {
     });
     return handleResponse(res, 'Lỗi khi hủy yêu cầu duyệt cụm sân');
   },
+
+  async approveVenueTemporary(id: string): Promise<VenueResponse> {
+    const res = await fetch(`${BASE_URL}/owner/venues/${id}/approve`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Lỗi khi phê duyệt cụm sân');
+  },
+
 
   async deleteVenueDraft(id: string): Promise<void> {
     const res = await fetch(`${BASE_URL}/owner/venues/${id}/draft`, {

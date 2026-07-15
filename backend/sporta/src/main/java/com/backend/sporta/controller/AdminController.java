@@ -362,6 +362,27 @@ public class AdminController {
     @Autowired
     private com.backend.sporta.service.VenueService venueService;
 
+    @GetMapping("/venues/pending")
+    public ResponseEntity<List<com.backend.sporta.dto.VenueResponse>> getPendingNewVenues() {
+        return ResponseEntity.ok(venueService.getPendingNewVenues());
+    }
+
+    @PostMapping("/venues/{id}/approve")
+    public ResponseEntity<?> approveNewVenue(@PathVariable("id") java.util.UUID id) {
+        venueService.approveNewVenue(id);
+        return ResponseEntity.ok(Map.of("message", "Đã phê duyệt cụm sân mới thành công."));
+    }
+
+    @PostMapping("/venues/{id}/reject")
+    public ResponseEntity<?> rejectNewVenue(@PathVariable("id") java.util.UUID id, @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new CustomException("Vui lòng cung cấp lý do từ chối.", 400);
+        }
+        venueService.rejectNewVenue(id, reason.trim());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối cụm sân mới thành công."));
+    }
+
     @GetMapping("/venue-revisions/pending")
     public ResponseEntity<List<com.backend.sporta.dto.VenueRevisionResponse>> getPendingVenueRevisions() {
         return ResponseEntity.ok(venueService.getPendingRevisions());

@@ -10,7 +10,8 @@ export const useSystemStatus = (intervalMs = 10000) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const response = await fetch('http://localhost:8387/api/v1/auth/ping', {
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      const response = await fetch(`http://${host}:8387/api/v1/auth/ping`, {
         method: 'GET',
         signal: controller.signal
       });

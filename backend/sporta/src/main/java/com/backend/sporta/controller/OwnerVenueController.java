@@ -86,6 +86,15 @@ public class OwnerVenueController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<VenueResponse> approveVenue(
+            @PathVariable("id") UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        VenueResponse response = venueService.approveVenueTemporary(id, email);
+        return ResponseEntity.ok(response);
+    }
+
+
     @DeleteMapping("/{id}/draft")
     public ResponseEntity<Void> deleteVenueDraft(
             @PathVariable("id") UUID id) {

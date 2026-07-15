@@ -1,9 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { verifyOtp, sendOtp } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 
 export function OtpVerifyScreen() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -101,7 +103,7 @@ export function OtpVerifyScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/register')} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
+          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Xác thực OTP</Text>
       </View>
@@ -130,17 +132,13 @@ export function OtpVerifyScreen() {
           <Text style={styles.resendText}>Gửi lại mã ngay</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.verifyButton, loading && styles.verifyButtonDisabled]} 
+        <Button 
+          title="Xác nhận & Tiếp tục"
+          variant="primary"
+          size="lg"
           onPress={handleVerify}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text style={styles.verifyButtonText}>Xác nhận & Tiếp tục</Text>
-          )}
-        </TouchableOpacity>
+          loading={loading}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -149,50 +147,50 @@ export function OtpVerifyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: SPACING.md,
     zIndex: 10,
   },
   backButton: {
-    padding: 5,
+    padding: SPACING.xs,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginLeft: 15,
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: COLORS.onSurface,
+    marginLeft: SPACING.sm,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingTop: SPACING.md,
   },
   instruction: {
-    fontSize: 16,
-    color: '#2A5C43',
+    ...TYPOGRAPHY.bodyLg,
+    color: COLORS.primary,
     lineHeight: 24,
-    marginBottom: 40,
+    marginBottom: SPACING.xl,
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: SPACING.xl,
   },
   otpInput: {
     width: 50,
     height: 50,
     borderWidth: 1,
-    borderColor: '#C0C0C0',
-    borderRadius: 8,
-    fontSize: 24,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default,
+    ...TYPOGRAPHY.headlineLg,
     textAlign: 'center',
-    color: '#333',
+    color: COLORS.onSurface,
+    backgroundColor: COLORS.surface,
     ...Platform.select({
       web: {
         outlineStyle: 'none',
@@ -201,31 +199,11 @@ const styles = StyleSheet.create({
   },
   resendContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: SPACING.xl,
   },
   resendText: {
-    color: '#2A5C43',
-    fontSize: 14,
+    color: COLORS.primary,
+    ...TYPOGRAPHY.labelMd,
     fontWeight: '600',
-  },
-  verifyButton: {
-    backgroundColor: '#FFCC00',
-    borderRadius: 25,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FFCC00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  verifyButtonDisabled: {
-    opacity: 0.7,
-  },
-  verifyButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
   },
 });

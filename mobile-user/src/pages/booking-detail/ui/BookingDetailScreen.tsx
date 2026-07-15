@@ -153,22 +153,19 @@ export function BookingDetailScreen() {
 
       {/* Menu Modal */}
       <Modal visible={showMenu} transparent={true} animationType="fade" onRequestClose={() => setShowMenu(false)}>
-        <View style={styles.modalOverlayWrapper}>
-          <View style={styles.modalOverlayBackground} />
-          <TouchableOpacity style={styles.modalOverlayTouch} activeOpacity={1} onPress={() => setShowMenu(false)}>
-            <View style={[styles.menuDropdown, { top: insets.top + 48 }]}>
-              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle share */ }}>
-                <MaterialIcons name="share" size={20} color={COLORS.onSurface} />
-                <Text style={styles.menuItemText}>Chia sẻ sân</Text>
-              </TouchableOpacity>
-              <View style={styles.menuDivider} />
-              <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle report */ }}>
-                <MaterialIcons name="report" size={20} color={COLORS.error} />
-                <Text style={[styles.menuItemText, { color: COLORS.error }]}>Báo cáo sân</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+          <View style={[styles.menuDropdown, { top: insets.top + 48 }]}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle share */ }}>
+              <MaterialIcons name="share" size={20} color={COLORS.onSurface} />
+              <Text style={styles.menuItemText}>Chia sẻ sân</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); /* handle report */ }}>
+              <MaterialIcons name="report" size={20} color={COLORS.error} />
+              <Text style={[styles.menuItemText, { color: COLORS.error }]}>Báo cáo sân</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
 
       <ScrollView style={styles.content} bounces={false}>
@@ -194,7 +191,7 @@ export function BookingDetailScreen() {
               <Image source={{ uri: venue.coverImage }} style={styles.venueImage} />
             ) : (
               <View style={[styles.venueImage, styles.venueImagePlaceholder]}>
-                <MaterialIcons name="image" size={32} color={COLORS.surfaceContainerHighest} />
+                <MaterialIcons name="image" size={32} color={COLORS.whiteOpacity70} />
               </View>
             )}
           </View>
@@ -266,7 +263,7 @@ const styles = StyleSheet.create({
   venuePhoneText: { ...TYPOGRAPHY.labelMd, color: COLORS.onPrimary },
   venueLocationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xs },
   venueLocationText: { ...TYPOGRAPHY.labelSm, color: COLORS.onPrimary, flex: 1, marginTop: 2, opacity: 0.9 },
-  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.surfaceVariant },
+  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.primaryOpacity15 },
   venueImagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
 
   bottomBar: {
@@ -278,18 +275,12 @@ const styles = StyleSheet.create({
   selectedCountText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant },
   totalPriceText: { ...TYPOGRAPHY.headlineMd, color: COLORS.primary },
 
-  modalOverlayWrapper: { flex: 1 },
-  modalOverlayBackground: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.onSurface,
-    opacity: 0.2,
-  },
-  modalOverlayTouch: { flex: 1 },
+  modalOverlay: { flex: 1, backgroundColor: COLORS.blackOpacity15 },
   menuDropdown: {
     position: 'absolute', right: SPACING.md,
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.default,
     minWidth: 160, paddingVertical: SPACING.xs,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.sm },
   menuItemText: { ...TYPOGRAPHY.bodyMd, color: COLORS.onSurface },

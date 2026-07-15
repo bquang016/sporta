@@ -21,6 +21,7 @@ export const VenuePendingDetailScreen = ({
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
+  const [isConfirmApproveOpen, setIsConfirmApproveOpen] = useState(false);
   const [courtRulesMap, setCourtRulesMap] = useState<Record<string, CourtPriceRuleResponse[]>>({});
 
   useEffect(() => {
@@ -54,6 +55,21 @@ export const VenuePendingDetailScreen = ({
     } catch (err: any) {
       console.error(err);
       showToast('error', err.message || 'Lỗi khi hủy yêu cầu duyệt cụm sân');
+      setLoading(false);
+    }
+  };
+
+  const handleApproveSubmit = async () => {
+    try {
+      setLoading(true);
+      await courtService.approveVenueTemporary(venue.id);
+      showToast('success', 'Đã tự động phê duyệt cụm sân thành công! Trạng thái hiện tại: HOẠT ĐỘNG');
+      await refreshData();
+      setLoading(false);
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', err.message || 'Lỗi khi phê duyệt cụm sân');
       setLoading(false);
     }
   };
@@ -93,11 +109,20 @@ export const VenuePendingDetailScreen = ({
 
         <div className="flex gap-2.5 w-full sm:w-auto sm:pl-9">
           <Button
+            variant="secondary"
+            size="sm"
+            disabled={loading}
+            onClick={() => setIsConfirmApproveOpen(true)}
+            className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider px-5 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
+          >
+            Duyệt cụm sân
+          </Button>
+          <Button
             variant="ghost"
             size="sm"
             disabled={loading}
             onClick={() => setIsConfirmCancelOpen(true)}
-            className="flex-1 sm:flex-initial text-red-600 hover:text-red-750 hover:bg-red-50 font-black text-xs border border-red-200 uppercase tracking-wider px-5 py-2.5 min-h-[38px] rounded-xl"
+            className="flex-1 sm:flex-initial text-red-600 hover:text-red-750 hover:bg-red-50 font-black text-xs border border-red-200 uppercase tracking-wider px-5 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
           >
             Hủy gửi duyệt
           </Button>
@@ -106,7 +131,7 @@ export const VenuePendingDetailScreen = ({
             size="sm"
             disabled={loading}
             onClick={onClose}
-            className="flex-1 sm:flex-initial font-black text-xs border-b-2 border-slate-950 uppercase tracking-wider px-6 py-2.5 min-h-[38px] rounded-xl"
+            className="flex-1 sm:flex-initial font-black text-xs border-b-2 border-slate-950 uppercase tracking-wider px-6 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
           >
             Đóng
           </Button>
@@ -323,6 +348,17 @@ export const VenuePendingDetailScreen = ({
         confirmText="Đồng ý hủy"
         cancelText="Không"
         variant="warning"
+      />
+
+      <ConfirmModal
+        isOpen={isConfirmApproveOpen}
+        onClose={() => setIsConfirmApproveOpen(false)}
+        onConfirm={handleApproveSubmit}
+        title="Xác nhận phê duyệt"
+        message="Bạn có chắc chắn muốn phê duyệt cụm sân này ngay lập tức không? Trạng thái sẽ được chuyển sang Hoạt động."
+        confirmText="Đồng ý duyệt"
+        cancelText="Không"
+        variant="success"
       />
     </div>
   );

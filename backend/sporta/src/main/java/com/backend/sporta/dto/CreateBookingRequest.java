@@ -1,5 +1,6 @@
 package com.backend.sporta.dto;
 
+import com.backend.sporta.enums.BookingStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import java.time.LocalDate;
@@ -17,4 +18,8 @@ public class CreateBookingRequest {
 
     /** momo | vnpay | card | bank */
     private String paymentMethod;
+
+    private BookingStatus status;
+    private Boolean isManual;
+    private String customerName;
 }

@@ -61,6 +61,8 @@ public class AuthController {
             @RequestParam("district") String district,
             @RequestParam("ward") String ward,
             @RequestParam("sportTypes") String sportTypes,
+            @RequestParam(value = "latitude", required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam("subCourtCount") int subCourtCount,
             @RequestParam(value = "description", required = false, defaultValue = "") String description,
             @RequestParam(value = "courts", required = false, defaultValue = "[]") String courts,
@@ -70,7 +72,7 @@ public class AuthController {
         
         RegisterOwnerResponse response = authService.registerOwner(
                 registrationToken, fullName, idNumber, venueName, province, 
-                district, ward, sportTypes, subCourtCount, description,
+                district, ward, sportTypes, latitude, longitude, subCourtCount, description,
                 courts, idFrontImage, idBackImage, images);
         return ResponseEntity.ok(response);
     }
