@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
+    backgroundColor: COLORS.primaryOpacity10,
     overflow: 'hidden',
   },
   image: {

@@ -1,392 +1,200 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, Platform, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Avatar, Button, Card } from '../../../shared/ui';
 import { SearchBar } from '../../../features/search-bar';
 import { SportCategories } from '../../../features/sport-categories';
 import { AuthCtaBanner } from '../../../features/auth-cta';
-import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
+import { FacilityCard } from '../../../entities/facility';
 import { MatchCard, Match } from '../../../entities/match';
-import { clubStore } from '../../../entities/club';
 
+import { useHomeScreen } from '../hooks/useHomeScreen';
+import { Header } from '../components/Header';
+import { PromoCarousel } from '../components/PromoCarousel';
+import { ActionGrid } from '../components/ActionGrid';
+import { MatchInvitations } from '../components/MatchInvitations';
+import { FadeInSection } from '../components/AnimationHelpers';
 
 const HOT_MATCHES: Match[] = [
   {
     id: 'match-1',
     title: 'Sân Green Field',
     time: '18:00 - 20:00 • Hôm nay',
-    elo: 'Vàng',
+    elo: 'Bán chuyên',
     eloType: 'gold',
     sportIcon: 'sports-soccer',
     joinedCount: 7,
     maxCount: 10,
     statusText: 'Còn 3 chỗ',
     statusType: 'active',
+    location: '12 Duy Tân, Cầu Giấy',
+    distance: '2.5km',
+    imageUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c29jY2VyfGVufDB8fDB8fHww',
   },
   {
     id: 'match-2',
     title: 'Hoop Heaven Park',
     time: '20:30 - 22:30 • Hôm nay',
-    elo: 'Bạc',
+    elo: 'Trung bình',
     eloType: 'silver',
     sportIcon: 'sports-basketball',
     joinedCount: 12,
     maxCount: 12,
     statusText: 'HẾT CHỖ',
     statusType: 'full',
+    location: '34 Lê Văn Lương, Thanh Xuân',
+    distance: '3.1km',
+    imageUrl: 'https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=150&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'match-3',
+    title: 'Sân CMC Đại học',
+    time: '17:00 - 19:00 • Ngày mai',
+    elo: 'Yếu',
+    eloType: 'silver',
+    sportIcon: 'sports-tennis',
+    joinedCount: 3,
+    maxCount: 4,
+    statusText: 'Còn 1 chỗ',
+    statusType: 'active',
+    location: 'Đại học Quốc Gia, Cầu Giấy',
+    distance: '1.8km',
+    imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80',
   },
 ];
 
 export function HomeScreen() {
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userName, setUserName] = useState('Khách');
-  const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
-
-  const getApiUrl = () => {
-    if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'http://localhost:8387/api/v1';
-  };
-
-  const checkAuth = async () => {
-    try {
-      let token = '';
-      let name = '';
-      if (Platform.OS === 'web') {
-        token = localStorage.getItem('accessToken') || '';
-        name = localStorage.getItem('userName') || '';
-      } else {
-        token = await SecureStore.getItemAsync('accessToken') || '';
-        name = await SecureStore.getItemAsync('userName') || '';
-      }
-
-      if (token) {
-        // Gửi request API kiểm tra token có hợp lệ / bị khóa không
-        try {
-          const response = await fetch(`${getApiUrl()}/auth/ping`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.status === 403) {
-            const errorData = await response.json().catch(() => ({}));
-            if (errorData.message && errorData.message.includes('đã bị khóa')) {
-              // Cưỡng chế logout tài khoản bị khóa
-              if (Platform.OS === 'web') {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('userName');
-                localStorage.removeItem('userEmail');
-                window.alert(errorData.message);
-              } else {
-                await SecureStore.deleteItemAsync('accessToken');
-                await SecureStore.deleteItemAsync('userName');
-                await SecureStore.deleteItemAsync('userEmail');
-                Alert.alert('Tài khoản bị khóa', errorData.message);
-              }
-              setIsAuthenticated(false);
-              setUserName('Khách');
-              return;
-            }
-          }
-          
-          if (!response.ok) {
-            throw new Error('Token không hợp lệ');
-          }
-
-          setIsAuthenticated(true);
-          setUserName(name || 'Thành viên');
-        } catch (e) {
-          // Token hết hạn hoặc lỗi kết nối máy chủ -> Xóa session
-          if (Platform.OS === 'web') {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userEmail');
-          } else {
-            await SecureStore.deleteItemAsync('accessToken');
-            await SecureStore.deleteItemAsync('userName');
-            await SecureStore.deleteItemAsync('userEmail');
-          }
-          setIsAuthenticated(false);
-          setUserName('Khách');
-        }
-      } else {
-        setIsAuthenticated(false);
-        setUserName('Khách');
-      }
-    } catch (e) {
-      setIsAuthenticated(false);
-      setUserName('Khách');
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      checkAuth();
-    }, [])
-  );
-
-  const handleFacilityPress = (id: string) => {
-    router.push(`/booking/${id}`);
-  };
-
-  const handleLoginPress = () => {
-    router.push('/(auth)/login');
-  };
-
-  const handleRegisterPress = () => {
-    router.push('/(auth)/register');
-  };
-
-  const handleAvatarPress = () => {
-    if (isAuthenticated) {
-      if (Platform.OS === 'web') {
-        const confirmLogout = window.confirm(`Xin chào, ${userName}! Bạn có muốn đăng xuất tài khoản không?`);
-        if (confirmLogout) {
-          handleLogout();
-        }
-      } else {
-        Alert.alert(
-          'Tài khoản',
-          `Xin chào, ${userName}! Bạn có muốn đăng xuất không?`,
-          [
-            { text: 'Hủy', style: 'cancel' },
-            { text: 'Đăng xuất', style: 'destructive', onPress: handleLogout }
-          ]
-        );
-      }
-    } else {
-      if (Platform.OS === 'web') {
-        const confirmLogin = window.confirm('Bạn chưa đăng nhập. Bạn có muốn đăng nhập không?');
-        if (confirmLogin) {
-          handleLoginPress();
-        }
-      } else {
-        Alert.alert(
-          'Đăng nhập',
-          'Bạn chưa đăng nhập. Bạn có muốn đăng nhập ngay?',
-          [
-            { text: 'Hủy', style: 'cancel' },
-            { text: 'Đăng nhập', onPress: handleLoginPress }
-          ]
-        );
-      }
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      clubStore.reset();
-      if (Platform.OS === 'web') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userEmail');
-      } else {
-        await SecureStore.deleteItemAsync('accessToken');
-        await SecureStore.deleteItemAsync('userName');
-        await SecureStore.deleteItemAsync('userEmail');
-      }
-      setIsAuthenticated(false);
-      setUserName('Khách');
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', 'Đăng xuất thành công!');
-      } else {
-        window.alert('Đăng xuất thành công!');
-      }
-    } catch (error) {
-      console.log('Error logging out:', error);
-    }
-  };
+  const {
+    isAuthenticated,
+    userName,
+    facilities,
+    facilitiesLoading,
+    facilitiesError,
+    handleFacilityPress,
+    handleLoginPress,
+    handleRegisterPress,
+    handleAvatarPress,
+    getGreeting,
+  } = useHomeScreen();
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* Header wrapper to color the status bar and notch area white */}
-      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
-              <Avatar
-                size="md"
-                source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null}
-                fallbackIcon="person"
-              />
-            </TouchableOpacity>
-            <View>
-              <Text style={styles.greeting}>Xin chào, {userName}!</Text>
-              <View style={styles.locationContainer}>
-                <MaterialIcons name="location-on" size={14} color={COLORS.primary} />
-                <Text style={styles.locationText}>Hà Nội</Text>
-              </View>
-            </View>
-          </View>
+      {/* ── Header ── */}
+      <Header
+        isAuthenticated={isAuthenticated}
+        userName={userName}
+        getGreeting={getGreeting}
+        handleAvatarPress={handleAvatarPress}
+      />
 
-          <View style={styles.headerRight}>
-            <Text style={styles.logoText}>SPORTA</Text>
-            <View style={{ position: 'relative' }}>
-              <Button
-                variant="ghost"
-                icon="notifications"
-                style={styles.notificationButton}
-                onPress={() => console.log('Notification pressed')}
-              />
-              {isAuthenticated && (
-                <View style={styles.notificationBadge} />
-              )}
-            </View>
-          </View>
-        </View>
-      </SafeAreaView>
-
-      {/* Scrollable Content */}
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      {/* ── Scrollable Content ── */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
         {/* Search Bar */}
         <SearchBar
-          onPress={() => router.push('/search')}
-          onFilterPress={() => {
-            router.push({ pathname: '/search', params: { openFilter: 'true' } });
-          }}
+          onPress={() => useHomeScreen().router.push('/search')}
+          onFilterPress={() => useHomeScreen().router.push({ pathname: '/search', params: { openFilter: 'true' } })}
         />
 
-        {/* Sport Categories */}
-        <SportCategories
-          onCategorySelect={(id) => console.log('Select category:', id)}
-        />
+        {/* Sport Categories — compact chips */}
+        <SportCategories onCategorySelect={(id) => console.log('Select category:', id)} />
 
         {/* Auth CTA Banner (Only show if guest) */}
         {!isAuthenticated && (
-          <AuthCtaBanner
-            onLoginPress={handleLoginPress}
-            onRegisterPress={handleRegisterPress}
-          />
+          <FadeInSection delay={100}>
+            <AuthCtaBanner onLoginPress={handleLoginPress} onRegisterPress={handleRegisterPress} />
+          </FadeInSection>
         )}
 
-        {/* Quick Action Cards */}
-        <View style={styles.quickActionsGrid}>
-          <Card
-            variant="ghost"
-            style={[
-              styles.quickActionCard,
-              isAuthenticated ? styles.actionCardAuthPrimary : styles.actionCardPrimary
-            ]}
-            onPress={() => router.push('/search')}
-          >
-            <MaterialIcons
-              name="event-available"
-              size={24}
-              color={isAuthenticated ? COLORS.secondary : COLORS.primary}
-            />
-            <View>
-              <Text
-                style={[
-                  styles.actionCardTitle,
-                  { color: isAuthenticated ? COLORS.onPrimary : COLORS.primary }
-                ]}
+        {/* ── Bảng tin khuyến mãi, lịch trình, sự kiện chạy ngang ── */}
+        <FadeInSection delay={150}>
+          <PromoCarousel />
+        </FadeInSection>
+
+        {/* ── Bắt đầu ngay - Action Grid ── */}
+        <FadeInSection delay={200}>
+          <ActionGrid isAuthenticated={isAuthenticated} />
+        </FadeInSection>
+
+        {/* ── Ghép kèo đá (kèm button Ghép kèo nhanh tích hợp) ── */}
+        <FadeInSection delay={250}>
+          <MatchInvitations />
+        </FadeInSection>
+
+        {/* ── Sân gần bạn ── */}
+        <FadeInSection delay={300}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Sân gần bạn</Text>
+              <TouchableOpacity
+                onPress={() => console.log('See more')}
+                style={styles.seeMoreButton}
+                activeOpacity={0.7}
               >
-                Đặt sân ngay
+                <Text style={styles.seeMoreText}>Xem thêm</Text>
+                <MaterialIcons name="arrow-forward" size={14} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+              decelerationRate="fast"
+            >
+              {facilitiesLoading ? (
+                <Text style={styles.loadingText}>Đang tải danh sách sân...</Text>
+              ) : facilitiesError ? (
+                <Text style={[styles.loadingText, { color: COLORS.error }]}>{facilitiesError}</Text>
+              ) : facilities.length === 0 ? (
+                <Text style={styles.loadingText}>Chưa có sân nào</Text>
+              ) : (
+                facilities.map((facility) => (
+                  <View key={facility.id} style={styles.cardContainer}>
+                    <FacilityCard
+                      facility={facility}
+                      onPress={() => handleFacilityPress(facility.id)}
+                      onBookPress={() => handleFacilityPress(facility.id)}
+                    />
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </FadeInSection>
+
+        {/* ── Sân chơi xé vé ── */}
+        <FadeInSection delay={350}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {isAuthenticated ? 'Sân Chơi Xé Vé' : 'Trận đấu hot'}
               </Text>
-              <Text
-                style={[
-                  styles.actionCardSubtitle,
-                  { color: isAuthenticated ? `${COLORS.onPrimary}B3` : `${COLORS.primary}B3` }
-                ]}
+              <TouchableOpacity
+                onPress={() => console.log('See all matches')}
+                style={styles.seeMoreButton}
+                activeOpacity={0.7}
               >
-                Giữ chỗ tức thì
-              </Text>
+                <Text style={styles.seeMoreText}>Xem tất cả</Text>
+                <MaterialIcons name="arrow-forward" size={14} color={COLORS.primary} />
+              </TouchableOpacity>
             </View>
-          </Card>
-
-          <Card
-            variant="ghost"
-            style={[
-              styles.quickActionCard,
-              isAuthenticated ? styles.actionCardAuthOutline : styles.actionCardGray
-            ]}
-            onPress={() => console.log('Match matching')}
-          >
-            <MaterialIcons name="groups" size={24} color={COLORS.primary} />
-            <View>
-              <Text style={[styles.actionCardTitle, { color: COLORS.onSurface }]}>Ghép kèo đá</Text>
-              <Text style={styles.actionCardSubtitle}>Tìm người chơi cùng</Text>
+            
+            <View style={styles.matchList}>
+              {HOT_MATCHES.map((match) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  onPress={() => console.log('View match detail:', match.id)}
+                  onJoinPress={() => console.log('Join match:', match.id)}
+                />
+              ))}
             </View>
-          </Card>
-        </View>
-
-        {/* Nearby Venues Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Sân gần bạn</Text>
-            <Button
-              variant="ghost"
-              icon="arrow-forward"
-              style={styles.seeMoreBtn}
-              onPress={() => console.log('See more')}
-            />
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScroll}
-            decelerationRate="fast"
-          >
-            {facilitiesLoading ? (
-              <Text style={{ padding: SPACING.md }}>Đang tải danh sách sân...</Text>
-            ) : facilitiesError ? (
-              <Text style={{ padding: SPACING.md, color: COLORS.error }}>{facilitiesError}</Text>
-            ) : facilities.length === 0 ? (
-              <Text style={{ padding: SPACING.md }}>Chưa có sân nào</Text>
-            ) : (
-              facilities.map((facility) => (
-                <View key={facility.id} style={styles.cardContainer}>
-                  <FacilityCard
-                    facility={facility}
-                    onPress={() => handleFacilityPress(facility.id)}
-                    onBookPress={() => handleFacilityPress(facility.id)}
-                  />
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
+        </FadeInSection>
 
-        {/* Hot Matches Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {isAuthenticated ? 'Sân Chơi Xé Vé' : 'Trận đấu hot'}
-            </Text>
-            <Button
-              variant="ghost"
-              title="Lọc"
-              icon="keyboard-arrow-down"
-              iconPosition="right"
-              textStyle={styles.filterDropdownText}
-              style={styles.filterDropdown}
-              onPress={() => console.log('Open Filter dropdown')}
-            />
-          </View>
-
-          <View style={styles.matchList}>
-            {HOT_MATCHES.map((match) => (
-              <MatchCard
-                key={match.id}
-                match={match}
-                onPress={() => console.log('View match detail:', match.id)}
-                onJoinPress={() => console.log('Join match:', match.id)}
-              />
-            ))}
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
@@ -397,108 +205,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  headerSafeArea: {
-    backgroundColor: COLORS.surface,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.marginMobile,
-    height: 64,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  greeting: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.outline,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: SPACING.xs,
-  },
-  locationText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  logoText: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.primary,
-  },
-  notificationButton: {
-    padding: SPACING.xs,
-  },
   scrollContent: {
     paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
-    paddingBottom: 104, // Multiple of 8 (13 * 8)
-    gap: SPACING.marginMobile,
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  quickActionCard: {
-    flex: 1,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg, // 16px radius for large cards
-    minHeight: 104, // Multiple of 8
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    shadowColor: COLORS.onSurface,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  actionCardPrimary: {
-    backgroundColor: `${COLORS.primary}1A`, // Forest Green at 10% opacity
-  },
-  actionCardGray: {
-    backgroundColor: COLORS.surfaceContainerHigh,
-  },
-  actionCardAuthPrimary: {
-    backgroundColor: COLORS.primary,
-  },
-  actionCardAuthOutline: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: `${COLORS.outline}26`, // 15% opacity outline
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: SPACING.xs,
-    right: SPACING.xs,
-    width: SPACING.base,
-    height: SPACING.base,
-    backgroundColor: COLORS.error,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.surface,
-  },
-  actionCardTitle: {
-    ...TYPOGRAPHY.bodyLg,
-    fontWeight: '600',
-  },
-  actionCardSubtitle: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
+    paddingTop: SPACING.sm,
+    paddingBottom: 110,
+    gap: SPACING.md,
   },
   section: {
-    gap: SPACING.md,
+    gap: SPACING.sm,
+    marginVertical: SPACING.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -508,28 +223,46 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...TYPOGRAPHY.headlineLgMobile,
     color: COLORS.onSurface,
+    fontWeight: '800',
   },
-  seeMoreBtn: {
-    padding: SPACING.xs,
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  seeMoreText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
   },
   filterDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity06,
   },
   filterDropdownText: {
-    ...TYPOGRAPHY.labelSm,
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
   },
   horizontalScroll: {
     paddingRight: SPACING.marginMobile,
-    gap: SPACING.md,
+    gap: SPACING.sm,
   },
   cardContainer: {
-    marginVertical: SPACING.xs, // Prevent shadow cropping
+    marginVertical: SPACING.xs,
   },
   matchList: {
     gap: SPACING.sm,
+    marginVertical: SPACING.xs,
+  },
+  loadingText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    padding: SPACING.md,
   },
 });
+
 export default HomeScreen;

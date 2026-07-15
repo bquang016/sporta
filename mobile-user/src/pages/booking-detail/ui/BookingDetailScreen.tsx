@@ -287,7 +287,7 @@ export function BookingDetailScreen() {
               <Image source={{ uri: venue.coverImage }} style={styles.venueImage} />
             ) : (
               <View style={[styles.venueImage, styles.venueImagePlaceholder]}>
-                <MaterialIcons name="image" size={32} color="rgba(255,255,255,0.5)" />
+                <MaterialIcons name="image" size={32} color={COLORS.whiteOpacity70} />
               </View>
             )}
           </View>
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   venuePhoneText: { ...TYPOGRAPHY.labelMd, color: COLORS.onPrimary },
   venueLocationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xs },
   venueLocationText: { ...TYPOGRAPHY.labelSm, color: COLORS.onPrimary, flex: 1, marginTop: 2, opacity: 0.9 },
-  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(255, 255, 255, 0.15)' },
+  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.primaryOpacity15 },
   venueImagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
 
   dateSelectorWrapper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md, paddingHorizontal: SPACING.sm },
@@ -517,12 +517,12 @@ const styles = StyleSheet.create({
   selectedCountText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant },
   totalPriceText: { ...TYPOGRAPHY.headlineMd, color: COLORS.primary },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.1)' },
+  modalOverlay: { flex: 1, backgroundColor: COLORS.blackOpacity15 },
   menuDropdown: {
     position: 'absolute', right: SPACING.md,
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.default,
     minWidth: 160, paddingVertical: SPACING.xs,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.sm },
   menuItemText: { ...TYPOGRAPHY.bodyMd, color: COLORS.onSurface },

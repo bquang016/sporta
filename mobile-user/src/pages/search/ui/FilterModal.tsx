@@ -102,7 +102,7 @@ export function FilterModal({ visible, onClose, filters, onFilterChange, onApply
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.blackOpacity50,
     justifyContent: 'flex-end',
   },
   content: {
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     borderColor: COLORS.primary,
-    backgroundColor: `${COLORS.primary}1A`,
+    backgroundColor: COLORS.primaryOpacity10,
   },
   chipText: {
     ...TYPOGRAPHY.labelSm,

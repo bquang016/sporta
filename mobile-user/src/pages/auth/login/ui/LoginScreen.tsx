@@ -1,212 +1,106 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, Animated, PanResponder, LayoutAnimation, UIManager, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
-import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
+import React from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-WebBrowser.maybeCompleteAuthSession();
-
+import Svg, { Path } from 'react-native-svg';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { useLogin } from '../hooks/useLogin';
+
+// Standard 4-color Google G SVG Logo
+function GoogleLogo({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <Path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+      />
+    </Svg>
+  );
+}
+
+// Standard Facebook SVG Logo
+function FacebookLogo({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        fill="#1877F2"
+        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+      />
+    </Svg>
+  );
+}
 
 export function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [isFocusedEmail, setIsFocusedEmail] = useState(false);
-  const [isFocusedPassword, setIsFocusedPassword] = useState(false);
-  const [isPromoVisible, setIsPromoVisible] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(true);
-  const isExpandedRef = useRef(true);
-  const router = useRouter();
+  const {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    showPassword,
+    setShowPassword,
+    loading,
+    isFocusedEmail,
+    setIsFocusedEmail,
+    isFocusedPassword,
+    setIsFocusedPassword,
+    isPromoVisible,
+    setIsPromoVisible,
+    isExpanded,
+    pan,
+    panResponder,
+    handleGoogleLogin,
+    handleLogin,
+    router,
+  } = useLogin();
 
-  React.useEffect(() => {
-    isExpandedRef.current = isExpanded;
-  }, [isExpanded]);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIsExpanded(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const pan = useRef(new Animated.ValueXY()).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (e, gestureState) => {
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-      },
-      onPanResponderGrant: () => {
-        pan.setOffset({
-          x: (pan.x as any)._value,
-          y: (pan.y as any)._value
-        });
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-        const screenWidth = Dimensions.get('window').width;
-        const containerWidth = isExpandedRef.current ? 180 : 52;
-        const leftX = -(screenWidth - 40 - containerWidth);
-        const currentX = (pan.x as any)._value;
-        const currentY = (pan.y as any)._value;
-        const midPoint = leftX / 2;
-
-        const targetX = currentX < midPoint ? leftX : 0;
-
-        Animated.spring(pan, {
-          toValue: { x: targetX, y: currentY },
-          useNativeDriver: false,
-          friction: 6,
-          tension: 40,
-        }).start();
-      }
-    })
-  ).current;
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
-    webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
-  });
-
-  React.useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      if (id_token) {
-        handleBackendGoogleLogin(id_token);
-      }
-    } else if (response?.type === 'error') {
-      const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
-      if (Platform.OS === 'web') {
-        window.alert('Lỗi đăng nhập Google: ' + errorMsg);
-      } else {
-        Alert.alert('Lỗi đăng nhập Google', errorMsg);
-      }
-    }
-  }, [response]);
-
-  const handleBackendGoogleLogin = async (idToken: string) => {
-    setLoading(true);
-    try {
-      const response = await googleLoginApi(idToken);
-      if (response.isNewUser) {
-        const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
-        router.push({
-          pathname: '/(auth)/personal-info',
-          params: {
-            registrationToken: response.registrationToken,
-            email: response.email,
-            password: dummyPassword,
-            fullName: response.fullName
-          }
-        });
-      } else {
-        if (Platform.OS === 'web') {
-          localStorage.setItem('accessToken', response.accessToken);
-          localStorage.setItem('userEmail', response.email);
-          localStorage.setItem('userName', response.fullName);
-        } else {
-          await SecureStore.setItemAsync('accessToken', response.accessToken);
-          await SecureStore.setItemAsync('userEmail', response.email);
-          await SecureStore.setItemAsync('userName', response.fullName);
-        }
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', response.message);
-        } else {
-          window.alert(response.message);
-        }
-        router.replace('/(tabs)');
-      }
-    } catch (error: any) {
-      console.error(error);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
-      } else {
-        window.alert('Lỗi xác thực: ' + (error.message || 'Xác thực Google thất bại.'));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = () => {
-    promptAsync();
-  };
-
-  const handleLogin = async () => {
-    if (!email || !email.includes('@')) {
-      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
-      return;
-    }
-    if (!password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await loginApi(email, password);
-      const username = email.split('@')[0];
-      const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
-      
-      if (Platform.OS === 'web') {
-        localStorage.setItem('accessToken', response.accessToken);
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userName', capitalizedUsername);
-      } else {
-        await SecureStore.setItemAsync('accessToken', response.accessToken);
-        await SecureStore.setItemAsync('userEmail', email);
-        await SecureStore.setItemAsync('userName', capitalizedUsername);
-      }
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', response.message);
-      } else {
-        window.alert(response.message);
-      }
-      router.replace('/(tabs)');
-    } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Email hoặc mật khẩu không đúng.'));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const logoImg = require('../../../../../assets/logo/logo-main_699x699.png');
 
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoText}>Sporta</Text>
-          </View>
+      <View style={styles.topBar}>
+        <TouchableOpacity 
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} 
+          style={styles.backHomeButton}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="home-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+          <Text style={styles.backHomeText}>Quay lại trang chủ</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Brand Logo */}
+        <View style={styles.logoWrapper}>
+          <Image source={logoImg} style={styles.logoImage} resizeMode="contain" />
         </View>
 
-        {/* Title */}
-        <Text style={styles.title}>Chào mừng quay trở lại</Text>
-        <Text style={styles.subtitle}>Vui lòng đăng nhập để tiếp tục hành trình tập luyện</Text>
+        {/* Header Title */}
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.title}>Chào mừng quay trở lại</Text>
+          <Text style={styles.subtitle}>Đăng nhập tài khoản để tiếp tục hành trình tập luyện cùng Sporta</Text>
+        </View>
 
-        {/* Form */}
+        {/* Input Fields Form */}
         <View style={styles.formContainer}>
           <Text style={styles.label}>Email</Text>
           <View style={[
@@ -272,44 +166,47 @@ export function LoginScreen() {
             size="lg"
             loading={loading}
             onPress={handleLogin}
+            style={styles.loginBtn}
           />
         </View>
 
-		{/* Divider */}
+        {/* Split Divider */}
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
           <Text style={styles.dividerText}>Hoặc đăng nhập với</Text>
           <View style={styles.divider} />
         </View>
 
-        {/* Social Buttons */}
+        {/* Social Authentication Providers with Standard colored SVGs */}
         <View style={styles.socialContainer}>
           <Button 
             variant="outline"
             style={styles.socialButton}
             onPress={handleGoogleLogin}
-            icon={<MaterialCommunityIcons name="google" size={18} color="#DB4437" />}
+            icon={<GoogleLogo size={18} />}
             title="Google"
+            textStyle={styles.socialBtnText}
           />
           <Button 
             variant="outline"
             style={styles.socialButton}
             onPress={() => console.log('Facebook login')}
-            icon={<MaterialCommunityIcons name="facebook" size={18} color="#4267B2" />}
+            icon={<FacebookLogo size={18} />}
             title="Facebook"
+            textStyle={styles.socialBtnText}
           />
         </View>
         
-        {/* Footer */}
+        {/* Registration Redirection Footer */}
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+          <TouchableOpacity onPress={() => router.replace('/(auth)/register')}>
             <Text style={styles.footerLink}>Đăng ký</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Floating Partner Promo */}
+      {/* Floating Interactive Partner Promo */}
       {isPromoVisible && (
         <Animated.View 
           style={[
@@ -354,76 +251,95 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-  },
-  logoContainer: {
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    marginBottom: 30,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingHorizontal: SPACING.marginMobile,
+    backgroundColor: 'transparent',
+    zIndex: 10,
   },
-  logoBadge: {
-    backgroundColor: COLORS.primary, // Green Forest Green
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.default, // Standard 8px
+  backHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryOpacity15,
   },
-  logoText: {
-    color: COLORS.secondary, // Yellow brand Gold
-    fontSize: 24,
-    fontFamily: TYPOGRAPHY.headlineLgMobile.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineLgMobile.fontWeight,
-    fontStyle: 'italic',
+  backHomeText: {
+    color: COLORS.primary,
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '700',
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.marginMobile,
+    paddingTop: 20,
+    paddingBottom: 110,
+  },
+  logoWrapper: {
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+    height: 90,
+  },
+  logoImage: {
+    width: 90,
+    height: 90,
+  },
+  headerTextContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: 24,
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    ...TYPOGRAPHY.headlineLgMobile,
     color: COLORS.onSurface,
     textAlign: 'center',
+    fontWeight: '800',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontWeight: TYPOGRAPHY.bodyMd.fontWeight,
+    ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.sm,
+    lineHeight: 18,
   },
   formContainer: {
-    marginBottom: 30,
+    marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 14,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurface,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
+    fontWeight: '700',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default, // 8px
-    paddingHorizontal: 12,
-    height: 50,
-    marginBottom: 15,
-    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB', // Default light border
+    borderRadius: 16, // Bo tròn 16px sang trọng
+    paddingHorizontal: SPACING.md,
+    height: 54, // Tăng chiều cao lên 54 cho thoải mái
+    marginBottom: SPACING.md,
+    backgroundColor: '#F9FAFB', // Background hơi xám nhẹ cao cấp
   },
   inputContainerFocused: {
-    borderColor: COLORS.primary, // Forest Green border on focus
+    borderColor: COLORS.primary, // Viền màu ngọc bích đậm khi focus
+    backgroundColor: COLORS.white, // Nền trắng nổi bật
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: SPACING.sm,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    ...TYPOGRAPHY.bodyLg,
     color: COLORS.onSurface,
     ...Platform.select({
       web: {
@@ -433,17 +349,21 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignItems: 'flex-end',
-    marginBottom: 20,
+    marginBottom: SPACING.lg,
   },
   forgotPasswordText: {
-    color: COLORS.primary, // Green link
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontWeight: TYPOGRAPHY.labelMd.fontWeight,
+    color: COLORS.primary,
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '700',
+  },
+  loginBtn: {
+    height: 50,
+    borderRadius: 16, // Bo tròn nút 16px đồng bộ
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginVertical: SPACING.lg,
   },
   divider: {
     flex: 1,
@@ -451,49 +371,53 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.outlineVariant,
   },
   dividerText: {
-    marginHorizontal: 10,
-    color: COLORS.primary,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: 14,
+    marginHorizontal: SPACING.base,
+    color: COLORS.outline,
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '700',
   },
   socialContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: SPACING.md,
   },
   socialButton: {
     flex: 0.48,
-    height: 48,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
+    height: 50,
+    borderColor: '#E5E7EB',
+    borderRadius: 16, // Bo tròn 16px
+    backgroundColor: COLORS.white,
+  },
+  socialBtnText: {
+    color: COLORS.onSurface,
+    fontWeight: '700',
+    fontSize: 14,
   },
   footerContainer: {
     flexDirection: 'row',
-    marginTop: 30,
+    marginTop: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   footerText: {
-    fontSize: 14,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+    ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
   },
   footerLink: {
-    fontSize: 14,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    ...TYPOGRAPHY.labelMd,
     fontWeight: 'bold',
-    color: COLORS.primary, // Forest Green for sign up link
+    color: COLORS.primary,
   },
   floatingPromoContainer: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 40 : 30,
     right: 20,
     backgroundColor: COLORS.surface,
-    borderRadius: 24,
+    borderRadius: BORDER_RADIUS.xl,
     padding: 6,
-    shadowColor: '#000',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 1,
@@ -508,7 +432,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary + '15',
+    backgroundColor: COLORS.primaryOpacity15,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -517,14 +441,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   promoTitle: {
-    fontSize: 13,
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    ...TYPOGRAPHY.labelMd,
     fontWeight: 'bold',
     color: COLORS.primary,
   },
   promoSubtitle: {
-    fontSize: 11,
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurfaceVariant,
   },
   promoCloseButton: {
@@ -533,7 +455,7 @@ const styles = StyleSheet.create({
     right: 8,
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',

@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
 
   // Variants
   success: {
-    backgroundColor: 'rgba(6, 78, 59, 0.1)', // Green at 10%
+    backgroundColor: COLORS.primaryOpacity10,
   },
   success_flat: {
     backgroundColor: COLORS.surface,
@@ -86,25 +86,25 @@ const styles = StyleSheet.create({
     borderColor: COLORS.outlineVariant,
   },
   warning: {
-    backgroundColor: 'rgba(250, 204, 21, 0.15)', // Accent Yellow at 15%
+    backgroundColor: COLORS.secondaryOpacity15,
   },
   error: {
     backgroundColor: COLORS.errorContainer,
   },
   info: {
-    backgroundColor: 'rgba(0, 102, 204, 0.08)',
+    backgroundColor: COLORS.primaryOpacity10,
   },
   gold: {
-    backgroundColor: 'rgba(115, 92, 0, 0.1)',
+    backgroundColor: COLORS.secondaryOpacity15,
   },
   silver: {
-    backgroundColor: 'rgba(116, 120, 120, 0.1)',
+    backgroundColor: COLORS.grayOpacity10,
   },
   full: {
-    backgroundColor: 'rgba(116, 120, 120, 0.2)',
+    backgroundColor: COLORS.grayOpacity20,
   },
   default: {
-    backgroundColor: 'rgba(116, 120, 120, 0.1)',
+    backgroundColor: COLORS.grayOpacity10,
   },
 
   // Text Base
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
   },
   text_info: {
-    color: '#0066CC',
+    color: COLORS.primary,
   },
   text_gold: {
     color: COLORS.tertiary,

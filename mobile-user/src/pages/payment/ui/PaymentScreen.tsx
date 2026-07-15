@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   methodItemSelected: {
-    backgroundColor: '#F0FDF4', // Light green highlight
+    backgroundColor: COLORS.primaryOpacity08, // Light green highlight
   },
   methodDivider: {
     borderBottomWidth: 1,
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     color: COLORS.onSurface,
   },
   promoApplyBtn: {
-    backgroundColor: '#ADEDD3', // Secondary container
+    backgroundColor: COLORS.primaryFixed, // Mint green container from MD3
     paddingHorizontal: SPACING.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     ...TYPOGRAPHY.headlineLgMobile,
-    color: '#F97316', // Orange matching design for total
+    color: COLORS.primary, // Emerald primary color
   },
   bottomBar: {
     padding: SPACING.md,

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 
 export function PersonalInfoScreen() {
   const router = useRouter();
@@ -413,11 +414,15 @@ export function PersonalInfoScreen() {
 
       </View>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Tiếp tục</Text>
-          <MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.onSecondary} />
-        </TouchableOpacity>
-        </View>
+        <Button 
+          title="Tiếp tục"
+          variant="primary"
+          size="lg"
+          onPress={handleNext}
+          icon={<MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.onSecondary} />}
+          iconPosition="right"
+        />
+      </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -742,28 +747,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 30,
-    paddingTop: 10,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: SPACING.xl,
+    paddingTop: SPACING.base,
     zIndex: 1,
-  },
-  nextButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: BORDER_RADIUS.xl,
-    height: 50,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  nextButtonText: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 16,
-    color: COLORS.onSecondary,
-    marginRight: 10,
   },
 });

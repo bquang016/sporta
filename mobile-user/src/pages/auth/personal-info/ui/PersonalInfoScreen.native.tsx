@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 
 export function PersonalInfoScreen() {
   const router = useRouter();
@@ -52,7 +54,7 @@ export function PersonalInfoScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#2A5C43" />
+          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Sporta</Text>
       </View>
@@ -80,7 +82,7 @@ export function PersonalInfoScreen() {
             placeholder="Ví dụ: Nguyễn Văn A"
             value={fullName}
             onChangeText={setFullName}
-            placeholderTextColor="#999"
+            placeholderTextColor={COLORS.outline}
           />
         </View>
 
@@ -91,10 +93,10 @@ export function PersonalInfoScreen() {
             onPress={() => setShowDatePicker(true)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.dateInputText, !dateOfBirth && { color: '#999' }]}>
+            <Text style={[styles.dateInputText, !dateOfBirth && { color: COLORS.outline }]}>
               {dateOfBirth ? formatDate(dateOfBirth) : 'DD/MM/YYYY'}
             </Text>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={20} color="#666" />
+            <MaterialCommunityIcons name="calendar-blank-outline" size={20} color={COLORS.outline} />
           </TouchableOpacity>
           
           {showDatePicker && (
@@ -134,7 +136,7 @@ export function PersonalInfoScreen() {
 
         <View style={styles.securityInfo}>
           <View style={styles.securityIconContainer}>
-            <MaterialCommunityIcons name="lock-outline" size={24} color="#fff" />
+            <MaterialCommunityIcons name="lock-outline" size={24} color={COLORS.onPrimary} />
           </View>
           <View style={styles.securityTextContainer}>
             <Text style={styles.securityTitle}>Bảo mật thông tin</Text>
@@ -146,10 +148,14 @@ export function PersonalInfoScreen() {
 
       </View>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Tiếp tục</Text>
-          <MaterialCommunityIcons name="arrow-right" size={20} color="#000" />
-        </TouchableOpacity>
+        <Button 
+          title="Tiếp tục"
+          variant="primary"
+          size="lg"
+          onPress={handleNext}
+          icon={<MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.onSecondary} />}
+          iconPosition="right"
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -158,38 +164,37 @@ export function PersonalInfoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: SPACING.sm,
     zIndex: 10,
   },
   backButton: {
-    padding: 5,
+    padding: SPACING.xs,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2A5C43',
-    marginLeft: 15,
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: COLORS.primary,
+    marginLeft: SPACING.sm,
   },
   progressContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 20,
+    paddingHorizontal: SPACING.marginMobile,
+    marginBottom: SPACING.md,
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: COLORS.outlineVariant,
     borderRadius: 2,
-    marginBottom: 8,
+    marginBottom: SPACING.base,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#2A5C43',
+    backgroundColor: COLORS.primary,
     borderRadius: 2,
   },
   progressTextContainer: {
@@ -197,66 +202,66 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   progressTextLeft: {
-    fontSize: 10,
+    ...TYPOGRAPHY.labelSm,
     fontWeight: 'bold',
-    color: '#2A5C43',
+    color: COLORS.primary,
   },
   progressTextRight: {
-    fontSize: 10,
-    color: '#2A5C43',
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING.marginMobile,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 10,
+    ...TYPOGRAPHY.headlineLg,
+    color: COLORS.onSurface,
+    marginBottom: SPACING.base,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#2A5C43',
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
     lineHeight: 20,
-    marginBottom: 30,
+    marginBottom: SPACING.lg,
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurface,
+    marginBottom: SPACING.base,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default,
     height: 50,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    color: '#333',
+    paddingHorizontal: SPACING.md,
+    ...TYPOGRAPHY.bodyLg,
+    color: COLORS.onSurface,
+    backgroundColor: COLORS.surface,
   },
   dateInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default,
     height: 50,
-    paddingHorizontal: 15,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.surface,
   },
   dateInputText: {
-    fontSize: 16,
-    color: '#333',
+    ...TYPOGRAPHY.bodyLg,
+    color: COLORS.onSurface,
   },
   genderContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderRadius: BORDER_RADIUS.default,
     overflow: 'hidden',
   },
   genderOption: {
@@ -266,70 +271,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   genderOptionActive: {
-    backgroundColor: '#2A5C43',
-    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.default - 2,
   },
   genderText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurfaceVariant,
   },
   genderTextActive: {
-    color: '#fff',
+    color: COLORS.onPrimary,
   },
   securityInfo: {
     flexDirection: 'row',
-    backgroundColor: '#E8F5E9',
-    padding: 15,
-    borderRadius: 12,
-    marginTop: 10,
+    backgroundColor: COLORS.primaryOpacity10,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.default,
+    marginTop: SPACING.base,
     alignItems: 'center',
   },
   securityIconContainer: {
-    backgroundColor: '#2A5C43',
+    backgroundColor: COLORS.primary,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: SPACING.md,
   },
   securityTextContainer: {
     flex: 1,
   },
   securityTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#2A5C43',
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
     marginBottom: 4,
   },
   securityDesc: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
-    color: '#2A5C43',
+    color: COLORS.primary,
     lineHeight: 16,
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 30,
-    paddingTop: 10,
-  },
-  nextButton: {
-    backgroundColor: '#FFCC00',
-    borderRadius: 25,
-    height: 50,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FFCC00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-    marginRight: 10,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: SPACING.xl,
+    paddingTop: SPACING.base,
   },
 });

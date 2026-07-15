@@ -21,7 +21,7 @@ export function SearchBar({
   const [isFocused, setIsFocused] = useState(false);
 
   const borderStyle = {
-    borderColor: isFocused ? 'rgba(6, 78, 59, 1)' : 'rgba(6, 78, 59, 0.2)'
+    borderColor: isFocused ? COLORS.primary : 'transparent',
   };
 
   return (
@@ -54,7 +54,7 @@ export function SearchBar({
 
         {/* NÚT FILTER SONG SONG */}
         <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.8}>
-          <MaterialIcons name="tune" size={20} color="#FFFFFF" />
+          <MaterialIcons name="tune" size={20} color={COLORS.white} />
         </TouchableOpacity>
 
       </View>
@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.sm,
     height: 48,
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     right: 4,
     width: 40,
     height: 40,
-    backgroundColor: '#064E3B',
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.full,
     justifyContent: 'center',
     alignItems: 'center',
