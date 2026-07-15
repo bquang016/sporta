@@ -70,8 +70,11 @@ public class BookingService {
                 .status(BookingStatus.CONFIRMED)
                 .build();
 
+        // Sắp xếp các slot theo courtId để tránh deadlock khi có nhiều court cần lock
+        request.getSlots().sort(java.util.Comparator.comparing(BookingSlotRequest::getCourtId));
+
         for (BookingSlotRequest slot : request.getSlots()) {
-            Court court = courtRepository.findById(slot.getCourtId())
+            Court court = courtRepository.findByIdWithLock(slot.getCourtId())
                     .orElseThrow(() -> new CustomException("Không tìm thấy sân " + slot.getCourtId(), 404));
 
             if (!court.getVenue().getId().equals(venue.getId())) {

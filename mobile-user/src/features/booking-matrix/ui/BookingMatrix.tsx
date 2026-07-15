@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
-import type { VenueInfo, SlotInfo } from '../../../entities/facility/model/facility.types';
+import type { VenueDetail, SlotInfo } from '../../../entities/facility/model/facility.types';
 
 const SLOT_WIDTH = 50;
 const SLOT_HEIGHT = 50;
@@ -10,7 +10,7 @@ const HEADER_HEIGHT = 44;
 const FROZEN_COL_WIDTH = 100;
 
 export interface BookingMatrixProps {
-  venue: VenueInfo;
+  venue: VenueDetail;
   slots: SlotInfo[];
   selectedDate: Date;
   selectedSlotKeys: Set<string>;

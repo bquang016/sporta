@@ -73,6 +73,19 @@ export const apiFetch = async <T = unknown>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    
+    // Xử lý báo lỗi hết hạn đăng nhập
+    if (response.status === 401) {
+      clearCachedToken();
+      if (Platform.OS === 'web') {
+        localStorage.removeItem('accessToken');
+      } else {
+        SecureStore.deleteItemAsync('accessToken').catch(() => {});
+      }
+      const { globalEvent } = require('../lib/eventEmitter');
+      globalEvent.emit('auth:expired');
+    }
+
     throw new ApiError(
       errorData.message || errorData.error || `HTTP ${response.status}`,
       response.status,
