@@ -68,6 +68,7 @@ export function HomeScreen() {
   const {
     isAuthenticated,
     userName,
+    userAvatar,
     facilities,
     facilitiesLoading,
     facilitiesError,
@@ -86,6 +87,7 @@ export function HomeScreen() {
       <Header
         isAuthenticated={isAuthenticated}
         userName={userName}
+        userAvatar={userAvatar}
         getGreeting={getGreeting}
         handleAvatarPress={handleAvatarPress}
       />

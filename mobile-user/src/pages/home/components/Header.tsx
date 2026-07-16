@@ -8,18 +8,19 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 interface HeaderProps {
   isAuthenticated: boolean;
   userName: string;
+  userAvatar?: string | null;
   getGreeting: () => string;
   handleAvatarPress: () => void;
 }
 
-export function Header({ isAuthenticated, userName, getGreeting, handleAvatarPress }: HeaderProps) {
+export function Header({ isAuthenticated, userName, userAvatar, getGreeting, handleAvatarPress }: HeaderProps) {
   return (
     <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8} style={styles.headerLeft}>
           <Avatar
             size="md"
-            source={isAuthenticated ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" : null}
+            source={isAuthenticated && userAvatar ? userAvatar : null}
             fallbackIcon="person"
           />
           <View>

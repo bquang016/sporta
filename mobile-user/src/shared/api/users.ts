@@ -69,16 +69,37 @@ export const usersApi = {
     }
 
     if (avatarUri) {
-      const filename = avatarUri.split('/').pop() || 'avatar.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image/jpeg`;
+      let filename = 'avatar.jpg';
+      let type = 'image/jpeg';
+      
+      if (avatarUri.startsWith('data:')) {
+        const mimeStr = avatarUri.split(',')[0].split(':')[1].split(';')[0];
+        if (mimeStr) type = mimeStr;
+        const ext = mimeStr.split('/')[1] || 'jpg';
+        filename = `avatar.${ext}`;
+      } else {
+        filename = avatarUri.split('/').pop() || 'avatar.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        if (match) type = `image/${match[1]}`;
+      }
 
-      // @ts-ignore - React Native FormData expects this format for files
-      formData.append('avatar', {
-        uri: avatarUri,
-        name: filename,
-        type,
-      });
+      if (Platform.OS === 'web') {
+        try {
+          const res = await fetch(avatarUri);
+          const blob = await res.blob();
+          const file = new File([blob], filename, { type: type });
+          formData.append('avatar', file);
+        } catch (e) {
+          console.error("Error creating blob from uri", e);
+        }
+      } else {
+        // @ts-ignore - React Native FormData expects this format for files
+        formData.append('avatar', {
+          uri: avatarUri,
+          name: filename,
+          type,
+        });
+      }
     }
 
     const response = await fetch(`${BASE_URL}/users/profile`, {

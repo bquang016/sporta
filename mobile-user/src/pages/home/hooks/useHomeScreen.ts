@@ -9,6 +9,7 @@ export function useHomeScreen() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
 
   const getApiUrl = () => {
@@ -21,12 +22,15 @@ export function useHomeScreen() {
     try {
       let token = '';
       let name = '';
+      let avatar = '';
       if (Platform.OS === 'web') {
         token = localStorage.getItem('accessToken') || '';
         name = localStorage.getItem('userName') || '';
+        avatar = localStorage.getItem('userAvatar') || '';
       } else {
         token = await SecureStore.getItemAsync('accessToken') || '';
         name = await SecureStore.getItemAsync('userName') || '';
+        avatar = await SecureStore.getItemAsync('userAvatar') || '';
       }
 
       if (token) {
@@ -42,15 +46,18 @@ export function useHomeScreen() {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('userName');
                 localStorage.removeItem('userEmail');
+                localStorage.removeItem('userAvatar');
                 window.alert(errorData.message);
               } else {
                 await SecureStore.deleteItemAsync('accessToken');
                 await SecureStore.deleteItemAsync('userName');
                 await SecureStore.deleteItemAsync('userEmail');
+                await SecureStore.deleteItemAsync('userAvatar');
                 Alert.alert('Tài khoản bị khóa', errorData.message);
               }
               setIsAuthenticated(false);
               setUserName('Khách');
+              setUserAvatar(null);
               return;
             }
           }
@@ -59,26 +66,32 @@ export function useHomeScreen() {
 
           setIsAuthenticated(true);
           setUserName(name || 'Thành viên');
+          setUserAvatar(avatar || null);
         } catch (e) {
           if (Platform.OS === 'web') {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('userName');
             localStorage.removeItem('userEmail');
+            localStorage.removeItem('userAvatar');
           } else {
             await SecureStore.deleteItemAsync('accessToken');
             await SecureStore.deleteItemAsync('userName');
             await SecureStore.deleteItemAsync('userEmail');
+            await SecureStore.deleteItemAsync('userAvatar');
           }
           setIsAuthenticated(false);
           setUserName('Khách');
+          setUserAvatar(null);
         }
       } else {
         setIsAuthenticated(false);
         setUserName('Khách');
+        setUserAvatar(null);
       }
     } catch (e) {
       setIsAuthenticated(false);
       setUserName('Khách');
+      setUserAvatar(null);
     }
   };
 
@@ -99,13 +112,16 @@ export function useHomeScreen() {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('userName');
         localStorage.removeItem('userEmail');
+        localStorage.removeItem('userAvatar');
       } else {
         await SecureStore.deleteItemAsync('accessToken');
         await SecureStore.deleteItemAsync('userName');
         await SecureStore.deleteItemAsync('userEmail');
+        await SecureStore.deleteItemAsync('userAvatar');
       }
       setIsAuthenticated(false);
       setUserName('Khách');
+      setUserAvatar(null);
       if (Platform.OS !== 'web') {
         Alert.alert('Thành công', 'Đăng xuất thành công!');
       } else {
@@ -142,6 +158,7 @@ export function useHomeScreen() {
     router,
     isAuthenticated,
     userName,
+    userAvatar,
     facilities,
     facilitiesLoading,
     facilitiesError,

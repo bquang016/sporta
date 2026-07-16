@@ -12,6 +12,7 @@ export function ProfileScreen() {
     isAuthenticated,
     userName,
     userEmail,
+    userAvatar,
     isLogoutModalVisible,
     handleLoginPress,
     requestLogout,
@@ -46,7 +47,7 @@ export function ProfileScreen() {
         >
           <Avatar
             size="lg"
-            source="https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM"
+            source={userAvatar}
           />
           <View style={styles.headerInfo}>
             <Text style={styles.userName}>{userName}</Text>

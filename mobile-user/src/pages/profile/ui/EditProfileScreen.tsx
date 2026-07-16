@@ -29,7 +29,15 @@ export function EditProfileScreen() {
     avatarUri,
     handlePickImage,
     handleSave,
-    isSubmitting
+    isSubmitting,
+    isConfirmAvatarModalVisible,
+    pendingAvatarUri,
+    confirmUploadAvatar,
+    cancelUploadAvatar,
+    alertVisible,
+    alertMessage,
+    isSuccess,
+    handleCloseAlert,
   } = useEditProfile();
 
   // Local state for modals
@@ -216,9 +224,9 @@ export function EditProfileScreen() {
           {/* HEADER INFO */}
           <View style={styles.profileHeader}>
           <View style={styles.avatarWrapper}>
-            <Avatar size="xl" source={avatarUri || defaultAvatar} />
+            <Avatar size={100} source={avatarUri || defaultAvatar} />
             <TouchableOpacity style={styles.avatarCamera} onPress={handlePickImage}>
-              <MaterialIcons name="camera-alt" size={14} color="#064E3B" />
+              <MaterialIcons name="camera-alt" size={16} color="#064E3B" />
             </TouchableOpacity>
           </View>
           <Text style={styles.nameText} numberOfLines={1}>{fullName || 'Chưa cập nhật tên'}</Text>
@@ -374,9 +382,47 @@ export function EditProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL */}
+      {/* MODAL EDIT FIELDS */}
       <Modal visible={editingField !== null} transparent animationType="fade">
         {renderModalContent()}
+      </Modal>
+
+      {/* MODAL XÁC NHẬN AVATAR */}
+      <Modal visible={isConfirmAvatarModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Đổi ảnh đại diện</Text>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+               {pendingAvatarUri && <Avatar size={100} source={pendingAvatarUri} />}
+               <Text style={{ marginTop: 12, ...TYPOGRAPHY.bodyMd, color: '#707974', textAlign: 'center' }}>Bạn có chắc chắn muốn cập nhật ảnh đại diện này?</Text>
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={cancelUploadAvatar} disabled={isSubmitting}>
+                <Text style={styles.modalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={confirmUploadAvatar} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator size="small" color="#002117" /> : <Text style={styles.modalSaveText}>Đồng ý</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ALERT MODAL */}
+      <Modal visible={alertVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{isSuccess ? 'Thành công' : 'Lỗi'}</Text>
+            <Text style={{ marginBottom: 20, ...TYPOGRAPHY.bodyMd, color: '#707974', textAlign: 'center' }}>
+              {alertMessage}
+            </Text>
+            <View style={{ width: '100%' }}>
+              <TouchableOpacity style={styles.modalSave} onPress={handleCloseAlert}>
+                <Text style={styles.modalSaveText}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
     </View>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { useProfile } from './useProfile';
 
@@ -18,6 +20,9 @@ export function useEditProfile() {
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(true);
+  
+  const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null);
+  const [isConfirmAvatarModalVisible, setIsConfirmAvatarModalVisible] = useState(false);
 
   // Initialize form with existing data
   useEffect(() => {
@@ -47,15 +52,38 @@ export function useEditProfile() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setAvatarUri(result.assets[0].uri);
-      // Immediately upload avatar when selected
-      try {
-        await usersApi.updateProfile({}, result.assets[0].uri);
-        await refreshProfile();
-      } catch (e) {
-        showAlert('Lỗi khi tải ảnh lên.', false);
-      }
+      setPendingAvatarUri(result.assets[0].uri);
+      setIsConfirmAvatarModalVisible(true);
     }
+  };
+
+  const confirmUploadAvatar = async () => {
+    if (!pendingAvatarUri) return;
+    setIsSubmitting(true);
+    setIsConfirmAvatarModalVisible(false);
+    try {
+      const response = await usersApi.updateProfile({}, pendingAvatarUri);
+      setAvatarUri(pendingAvatarUri);
+      if (response && response.avatarUrl) {
+         if (Platform.OS === 'web') {
+           localStorage.setItem('userAvatar', response.avatarUrl);
+         } else {
+           await SecureStore.setItemAsync('userAvatar', response.avatarUrl);
+         }
+      }
+      await refreshProfile();
+      // showAlert('Cập nhật ảnh đại diện thành công!', true);
+    } catch (e) {
+      showAlert('Lỗi khi tải ảnh lên.', false);
+    } finally {
+      setIsSubmitting(false);
+      setPendingAvatarUri(null);
+    }
+  };
+
+  const cancelUploadAvatar = () => {
+    setPendingAvatarUri(null);
+    setIsConfirmAvatarModalVisible(false);
   };
 
   const showAlert = (message: string, success: boolean) => {
@@ -118,5 +146,9 @@ export function useEditProfile() {
     handlePickImage,
     handleSave,
     handleCloseAlert,
+    isConfirmAvatarModalVisible,
+    pendingAvatarUri,
+    confirmUploadAvatar,
+    cancelUploadAvatar,
   };
 }

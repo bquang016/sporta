@@ -91,6 +91,9 @@ export function useProfile() {
   return {
     isAuthenticated,
     profileData,
+    userName: profileData?.fullName || '',
+    userEmail: profileData?.email || '',
+    userAvatar: profileData?.avatarUrl || null,
     isLoading,
     isLogoutModalVisible,
     refreshProfile,
