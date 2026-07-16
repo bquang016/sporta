@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Button } from '../../../../shared/ui';
+import { Button, ConfirmModal } from '../../../../shared/ui';
 import { useLogin } from '../hooks/useLogin';
 
 // Standard 4-color Google G SVG Logo
@@ -60,6 +60,11 @@ export function LoginScreen() {
     isExpanded,
     pan,
     panResponder,
+    alertVisible,
+    alertTitle,
+    alertMessage,
+    alertType,
+    hideAlert,
     handleGoogleLogin,
     handleLogin,
     router,
@@ -242,6 +247,17 @@ export function LoginScreen() {
           )}
         </Animated.View>
       )}
+
+      <ConfirmModal
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        icon={alertType === 'error' ? 'error-outline' : 'check-circle-outline'}
+        iconColor={alertType === 'error' ? COLORS.error : COLORS.primary}
+        confirmText="Đóng"
+        confirmVariant={alertType === 'error' ? 'primary' : 'primary'}
+        onConfirm={hideAlert}
+      />
     </KeyboardAvoidingView>
   );
 }

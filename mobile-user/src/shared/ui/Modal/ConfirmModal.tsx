@@ -22,7 +22,7 @@ export interface ConfirmModalProps {
   icon?: keyof typeof MaterialIcons.glyphMap;
   iconColor?: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 export function ConfirmModal({
@@ -42,9 +42,9 @@ export function ConfirmModal({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onCancel}
+      onRequestClose={onCancel || onConfirm}
     >
-      <TouchableWithoutFeedback onPress={onCancel}>
+      <TouchableWithoutFeedback onPress={onCancel || onConfirm}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
@@ -58,13 +58,15 @@ export function ConfirmModal({
               <Text style={styles.message}>{message}</Text>
               
               <View style={styles.buttonGroup}>
-                <View style={styles.buttonWrapper}>
-                  <Button 
-                    title={cancelText}
-                    variant="ghost"
-                    onPress={onCancel}
-                  />
-                </View>
+                {onCancel && (
+                  <View style={styles.buttonWrapper}>
+                    <Button 
+                      title={cancelText}
+                      variant="ghost"
+                      onPress={onCancel}
+                    />
+                  </View>
+                )}
                 <View style={styles.buttonWrapper}>
                   <Button 
                     title={confirmText}

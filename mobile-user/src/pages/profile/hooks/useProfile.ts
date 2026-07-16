@@ -1,50 +1,47 @@
 import { useState, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { clubStore } from '../../../entities/club';
+import { usersApi, UserProfileDto } from '../../../shared/api/users';
 
 export function useProfile() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userName, setUserName] = useState('Khách');
-  const [userEmail, setUserEmail] = useState('');
-  
+  const [profileData, setProfileData] = useState<UserProfileDto | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   // State for logout modal
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
-  const getApiUrl = () => {
-    if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'http://localhost:8387/api/v1';
-  };
-
   const loadUserData = async () => {
+    setIsLoading(true);
     try {
       let token = '';
-      let name = '';
-      let email = '';
       if (Platform.OS === 'web') {
         token = localStorage.getItem('accessToken') || '';
-        name = localStorage.getItem('userName') || '';
-        email = localStorage.getItem('userEmail') || '';
       } else {
         token = await SecureStore.getItemAsync('accessToken') || '';
-        name = await SecureStore.getItemAsync('userName') || '';
-        email = await SecureStore.getItemAsync('userEmail') || '';
       }
 
       if (token) {
         setIsAuthenticated(true);
-        setUserName(name || 'Thành viên');
-        setUserEmail(email || 'Chưa cập nhật email');
+        // Fetch from API
+        try {
+          const profile = await usersApi.getProfile();
+          setProfileData(profile);
+        } catch (apiError) {
+          console.error("Failed to fetch profile", apiError);
+        }
       } else {
         setIsAuthenticated(false);
-        setUserName('Khách');
-        setUserEmail('');
+        setProfileData(null);
       }
     } catch (e) {
       setIsAuthenticated(false);
+      setProfileData(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -53,6 +50,10 @@ export function useProfile() {
       loadUserData();
     }, [])
   );
+
+  const refreshProfile = async () => {
+    await loadUserData();
+  };
 
   const handleLoginPress = () => {
     router.push('/(auth)/login');
@@ -80,8 +81,7 @@ export function useProfile() {
         await SecureStore.deleteItemAsync('userEmail');
       }
       setIsAuthenticated(false);
-      setUserName('Khách');
-      setUserEmail('');
+      setProfileData(null);
       router.replace('/(auth)/login');
     } catch (error) {
       console.log('Error logging out:', error);
@@ -90,9 +90,10 @@ export function useProfile() {
 
   return {
     isAuthenticated,
-    userName,
-    userEmail,
+    profileData,
+    isLoading,
     isLogoutModalVisible,
+    refreshProfile,
     handleLoginPress,
     requestLogout,
     cancelLogout,

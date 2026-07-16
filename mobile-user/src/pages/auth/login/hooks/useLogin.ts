@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Platform, Alert, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
+import { Platform, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
@@ -16,8 +16,24 @@ export function useLogin() {
   // Trạng thái cho banner Hợp tác Sporta nổi
   const [isPromoVisible, setIsPromoVisible] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
-  const isExpandedRef = useRef(true);
+  // State cho Custom Alert Modal
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'error' | 'success'>('error');
+
+  const showAlert = (title: string, message: string, type: 'error' | 'success' = 'error') => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertVisible(true);
+  };
+
+  const hideAlert = () => setAlertVisible(false);
+
   const router = useRouter();
+
+  const isExpandedRef = useRef(isExpanded);
 
   useEffect(() => {
     isExpandedRef.current = isExpanded;
@@ -84,11 +100,7 @@ export function useLogin() {
       }
     } else if (response?.type === 'error') {
       const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
-      if (Platform.OS === 'web') {
-        window.alert('Lỗi đăng nhập Google: ' + errorMsg);
-      } else {
-        Alert.alert('Lỗi đăng nhập Google', errorMsg);
-      }
+      showAlert('Lỗi đăng nhập Google', errorMsg, 'error');
     }
   }, [response]);
 
@@ -117,20 +129,12 @@ export function useLogin() {
           await SecureStore.setItemAsync('userEmail', response.email);
           await SecureStore.setItemAsync('userName', response.fullName);
         }
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', response.message);
-        } else {
-          window.alert(response.message);
-        }
+        showAlert('Thành công', response.message, 'success');
         router.replace('/(tabs)');
       }
     } catch (error: any) {
       console.error(error);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
-      } else {
-        window.alert('Lỗi xác thực: ' + (error.message || 'Xác thực Google thất bại.'));
-      }
+      showAlert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.', 'error');
     } finally {
       setLoading(false);
     }
@@ -142,11 +146,11 @@ export function useLogin() {
 
   const handleLogin = async () => {
     if (!email || !email.includes('@')) {
-      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
+      showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.', 'error');
       return;
     }
     if (!password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
+      showAlert('Lỗi', 'Vui lòng nhập mật khẩu.', 'error');
       return;
     }
 
@@ -165,18 +169,10 @@ export function useLogin() {
         await SecureStore.setItemAsync('userEmail', email);
         await SecureStore.setItemAsync('userName', capitalizedUsername);
       }
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', response.message);
-      } else {
-        window.alert(response.message);
-      }
+      showAlert('Thành công', response.message, 'success');
       router.replace('/(tabs)');
     } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Email hoặc mật khẩu không đúng.'));
-      }
+      showAlert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.', 'error');
     } finally {
       setLoading(false);
     }
@@ -199,6 +195,11 @@ export function useLogin() {
     isExpanded,
     pan,
     panResponder,
+    alertVisible,
+    alertTitle,
+    alertMessage,
+    alertType,
+    hideAlert,
     handleGoogleLogin,
     handleLogin,
     router,

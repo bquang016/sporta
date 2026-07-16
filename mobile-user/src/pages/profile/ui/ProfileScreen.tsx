@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 import { Avatar, Button, ConfirmModal } from '../../../shared/ui';
@@ -18,6 +19,8 @@ export function ProfileScreen() {
     confirmLogout,
   } = useProfile();
 
+  const router = useRouter();
+
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -34,12 +37,16 @@ export function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
         {/* Header - Personal Info */}
-        <View style={styles.headerCard}>
-          <Avatar 
-            size="lg" 
-            source="https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM" 
+        <TouchableOpacity
+          style={styles.headerCard}
+          activeOpacity={0.8}
+          onPress={() => router.push('/profile/edit')}
+        >
+          <Avatar
+            size="lg"
+            source="https://lh3.googleusercontent.com/aida-public/AB6AXuDvAvS8IsEXOMdaPlOpYNiMS9-VKdo8uVg8qolFkyXxdSo-1iLSkwHiiY07MDIyX_bAMvj_gF8fOPA65sQrhzzwfhvvmg5Muh39lsugfq0gfD8bLRE1vCwVnTbBPT3tN-4SzQ73_eTSx_VkGEFhtSoIrO3IYAhKZPrFkTtSyWT-9HBioDHXL5XxtBbz2Tml2ookUYWG1P6ITH3NN4mB0iS24157jehzP-UqpWIxX2JbwVFSxIvmxMyrEEEGu7EjOtb1hgbZJuQNKkM"
           />
           <View style={styles.headerInfo}>
             <Text style={styles.userName}>{userName}</Text>
@@ -51,10 +58,10 @@ export function ProfileScreen() {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.editButton}>
+          <View style={styles.editButton}>
             <MaterialIcons name="edit" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Stats / Elo */}
         <View style={styles.statsRow}>
@@ -102,11 +109,13 @@ export function ProfileScreen() {
 
         {/* Logout Button */}
         <View style={styles.logoutContainer}>
-          <Button 
-            title="Đăng xuất" 
-            variant="outline" 
+          <Button
+            title="Đăng xuất"
+            variant="outline"
             icon="logout"
-            onPress={requestLogout} 
+            onPress={requestLogout}
+            style={styles.logoutButtonOverride}
+            textStyle={styles.logoutButtonTextOverride}
           />
         </View>
 
@@ -321,4 +330,11 @@ const styles = StyleSheet.create({
   logoutContainer: {
     marginTop: SPACING.md,
   },
+  logoutButtonOverride: {
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.errorOpacity08,
+  },
+  logoutButtonTextOverride: {
+    color: COLORS.error,
+  }
 });

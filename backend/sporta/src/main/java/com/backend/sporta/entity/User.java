@@ -23,6 +23,18 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "height_cm")
+    private Integer height;
+
+    @Column(name = "weight_kg")
+    private Double weight;
+
     @Column(unique = true, nullable = false)
     private String email;
 
