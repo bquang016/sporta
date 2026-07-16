@@ -10,6 +10,7 @@ import { Button } from '../../../../shared/ui';
 export function OtpVerifyScreen() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const router = useRouter();
   const { email, password } = useLocalSearchParams();
   
@@ -92,8 +93,12 @@ export function OtpVerifyScreen() {
 
   const handleResend = async () => {
     try {
-      await sendOtp(email as string);
-      Alert.alert('Thành công', 'Đã gửi lại mã OTP.');
+      const response = await sendOtp(email as string);
+      if (response.otp) {
+        Alert.alert('Thành công', `Đã gửi lại mã OTP. Mã OTP của bạn là: ${response.otp}`);
+      } else {
+        Alert.alert('Thành công', 'Đã gửi lại mã OTP.');
+      }
     } catch (error: any) {
       Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra.');
     }
@@ -118,10 +123,15 @@ export function OtpVerifyScreen() {
             <TextInput
               key={index}
               ref={(ref) => { inputRefs.current[index] = ref; }}
-              style={styles.otpInput}
+              style={[
+                styles.otpInput,
+                focusedIndex === index && styles.otpInputFocused
+              ]}
               value={digit}
               onChangeText={(value) => handleOtpChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
+              onFocus={() => setFocusedIndex(index)}
+              onBlur={() => setFocusedIndex(null)}
               keyboardType="number-pad"
               maxLength={1}
             />
@@ -182,11 +192,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   otpInput: {
-    width: 50,
-    height: 50,
+    width: 52,
+    height: 54,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.md,
     ...TYPOGRAPHY.headlineLg,
     textAlign: 'center',
     color: COLORS.onSurface,
@@ -196,6 +206,11 @@ const styles = StyleSheet.create({
         outlineStyle: 'none',
       } as any,
     }),
+  },
+  otpInputFocused: {
+    borderColor: COLORS.primary,
+    borderWidth: 2,
+    backgroundColor: COLORS.surfaceBright,
   },
   resendContainer: {
     alignItems: 'center',

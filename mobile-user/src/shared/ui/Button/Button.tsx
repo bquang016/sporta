@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   // Variants
   primary: {
     backgroundColor: COLORS.secondary, // Yellow Accent
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.md, // 12px for primary CTAs per design
   },
   secondary: {
     backgroundColor: 'transparent',

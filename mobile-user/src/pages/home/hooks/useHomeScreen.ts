@@ -118,15 +118,7 @@ export function useHomeScreen() {
 
   const handleAvatarPress = () => {
     if (isAuthenticated) {
-      if (Platform.OS === 'web') {
-        const confirmLogout = window.confirm(`Xin chào, ${userName}! Bạn có muốn đăng xuất tài khoản không?`);
-        if (confirmLogout) handleLogout();
-      } else {
-        Alert.alert('Tài khoản', `Xin chào, ${userName}! Bạn có muốn đăng xuất không?`, [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đăng xuất', style: 'destructive', onPress: handleLogout }
-        ]);
-      }
+      router.push('/(tabs)/profile');
     } else {
       if (Platform.OS === 'web') {
         if (window.confirm('Bạn chưa đăng nhập. Bạn có muốn đăng nhập không?')) handleLoginPress();

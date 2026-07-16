@@ -161,7 +161,10 @@ export function useRegister() {
 
     setLoading(true);
     try {
-      await sendOtp(email);
+      const response = await sendOtp(email);
+      if (response.otp) {
+        Alert.alert('OTP (Test)', `Mã OTP của bạn là: ${response.otp}`);
+      }
       router.push({ 
         pathname: '/(auth)/otp-verify', 
         params: { email, password } 
