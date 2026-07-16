@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  ImageBackground, ActivityIndicator, Modal, TextInput, Platform 
+  ImageBackground, ActivityIndicator, Modal, TextInput, Platform, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -186,182 +186,192 @@ export function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER BANNER */}
-      <View style={styles.headerBanner}>
-        <SafeAreaView edges={['top']} style={styles.bannerSafeArea}>
-          <View style={styles.bannerTopRow}>
+      {/* FIXED HEADER WITH LOGO AND BACK BUTTON */}
+      <View style={styles.fixedHeader}>
+        <SafeAreaView edges={['top']}>
+          <View style={styles.headerTopRow}>
             <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
               <MaterialIcons name="chevron-left" size={28} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <MaterialIcons name="camera-alt" size={22} color="#fff" />
-            </TouchableOpacity>
+            <Image 
+              source={require('../../../../assets/logo/logo-horizontal_1600x400.png')} 
+              style={styles.logoImage} 
+            />
+            <View style={styles.iconButtonPlaceholder} />
           </View>
         </SafeAreaView>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* GREEN SPACER */}
+        <View style={styles.headerSpacer} />
         
-        {/* PROFILE CARD - FLOATING */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileTop}>
-            <View style={styles.avatarWrapper}>
-              <Avatar size="xl" source={avatarUri || defaultAvatar} />
-              <TouchableOpacity style={styles.avatarCamera} onPress={handlePickImage}>
-                <MaterialIcons name="camera-alt" size={12} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.profileInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.nameText} numberOfLines={1}>{fullName || 'Chưa cập nhật tên'}</Text>
-                <TouchableOpacity onPress={() => setEditingField('NAME')} style={styles.editIconBtn}>
-                  <MaterialIcons name="edit" size={16} color={COLORS.outline} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.emailBadge}>
-                <MaterialCommunityIcons name="email-outline" size={14} color={COLORS.outlineVariant} />
-                <Text style={styles.emailText}>{profileData?.email || 'Chưa cập nhật email'}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.profileStats}>
-            <TouchableOpacity style={styles.statCol} onPress={() => setEditingField('PHONE')}>
-              <View style={styles.statLabelRow}>
-                <MaterialCommunityIcons name="phone" size={14} color={COLORS.outlineVariant} />
-                <Text style={styles.statLabel}>Điện thoại</Text>
-              </View>
-              <Text style={styles.statValue}>{phoneNumber || 'Chưa có'}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.statCol} onPress={() => setEditingField('DOB')}>
-              <View style={styles.statLabelRow}>
-                <MaterialCommunityIcons name="cake-variant" size={14} color={COLORS.outlineVariant} />
-                <Text style={styles.statLabel}>Năm sinh</Text>
-              </View>
-              <Text style={styles.statValue}>{dateOfBirth ? dateOfBirth.getFullYear() : 'Chưa có'}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.statCol} onPress={() => setEditingField('GENDER')}>
-              <View style={styles.statLabelRow}>
-                <MaterialCommunityIcons name="gender-male-female" size={14} color={COLORS.outlineVariant} />
-                <Text style={styles.statLabel}>Giới tính</Text>
-              </View>
-              <Text style={styles.statValue}>{getGenderText(gender)}</Text>
+        {/* WHITE CONTENT CONTAINER */}
+        <View style={styles.mainContent}>
+          {/* HEADER INFO */}
+          <View style={styles.profileHeader}>
+          <View style={styles.avatarWrapper}>
+            <Avatar size="xl" source={avatarUri || defaultAvatar} />
+            <TouchableOpacity style={styles.avatarCamera} onPress={handlePickImage}>
+              <MaterialIcons name="camera-alt" size={14} color="#064E3B" />
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* TABS */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity 
-            style={[styles.tabBtn, activeTab === 'OVERVIEW' && styles.tabBtnActive]} 
-            onPress={() => setActiveTab('OVERVIEW')}
-          >
-            <Text style={[styles.tabText, activeTab === 'OVERVIEW' && styles.tabTextActive]}>Tổng quan</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tabBtn, activeTab === 'LINKS' && styles.tabBtnActive]} 
-            onPress={() => setActiveTab('LINKS')}
-          >
-            <Text style={[styles.tabText, activeTab === 'LINKS' && styles.tabTextActive]}>Liên kết</Text>
+          <Text style={styles.nameText} numberOfLines={1}>{fullName || 'Chưa cập nhật tên'}</Text>
+          <TouchableOpacity onPress={() => setEditingField('NAME')} style={styles.editNameBtn}>
+            <MaterialIcons name="edit" size={14} color="#064E3B" />
+            <Text style={styles.editNameText}>Sửa tên</Text>
           </TouchableOpacity>
         </View>
 
-        {/* TAB CONTENT: OVERVIEW */}
-        {activeTab === 'OVERVIEW' && (
-          <View style={styles.tabContent}>
-            
-            {/* THỂ CHẤT */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Thông tin thể chất</Text>
-              <TouchableOpacity onPress={() => setEditingField('HEIGHT_WEIGHT')}>
-                <MaterialCommunityIcons name="square-edit-outline" size={20} color={COLORS.primary} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.physicalCard}>
-              <View style={styles.physicalCol}>
-                <View style={styles.statLabelRow}>
-                  <MaterialCommunityIcons name="ruler" size={16} color={COLORS.outlineVariant} />
-                  <Text style={styles.physicalLabel}>Chiều cao (cm)</Text>
-                </View>
-                <Text style={styles.physicalValue}>{profileData?.height || '0'} cm</Text>
-              </View>
-              <View style={styles.physicalDivider} />
-              <View style={styles.physicalCol}>
-                <View style={styles.statLabelRow}>
-                  <MaterialCommunityIcons name="scale" size={16} color={COLORS.outlineVariant} />
-                  <Text style={styles.physicalLabel}>Cân nặng (kg)</Text>
-                </View>
-                <Text style={styles.physicalValue}>{profileData?.weight || '0'} kg</Text>
-              </View>
-            </View>
-
-            {/* GHI CHÚ */}
-            <View style={styles.noteRow}>
-              <MaterialCommunityIcons name="note-edit-outline" size={20} color={COLORS.onSurface} />
-              <Text style={styles.noteText}>Ghi chú đặc biệt</Text>
-            </View>
-
-            {/* CÁ NHÂN HOÁ */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Cá nhân hoá</Text>
-              <TouchableOpacity>
-                <MaterialCommunityIcons name="square-edit-outline" size={20} color={COLORS.primary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.personItem}>
-              <MaterialCommunityIcons name="map-marker-outline" size={20} color={COLORS.onSurface} />
-              <Text style={styles.personLabel}>Vị trí yêu thích</Text>
-            </View>
-            <View style={styles.personValueRow}>
-              <Text style={styles.personSubText}>Chưa cập nhật</Text>
-            </View>
-
-            <View style={styles.personItem}>
-              <MaterialCommunityIcons name="trophy-outline" size={20} color={COLORS.onSurface} />
-              <Text style={styles.personLabel}>Môn thể thao và trình độ</Text>
-            </View>
-            <View style={styles.personValueRow}>
-              <View style={[styles.sportBadge, { backgroundColor: '#d1fae5' }]}>
-                <MaterialCommunityIcons name="badminton" size={14} color="#065f46" />
-                <Text style={[styles.sportBadgeText, { color: '#065f46' }]}>Cầu lông</Text>
-                <View style={[styles.levelTag, { backgroundColor: '#10b981' }]}><Text style={styles.levelTagText}>TBY</Text></View>
-              </View>
-              <View style={[styles.sportBadge, { backgroundColor: '#dbeafe' }]}>
-                <MaterialCommunityIcons name="tennis" size={14} color="#1e40af" />
-                <Text style={[styles.sportBadgeText, { color: '#1e40af' }]}>Pickleball</Text>
-                <View style={[styles.levelTag, { backgroundColor: '#3b82f6' }]}><Text style={styles.levelTagText}>1.0</Text></View>
-              </View>
-            </View>
-            <View style={[styles.personValueRow, { marginTop: 8 }]}>
-              <View style={[styles.sportBadge, { backgroundColor: '#dcfce7' }]}>
-                <MaterialCommunityIcons name="soccer" size={14} color="#166534" />
-                <Text style={[styles.sportBadgeText, { color: '#166534' }]}>Bóng đá</Text>
-                <View style={[styles.levelTag, { backgroundColor: '#22c55e' }]}><Text style={styles.levelTagText}>PTCB</Text></View>
-              </View>
-            </View>
-
-            <View style={styles.personItem}>
-              <MaterialCommunityIcons name="target" size={20} color={COLORS.onSurface} />
-              <Text style={styles.personLabel}>Mục tiêu</Text>
-            </View>
-            <View style={styles.personValueRow}>
-              <Text style={styles.personSubText}>Ưu đãi giảm giá, Trải nghiệm thể thao miễn phí, Giải đấu, Tìm đội & bạn chơi, Luyện tập</Text>
-            </View>
-
-            <View style={styles.personItem}>
-              <MaterialCommunityIcons name="calendar-refresh" size={20} color={COLORS.onSurface} />
-              <Text style={styles.personLabel}>Tần suất chơi</Text>
-            </View>
-            <View style={styles.personValueRow}>
-              <Text style={styles.personSubText}>💪 Tập đều đặn trong tuần, 🌙 Tối</Text>
-            </View>
-
+        {/* THÔNG TIN LIÊN HỆ */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
           </View>
-        )}
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <MaterialCommunityIcons name="email-outline" size={20} color="#064E3B" />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{profileData?.email || 'Chưa cập nhật'}</Text>
+              </View>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <MaterialCommunityIcons name="phone-outline" size={20} color="#064E3B" />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Số điện thoại</Text>
+                <Text style={styles.infoValue}>{phoneNumber || 'Chưa cập nhật'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditingField('PHONE')} style={styles.editIconBtn}>
+                <MaterialCommunityIcons name="pencil-outline" size={18} color="#064E3B" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
 
+        {/* THÔNG TIN CÁ NHÂN */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
+          </View>
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <MaterialCommunityIcons name="cake-variant-outline" size={20} color="#064E3B" />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Ngày sinh</Text>
+                <Text style={styles.infoValue}>{dateOfBirth ? dateOfBirth.toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditingField('DOB')} style={styles.editIconBtn}>
+                <MaterialCommunityIcons name="pencil-outline" size={18} color="#064E3B" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <MaterialCommunityIcons name="gender-male-female" size={20} color="#064E3B" />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Giới tính</Text>
+                <Text style={styles.infoValue}>{getGenderText(gender)}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditingField('GENDER')} style={styles.editIconBtn}>
+                <MaterialCommunityIcons name="pencil-outline" size={18} color="#064E3B" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* THỂ CHẤT */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Thể chất</Text>
+            <TouchableOpacity onPress={() => setEditingField('HEIGHT_WEIGHT')}>
+              <Text style={styles.sectionEditText}>Cập nhật</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.cardRow}>
+            <View style={styles.physicalBox}>
+              <MaterialCommunityIcons name="human-male-height" size={24} color="#064E3B" />
+              <Text style={styles.physicalValue}>{profileData?.height || '--'} <Text style={styles.physicalUnit}>cm</Text></Text>
+              <Text style={styles.physicalLabel}>Chiều cao</Text>
+            </View>
+            <View style={styles.physicalBox}>
+              <MaterialCommunityIcons name="weight" size={24} color="#064E3B" />
+              <Text style={styles.physicalValue}>{profileData?.weight || '--'} <Text style={styles.physicalUnit}>kg</Text></Text>
+              <Text style={styles.physicalLabel}>Cân nặng</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* MÔN THỂ THAO */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Môn thể thao & Trình độ</Text>
+          </View>
+          <View style={styles.card}>
+            <View style={styles.sportsContainer}>
+              {profileData?.sports && profileData.sports.length > 0 ? (
+                profileData.sports.map((sport, index) => {
+                  let badgeBg = '#E7EEFE';
+                  let textColor = '#064E3B';
+                  let iconName = 'trophy-outline';
+                  let levelBg = '#95D3BA';
+
+                  if (sport.sportName.toLowerCase().includes('cầu lông')) {
+                    badgeBg = '#E7EEFE'; textColor = '#064E3B'; levelBg = '#95D3BA'; iconName = 'badminton';
+                  } else if (sport.sportName.toLowerCase().includes('pickleball') || sport.sportName.toLowerCase().includes('tennis')) {
+                    badgeBg = '#F0F3FF'; textColor = '#003527'; levelBg = '#b0f0d6'; iconName = 'tennis';
+                  } else if (sport.sportName.toLowerCase().includes('bóng đá')) {
+                    badgeBg = '#e6f0ed'; textColor = '#064E3B'; levelBg = '#80bea6'; iconName = 'soccer';
+                  }
+
+                  const mapLevelToVietnamese = (lvl: string) => {
+                    switch (lvl) {
+                      case 'WEAK': return 'Yếu';
+                      case 'WEAK_AVERAGE': return 'Yếu - TB';
+                      case 'AVERAGE': return 'Trung bình';
+                      case 'AVERAGE_GOOD': return 'Khá';
+                      case 'GOOD': return 'Tốt';
+                      case 'ALL': return 'Mọi trình độ';
+                      default: return lvl.replace(/_/g, ' ');
+                    }
+                  };
+                  const levelText = mapLevelToVietnamese(sport.level);
+
+                  return (
+                    <View key={index} style={styles.sportItemRow}>
+                      <View style={[styles.sportIconCircle, { backgroundColor: badgeBg }]}>
+                        <MaterialCommunityIcons name={iconName as any} size={20} color={textColor} />
+                      </View>
+                      <View style={styles.sportInfo}>
+                        <Text style={styles.sportNameText}>{sport.sportName}</Text>
+                        <View style={[styles.levelBadge, { backgroundColor: levelBg }]}>
+                          <Text style={styles.levelBadgeText}>{levelText}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <Text style={styles.emptyText}>Chưa cập nhật môn thể thao</Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        </View>
       </ScrollView>
 
       {/* MODAL */}
@@ -376,266 +386,247 @@ export function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#003527', // The whole screen background is green to handle safe area
   },
-  headerBanner: {
-    height: 180,
-    backgroundColor: '#003527', // The green from ALOBO design
-    // You can also use an ImageBackground if you have a pattern
+  fixedHeader: {
+    backgroundColor: '#003527',
+    paddingBottom: 8,
   },
-  bannerSafeArea: {
-    flex: 1,
-  },
-  bannerTopRow: {
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    height: 44,
+  },
+  logoImage: {
+    width: 100,
+    height: 28,
+    resizeMode: 'contain',
+    tintColor: '#ffffff',
+  },
+  iconButtonPlaceholder: {
+    width: 40,
+    height: 40,
   },
   iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollView: {
     flex: 1,
-    marginTop: -80, // pull the content up over the banner
+    backgroundColor: '#003527',
   },
   scrollContent: {
+    flexGrow: 1,
+  },
+  headerSpacer: {
+    height: 60,
+    backgroundColor: '#003527',
+  },
+  mainContent: {
+    flex: 1,
+    backgroundColor: '#F9F9FF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 16,
     paddingBottom: 40,
   },
-  profileCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 16,
-  },
-  profileTop: {
-    flexDirection: 'row',
+  profileHeader: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
+    marginTop: -48,
   },
   avatarWrapper: {
     position: 'relative',
+    padding: 4,
+    backgroundColor: '#F9F9FF',
+    borderRadius: 999,
+    elevation: 2,
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
   },
   avatarCamera: {
     position: 'absolute',
-    bottom: 0,
-    right: -4,
-    backgroundColor: '#555',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 4,
+    right: 4,
+    backgroundColor: '#FACC15', // Secondary accent
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#F9F9FF',
   },
   nameText: {
-    ...TYPOGRAPHY.titleLg,
-    color: '#000',
-    fontWeight: '700',
-    flexShrink: 1,
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: '#151C27',
+    marginTop: 16,
   },
-  editIconBtn: {
-    marginLeft: 8,
-    padding: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 12,
-  },
-  emailBadge: {
+  editNameBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginTop: 6,
-  },
-  emailText: {
-    ...TYPOGRAPHY.labelSm,
-    color: '#666',
-    marginLeft: 4,
-  },
-  profileStats: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: 16,
-  },
-  statCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  statLabel: {
-    ...TYPOGRAPHY.labelSm,
-    color: '#777',
-    marginLeft: 4,
-  },
-  statValue: {
-    ...TYPOGRAPHY.titleMd,
-    color: '#000',
-    fontWeight: '700',
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#003527',
-  },
-  tabBtnActive: {
-    backgroundColor: '#003527',
-  },
-  tabText: {
-    ...TYPOGRAPHY.titleMd,
-    color: '#003527',
-    fontWeight: '700',
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-  tabContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#E7EEFE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 16,
-    padding: 16,
+    marginTop: 8,
+  },
+  editNameText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#064E3B',
+    marginLeft: 4,
+  },
+  sectionContainer: {
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    marginTop: 16,
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
-    color: '#003527', // Green
-    fontWeight: '700',
+    color: '#151C27',
   },
-  physicalCard: {
-    flexDirection: 'row',
+  sectionEditText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#064E3B',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderColor: '#F0F3FF',
   },
-  physicalCol: {
-    flex: 1,
+  cardRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  physicalDivider: {
-    width: 1,
-    backgroundColor: '#e0e0e0',
+  infoIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F3FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  physicalLabel: {
-    ...TYPOGRAPHY.labelSm,
-    color: '#666',
-    marginLeft: 4,
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    ...TYPOGRAPHY.bodyMd,
+    color: '#707974',
+    marginBottom: 2,
+  },
+  infoValue: {
+    ...TYPOGRAPHY.titleMd,
+    color: '#151C27',
+  },
+  editIconBtn: {
+    padding: 8,
+    backgroundColor: '#F9F9FF',
+    borderRadius: 20,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F0F3FF',
+    marginVertical: 12,
+    marginLeft: 52,
+  },
+  physicalBox: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F0F3FF',
   },
   physicalValue: {
-    ...TYPOGRAPHY.titleMd,
-    color: '#000',
-    fontWeight: '700',
-    marginTop: 4,
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: '#151C27',
+    marginTop: 8,
   },
-  noteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  noteText: {
-    ...TYPOGRAPHY.titleSm,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  personItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  personLabel: {
-    ...TYPOGRAPHY.titleSm,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  personValueRow: {
-    flexDirection: 'row',
-    marginLeft: 28,
-    marginTop: 4,
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  personSubText: {
+  physicalUnit: {
     ...TYPOGRAPHY.bodyMd,
-    color: '#555',
-    lineHeight: 22,
+    color: '#707974',
   },
-  sportBadge: {
+  physicalLabel: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#707974',
+    marginTop: 4,
+  },
+  sportsContainer: {
+    gap: 16,
+  },
+  sportItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  sportIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sportInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sportNameText: {
+    ...TYPOGRAPHY.titleMd,
+    color: '#151C27',
+  },
+  levelBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
+    borderRadius: 12,
   },
-  sportBadgeText: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '600',
+  levelBadgeText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#002117',
   },
-  levelTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  levelTagText: {
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: 'bold',
+  emptyText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: '#707974',
+    textAlign: 'center',
+    padding: 16,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(21, 28, 39, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    width: '80%',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+    width: '85%',
+    borderRadius: 24,
+    padding: 24,
   },
   modalTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontWeight: '700',
-    marginBottom: 16,
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: '#151C27',
+    marginBottom: 20,
     textAlign: 'center',
   },
   modalInput: {
@@ -657,18 +648,19 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     ...TYPOGRAPHY.bodyMd,
-    color: '#777',
+    color: '#707974',
+    fontWeight: '600',
   },
   modalSave: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#003527',
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#FACC15', // Athletic Yellow
+    borderRadius: 12,
   },
   modalSaveText: {
     ...TYPOGRAPHY.bodyMd,
-    color: '#fff',
-    fontWeight: '600',
+    color: '#002117',
+    fontWeight: '700',
   },
   genderContainer: {
     flexDirection: 'row',
@@ -677,22 +669,23 @@ const styles = StyleSheet.create({
   },
   genderBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderColor: '#E2E8F8',
+    borderRadius: 12,
     alignItems: 'center',
+    backgroundColor: '#FAFAFA',
   },
   genderBtnActive: {
-    borderColor: '#003527',
-    backgroundColor: '#e6f0ed',
+    borderColor: '#064E3B',
+    backgroundColor: '#E7EEFE',
   },
   genderText: {
     ...TYPOGRAPHY.bodyMd,
-    color: '#555',
+    color: '#707974',
   },
   genderTextActive: {
-    color: '#003527',
+    color: '#064E3B',
     fontWeight: '700',
   }
 });

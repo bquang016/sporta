@@ -14,6 +14,13 @@ export interface UserProfileDto {
   weight?: number;
   role: string;
   status: string;
+  sports?: {
+    id: number;
+    sportId: number;
+    sportName: string;
+    sportIcon: string;
+    level: string;
+  }[];
 }
 
 export interface UpdateUserProfileRequest {

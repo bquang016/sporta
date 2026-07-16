@@ -3,18 +3,26 @@ package com.backend.sporta.service;
 import com.backend.sporta.dto.UpdateUserProfileRequest;
 import com.backend.sporta.dto.UserProfileDto;
 import com.backend.sporta.entity.User;
+import com.backend.sporta.entity.UserSport;
+import com.backend.sporta.dto.UserSportDto;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.UserRepository;
+import com.backend.sporta.repository.UserSportRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserSportRepository userSportRepository;
 
     @Autowired
     private FileStorageService fileStorageService;
@@ -68,6 +76,17 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserProfileDto mapToProfileDto(User user) {
+        List<UserSport> userSports = userSportRepository.findByUserId(user.getId());
+        List<UserSportDto> sportsDto = userSports.stream().map(us -> {
+            return UserSportDto.builder()
+                .id(us.getId())
+                .sportId(us.getSport().getId())
+                .sportName(us.getSport().getName())
+                .sportIcon(null)
+                .level(us.getLevel())
+                .build();
+        }).collect(Collectors.toList());
+
         return UserProfileDto.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -80,6 +99,7 @@ public class UserServiceImpl implements UserService {
                 .weight(user.getWeight())
                 .role(user.getRole())
                 .status(user.getStatus())
+                .sports(sportsDto)
                 .build();
     }
 }
