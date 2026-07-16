@@ -1,73 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
 import { SearchBar } from '../../../features/search-bar';
-import { FacilityCard, Facility } from '../../../entities/facility';
+import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
 import { FilterModal, FilterState } from './FilterModal';
 import { Button } from '../../../shared/ui';
 
-// MOCK DATA
-const MOCK_FACILITIES: (Facility & { sport: string; area: string; priceCategory: string })[] = [
-  {
-    id: 'f1',
-    name: 'Sân bóng Cầu Giấy',
-    rating: 4.5,
-    location: '123 Xuân Thủy',
-    area: 'Cầu Giấy',
-    distance: '1.2km',
-    price: '300k',
-    priceCategory: '300k - 500k',
-    sport: 'Bóng đá',
-    status: 'Còn chỗ',
-    statusType: 'success',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRI_WbsF_oyNYiLMb9oK7Dm3y6w39BRYXwgKn4BIuRp7CQ9vb-2NUDL_Fi2bYTm1AGCX8AkcWgfKPcjwP9ba_vXQ--Ro7V-RZMOzvRKSIz3YF985plPNcZoJ2CUCgNb_OMUB6q5yYYbUEd6gxEcPZzhNrQWwrc956zxXGydvPDXN6mk8L-5wHs7UtYzZbtQ8_zlH90kYKNbQ0KgcAto4dmTlMzNATIjHtfNvaokJY_yshJWhunjucTicKeRKwqNyRMG3SHJdgmKMw',
-  },
-  {
-    id: 'f2',
-    name: 'Sân Pickleball Đống Đa',
-    rating: 4.8,
-    location: '45 Chùa Bộc',
-    area: 'Đống Đa',
-    distance: '2.5km',
-    price: '150k',
-    priceCategory: 'Dưới 300k',
-    sport: 'Pickleball',
-    status: 'Sắp hết',
-    statusType: 'warning',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9VjV_Boq-m-L6DQCrUi4TuqXv4ziB_UMEyaSBpCC06D-VhJMf8k0VKDy7cFwJjwZzWqF5MObMpDYZ0bFGvZg3GEbKCaxJc_-K_Sxn3ZAX506_WXTQHUHoeNB75WPXy_R8yDDxK1a4TRDnwUFxwW3GizSR5XXOzrAcdysQLwWOgGUWkiMv9Fsl5Rmi44-ntayXHeMh66KzQzRGm5EN0qgehvk2-x43HOXiUnNotg3zUP9LfRD4u7kT4EcyjgydihqR3aGqF9yEmCo',
-  },
-  {
-    id: 'f3',
-    name: 'Nhà thi đấu Hai Bà Trưng',
-    rating: 4.2,
-    location: '89 Đại Cồ Việt',
-    area: 'Hai Bà Trưng',
-    distance: '4.0km',
-    price: '600k',
-    priceCategory: 'Trên 500k',
-    sport: 'Bóng rổ',
-    status: 'Còn chỗ',
-    statusType: 'success',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRI_WbsF_oyNYiLMb9oK7Dm3y6w39BRYXwgKn4BIuRp7CQ9vb-2NUDL_Fi2bYTm1AGCX8AkcWgfKPcjwP9ba_vXQ--Ro7V-RZMOzvRKSIz3YF985plPNcZoJ2CUCgNb_OMUB6q5yYYbUEd6gxEcPZzhNrQWwrc956zxXGydvPDXN6mk8L-5wHs7UtYzZbtQ8_zlH90kYKNbQ0KgcAto4dmTlMzNATIjHtfNvaokJY_yshJWhunjucTicKeRKwqNyRMG3SHJdgmKMw',
-  },
-  {
-    id: 'f4',
-    name: 'Sân Tennis Thanh Xuân',
-    rating: 3.5,
-    location: '12 Khuất Duy Tiến',
-    area: 'Thanh Xuân',
-    distance: '5.2km',
-    price: '200k',
-    priceCategory: 'Dưới 300k',
-    sport: 'Tennis',
-    status: 'Còn chỗ',
-    statusType: 'success',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9VjV_Boq-m-L6DQCrUi4TuqXv4ziB_UMEyaSBpCC06D-VhJMf8k0VKDy7cFwJjwZzWqF5MObMpDYZ0bFGvZg3GEbKCaxJc_-K_Sxn3ZAX506_WXTQHUHoeNB75WPXy_R8yDDxK1a4TRDnwUFxwW3GizSR5XXOzrAcdysQLwWOgGUWkiMv9Fsl5Rmi44-ntayXHeMh66KzQzRGm5EN0qgehvk2-x43HOXiUnNotg3zUP9LfRD4u7kT4EcyjgydihqR3aGqF9yEmCo',
-  },
-];
 
 const DEFAULT_FILTERS: FilterState = {
   time: '',
@@ -80,6 +21,8 @@ const DEFAULT_FILTERS: FilterState = {
 export function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ openFilter?: string }>();
+
+  const { facilities, loading, error } = useFacilities();
 
   const [searchText, setSearchText] = useState('');
   const [isFilterVisible, setFilterVisible] = useState(false);
@@ -97,7 +40,7 @@ export function SearchScreen() {
   }, [params.openFilter]); // Lắng nghe sự thay đổi của params
   // AND filtering logic
   const filteredFacilities = useMemo(() => {
-    return MOCK_FACILITIES.filter(facility => {
+    return facilities.filter(facility => {
       // 1. Text Search
       if (searchText && !facility.name.toLowerCase().includes(searchText.toLowerCase())) {
         return false;
@@ -121,7 +64,7 @@ export function SearchScreen() {
 
       return true;
     });
-  }, [searchText, appliedFilters]);
+  }, [searchText, appliedFilters, facilities]);
 
   const handleApplyFilter = () => {
     setAppliedFilters(filters);
@@ -170,7 +113,17 @@ export function SearchScreen() {
         </View>
 
         {/* Results Section */}
-        {filteredFacilities.length > 0 ? (
+        {loading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Đang tải danh sách sân...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerState}>
+            <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+            <Text style={[styles.loadingText, { color: COLORS.error, marginTop: SPACING.sm }]}>{error}</Text>
+          </View>
+        ) : filteredFacilities.length > 0 ? (
           <FlatList
             data={filteredFacilities}
             keyExtractor={item => item.id}
@@ -262,6 +215,17 @@ const styles = StyleSheet.create({
   },
   fullWidthCard: {
     width: '100%',
+  },
+  centerState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  loadingText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    marginTop: SPACING.md,
   },
   emptyState: {
     flex: 1,
