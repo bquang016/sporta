@@ -1,1 +1,1 @@
-export { SocialScreen as default } from './ui/SocialScreen';
+export { default } from './ui/SocialScreen';
