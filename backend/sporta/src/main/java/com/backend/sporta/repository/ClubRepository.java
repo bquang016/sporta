@@ -38,5 +38,14 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
                                         @Param("sportId") Long sportId, 
                                         @Param("query") String query);
 
+    @Query("SELECT c FROM Club c WHERE (:sportId IS NULL OR c.sport.id = :sportId)")
+    List<Club> findAllClubsWithoutQuery(@Param("sportId") Long sportId);
+
+    @Query("SELECT c FROM Club c WHERE (:sportId IS NULL OR c.sport.id = :sportId) " +
+           "AND (LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(c.description) LIKE LOWER(CONCAT('%', :query, '%')))")
+    List<Club> findAllClubsWithQuery(@Param("sportId") Long sportId, 
+                                     @Param("query") String query);
+
     boolean existsByName(String name);
 }

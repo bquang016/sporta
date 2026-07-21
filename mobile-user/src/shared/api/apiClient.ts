@@ -13,21 +13,20 @@ export const BASE_URL = getBaseUrl();
 
 // ─── Token helper ─────────────────────────────────────────────────────────────
 
-let cachedToken: string | null = null;
-
 export const clearCachedToken = () => {
-  cachedToken = null;
+  if (Platform.OS === 'web') {
+    localStorage.removeItem('accessToken');
+  } else {
+    SecureStore.deleteItemAsync('accessToken').catch(() => {});
+  }
 };
 
 const getToken = async (): Promise<string | null> => {
-  if (cachedToken) return cachedToken;
   try {
     if (Platform.OS === 'web') {
-      cachedToken = localStorage.getItem('accessToken');
-    } else {
-      cachedToken = await SecureStore.getItemAsync('accessToken');
+      return localStorage.getItem('accessToken');
     }
-    return cachedToken;
+    return await SecureStore.getItemAsync('accessToken');
   } catch {
     return null;
   }
