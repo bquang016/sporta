@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Alert, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
 import { useRegister } from '../hooks/useRegister';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
+
 // Standard 4-color Google G SVG Logo
 function GoogleLogo({ size = 20 }: { size?: number }) {
   return (
@@ -69,6 +71,7 @@ export function RegisterScreen() {
     pan,
     panResponder,
   } = useRegister();
+  const { showAlert } = useAlert();
 
   const logoImg = require('../../../../../assets/logo/logo-horizontal_1600x400.png');
 
@@ -191,7 +194,7 @@ export function RegisterScreen() {
           <Button 
             variant="outline"
             style={styles.socialButton}
-            onPress={() => Alert.alert('Thông báo', 'Tính năng đăng ký qua Facebook đang được phát triển.')}
+            onPress={() => showAlert('Thông báo', 'Tính năng đăng ký qua Facebook đang được phát triển.')}
             icon={<FacebookLogo size={18} />}
             title="Facebook"
             textStyle={styles.socialBtnText}

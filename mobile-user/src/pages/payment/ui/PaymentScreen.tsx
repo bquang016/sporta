@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
@@ -8,11 +8,13 @@ import { Card } from '../../../shared/ui/Card';
 import { AlertModal } from '../../../shared/ui';
 import { useCreateBooking } from '../../../entities/booking/model/useBooking';
 import type { SlotInfo } from '../../../entities/facility/model/facility.types';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 export function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { mutate: createBooking, loading } = useCreateBooking();
+  const { showAlert } = useAlert();
 
   const [selectedMethod, setSelectedMethod] = useState('momo');
   const [conflictModalVisible, setConflictModalVisible] = useState(false);
