@@ -6,9 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
-import { Avatar, Button } from '../../../shared/ui';
+import { Avatar, Button, CalendarPicker } from '../../../shared/ui';
 import { useEditProfile } from '../hooks/useEditProfile';
 
 type EditField = 'NAME' | 'PHONE' | 'GENDER' | 'DOB' | 'HEIGHT_WEIGHT' | null;
@@ -88,7 +87,7 @@ export function EditProfileScreen() {
             Cập nhật {editingField === 'NAME' ? 'Họ tên' : 
                      editingField === 'PHONE' ? 'Số điện thoại' : 
                      editingField === 'GENDER' ? 'Giới tính' : 
-                     editingField === 'HEIGHT_WEIGHT' ? 'Thể chất' : 'Ngày sinh'}
+                     'Thể chất'}
           </Text>
 
           {editingField === 'NAME' && (
@@ -146,34 +145,7 @@ export function EditProfileScreen() {
             </View>
           )}
 
-          {editingField === 'DOB' && (
-            <View style={{ width: '100%', alignItems: 'center' }}>
-              {Platform.OS === 'ios' ? (
-                <DateTimePicker
-                  value={dateOfBirth || new Date()}
-                  mode="date"
-                  display="spinner"
-                  onChange={(e, d) => d && setDateOfBirth(d)}
-                  maximumDate={new Date()}
-                />
-              ) : (
-                <TouchableOpacity style={styles.modalInput} onPress={() => setShowDatePicker(true)}>
-                  <Text>{dateOfBirth ? dateOfBirth.toLocaleDateString('vi-VN') : 'Chọn ngày sinh'}</Text>
-                </TouchableOpacity>
-              )}
-              {showDatePicker && Platform.OS === 'android' && (
-                <DateTimePicker
-                  value={dateOfBirth || new Date()}
-                  mode="date"
-                  onChange={(e, d) => {
-                    setShowDatePicker(false);
-                    if (d) setDateOfBirth(d);
-                  }}
-                  maximumDate={new Date()}
-                />
-              )}
-            </View>
-          )}
+
 
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancel} onPress={() => setEditingField(null)}>
@@ -277,7 +249,7 @@ export function EditProfileScreen() {
                 <Text style={styles.infoLabel}>Ngày sinh</Text>
                 <Text style={styles.infoValue}>{dateOfBirth ? dateOfBirth.toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</Text>
               </View>
-              <TouchableOpacity onPress={() => setEditingField('DOB')} style={styles.editIconBtn}>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.editIconBtn}>
                 <MaterialCommunityIcons name="pencil-outline" size={18} color="#064E3B" />
               </TouchableOpacity>
             </View>
@@ -403,6 +375,21 @@ export function EditProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* SHARED CALENDAR PICKER FOR DOB */}
+      <CalendarPicker
+        visible={showDatePicker}
+        selectedDate={dateOfBirth || new Date(2000, 0, 1)}
+        onConfirm={async (d) => {
+          setShowDatePicker(false);
+          setDateOfBirth(d);
+          const y = d.getFullYear();
+          const m = (d.getMonth() + 1).toString().padStart(2, '0');
+          const day = d.getDate().toString().padStart(2, '0');
+          await handleSave({ dateOfBirth: `${y}-${m}-${day}` });
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
 
     </View>
   );

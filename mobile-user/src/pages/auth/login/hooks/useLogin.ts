@@ -116,7 +116,7 @@ export function useLogin() {
           await SecureStore.setItemAsync('userEmail', response.email);
           await SecureStore.setItemAsync('userName', response.fullName);
         }
-        showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
+        router.replace('/(tabs)');
       }
     } catch (error: any) {
       console.error(error);
@@ -155,7 +155,7 @@ export function useLogin() {
         await SecureStore.setItemAsync('userEmail', email);
         await SecureStore.setItemAsync('userName', capitalizedUsername);
       }
-      showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
+      router.replace('/(tabs)');
     } catch (error: any) {
       showAlert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
     } finally {

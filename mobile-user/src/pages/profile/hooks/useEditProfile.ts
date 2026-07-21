@@ -85,7 +85,7 @@ export function useEditProfile() {
     setIsConfirmAvatarModalVisible(false);
   };
 
-  const handleSave = async (extraData?: { height?: number; weight?: number }) => {
+  const handleSave = async (extraData?: any) => {
     if (!fullName.trim()) {
       showAlert('Lỗi', 'Vui lòng nhập họ và tên');
       return;
@@ -94,8 +94,13 @@ export function useEditProfile() {
     setIsSubmitting(true);
     try {
       let dobString = undefined;
-      if (dateOfBirth) {
-        dobString = dateOfBirth.toISOString().split('T')[0]; // YYYY-MM-DD
+      if (extraData && extraData.dateOfBirth) {
+        dobString = extraData.dateOfBirth;
+      } else if (dateOfBirth) {
+        const y = dateOfBirth.getFullYear();
+        const m = (dateOfBirth.getMonth() + 1).toString().padStart(2, '0');
+        const d = dateOfBirth.getDate().toString().padStart(2, '0');
+        dobString = `${y}-${m}-${d}`; // YYYY-MM-DD in local time
       }
 
       const updateData = {
