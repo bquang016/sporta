@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useFacilities } from '../../../entities/facility';
 import { clubStore } from '../../../entities/club';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 export function useHomeScreen() {
   const router = useRouter();
+  const { showAlert, showConfirm } = useAlert();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -47,14 +49,13 @@ export function useHomeScreen() {
                 localStorage.removeItem('userName');
                 localStorage.removeItem('userEmail');
                 localStorage.removeItem('userAvatar');
-                window.alert(errorData.message);
               } else {
                 await SecureStore.deleteItemAsync('accessToken');
                 await SecureStore.deleteItemAsync('userName');
                 await SecureStore.deleteItemAsync('userEmail');
                 await SecureStore.deleteItemAsync('userAvatar');
-                Alert.alert('Tài khoản bị khóa', errorData.message);
               }
+              showAlert('Tài khoản bị khóa', errorData.message);
               setIsAuthenticated(false);
               setUserName('Khách');
               setUserAvatar(null);
@@ -122,11 +123,7 @@ export function useHomeScreen() {
       setIsAuthenticated(false);
       setUserName('Khách');
       setUserAvatar(null);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', 'Đăng xuất thành công!');
-      } else {
-        window.alert('Đăng xuất thành công!');
-      }
+      showAlert('Thành công', 'Đăng xuất thành công!');
     } catch (error) {
       console.log('Error logging out:', error);
     }
@@ -136,14 +133,14 @@ export function useHomeScreen() {
     if (isAuthenticated) {
       router.push('/(tabs)/profile');
     } else {
-      if (Platform.OS === 'web') {
-        if (window.confirm('Bạn chưa đăng nhập. Bạn có muốn đăng nhập không?')) handleLoginPress();
-      } else {
-        Alert.alert('Đăng nhập', 'Bạn chưa đăng nhập. Bạn có muốn đăng nhập ngay?', [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đăng nhập', onPress: handleLoginPress }
-        ]);
-      }
+      showConfirm(
+        'Đăng nhập',
+        'Bạn chưa đăng nhập. Bạn có muốn đăng nhập ngay?',
+        handleLoginPress,
+        undefined,
+        'Đăng nhập',
+        'Hủy'
+      );
     }
   };
 

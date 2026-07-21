@@ -481,11 +481,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     paddingHorizontal: 16,
     paddingBottom: 40,
+    zIndex: 1,
   },
   profileHeader: {
     alignItems: 'center',
     marginBottom: 32,
     marginTop: -48,
+    zIndex: 2,
   },
   avatarWrapper: {
     position: 'relative',

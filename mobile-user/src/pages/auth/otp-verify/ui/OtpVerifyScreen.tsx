@@ -1,13 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { verifyOtp, sendOtp } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 export function OtpVerifyScreen() {
+  const { showAlert } = useAlert();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -36,7 +38,7 @@ export function OtpVerifyScreen() {
   const handleVerify = async () => {
     const otpCode = otp.join('');
     if (otpCode.length < 6) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ mã 6 số.');
+      showAlert('Lỗi', 'Vui lòng nhập đầy đủ mã 6 số.');
       return;
     }
 
@@ -45,19 +47,15 @@ export function OtpVerifyScreen() {
       const response = await verifyOtp(email as string, otpCode);
       
       if (response.isNewUser) {
-        // Bỏ window.alert vì nó có thể làm đứt luồng JS trên Web
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', 'Xác thực OTP thành công!');
-        }
-        
-        // Đảm bảo params là string
-        router.push({ 
-          pathname: '/(auth)/personal-info', 
-          params: { 
-            registrationToken: response.registrationToken, 
-            email: email as string, 
-            password: password as string 
-          } 
+        showAlert('Thành công', 'Xác thực OTP thành công!', () => {
+          router.push({ 
+            pathname: '/(auth)/personal-info', 
+            params: { 
+              registrationToken: response.registrationToken, 
+              email: email as string, 
+              password: password as string 
+            } 
+          });
         });
       } else {
         // User exists, save access token and go home
@@ -75,17 +73,10 @@ export function OtpVerifyScreen() {
           await SecureStore.setItemAsync('userName', capitalizedUsername);
         }
         
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', response.message);
-        }
-        router.replace('/(tabs)');
+        showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
       }
     } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Mã OTP không đúng hoặc đã hết hạn.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Mã OTP không đúng hoặc đã hết hạn.'));
-      }
+      showAlert('Lỗi', error.message || 'Mã OTP không đúng hoặc đã hết hạn.');
     } finally {
       setLoading(false);
     }
@@ -95,12 +86,12 @@ export function OtpVerifyScreen() {
     try {
       const response = await sendOtp(email as string);
       if (response.otp) {
-        Alert.alert('Thành công', `Đã gửi lại mã OTP. Mã OTP của bạn là: ${response.otp}`);
+        showAlert('Thành công', `Đã gửi lại mã OTP. Mã OTP của bạn là: ${response.otp}`);
       } else {
-        Alert.alert('Thành công', 'Đã gửi lại mã OTP.');
+        showAlert('Thành công', 'Đã gửi lại mã OTP.');
       }
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra.');
+      showAlert('Lỗi', error.message || 'Có lỗi xảy ra.');
     }
   };
 

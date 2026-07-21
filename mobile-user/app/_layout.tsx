@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 
 import { Platform } from 'react-native';
+import { AlertProvider } from '../src/shared/contexts/AlertContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -47,16 +48,18 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="search" />
-      <Stack.Screen name="booking/[facilityId]" options={{ headerShown: false }} />
-      <Stack.Screen name="profile/index" options={{ headerShown: true, title: 'Hồ sơ cá nhân' }} />
-      <Stack.Screen name="my-clubs/index" options={{ headerShown: false }} />
-      <Stack.Screen name="create-club/index" options={{ headerShown: false }} />
-      <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
-    </Stack>
+    <AlertProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="booking/[facilityId]" options={{ headerShown: false }} />
+        <Stack.Screen name="profile/index" options={{ headerShown: true, title: 'Hồ sơ cá nhân' }} />
+        <Stack.Screen name="my-clubs/index" options={{ headerShown: false }} />
+        <Stack.Screen name="create-club/index" options={{ headerShown: false }} />
+        <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
+      </Stack>
+    </AlertProvider>
   );
 }

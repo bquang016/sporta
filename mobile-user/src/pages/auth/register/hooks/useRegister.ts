@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Alert, Platform, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
+import { Platform, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
 import { sendOtp, googleLoginApi } from '../../../../shared/api/auth';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 export function useRegister() {
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -89,11 +91,7 @@ export function useRegister() {
       }
     } else if (response?.type === 'error') {
       const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
-      if (Platform.OS === 'web') {
-        window.alert('Lỗi đăng nhập Google: ' + errorMsg);
-      } else {
-        Alert.alert('Lỗi đăng nhập Google', errorMsg);
-      }
+      showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);
 
@@ -122,20 +120,11 @@ export function useRegister() {
           await SecureStore.setItemAsync('userEmail', response.email);
           await SecureStore.setItemAsync('userName', response.fullName);
         }
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', response.message);
-        } else {
-          window.alert(response.message);
-        }
-        router.replace('/(tabs)');
+        showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
       }
     } catch (error: any) {
       console.error(error);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
-      } else {
-        window.alert('Lỗi xác thực: ' + (error.message || 'Xác thực Google thất bại.'));
-      }
+      showAlert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
     } finally {
       setLoading(false);
     }
@@ -147,15 +136,15 @@ export function useRegister() {
 
   const handleRegister = async () => {
     if (!email || !email.includes('@')) {
-      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
+      showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
     if (!password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
+      showAlert('Lỗi', 'Vui lòng nhập mật khẩu.');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp.');
+      showAlert('Lỗi', 'Mật khẩu xác nhận không khớp.');
       return;
     }
 
@@ -163,14 +152,14 @@ export function useRegister() {
     try {
       const response = await sendOtp(email);
       if (response.otp) {
-        Alert.alert('OTP (Test)', `Mã OTP của bạn là: ${response.otp}`);
+        showAlert('OTP (Test)', `Mã OTP của bạn là: ${response.otp}`);
       }
       router.push({ 
         pathname: '/(auth)/otp-verify', 
         params: { email, password } 
       });
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Email này đã tồn tại hoặc có lỗi xảy ra.');
+      showAlert('Lỗi', error.message || 'Email này đã tồn tại hoặc có lỗi xảy ra.');
     } finally {
       setLoading(false);
     }
