@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { Platform, Alert } from 'react-native';
 import { ConfirmModal } from '../ui/Modal/ConfirmModal';
 
 interface AlertOptions {
@@ -67,7 +68,31 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
 export const useAlert = () => {
   const context = useContext(AlertContext);
   if (!context) {
-    throw new Error('useAlert must be used within an AlertProvider');
+    // Fallback if AlertProvider is not mounted (e.g. Metro cache issues on root layout)
+    return {
+      showAlert: (title: string, message: string, onConfirm?: () => void) => {
+        if (Platform.OS === 'web') {
+          window.alert(`${title}\n${message}`);
+          if (onConfirm) onConfirm();
+        } else {
+          Alert.alert(title, message, [{ text: 'Đóng', onPress: onConfirm }]);
+        }
+      },
+      showConfirm: (title: string, message: string, onConfirm: () => void, onCancel?: () => void, confirmText = 'Xác nhận', cancelText = 'Hủy') => {
+        if (Platform.OS === 'web') {
+          if (window.confirm(`${title}\n${message}`)) {
+            onConfirm();
+          } else if (onCancel) {
+            onCancel();
+          }
+        } else {
+          Alert.alert(title, message, [
+            { text: cancelText, style: 'cancel', onPress: onCancel },
+            { text: confirmText, onPress: onConfirm }
+          ]);
+        }
+      }
+    };
   }
   return context;
 };

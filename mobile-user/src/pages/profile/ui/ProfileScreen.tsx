@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
-import { Avatar, Button, ConfirmModal } from '../../../shared/ui';
+import { Avatar } from '../../../shared/ui/Avatar/Avatar';
+import { Button } from '../../../shared/ui/Button/Button';
+import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 import { useProfile } from '../hooks/useProfile';
 
 export function ProfileScreen() {
