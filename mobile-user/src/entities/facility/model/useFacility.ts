@@ -16,6 +16,14 @@ export const useFacilities = () => {
         
         // Map VenueResponse to Facility
         const mappedFacilities: Facility[] = data.map((venue) => {
+          let priceCategory = 'Dưới 300k';
+          const minP = venue.minPrice || 0;
+          if (minP >= 300000 && minP <= 500000) {
+            priceCategory = '300k - 500k';
+          } else if (minP > 500000) {
+            priceCategory = 'Trên 500k';
+          }
+
           // Hardcode default values for missing data fields
           return {
             id: venue.id,
@@ -27,6 +35,9 @@ export const useFacilities = () => {
             status: venue.status === 'ACTIVE' ? 'Còn chỗ' : 'Đóng cửa',
             statusType: venue.status === 'ACTIVE' ? 'success' : 'warning',
             imageUrl: venue.coverImage || 'https://via.placeholder.com/300x160?text=No+Image',
+            sport: venue.sportName || 'Khác',
+            area: venue.district || 'Khác',
+            priceCategory: priceCategory,
           };
         });
 

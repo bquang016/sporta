@@ -10,7 +10,7 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 
 import { Platform } from 'react-native';
-import { AlertProvider } from '../src/shared/contexts/AlertContext';
+import { SessionExpiredModal } from '../src/shared/ui';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -48,7 +48,7 @@ export default function RootLayout() {
   }
 
   return (
-    <AlertProvider>
+    <>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
@@ -60,6 +60,7 @@ export default function RootLayout() {
         <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
       </Stack>
-    </AlertProvider>
+      <SessionExpiredModal />
+    </>
   );
 }
