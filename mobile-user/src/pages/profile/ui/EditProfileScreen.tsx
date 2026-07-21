@@ -34,10 +34,6 @@ export function EditProfileScreen() {
     pendingAvatarUri,
     confirmUploadAvatar,
     cancelUploadAvatar,
-    alertVisible,
-    alertMessage,
-    isSuccess,
-    handleCloseAlert,
   } = useEditProfile();
 
   // Local state for modals
@@ -402,23 +398,6 @@ export function EditProfileScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSave} onPress={confirmUploadAvatar} disabled={isSubmitting}>
                 {isSubmitting ? <ActivityIndicator size="small" color="#002117" /> : <Text style={styles.modalSaveText}>Đồng ý</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ALERT MODAL */}
-      <Modal visible={alertVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{isSuccess ? 'Thành công' : 'Lỗi'}</Text>
-            <Text style={{ marginBottom: 20, ...TYPOGRAPHY.bodyMd, color: '#707974', textAlign: 'center' }}>
-              {alertMessage}
-            </Text>
-            <View style={{ width: '100%' }}>
-              <TouchableOpacity style={styles.modalSave} onPress={handleCloseAlert}>
-                <Text style={styles.modalSaveText}>Đóng</Text>
               </TouchableOpacity>
             </View>
           </View>

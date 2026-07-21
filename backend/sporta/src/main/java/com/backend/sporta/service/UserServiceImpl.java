@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.time.LocalDate;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -53,8 +54,12 @@ public class UserServiceImpl implements UserService {
             user.setGender(request.getGender());
         }
         
-        if (request.getDateOfBirth() != null) {
-            user.setDateOfBirth(request.getDateOfBirth());
+        if (request.getDateOfBirth() != null && !request.getDateOfBirth().trim().isEmpty()) {
+            try {
+                user.setDateOfBirth(LocalDate.parse(request.getDateOfBirth().trim()));
+            } catch (Exception e) {
+                // Ignore parse error
+            }
         }
         
         if (request.getHeight() != null) {

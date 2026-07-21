@@ -50,6 +50,7 @@ public class UserController {
             try {
                 request = objectMapper.readValue(dataStr, UpdateUserProfileRequest.class);
             } catch (Exception e) {
+                System.err.println("Error parsing UpdateUserProfileRequest: " + e.getMessage());
                 // Ignore parsing errors and just proceed with empty request
             }
         }

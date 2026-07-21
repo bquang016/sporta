@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
 import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 export function useLogin() {
   const [email, setEmail] = useState('');
@@ -16,21 +17,7 @@ export function useLogin() {
   // Trạng thái cho banner Hợp tác Sporta nổi
   const [isPromoVisible, setIsPromoVisible] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
-  // State cho Custom Alert Modal
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState<'error' | 'success'>('error');
-
-  const showAlert = (title: string, message: string, type: 'error' | 'success' = 'error') => {
-    setAlertTitle(title);
-    setAlertMessage(message);
-    setAlertType(type);
-    setAlertVisible(true);
-  };
-
-  const hideAlert = () => setAlertVisible(false);
-
+  const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
 
   const isExpandedRef = useRef(isExpanded);
@@ -100,7 +87,7 @@ export function useLogin() {
       }
     } else if (response?.type === 'error') {
       const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
-      showAlert('Lỗi đăng nhập Google', errorMsg, 'error');
+      showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);
 
@@ -129,12 +116,11 @@ export function useLogin() {
           await SecureStore.setItemAsync('userEmail', response.email);
           await SecureStore.setItemAsync('userName', response.fullName);
         }
-        showAlert('Thành công', response.message, 'success');
-        router.replace('/(tabs)');
+        showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
       }
     } catch (error: any) {
       console.error(error);
-      showAlert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.', 'error');
+      showAlert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
     } finally {
       setLoading(false);
     }
@@ -146,11 +132,11 @@ export function useLogin() {
 
   const handleLogin = async () => {
     if (!email || !email.includes('@')) {
-      showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.', 'error');
+      showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
     if (!password) {
-      showAlert('Lỗi', 'Vui lòng nhập mật khẩu.', 'error');
+      showAlert('Lỗi', 'Vui lòng nhập mật khẩu.');
       return;
     }
 
@@ -169,10 +155,9 @@ export function useLogin() {
         await SecureStore.setItemAsync('userEmail', email);
         await SecureStore.setItemAsync('userName', capitalizedUsername);
       }
-      showAlert('Thành công', response.message, 'success');
-      router.replace('/(tabs)');
+      showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
     } catch (error: any) {
-      showAlert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.', 'error');
+      showAlert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
     } finally {
       setLoading(false);
     }
@@ -195,11 +180,6 @@ export function useLogin() {
     isExpanded,
     pan,
     panResponder,
-    alertVisible,
-    alertTitle,
-    alertMessage,
-    alertType,
-    hideAlert,
     handleGoogleLogin,
     handleLogin,
     router,

@@ -5,9 +5,11 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { useProfile } from './useProfile';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 export function useEditProfile() {
   const router = useRouter();
+  const { showAlert, showConfirm } = useAlert();
   const { profileData, refreshProfile } = useProfile();
   
   const [fullName, setFullName] = useState('');
@@ -17,9 +19,6 @@ export function useEditProfile() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(true);
   
   const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null);
   const [isConfirmAvatarModalVisible, setIsConfirmAvatarModalVisible] = useState(false);
@@ -40,7 +39,7 @@ export function useEditProfile() {
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      showAlert('Cần cấp quyền truy cập thư viện ảnh để thay đổi avatar.', false);
+      showAlert('Lỗi', 'Cần cấp quyền truy cập thư viện ảnh để thay đổi avatar.');
       return;
     }
 
@@ -72,9 +71,9 @@ export function useEditProfile() {
          }
       }
       await refreshProfile();
-      // showAlert('Cập nhật ảnh đại diện thành công!', true);
+      showAlert('Thành công', 'Cập nhật ảnh đại diện thành công!');
     } catch (e) {
-      showAlert('Lỗi khi tải ảnh lên.', false);
+      showAlert('Lỗi', 'Lỗi khi tải ảnh lên.');
     } finally {
       setIsSubmitting(false);
       setPendingAvatarUri(null);
@@ -86,15 +85,9 @@ export function useEditProfile() {
     setIsConfirmAvatarModalVisible(false);
   };
 
-  const showAlert = (message: string, success: boolean) => {
-    setAlertMessage(message);
-    setIsSuccess(success);
-    setAlertVisible(true);
-  };
-
   const handleSave = async (extraData?: { height?: number; weight?: number }) => {
     if (!fullName.trim()) {
-      showAlert('Vui lòng nhập họ và tên', false);
+      showAlert('Lỗi', 'Vui lòng nhập họ và tên');
       return;
     }
 
@@ -116,16 +109,12 @@ export function useEditProfile() {
       await usersApi.updateProfile(updateData);
       
       await refreshProfile();
-      // showAlert('Cập nhật thành công.', true); // Removed to make inline edit silent and fast
+      showAlert('Thành công', 'Cập nhật thành công.');
     } catch (error: any) {
-      showAlert(error.message || 'Lỗi khi lưu thông tin.', false);
+      showAlert('Lỗi', error.message || 'Lỗi khi lưu thông tin.');
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleCloseAlert = () => {
-    setAlertVisible(false);
   };
 
   return {
@@ -140,12 +129,8 @@ export function useEditProfile() {
     setDateOfBirth,
     avatarUri,
     isSubmitting,
-    alertVisible,
-    alertMessage,
-    isSuccess,
     handlePickImage,
     handleSave,
-    handleCloseAlert,
     isConfirmAvatarModalVisible,
     pendingAvatarUri,
     confirmUploadAvatar,
