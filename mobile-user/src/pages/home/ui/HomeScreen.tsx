@@ -176,7 +176,7 @@ export function HomeScreen() {
                 {isAuthenticated ? 'Sân Chơi Xé Vé' : 'Trận đấu hot'}
               </Text>
               <TouchableOpacity
-                onPress={() => console.log('See all matches')}
+                onPress={() => router.push('/ticket-sessions' as any)}
                 style={styles.seeMoreButton}
                 activeOpacity={0.7}
               >

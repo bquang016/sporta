@@ -40,6 +40,14 @@ public class Ticket {
     @Column(name = "short_code", length = 6, unique = true)
     private String shortCode;
 
+    @Column(name = "quantity")
+    @Builder.Default
+    private Integer quantity = 1;
+
+    public int getQuantity() {
+        return this.quantity != null ? this.quantity : 1;
+    }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

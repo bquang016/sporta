@@ -37,6 +37,7 @@ export interface TicketCheckInResponse {
   endTime: string;
   playDate: string;
   sportLevel: SportLevel;
+  quantity?: number;
   status: 'USED';
 }
 

@@ -1,11 +1,13 @@
 package com.backend.sporta.dto;
 
 import com.backend.sporta.enums.SportLevel;
-import com.backend.sporta.enums.TicketSessionStatus;
+import com.backend.sporta.enums.TicketStatus;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -14,18 +16,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TicketSessionResponse {
-    private UUID id;
+public class UserTicketResponse {
+    private UUID ticketId;
+    private UUID sessionId;
     private UUID venueId;
     private String venueName;
     private String venueAddress;
-    private String venueLocation;
-    private String coverImage;
-    private Double latitude;
-    private Double longitude;
-    private String sportName;
-    
-    private UUID courtId;
     private String courtName;
     
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -37,9 +33,15 @@ public class TicketSessionResponse {
     @JsonFormat(pattern = "HH:mm")
     private LocalTime endTime;
     
-    private BigDecimal pricePerTicket;
-    private Integer maxSlots;
-    private Integer bookedSlots;
+    private BigDecimal price;
+    private Integer quantity;
+    private BigDecimal totalPrice;
     private SportLevel sportLevel;
-    private TicketSessionStatus status;
+    private TicketStatus status;
+    
+    private String qrCodeToken;
+    private String shortCode;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
 }

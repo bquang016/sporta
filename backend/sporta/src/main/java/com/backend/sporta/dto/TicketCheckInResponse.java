@@ -27,5 +27,6 @@ public class TicketCheckInResponse {
     private LocalDate playDate;
     
     private SportLevel sportLevel;
+    private Integer quantity;
     private String status; // "USED"
 }
