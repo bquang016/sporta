@@ -57,26 +57,25 @@ class ClubStore {
 
   async fetchClubs(sportId?: number, query?: string) {
     try {
-      console.log('[ClubStore] Calling getAvailableClubsApi with:', { sportId, query });
       const data = await getAvailableClubsApi(sportId, query);
-      console.log('[ClubStore] getAvailableClubsApi success, count:', data?.length);
       this.clubs = data || [];
       this.notify();
     } catch (error) {
-      console.error('[ClubStore] Lỗi tải danh sách CLB khám phá:', error);
+      this.clubs = [];
+      this.notify();
     }
   }
 
   async fetchJoinedClubs(sportId?: number, query?: string) {
     try {
-      console.log('[ClubStore] Calling getJoinedClubsApi with:', { sportId, query });
       const data = await getJoinedClubsApi(sportId, query);
-      console.log('[ClubStore] getJoinedClubsApi success, count:', data?.length, 'data:', JSON.stringify(data));
       this.joinedClubs = data || [];
       this.joinedClubIds = new Set(this.joinedClubs.map(c => c.id));
       this.notify();
     } catch (error) {
-      console.error('[ClubStore] Lỗi tải danh sách CLB đã tham gia:', error);
+      this.joinedClubs = [];
+      this.joinedClubIds = new Set();
+      this.notify();
     }
   }
 

@@ -16,6 +16,7 @@ import com.backend.sporta.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -132,8 +133,9 @@ public class ClubServiceImpl implements ClubService {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy câu lạc bộ"));
 
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
+        User user = (userEmail != null && !userEmail.equals("anonymousUser"))
+                ? userRepository.findByEmail(userEmail).orElse(null)
+                : null;
 
         return mapToResponse(club, user);
     }
@@ -141,24 +143,39 @@ public class ClubServiceImpl implements ClubService {
     @Override
     @Transactional(readOnly = true)
     public List<ClubResponse> getAvailableClubs(Long sportId, String query, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
+        User user = (userEmail != null && !userEmail.equals("anonymousUser"))
+                ? userRepository.findByEmail(userEmail).orElse(null)
+                : null;
 
         String searchQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
         List<Club> clubs;
-        if (searchQuery == null) {
-            clubs = clubRepository.findAvailableClubsWithoutQuery(user.getId(), sportId);
+        if (user == null) {
+            if (searchQuery == null) {
+                clubs = clubRepository.findAllClubsWithoutQuery(sportId);
+            } else {
+                clubs = clubRepository.findAllClubsWithQuery(sportId, searchQuery);
+            }
+            return clubs.stream().map(c -> mapToResponse(c, null)).collect(Collectors.toList());
         } else {
-            clubs = clubRepository.findAvailableClubsWithQuery(user.getId(), sportId, searchQuery);
+            if (searchQuery == null) {
+                clubs = clubRepository.findAvailableClubsWithoutQuery(user.getId(), sportId);
+            } else {
+                clubs = clubRepository.findAvailableClubsWithQuery(user.getId(), sportId, searchQuery);
+            }
+            return clubs.stream().map(c -> mapToResponse(c, user)).collect(Collectors.toList());
         }
-        return clubs.stream().map(c -> mapToResponse(c, user)).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ClubResponse> getJoinedClubs(Long sportId, String query, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
+        User user = (userEmail != null && !userEmail.equals("anonymousUser"))
+                ? userRepository.findByEmail(userEmail).orElse(null)
+                : null;
+
+        if (user == null) {
+            return Collections.emptyList();
+        }
 
         String searchQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
         List<Club> clubs;
@@ -174,15 +191,17 @@ public class ClubServiceImpl implements ClubService {
         long memberCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
         
         String userStatus = "NOT_MEMBER";
-        Optional<ClubMember> memberOpt = clubMemberRepository.findByClubIdAndUserId(club.getId(), currentUser.getId());
-        if (memberOpt.isPresent()) {
-            ClubMember m = memberOpt.get();
-            if (m.getStatus() == ClubMemberStatus.PENDING) {
-                userStatus = "PENDING";
-            } else if (m.getStatus() == ClubMemberStatus.APPROVED) {
-                userStatus = m.getRole().name(); // "ADMIN", "SUB_LEADER", "MEMBER"
-            } else {
-                userStatus = "REJECTED";
+        if (currentUser != null) {
+            Optional<ClubMember> memberOpt = clubMemberRepository.findByClubIdAndUserId(club.getId(), currentUser.getId());
+            if (memberOpt.isPresent()) {
+                ClubMember m = memberOpt.get();
+                if (m.getStatus() == ClubMemberStatus.PENDING) {
+                    userStatus = "PENDING";
+                } else if (m.getStatus() == ClubMemberStatus.APPROVED) {
+                    userStatus = m.getRole().name(); // "ADMIN", "SUB_LEADER", "MEMBER"
+                } else {
+                    userStatus = "REJECTED";
+                }
             }
         }
 

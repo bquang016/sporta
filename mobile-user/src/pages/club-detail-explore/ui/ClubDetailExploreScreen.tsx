@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button, Card } from '../../../shared/ui';
 import { useClubs, ClubDetailHeader } from '../../../entities/club';
@@ -17,6 +18,9 @@ export function ClubDetailExploreScreen() {
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [modalIcon, setModalIcon] = useState<'check-circle' | 'mail-outline'>('check-circle');
+
+  // Require Auth Modal State
+  const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
 
   const club = clubs.find(c => String(c.id) === String(id)) || joinedClubs.find(c => String(c.id) === String(id));
 
@@ -43,18 +47,37 @@ export function ClubDetailExploreScreen() {
     );
   }
 
-  const handleJoinPress = () => {
-    joinClub(club.id);
-    if (club.isPrivate) {
-      setModalTitle('Đã gửi yêu cầu');
-      setModalMessage(`Đã gửi yêu cầu tham gia câu lạc bộ "${club.name}" cho chủ CLB.`);
-      setModalIcon('mail-outline');
+  const handleJoinPress = async () => {
+    let token = '';
+    if (Platform.OS === 'web') {
+      token = localStorage.getItem('accessToken') || '';
     } else {
-      setModalTitle('Tham gia thành công');
-      setModalMessage(`Bạn đã tham gia câu lạc bộ "${club.name}" thành công!`);
-      setModalIcon('check-circle');
+      token = (await SecureStore.getItemAsync('accessToken')) || '';
     }
-    setIsModalVisible(true);
+
+    if (!token) {
+      setIsAuthModalVisible(true);
+      return;
+    }
+
+    try {
+      await joinClub(club.id);
+      if (club.isPrivate) {
+        setModalTitle('Đã gửi yêu cầu');
+        setModalMessage(`Đã gửi yêu cầu tham gia câu lạc bộ "${club.name}" cho chủ CLB.`);
+        setModalIcon('mail-outline');
+      } else {
+        setModalTitle('Tham gia thành công');
+        setModalMessage(`Bạn đã tham gia câu lạc bộ "${club.name}" thành công!`);
+        setModalIcon('check-circle');
+      }
+      setIsModalVisible(true);
+    } catch (error: any) {
+      setModalTitle('Không thể tham gia');
+      setModalMessage(error.message || 'Đã xảy ra lỗi khi tham gia câu lạc bộ.');
+      setModalIcon('mail-outline');
+      setIsModalVisible(true);
+    }
   };
 
   return (
@@ -134,6 +157,42 @@ export function ClubDetailExploreScreen() {
                 router.back();
               }}
             />
+          </View>
+        </View>
+      </Modal>
+      {/* Require Auth Modal */}
+      <Modal
+        visible={isAuthModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsAuthModalVisible(false)}
+      >
+        <View style={styles.alertModalOverlay}>
+          <View style={styles.alertModalContent}>
+            <View style={styles.alertModalIconCircle}>
+              <MaterialIcons name="lock-outline" size={36} color={COLORS.primary} />
+            </View>
+            <Text style={styles.alertModalTitle}>Yêu cầu đăng nhập</Text>
+            <Text style={styles.alertModalMessage}>
+              Bạn cần đăng nhập tài khoản để tham gia câu lạc bộ này.
+            </Text>
+            <View style={styles.modalActions}>
+              <Button 
+                title="Hủy" 
+                variant="outline" 
+                style={styles.modalCancelBtn}
+                onPress={() => setIsAuthModalVisible(false)} 
+              />
+              <Button 
+                title="Đăng nhập ngay" 
+                variant="primary" 
+                style={styles.modalConfirmBtn}
+                onPress={() => {
+                  setIsAuthModalVisible(false);
+                  router.push('/(auth)/login');
+                }} 
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -237,18 +296,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xl,
   },
+  alertModalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.blackOpacity50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
   alertModalContent: {
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.lg,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 340,
     alignItems: 'center',
     shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 8,
+  },
+  alertModalIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.base,
   },
   modalAlertIcon: {
     marginBottom: SPACING.md,
@@ -271,6 +346,17 @@ const styles = StyleSheet.create({
   alertModalBtn: {
     width: '100%',
     height: 44,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1,
+  },
+  modalConfirmBtn: {
+    flex: 1.2,
   },
 });
 
