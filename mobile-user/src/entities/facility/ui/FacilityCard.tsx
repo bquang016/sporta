@@ -14,6 +14,9 @@ export interface Facility {
   status: string;
   statusType: 'success' | 'warning';
   imageUrl: string;
+  sport?: string;
+  area?: string;
+  priceCategory?: string;
 }
 
 interface FacilityCardProps {

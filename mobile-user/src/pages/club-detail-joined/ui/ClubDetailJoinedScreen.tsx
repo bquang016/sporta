@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, StatusBar, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,6 +16,7 @@ import { CreatePollModal } from './components/CreatePollModal';
 import { MatchmakeModal } from './components/MatchmakeModal';
 import { PollCard, PollData } from './components/PollCard';
 import { getClubMembersApi } from '../../../shared/api/clubs';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
 const MOCK_MEMBERS: MemberItem[] = [
@@ -62,6 +63,7 @@ export function ClubDetailJoinedScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { clubs, joinedClubs, leaveClub, deleteClub, transferLeadership, refreshClubs, assignSubLeader, demoteSubLeader, removeMember } = useClubs();
+  const { showAlert, showConfirm } = useAlert();
 
   // Custom Leave Confirmation Modal State
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
@@ -196,80 +198,62 @@ export function ClubDetailJoinedScreen() {
     setIsMembersModalVisible(false);
     
     setTimeout(() => {
-      Alert.alert(
+      showConfirm(
         'Xác nhận chuyển nhượng',
         `Bạn có chắc chắn muốn chuyển quyền Trưởng câu lạc bộ cho "${member.name}" không? Bạn sẽ trở thành Thành viên thường sau khi chuyển nhượng.`,
-        [
-          { 
-            text: 'Hủy', 
-            style: 'cancel',
-            onPress: () => {
-              setIsMembersModalVisible(true);
-            }
-          },
-          { 
-            text: 'Đồng ý', 
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await transferLeadership(club.id, member.userId);
-                Alert.alert('Thành công', `Đã chuyển nhượng quyền Trưởng câu lạc bộ cho "${member.name}" thành công!`);
-                await refreshClubs();
-              } catch (err: any) {
-                Alert.alert('Lỗi', err.message || 'Chuyển nhượng quyền Trưởng câu lạc bộ thất bại.');
-                setIsMembersModalVisible(true);
-              }
-            }
+        async () => {
+          try {
+            await transferLeadership(club.id, member.userId);
+            showAlert('Thành công', `Đã chuyển nhượng quyền Trưởng câu lạc bộ cho "${member.name}" thành công!`);
+            await refreshClubs();
+          } catch (err: any) {
+            showAlert('Lỗi', err.message || 'Chuyển nhượng quyền Trưởng câu lạc bộ thất bại.', () => setIsMembersModalVisible(true));
           }
-        ]
+        },
+        () => setIsMembersModalVisible(true),
+        'Đồng ý',
+        'Hủy'
       );
     }, 400);
   };
 
   const handleAssignSubLeader = (member: MemberItem) => {
     if (!club) return;
-    Alert.alert(
+    showConfirm(
       'Bổ nhiệm Phó câu lạc bộ',
       `Bạn có chắc chắn muốn phong chức Phó câu lạc bộ cho "${member.name}" không? Nếu đã có Phó câu lạc bộ khác, họ sẽ tự động trở thành Thành viên thường.`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Bổ nhiệm', 
-          onPress: async () => {
-            try {
-              await assignSubLeader(club.id, member.userId);
-              Alert.alert('Thành công', `Đã bổ nhiệm "${member.name}" làm Phó câu lạc bộ thành công!`);
-              await Promise.all([fetchMembers(), refreshClubs()]);
-            } catch (err: any) {
-              Alert.alert('Lỗi', err.message || 'Bổ nhiệm Phó câu lạc bộ thất bại.');
-            }
-          }
+      async () => {
+        try {
+          await assignSubLeader(club.id, member.userId);
+          showAlert('Thành công', `Đã bổ nhiệm "${member.name}" làm Phó câu lạc bộ thành công!`);
+          await Promise.all([fetchMembers(), refreshClubs()]);
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Bổ nhiệm Phó câu lạc bộ thất bại.');
         }
-      ]
+      },
+      undefined,
+      'Bổ nhiệm',
+      'Hủy'
     );
   };
 
   const handleDemoteSubLeader = (member: MemberItem) => {
     if (!club) return;
-    Alert.alert(
+    showConfirm(
       'Hạ chức Phó câu lạc bộ',
       `Bạn có chắc chắn muốn hạ chức Phó câu lạc bộ của "${member.name}" xuống Thành viên thường không?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Hạ chức', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await demoteSubLeader(club.id, member.userId);
-              Alert.alert('Thành công', `Đã hạ chức "${member.name}" xuống Thành viên thường.`);
-              await Promise.all([fetchMembers(), refreshClubs()]);
-            } catch (err: any) {
-              Alert.alert('Lỗi', err.message || 'Hạ chức Phó câu lạc bộ thất bại.');
-            }
-          }
+      async () => {
+        try {
+          await demoteSubLeader(club.id, member.userId);
+          showAlert('Thành công', `Đã hạ chức "${member.name}" xuống Thành viên thường.`);
+          await Promise.all([fetchMembers(), refreshClubs()]);
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Hạ chức Phó câu lạc bộ thất bại.');
         }
-      ]
+      },
+      undefined,
+      'Hạ chức',
+      'Hủy'
     );
   };
 
@@ -278,33 +262,21 @@ export function ClubDetailJoinedScreen() {
     setIsMembersModalVisible(false);
     
     setTimeout(() => {
-      Alert.alert(
+      showConfirm(
         'Trục xuất thành viên',
         `Bạn có chắc chắn muốn đuổi "${member.name}" khỏi câu lạc bộ không? Hành động này không thể hoàn tác.`,
-        [
-          { 
-            text: 'Hủy', 
-            style: 'cancel',
-            onPress: () => {
-              setIsMembersModalVisible(true);
-            }
-          },
-          { 
-            text: 'Trục xuất', 
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await removeMember(club.id, member.userId);
-                Alert.alert('Thành công', `Đã đuổi "${member.name}" khỏi câu lạc bộ.`);
-                await Promise.all([fetchMembers(), refreshClubs()]);
-                setIsMembersModalVisible(true);
-              } catch (err: any) {
-                Alert.alert('Lỗi', err.message || 'Trục xuất thành viên thất bại.');
-                setIsMembersModalVisible(true);
-              }
-            }
+        async () => {
+          try {
+            await removeMember(club.id, member.userId);
+            showAlert('Thành công', `Đã đuổi "${member.name}" khỏi câu lạc bộ.`, () => setIsMembersModalVisible(true));
+            await Promise.all([fetchMembers(), refreshClubs()]);
+          } catch (err: any) {
+            showAlert('Lỗi', err.message || 'Trục xuất thành viên thất bại.', () => setIsMembersModalVisible(true));
           }
-        ]
+        },
+        () => setIsMembersModalVisible(true),
+        'Trục xuất',
+        'Hủy'
       );
     }, 400);
   };
@@ -469,7 +441,7 @@ export function ClubDetailJoinedScreen() {
     const numMembers = members.length;
     
     if (numMembers >= 2 && currentUserRole === 'Trưởng câu lạc bộ') {
-      Alert.alert(
+      showAlert(
         'Không thể rời nhóm',
         'Bạn là Trưởng câu lạc bộ. Bạn bắt buộc phải chuyển quyền Trưởng câu lạc bộ cho một thành viên khác trước khi rời khỏi câu lạc bộ.'
       );
@@ -493,15 +465,14 @@ export function ClubDetailJoinedScreen() {
       if (isDeleteLeaveMode) {
         console.log('[ClubDetail] Last member (leader) leaving, deleting club:', club.id);
         await deleteClub(club.id);
-        Alert.alert('Thành công', 'Đã giải tán câu lạc bộ thành công.');
+        showAlert('Thành công', 'Đã giải tán câu lạc bộ thành công.', () => router.replace('/(tabs)/clubs'));
       } else {
         console.log('[ClubDetail] Leaving club:', club.id);
         await leaveClub(club.id);
-        Alert.alert('Thành công', 'Bạn đã rời câu lạc bộ thành công.');
+        showAlert('Thành công', 'Bạn đã rời câu lạc bộ thành công.', () => router.replace('/(tabs)/clubs'));
       }
-      router.replace('/(tabs)/clubs');
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message || 'Thực hiện hành động thất bại.');
+      showAlert('Lỗi', err.message || 'Thực hiện hành động thất bại.');
     }
   };
 

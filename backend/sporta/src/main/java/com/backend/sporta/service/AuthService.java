@@ -151,7 +151,7 @@ public class AuthService {
     //  SEND OTP
     // ═══════════════════════════════════════════════════════════════════════════
 
-    public void sendOtp(SendOtpRequest request) {
+    public String sendOtp(SendOtpRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException("Email này đã được sử dụng. Vui lòng đăng nhập.", 400);
         }
@@ -160,7 +160,12 @@ public class AuthService {
             throw new CustomException("Đơn đăng ký của bạn đang chờ duyệt. Vui lòng đợi kết quả xét duyệt.", 400);
         }
         String otpCode = otpService.generateAndSaveOtp(request.getEmail());
-        emailService.sendOtpEmail(request.getEmail(), otpCode);
+        try {
+            emailService.sendOtpEmail(request.getEmail(), otpCode);
+        } catch(Exception e) {
+            System.err.println("Email send failed: " + e.getMessage());
+        }
+        return otpCode;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

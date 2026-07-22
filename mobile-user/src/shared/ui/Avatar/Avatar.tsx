@@ -11,7 +11,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
 
-export type AvatarSize = 'sm' | 'md' | 'lg' | number;
+export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | number;
 
 export interface AvatarProps {
   source?: { uri: string } | string | null;
@@ -35,6 +35,8 @@ export function Avatar({
   if (size === 'sm') dim = 32;
   else if (size === 'md') dim = 40;
   else if (size === 'lg') dim = 48;
+  else if (size === 'xl') dim = 80;
+  else if (size === 'xxl') dim = 120;
   else if (typeof size === 'number') dim = size;
 
   const sizeStyle: ViewStyle = {

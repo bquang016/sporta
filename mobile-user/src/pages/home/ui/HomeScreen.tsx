@@ -66,8 +66,10 @@ const HOT_MATCHES: Match[] = [
 
 export function HomeScreen() {
   const {
+    router,
     isAuthenticated,
     userName,
+    userAvatar,
     facilities,
     facilitiesLoading,
     facilitiesError,
@@ -86,6 +88,7 @@ export function HomeScreen() {
       <Header
         isAuthenticated={isAuthenticated}
         userName={userName}
+        userAvatar={userAvatar}
         getGreeting={getGreeting}
         handleAvatarPress={handleAvatarPress}
       />
@@ -95,8 +98,8 @@ export function HomeScreen() {
         
         {/* Search Bar */}
         <SearchBar
-          onPress={() => useHomeScreen().router.push('/search')}
-          onFilterPress={() => useHomeScreen().router.push({ pathname: '/search', params: { openFilter: 'true' } })}
+          onPress={() => router.push('/search')}
+          onFilterPress={() => router.push({ pathname: '/search', params: { openFilter: 'true' } })}
         />
 
         {/* Sport Categories — compact chips */}

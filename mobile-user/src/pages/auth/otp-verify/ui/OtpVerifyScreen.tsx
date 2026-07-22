@@ -1,15 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { verifyOtp, sendOtp } from '../../../../shared/api/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 export function OtpVerifyScreen() {
+  const { showAlert } = useAlert();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const router = useRouter();
   const { email, password } = useLocalSearchParams();
   
@@ -35,7 +38,7 @@ export function OtpVerifyScreen() {
   const handleVerify = async () => {
     const otpCode = otp.join('');
     if (otpCode.length < 6) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ mã 6 số.');
+      showAlert('Lỗi', 'Vui lòng nhập đầy đủ mã 6 số.');
       return;
     }
 
@@ -44,19 +47,15 @@ export function OtpVerifyScreen() {
       const response = await verifyOtp(email as string, otpCode);
       
       if (response.isNewUser) {
-        // Bỏ window.alert vì nó có thể làm đứt luồng JS trên Web
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', 'Xác thực OTP thành công!');
-        }
-        
-        // Đảm bảo params là string
-        router.push({ 
-          pathname: '/(auth)/personal-info', 
-          params: { 
-            registrationToken: response.registrationToken, 
-            email: email as string, 
-            password: password as string 
-          } 
+        showAlert('Thành công', 'Xác thực OTP thành công!', () => {
+          router.push({ 
+            pathname: '/(auth)/personal-info', 
+            params: { 
+              registrationToken: response.registrationToken, 
+              email: email as string, 
+              password: password as string 
+            } 
+          });
         });
       } else {
         // User exists, save access token and go home
@@ -74,17 +73,10 @@ export function OtpVerifyScreen() {
           await SecureStore.setItemAsync('userName', capitalizedUsername);
         }
         
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', response.message);
-        }
-        router.replace('/(tabs)');
+        showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
       }
     } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Mã OTP không đúng hoặc đã hết hạn.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Mã OTP không đúng hoặc đã hết hạn.'));
-      }
+      showAlert('Lỗi', error.message || 'Mã OTP không đúng hoặc đã hết hạn.');
     } finally {
       setLoading(false);
     }
@@ -92,10 +84,14 @@ export function OtpVerifyScreen() {
 
   const handleResend = async () => {
     try {
-      await sendOtp(email as string);
-      Alert.alert('Thành công', 'Đã gửi lại mã OTP.');
+      const response = await sendOtp(email as string);
+      if (response.otp) {
+        showAlert('Thành công', `Đã gửi lại mã OTP. Mã OTP của bạn là: ${response.otp}`);
+      } else {
+        showAlert('Thành công', 'Đã gửi lại mã OTP.');
+      }
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra.');
+      showAlert('Lỗi', error.message || 'Có lỗi xảy ra.');
     }
   };
 
@@ -118,10 +114,15 @@ export function OtpVerifyScreen() {
             <TextInput
               key={index}
               ref={(ref) => { inputRefs.current[index] = ref; }}
-              style={styles.otpInput}
+              style={[
+                styles.otpInput,
+                focusedIndex === index && styles.otpInputFocused
+              ]}
               value={digit}
               onChangeText={(value) => handleOtpChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
+              onFocus={() => setFocusedIndex(index)}
+              onBlur={() => setFocusedIndex(null)}
               keyboardType="number-pad"
               maxLength={1}
             />
@@ -182,11 +183,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   otpInput: {
-    width: 50,
-    height: 50,
+    width: 52,
+    height: 54,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.md,
     ...TYPOGRAPHY.headlineLg,
     textAlign: 'center',
     color: COLORS.onSurface,
@@ -196,6 +197,11 @@ const styles = StyleSheet.create({
         outlineStyle: 'none',
       } as any,
     }),
+  },
+  otpInputFocused: {
+    borderColor: COLORS.primary,
+    borderWidth: 2,
+    backgroundColor: COLORS.surfaceBright,
   },
   resendContainer: {
     alignItems: 'center',

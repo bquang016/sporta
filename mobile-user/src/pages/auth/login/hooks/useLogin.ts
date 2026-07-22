@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Platform, Alert, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
+import { Platform, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
 import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 export function useLogin() {
   const [email, setEmail] = useState('');
@@ -16,8 +17,10 @@ export function useLogin() {
   // Trạng thái cho banner Hợp tác Sporta nổi
   const [isPromoVisible, setIsPromoVisible] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
-  const isExpandedRef = useRef(true);
+  const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
+
+  const isExpandedRef = useRef(isExpanded);
 
   useEffect(() => {
     isExpandedRef.current = isExpanded;
@@ -84,11 +87,7 @@ export function useLogin() {
       }
     } else if (response?.type === 'error') {
       const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
-      if (Platform.OS === 'web') {
-        window.alert('Lỗi đăng nhập Google: ' + errorMsg);
-      } else {
-        Alert.alert('Lỗi đăng nhập Google', errorMsg);
-      }
+      showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);
 
@@ -117,20 +116,11 @@ export function useLogin() {
           await SecureStore.setItemAsync('userEmail', response.email);
           await SecureStore.setItemAsync('userName', response.fullName);
         }
-        if (Platform.OS !== 'web') {
-          Alert.alert('Thành công', response.message);
-        } else {
-          window.alert(response.message);
-        }
         router.replace('/(tabs)');
       }
     } catch (error: any) {
       console.error(error);
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
-      } else {
-        window.alert('Lỗi xác thực: ' + (error.message || 'Xác thực Google thất bại.'));
-      }
+      showAlert('Lỗi xác thực', error.message || 'Xác thực Google thất bại.');
     } finally {
       setLoading(false);
     }
@@ -142,11 +132,11 @@ export function useLogin() {
 
   const handleLogin = async () => {
     if (!email || !email.includes('@')) {
-      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
+      showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
     if (!password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
+      showAlert('Lỗi', 'Vui lòng nhập mật khẩu.');
       return;
     }
 
@@ -165,18 +155,9 @@ export function useLogin() {
         await SecureStore.setItemAsync('userEmail', email);
         await SecureStore.setItemAsync('userName', capitalizedUsername);
       }
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', response.message);
-      } else {
-        window.alert(response.message);
-      }
       router.replace('/(tabs)');
     } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Email hoặc mật khẩu không đúng.'));
-      }
+      showAlert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');
     } finally {
       setLoading(false);
     }
