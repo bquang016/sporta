@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 export function PersonalInfoScreen() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
 
   const [fullName, setFullName] = useState(typeof initialFullName === 'string' ? initialFullName : '');
@@ -21,17 +23,17 @@ export function PersonalInfoScreen() {
 
   const handleNext = () => {
     if (!fullName.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập họ và tên.');
+      showAlert('Thiếu thông tin', 'Vui lòng nhập họ và tên.');
       return;
     }
     
     if (!dateInputText) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập ngày sinh.');
+      showAlert('Thiếu thông tin', 'Vui lòng nhập ngày sinh.');
       return;
     }
 
     if (!dateOfBirth) {
-      Alert.alert('Ngày sinh không hợp lệ', 'Vui lòng nhập ngày sinh đúng định dạng DD/MM/YYYY (Ví dụ: 18/06/2000).');
+      showAlert('Ngày sinh không hợp lệ', 'Vui lòng nhập ngày sinh đúng định dạng DD/MM/YYYY (Ví dụ: 18/06/2000).');
       return;
     }
 

@@ -23,4 +23,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /** Tìm theo bookingCode */
     java.util.Optional<Booking> findByBookingCode(String bookingCode);
+
+    /** Tìm các booking theo trạng thái và được tạo trước một mốc thời gian */
+    List<Booking> findByStatusAndCreatedAtBefore(BookingStatus status, java.time.LocalDateTime cutoffTime);
 }

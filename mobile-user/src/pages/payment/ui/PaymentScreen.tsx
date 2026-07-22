@@ -1,19 +1,25 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui/Button';
 import { Card } from '../../../shared/ui/Card';
+import { AlertModal } from '../../../shared/ui';
 import { useCreateBooking } from '../../../entities/booking/model/useBooking';
 import type { SlotInfo } from '../../../entities/facility/model/facility.types';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 export function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { mutate: createBooking, loading } = useCreateBooking();
+  const { showAlert } = useAlert();
 
   const [selectedMethod, setSelectedMethod] = useState('momo');
+  const [conflictModalVisible, setConflictModalVisible] = useState(false);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const paymentMethods = [
     { id: 'momo', label: 'Ví điện tử Momo', icon: 'account-balance-wallet' },
@@ -87,7 +93,12 @@ export function PaymentScreen() {
       });
       
     } catch (error: any) {
-      Alert.alert('Thất bại', error.message || 'Không thể tạo đơn đặt sân');
+      if (error.status === 409) {
+        setConflictModalVisible(true);
+      } else {
+        setErrorMessage(error.message || 'Không thể tạo đơn đặt sân');
+        setErrorModalVisible(true);
+      }
     }
   };
 
@@ -208,6 +219,26 @@ export function PaymentScreen() {
           icon={loading ? <ActivityIndicator size="small" color={COLORS.onPrimary} /> : undefined}
         />
       </View>
+
+      {/* Modals */}
+      <AlertModal
+        visible={conflictModalVisible}
+        title="Sân đã được đặt"
+        message="Rất tiếc, khung giờ này vừa có người nhanh tay hơn. Vui lòng chọn giờ khác!"
+        buttonText="Quay lại"
+        onConfirm={() => {
+          setConflictModalVisible(false);
+          router.back();
+        }}
+      />
+
+      <AlertModal
+        visible={errorModalVisible}
+        title="Thất bại"
+        message={errorMessage}
+        buttonText="Đóng"
+        onConfirm={() => setErrorModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

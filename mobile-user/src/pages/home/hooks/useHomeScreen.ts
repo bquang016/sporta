@@ -1,14 +1,17 @@
 import { useState, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useFacilities } from '../../../entities/facility';
 import { clubStore } from '../../../entities/club';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 export function useHomeScreen() {
   const router = useRouter();
+  const { showAlert, showConfirm } = useAlert();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
 
   const getApiUrl = () => {
@@ -21,12 +24,15 @@ export function useHomeScreen() {
     try {
       let token = '';
       let name = '';
+      let avatar = '';
       if (Platform.OS === 'web') {
         token = localStorage.getItem('accessToken') || '';
         name = localStorage.getItem('userName') || '';
+        avatar = localStorage.getItem('userAvatar') || '';
       } else {
         token = await SecureStore.getItemAsync('accessToken') || '';
         name = await SecureStore.getItemAsync('userName') || '';
+        avatar = await SecureStore.getItemAsync('userAvatar') || '';
       }
 
       if (token) {
@@ -42,15 +48,17 @@ export function useHomeScreen() {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('userName');
                 localStorage.removeItem('userEmail');
-                window.alert(errorData.message);
+                localStorage.removeItem('userAvatar');
               } else {
                 await SecureStore.deleteItemAsync('accessToken');
                 await SecureStore.deleteItemAsync('userName');
                 await SecureStore.deleteItemAsync('userEmail');
-                Alert.alert('Tài khoản bị khóa', errorData.message);
+                await SecureStore.deleteItemAsync('userAvatar');
               }
+              showAlert('Tài khoản bị khóa', errorData.message);
               setIsAuthenticated(false);
               setUserName('Khách');
+              setUserAvatar(null);
               return;
             }
           }
@@ -59,26 +67,32 @@ export function useHomeScreen() {
 
           setIsAuthenticated(true);
           setUserName(name || 'Thành viên');
+          setUserAvatar(avatar || null);
         } catch (e) {
           if (Platform.OS === 'web') {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('userName');
             localStorage.removeItem('userEmail');
+            localStorage.removeItem('userAvatar');
           } else {
             await SecureStore.deleteItemAsync('accessToken');
             await SecureStore.deleteItemAsync('userName');
             await SecureStore.deleteItemAsync('userEmail');
+            await SecureStore.deleteItemAsync('userAvatar');
           }
           setIsAuthenticated(false);
           setUserName('Khách');
+          setUserAvatar(null);
         }
       } else {
         setIsAuthenticated(false);
         setUserName('Khách');
+        setUserAvatar(null);
       }
     } catch (e) {
       setIsAuthenticated(false);
       setUserName('Khách');
+      setUserAvatar(null);
     }
   };
 
@@ -99,18 +113,17 @@ export function useHomeScreen() {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('userName');
         localStorage.removeItem('userEmail');
+        localStorage.removeItem('userAvatar');
       } else {
         await SecureStore.deleteItemAsync('accessToken');
         await SecureStore.deleteItemAsync('userName');
         await SecureStore.deleteItemAsync('userEmail');
+        await SecureStore.deleteItemAsync('userAvatar');
       }
       setIsAuthenticated(false);
       setUserName('Khách');
-      if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', 'Đăng xuất thành công!');
-      } else {
-        window.alert('Đăng xuất thành công!');
-      }
+      setUserAvatar(null);
+      showAlert('Thành công', 'Đăng xuất thành công!');
     } catch (error) {
       console.log('Error logging out:', error);
     }
@@ -118,24 +131,16 @@ export function useHomeScreen() {
 
   const handleAvatarPress = () => {
     if (isAuthenticated) {
-      if (Platform.OS === 'web') {
-        const confirmLogout = window.confirm(`Xin chào, ${userName}! Bạn có muốn đăng xuất tài khoản không?`);
-        if (confirmLogout) handleLogout();
-      } else {
-        Alert.alert('Tài khoản', `Xin chào, ${userName}! Bạn có muốn đăng xuất không?`, [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đăng xuất', style: 'destructive', onPress: handleLogout }
-        ]);
-      }
+      router.push('/(tabs)/profile');
     } else {
-      if (Platform.OS === 'web') {
-        if (window.confirm('Bạn chưa đăng nhập. Bạn có muốn đăng nhập không?')) handleLoginPress();
-      } else {
-        Alert.alert('Đăng nhập', 'Bạn chưa đăng nhập. Bạn có muốn đăng nhập ngay?', [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Đăng nhập', onPress: handleLoginPress }
-        ]);
-      }
+      showConfirm(
+        'Đăng nhập',
+        'Bạn chưa đăng nhập. Bạn có muốn đăng nhập ngay?',
+        handleLoginPress,
+        undefined,
+        'Đăng nhập',
+        'Hủy'
+      );
     }
   };
 
@@ -150,6 +155,7 @@ export function useHomeScreen() {
     router,
     isAuthenticated,
     userName,
+    userAvatar,
     facilities,
     facilitiesLoading,
     facilitiesError,

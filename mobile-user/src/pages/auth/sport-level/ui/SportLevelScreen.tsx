@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { registerUser } from '../../../../shared/api/auth';
@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button } from '../../../../shared/ui';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
 
 const SPORTS_LIST = [
   { id: 1, name: 'Bóng đá', icon: 'soccer' },
@@ -26,6 +27,7 @@ const LEVELS = [
 export function SportLevelScreen() {
   const router = useRouter();
   const { registrationToken, email, password, fullName, dateOfBirth, gender } = useLocalSearchParams();
+  const { showAlert } = useAlert();
 
   const [selectedSports, setSelectedSports] = useState<number[]>([]);
   const [sportLevels, setSportLevels] = useState<Record<number, string>>({});
@@ -52,7 +54,7 @@ export function SportLevelScreen() {
 
   const handleSubmit = async () => {
     if (selectedSports.length === 0) {
-      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một môn thể thao và trình độ tương ứng.');
+      showAlert('Lỗi', 'Vui lòng chọn ít nhất một môn thể thao và trình độ tương ứng.');
       return;
     }
 
@@ -84,18 +86,13 @@ export function SportLevelScreen() {
       }
       
       if (Platform.OS !== 'web') {
-        Alert.alert('Thành công', 'Đăng ký hoàn tất!');
+        showAlert('Thành công', 'Đăng ký hoàn tất!', () => router.replace('/(tabs)'));
       } else {
-        window.alert('Đăng ký hoàn tất!');
+        showAlert('Thành công', 'Đăng ký hoàn tất!', () => router.replace('/(tabs)'));
       }
-      router.replace('/(tabs)');
       
     } catch (error: any) {
-      if (Platform.OS !== 'web') {
-        Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra khi lưu thông tin.');
-      } else {
-        window.alert('Lỗi: ' + (error.message || 'Có lỗi xảy ra khi lưu thông tin.'));
-      }
+      showAlert('Lỗi', error.message || 'Có lỗi xảy ra khi lưu thông tin.');
     } finally {
       setLoading(false);
     }
