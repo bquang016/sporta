@@ -15,7 +15,7 @@ import { MembersModal, MemberItem } from './components/MembersModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { MatchmakeModal } from './components/MatchmakeModal';
 import { PollCard, PollData } from './components/PollCard';
-import { getClubMembersApi } from '../../../shared/api/clubs';
+import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, deletePollApi } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
@@ -193,6 +193,45 @@ export function ClubDetailJoinedScreen() {
     }
   }, [isMembersModalVisible]);
 
+  const fetchActivePoll = async () => {
+    if (!club) return;
+    try {
+      const data = await getActivePollApi(Number(club.id));
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        if (data.matchmadeTeams) {
+          setTeamA(data.matchmadeTeams.teamA || []);
+          setTeamB(data.matchmadeTeams.teamB || []);
+          setMatchmadeTeams(data.matchmadeTeams);
+        } else {
+          setMatchmadeTeams(null);
+        }
+      } else {
+        setActivePoll(null);
+        setUserVote(null);
+        setMatchmadeTeams(null);
+      }
+    } catch (err) {
+      console.error('Lỗi tải biểu quyết hoạt động:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (club?.id) {
+      fetchActivePoll();
+    }
+  }, [club?.id]);
+
   const handleTransferLeadership = (member: MemberItem) => {
     if (!club) return;
     setIsMembersModalVisible(false);
@@ -341,72 +380,101 @@ export function ClubDetailJoinedScreen() {
     });
   };
 
-  const handleCreatePoll = () => {
+  const handleCreatePoll = async () => {
+    if (!club) return;
     const formattedTime = `${pollTimeHour.toString().padStart(2, '0')}:${pollTimeMinute.toString().padStart(2, '0')}`;
-    setActivePoll({
-      id: 'poll-' + Date.now(),
-      title: pollTitleInput.trim() || 'Ghép trận cuối tuần',
-      closeTime: formattedTime,
-      isClosed: false,
-      votes: {
-        join: ['Trần Thị Mai', 'Phạm Minh Hoàng'],
-        absent: ['Lê Hoàng Sơn'],
-      },
-    });
-    setUserVote(null);
-    setMatchmadeTeams(null);
-    setIsCreatePollModalVisible(false);
+    try {
+      const data = await createPollApi(Number(club.id), {
+        title: pollTitleInput.trim() || 'Ghép trận cuối tuần',
+        closeTime: formattedTime
+      });
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        setMatchmadeTeams(null);
+      }
+      setIsCreatePollModalVisible(false);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể tạo biểu quyết mới.');
+    }
   };
 
-  const handleVote = (option: 'join' | 'absent') => {
+  const handleVote = async (option: 'join' | 'absent') => {
     if (!activePoll || activePoll.isClosed) return;
 
-    setActivePoll(prev => {
-      if (!prev) return null;
-
-      let newJoin = [...prev.votes.join];
-      let newAbsent = [...prev.votes.absent];
-
-      newJoin = newJoin.filter(name => name !== 'Bạn (Tôi)');
-      newAbsent = newAbsent.filter(name => name !== 'Bạn (Tôi)');
-
-      if (userVote === option) {
-        setUserVote(null);
-      } else {
-        if (option === 'join') {
-          newJoin.push('Bạn (Tôi)');
-          setUserVote('join');
+    try {
+      const data = await votePollApi(Number(activePoll.id), option);
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        if (data.matchmadeTeams) {
+          setTeamA(data.matchmadeTeams.teamA || []);
+          setTeamB(data.matchmadeTeams.teamB || []);
+          setMatchmadeTeams(data.matchmadeTeams);
         } else {
-          newAbsent.push('Bạn (Tôi)');
-          setUserVote('absent');
+          setMatchmadeTeams(null);
         }
       }
-
-      return {
-        ...prev,
-        votes: {
-          join: newJoin,
-          absent: newAbsent,
-        },
-      };
-    });
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Lỗi khi biểu quyết.');
+    }
   };
 
-  const handleClosePoll = () => {
+  const handleClosePoll = async () => {
     if (!activePoll) return;
-    setActivePoll(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        isClosed: true,
-      };
-    });
+    try {
+      const data = await closePollApi(Number(activePoll.id));
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        if (data.matchmadeTeams) {
+          setTeamA(data.matchmadeTeams.teamA || []);
+          setTeamB(data.matchmadeTeams.teamB || []);
+          setMatchmadeTeams(data.matchmadeTeams);
+        }
+      }
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể đóng biểu quyết.');
+    }
   };
 
-  const handleDeletePoll = () => {
-    setActivePoll(null);
-    setUserVote(null);
-    setMatchmadeTeams(null);
+  const handleDeletePoll = async () => {
+    if (!activePoll) return;
+    try {
+      await deletePollApi(Number(activePoll.id));
+      setActivePoll(null);
+      setUserVote(null);
+      setMatchmadeTeams(null);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể xóa biểu quyết.');
+    }
   };
 
   const handleStartMatchmaking = () => {
