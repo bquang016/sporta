@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,13 @@ import {
   ActivityIndicator,
   RefreshControl,
   useWindowDimensions,
+  Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { matchmakingApi, MatchRoom } from '../../../shared/api/matchmaking';
 import { SelectClubSheet, UserClubItem } from '../components/SelectClubSheet';
-import { Button } from '../../../shared/ui';
 
 // Available Sports with Emojis & Material Icons
 const SPORTS_LIST = [
@@ -44,6 +44,20 @@ const MOCK_USER_CLUBS: UserClubItem[] = [
 export function MatchmakingListScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 380;
+  const insets = useSafeAreaInsets();
+
+  // FAB pulse animation
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
 
   const [rooms, setRooms] = useState<MatchRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +115,7 @@ export function MatchmakingListScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        {/* Top Header */}
+        {/* Top Header — clean, no button to avoid clipping */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <TouchableOpacity
@@ -117,15 +131,6 @@ export function MatchmakingListScreen({ navigation }: any) {
               <Text style={styles.subTitle}>Ghép trận 5/5 & Đua top CRP</Text>
             </View>
           </View>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            onPress={handleCreateRoomPress}
-            style={styles.createButton}
-          >
-            + Tạo Phòng
-          </Button>
         </View>
 
         {/* Main Flow Tabs */}
@@ -347,6 +352,34 @@ export function MatchmakingListScreen({ navigation }: any) {
           onClose={() => setShowClubSheet(false)}
           onSelectClub={handleSelectClubToCreate}
         />
+
+        {/* FAB — Floating Action Button: Tạo Phòng */}
+        <Animated.View
+          style={[
+            styles.fab,
+            { bottom: insets.bottom + 20, transform: [{ scale: pulseAnim }] },
+          ]}
+          pointerEvents="box-none"
+        >
+          {/* Pulsing halo ring behind FAB */}
+          <Animated.View
+            style={[
+              styles.fabHalo,
+              {
+                transform: [{ scale: pulseAnim }],
+                opacity: pulseAnim.interpolate({ inputRange: [1, 1.12], outputRange: [0.35, 0] }),
+              },
+            ]}
+          />
+          <TouchableOpacity
+            style={styles.fabBtn}
+            onPress={handleCreateRoomPress}
+            activeOpacity={0.85}
+          >
+            <MaterialIcons name="add" size={26} color={COLORS.onSecondary} />
+            <Text style={styles.fabText}>Tạo Phòng</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -392,8 +425,40 @@ const styles = StyleSheet.create({
     color: COLORS.onSurfaceVariant,
     marginTop: 2,
   },
-  createButton: {
-    borderRadius: BORDER_RADIUS.md,
+  fab: {
+    position: 'absolute',
+    right: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  fabHalo: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.secondary,
+  },
+  fabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 11,
+    borderRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  fabText: {
+    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.onSecondary,
+    letterSpacing: 0.3,
   },
   tabBarWrapper: {
     backgroundColor: COLORS.surface,
@@ -510,6 +575,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: SPACING.md,
+    paddingBottom: 100,  // Extra space so FAB doesn't cover last card
     gap: SPACING.md,
   },
   loadingCenter: {

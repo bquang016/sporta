@@ -8,14 +8,18 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { matchmakingApi, MatchFlowType } from '../../../shared/api/matchmaking';
+import { CalendarPicker } from '../../../shared/ui';
+import { Button } from '../../../shared/ui';
 import { MapPickerModal } from '../components/MapPickerModal';
 import { getMyBookingsApi, BookingItem } from '../../../shared/api/bookings';
-import { Button } from '../../../shared/ui';
+
+// ─── Constants ──────────────────────────────────────────────────────────────
 
 const SPORT_FORMATS: Record<string, string[]> = {
   'Bóng đá': ['5v5', '7v7', '11v11'],
@@ -25,33 +29,87 @@ const SPORT_FORMATS: Record<string, string[]> = {
   'Tennis': ['Đơn', 'Đôi'],
 };
 
+// Time slots: every 30 minutes from 05:00 to 22:30
+const TIME_SLOTS: string[] = [];
+for (let h = 5; h <= 22; h++) {
+  TIME_SLOTS.push(`${h.toString().padStart(2, '0')}:00`);
+  if (h < 22) TIME_SLOTS.push(`${h.toString().padStart(2, '0')}:30`);
+}
+
+const DURATION_OPTIONS = [
+  { label: '60\'', subLabel: '1 tiếng', minutes: 60 },
+  { label: '90\'', subLabel: '1.5 tiếng', minutes: 90 },
+  { label: '120\'', subLabel: '2 tiếng', minutes: 120 },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function pad2(n: number) {
+  return n.toString().padStart(2, '0');
+}
+
+function formatDateDisplay(d: Date) {
+  const weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  return `${weekdays[d.getDay()]}, ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+function formatTimeFromDate(d: Date) {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function applyTimeToDate(base: Date, timeStr: string): Date {
+  const [h, m] = timeStr.split(':').map(Number);
+  const next = new Date(base);
+  next.setHours(h, m, 0, 0);
+  return next;
+}
+
+function getEndTime(startDate: Date, durationMinutes: number): string {
+  const end = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+  return `${pad2(end.getHours())}:${pad2(end.getMinutes())}`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export function CreateMatchRoomScreen({ route, navigation }: any) {
-  const club = route?.params?.club || { id: 1, name: 'CLB Bóng đá Alpha', sportName: 'Bóng đá', sportEmoji: '⚽' };
-  
+  const club = route?.params?.club ?? {
+    id: 1,
+    name: 'CLB Bóng đá Alpha',
+    sportName: 'Bóng đá',
+    sportEmoji: '⚽',
+  };
+
   const [flowType, setFlowType] = useState<MatchFlowType>('PAID_100');
-  
-  // Real User Bookings for Flow 1
+
+  // Flow 1 – Paid Booking
   const [realBookings, setRealBookings] = useState<BookingItem[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string>('');
 
-  // Form states
-  const [format, setFormat] = useState('7v7');
-  const [hoursUntilMatch, setHoursUntilMatch] = useState('36');
+  // Flow 2 – Date + Time + Duration
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(18, 0, 0, 0);
+
+  const [startDate, setStartDate] = useState<Date>(tomorrow);       // only date portion
+  const [selectedTime, setSelectedTime] = useState<string>('18:00'); // HH:mm string
+  const [durationMinutes, setDurationMinutes] = useState(90);
+  const [showCalendar, setShowCalendar] = useState(false);
+
+  // Common form fields
+  const [format, setFormat] = useState(
+    SPORT_FORMATS[club.sportName]?.[0] ?? '5v5'
+  );
   const [area, setArea] = useState('Khu vực Cầu Giấy, Hà Nội');
   const [latitude, setLatitude] = useState(21.0368);
   const [longitude, setLongitude] = useState(105.7905);
-  
   const [minElo, setMinElo] = useState('1200');
   const [maxElo, setMaxElo] = useState('1800');
   const [message, setMessage] = useState('Tìm đối thủ giao lưu fair play, đúng giờ!');
-  
   const [showMapModal, setShowMapModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchUserBookings();
-  }, []);
+  useEffect(() => { fetchUserBookings(); }, []);
 
   const fetchUserBookings = async () => {
     try {
@@ -61,50 +119,52 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         setRealBookings(data);
         setSelectedBookingId(data[0].id);
       } else {
-        // Fallback upcoming bookings
         const mockFallback: BookingItem[] = [
-          { id: 'b1', venueName: 'Sân bóng Chùa Hà', courtName: 'Sân 7A', date: '2026-07-23', startTime: '19:00', endTime: '20:30', totalPrice: 600000, status: 'CONFIRMED' },
-          { id: 'b2', venueName: 'Sân bóng Cầu Giấy', courtName: 'Sân 5B', date: '2026-07-24', startTime: '20:30', endTime: '22:00', totalPrice: 450000, status: 'CONFIRMED' },
+          { id: 'b1', venueName: 'Sân bóng Chùa Hà', courtName: 'Sân 7A', date: '2026-07-24', startTime: '19:00', endTime: '20:30', totalPrice: 600000, status: 'CONFIRMED' },
+          { id: 'b2', venueName: 'Sân bóng Cầu Giấy', courtName: 'Sân 5B', date: '2026-07-25', startTime: '20:30', endTime: '22:00', totalPrice: 450000, status: 'CONFIRMED' },
         ];
         setRealBookings(mockFallback);
         setSelectedBookingId(mockFallback[0].id);
       }
     } catch (err) {
-      console.log('Error fetching user bookings:', err);
+      console.log('Error fetching bookings:', err);
     } finally {
       setLoadingBookings(false);
     }
   };
 
-  const availableFormats = SPORT_FORMATS[club.sportName] || ['5v5', '7v7'];
+  const availableFormats = SPORT_FORMATS[club.sportName] || ['5v5'];
 
-  // Dynamic TTL Calculation
-  const hoursLeft = parseFloat(hoursUntilMatch) || 24;
+  // Construct full start datetime (date + selected time)
+  const startDateTime = applyTimeToDate(startDate, selectedTime);
+  const endTimeStr = getEndTime(startDateTime, durationMinutes);
+
+  // Dynamic TTL
+  const hoursUntilStart = (startDateTime.getTime() - Date.now()) / (1000 * 3600);
   let dynamicTtlMinutes = 60;
   let isTtlDisabled = false;
-
-  if (hoursLeft > 48) {
-    dynamicTtlMinutes = 120;
-  } else if (hoursLeft >= 24 && hoursLeft <= 48) {
-    dynamicTtlMinutes = 60;
-  } else if (hoursLeft >= 6 && hoursLeft < 24) {
-    dynamicTtlMinutes = 30;
-  } else if (hoursLeft < 6) {
-    isTtlDisabled = true;
-  }
+  if (hoursUntilStart > 48) dynamicTtlMinutes = 120;
+  else if (hoursUntilStart >= 24) dynamicTtlMinutes = 60;
+  else if (hoursUntilStart >= 6) dynamicTtlMinutes = 30;
+  else isTtlDisabled = true;
 
   const selectedBooking = realBookings.find(b => b.id === selectedBookingId);
   const calculatedPriceShare = selectedBooking ? selectedBooking.totalPrice / 2.0 : undefined;
 
+  // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (flowType === 'DEPOSIT_HOLD' && isTtlDisabled) {
-      Alert.alert('Lỗi', 'Sát giờ thi đấu (< 6h), vui lòng mua đứt sân để ghép trận!');
+      const msg = 'Dưới 6 giờ nữa là thi đấu. Vui lòng dùng luồng Sân đã mua đứt 100%.';
+      if (Platform.OS === 'web') window.alert(`Sát giờ thi đấu: ${msg}`);
+      else Alert.alert('Sát giờ thi đấu', msg);
       return;
     }
 
     try {
       setLoading(true);
-      await matchmakingApi.createMatchRoom({
+      const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
+      
+      const createdRoom = await matchmakingApi.createMatchRoom({
         clubId: club.id,
         sportId: 1,
         format,
@@ -113,7 +173,8 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         area,
         latitude,
         longitude,
-        expectedStartTime: new Date(Date.now() + hoursLeft * 3600 * 1000).toISOString(),
+        expectedStartTime: startDateTime.toISOString(),
+        expectedEndTime: endDateTime.toISOString(),
         priceSharePerTeam: calculatedPriceShare,
         flowType,
         depositAmount: flowType === 'DEPOSIT_HOLD' ? 50000 : undefined,
@@ -121,184 +182,334 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         message,
       }, 1);
 
-      Alert.alert('Thành công 🎉', `Đã tạo phòng chờ ghép trận cho ${club.name}!`);
-      navigation?.goBack();
+      const navToRoom = () => {
+        if (createdRoom?.id) {
+          navigation?.navigate?.('MatchRoomDetail', { roomId: createdRoom.id });
+        } else {
+          navigation?.goBack?.();
+        }
+      };
+
+      if (Platform.OS === 'web') {
+        window.alert(`Đã tạo phòng thành công 🎉\nPhòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`);
+        navToRoom();
+      } else {
+        Alert.alert(
+          'Đã tạo phòng thành công 🎉',
+          `Phòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`,
+          [{ text: 'Xem phòng', onPress: navToRoom }]
+        );
+      }
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.response?.data?.message || err.message || 'Không thể tạo phòng');
+      const errMsg = err?.message || 'Không thể tạo phòng';
+      if (Platform.OS === 'web') window.alert(`Lỗi: ${errMsg}`);
+      else Alert.alert('Lỗi', errMsg);
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        {/* Header */}
+
+        {/* ── Header ────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation?.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={() => navigation?.goBack?.()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.backBtn}
+          >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Tạo Phòng Ghép Trận</Text>
-          <View style={{ width: 24 }} />
+          <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false}>
-          {/* Selected Club Banner Card */}
-          <View style={styles.clubBannerCard}>
-            <View style={styles.clubBannerLeft}>
-              <View style={styles.clubAvatarCircle}>
+        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+
+          {/* ── CLB Banner ────────────────────────────────────────── */}
+          <View style={styles.clubCard}>
+            <View style={styles.clubCardLeft}>
+              <View style={styles.clubAvatar}>
                 <Text style={styles.clubAvatarText}>{club.name?.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.clubBannerName} numberOfLines={1}>{club.name}</Text>
-                <Text style={styles.clubBannerSport}>
-                  {club.sportEmoji} Môn: <Text style={styles.highlightText}>{club.sportName}</Text> (Môn khóa cứng theo CLB)
+                <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+                <Text style={styles.clubSport}>
+                  {club.sportEmoji}{' '}
+                  <Text style={styles.clubSportHighlight}>{club.sportName}</Text>
+                  {' '}— Môn khóa theo CLB
                 </Text>
               </View>
             </View>
             <MaterialIcons name="lock" size={18} color={COLORS.primary} />
           </View>
 
-          {/* Flow Selection */}
+          {/* ── Hình thức ghép trận ───────────────────────────────── */}
           <Text style={styles.sectionLabel}>HÌNH THỨC GHÉP TRẬN</Text>
-          <View style={styles.flowContainer}>
-            <TouchableOpacity
-              style={[styles.flowBox, flowType === 'PAID_100' && styles.activeFlowBox]}
-              onPress={() => setFlowType('PAID_100')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.flowHeader}>
-                <MaterialIcons name="verified" size={22} color={flowType === 'PAID_100' ? COLORS.primary : COLORS.outline} />
-                <Text style={[styles.flowTitle, flowType === 'PAID_100' && styles.activeFlowTitle]}>Đã Mua Đứt Sân (100%)</Text>
-              </View>
-              <Text style={styles.flowDesc}>Chọn 1 trong các Sân đã đặt của bạn. Giá tiền cưa đôi tự động hiển thị từ đơn đặt.</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.flowBox, flowType === 'DEPOSIT_HOLD' && styles.activeFlowBox]}
-              onPress={() => setFlowType('DEPOSIT_HOLD')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.flowHeader}>
-                <MaterialIcons name="timer" size={22} color={flowType === 'DEPOSIT_HOLD' ? COLORS.primary : COLORS.outline} />
-                <Text style={[styles.flowTitle, flowType === 'DEPOSIT_HOLD' && styles.activeFlowTitle]}>Ghép Trận Giữ Chỗ (Dynamic TTL)</Text>
-              </View>
-              <Text style={styles.flowDesc}>Chọn Khu vực thi đấu trên Map để lọc khoảng cách. Khi 2 bên chốt kèo, hệ thống sẽ gợi ý Sân thi đấu kèm giá tiền chuẩn xác!</Text>
-            </TouchableOpacity>
+          <View style={styles.flowRow}>
+            {([
+              { key: 'PAID_100', icon: 'verified', title: 'Đã Mua Đứt Sân', desc: 'Chọn sân đã đặt, giá tiền cưa đôi tự động tính.' },
+              { key: 'DEPOSIT_HOLD', icon: 'timer', title: 'Ghép Giữ Chỗ (TTL)', desc: 'Chọn lịch, khu vực. Hệ thống gợi ý sân sau khi 2 bên chốt kèo.' },
+            ] as const).map(f => {
+              const isActive = flowType === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[styles.flowCard, isActive && styles.flowCardActive]}
+                  onPress={() => setFlowType(f.key as MatchFlowType)}
+                  activeOpacity={0.85}
+                >
+                  <MaterialIcons
+                    name={f.icon as any}
+                    size={20}
+                    color={isActive ? COLORS.primary : COLORS.outline}
+                  />
+                  <Text style={[styles.flowCardTitle, isActive && styles.flowCardTitleActive]}>
+                    {f.title}
+                  </Text>
+                  <Text style={styles.flowCardDesc}>{f.desc}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Flow 1: Select Paid Booking */}
-          {flowType === 'PAID_100' ? (
-            <View style={styles.section}>
+          {/* ── Flow 1: Chọn sân đã đặt ──────────────────────────── */}
+          {flowType === 'PAID_100' && (
+            <>
               <Text style={styles.sectionLabel}>CHỌN SÂN ĐÃ ĐẶT (CHƯA ĐẾN GIỜ THI ĐẤU)</Text>
               {loadingBookings ? (
-                <ActivityIndicator color={COLORS.primary} />
+                <View style={styles.centerLoader}>
+                  <ActivityIndicator color={COLORS.primary} />
+                </View>
               ) : (
-                realBookings.map((b) => (
+                realBookings.map(b => (
                   <TouchableOpacity
                     key={b.id}
-                    style={[styles.bookingItem, selectedBookingId === b.id && styles.activeBookingItem]}
+                    style={[styles.bookingCard, selectedBookingId === b.id && styles.bookingCardActive]}
                     onPress={() => setSelectedBookingId(b.id)}
                     activeOpacity={0.85}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.bookingTitle}>{b.venueName} - {b.courtName}</Text>
-                      <Text style={styles.bookingTime}>🕒 Giờ đá: {b.startTime} ({b.date})</Text>
+                      <Text style={styles.bookingVenue}>{b.venueName} — {b.courtName}</Text>
+                      <Text style={styles.bookingTime}>🕒 {b.startTime}–{b.endTime} ({b.date})</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
+                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
                       <Text style={styles.bookingPrice}>{b.totalPrice.toLocaleString()} đ</Text>
-                      <Text style={styles.splitSubText}>Cưa đôi: {(b.totalPrice / 2).toLocaleString()} đ/đội</Text>
+                      <Text style={styles.bookingSplit}>Cưa đôi: {(b.totalPrice / 2).toLocaleString()} đ</Text>
                     </View>
                   </TouchableOpacity>
                 ))
               )}
-            </View>
-          ) : (
-            /* Flow 2: Location Map Picker & Dynamic TTL Config */
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>KHU VỰC THI ĐẤU MONG MUỐN (LỌC BÁN KÍNH TRÊN MAP)</Text>
-              <TouchableOpacity style={styles.mapPickerCard} onPress={() => setShowMapModal(true)} activeOpacity={0.85}>
-                <View style={styles.mapPickerLeft}>
-                  <View style={styles.mapIconBg}>
-                    <MaterialIcons name="map" size={24} color={COLORS.primary} />
+            </>
+          )}
+
+          {/* ── Flow 2: Lịch thi đấu ─────────────────────────────── */}
+          {flowType === 'DEPOSIT_HOLD' && (
+            <>
+              {/* Chọn ngày — CalendarPicker giống BookingDetailScreen */}
+              <Text style={styles.sectionLabel}>NGÀY THI ĐẤU DỰ KIẾN</Text>
+
+              {/* Trigger card — same style as BookingMatrix date bar */}
+              <TouchableOpacity
+                style={styles.dateTriggerCard}
+                onPress={() => setShowCalendar(true)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.dateTriggerLeft}>
+                  <View style={styles.dateTriggerIconBg}>
+                    <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mapPickerTitle} numberOfLines={1}>{area}</Text>
-                    <Text style={styles.mapPickerCoords}>Tọa độ ghim: {latitude.toFixed(4)}, {longitude.toFixed(4)}</Text>
+                  <View>
+                    <Text style={styles.dateTriggerValue}>{formatDateDisplay(startDate)}</Text>
+                    <Text style={styles.dateTriggerSub}>Nhấn để đổi ngày</Text>
                   </View>
                 </View>
-                <MaterialIcons name="edit-location" size={22} color={COLORS.primary} />
+                <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
               </TouchableOpacity>
 
-              <Text style={[styles.sectionLabel, { marginTop: SPACING.sm }]}>KHOẢNG CÁCH ĐẾN GIỜ ĐÁ (GIỜ)</Text>
-              <TextInput
-                style={styles.input}
-                value={hoursUntilMatch}
-                onChangeText={setHoursUntilMatch}
-                keyboardType="numeric"
-                placeholder="VD: 36 (giờ)"
+              {/* CalendarPicker Modal — reuse exact shared component */}
+              <CalendarPicker
+                visible={showCalendar}
+                selectedDate={startDate}
+                minimumDate={new Date()}
+                onConfirm={(date) => {
+                  setStartDate(date);
+                  setShowCalendar(false);
+                }}
+                onClose={() => setShowCalendar(false)}
               />
 
+              {/* Chọn giờ bắt đầu — horizontal chip scroll */}
+              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>GIỜ BẮT ĐẦU DỰ KIẾN</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.timeSlotRow}
+              >
+                {TIME_SLOTS.map(slot => {
+                  const isActive = selectedTime === slot;
+                  return (
+                    <TouchableOpacity
+                      key={slot}
+                      style={[styles.timeSlotChip, isActive && styles.timeSlotChipActive]}
+                      onPress={() => setSelectedTime(slot)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.timeSlotText, isActive && styles.timeSlotTextActive]}>
+                        {slot}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Chọn thời lượng */}
+              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>THỜI LƯỢNG TRẬN ĐẤU</Text>
+              <View style={styles.durationRow}>
+                {DURATION_OPTIONS.map(dur => {
+                  const isActive = durationMinutes === dur.minutes;
+                  return (
+                    <TouchableOpacity
+                      key={dur.minutes}
+                      style={[styles.durationCard, isActive && styles.durationCardActive]}
+                      onPress={() => setDurationMinutes(dur.minutes)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.durationMain, isActive && styles.durationMainActive]}>
+                        {dur.label}
+                      </Text>
+                      <Text style={[styles.durationSub, isActive && styles.durationSubActive]}>
+                        {dur.subLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Preview Card — kết quả cuối cùng */}
+              <View style={styles.previewCard}>
+                <MaterialIcons name="access-time-filled" size={18} color={COLORS.primary} />
+                <Text style={styles.previewText}>
+                  Khung giờ thi đấu:{' '}
+                  <Text style={styles.previewHighlight}>{selectedTime} – {endTimeStr}</Text>
+                  {', ngày '}{formatDateDisplay(startDate)}
+                </Text>
+              </View>
+
+              {/* Khu vực — Map Picker */}
+              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>KHU VỰC THI ĐẤU (LỌC BÁN KÍNH MAP)</Text>
+              <TouchableOpacity
+                style={styles.mapTriggerCard}
+                onPress={() => setShowMapModal(true)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.mapTriggerLeft}>
+                  <View style={styles.mapIconBg}>
+                    <MaterialIcons name="map" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.mapTriggerValue} numberOfLines={1}>{area}</Text>
+                    <Text style={styles.mapTriggerSub}>{latitude.toFixed(4)}, {longitude.toFixed(4)}</Text>
+                  </View>
+                </View>
+                <MaterialIcons name="edit-location" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+
+              {/* Dynamic TTL Banner */}
               {isTtlDisabled ? (
-                <View style={styles.disabledTtlBanner}>
-                  <MaterialIcons name="error" size={20} color={COLORS.error} />
-                  <Text style={styles.disabledTtlText}>Sát giờ thi đấu (&lt; 6h), vui lòng mua đứt sân để ghép trận.</Text>
+                <View style={styles.bannerError}>
+                  <MaterialIcons name="error-outline" size={18} color={COLORS.error} />
+                  <Text style={styles.bannerErrorText}>
+                    Sát giờ thi đấu (&lt; 6h) — vui lòng dùng luồng Mua Đứt Sân.
+                  </Text>
                 </View>
               ) : (
-                <View style={styles.ttlInfoBanner}>
-                  <MaterialIcons name="hourglass-top" size={20} color={COLORS.amber} />
-                  <Text style={styles.ttlInfoText}>
-                    Thời gian đếm ngược Dynamic TTL nhả sân: <Text style={{ fontWeight: '800' }}>{dynamicTtlMinutes} phút</Text>
+                <View style={styles.bannerInfo}>
+                  <MaterialIcons name="hourglass-top" size={18} color={COLORS.amber} />
+                  <Text style={styles.bannerInfoText}>
+                    Hạn cọc hold Dynamic TTL:{' '}
+                    <Text style={{ fontWeight: '800' }}>{dynamicTtlMinutes} phút</Text>
                   </Text>
                 </View>
               )}
-            </View>
+            </>
           )}
 
-          {/* Format Selection */}
-          <Text style={styles.sectionLabel}>THỂ THỨC THI ĐẤU ({club.sportName})</Text>
-          <View style={styles.formatRow}>
-            {availableFormats.map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.chip, format === f && styles.activeChip]}
-                onPress={() => setFormat(f)}
-              >
-                <Text style={[styles.chipText, format === f && styles.activeChipText]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* ── Thể thức ──────────────────────────────────────────── */}
+          <Text style={styles.sectionLabel}>THỂ THỨC ({club.sportName})</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.xs }}>
+            {availableFormats.map(f => {
+              const isActive = format === f;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.chip, isActive && styles.chipActive]}
+                  onPress={() => setFormat(f)}
+                >
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{f}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* ── Elo ──────────────────────────────────────────────────── */}
+          <Text style={styles.sectionLabel}>GIỚI HẠN ELO THÀNH VIÊN</Text>
+          <View style={styles.eloRow}>
+            <View style={styles.eloField}>
+              <Text style={styles.eloFieldLabel}>Tối thiểu</Text>
+              <TextInput
+                style={styles.eloInput}
+                value={minElo}
+                onChangeText={setMinElo}
+                keyboardType="numeric"
+                placeholder="1000"
+                placeholderTextColor={COLORS.outline}
+              />
+            </View>
+            <View style={styles.eloDash} />
+            <View style={styles.eloField}>
+              <Text style={styles.eloFieldLabel}>Tối đa</Text>
+              <TextInput
+                style={styles.eloInput}
+                value={maxElo}
+                onChangeText={setMaxElo}
+                keyboardType="numeric"
+                placeholder="2000"
+                placeholderTextColor={COLORS.outline}
+              />
+            </View>
           </View>
 
-          {/* Elo Limits */}
-          <Text style={styles.sectionLabel}>GIỚI HẠN ELO THÀNH VIÊN (MIN - MAX)</Text>
-          <View style={styles.row}>
-            <TextInput style={[styles.input, { flex: 1 }]} value={minElo} onChangeText={setMinElo} keyboardType="numeric" placeholder="Min Elo" />
-            <Text style={styles.dashSeparator}>-</Text>
-            <TextInput style={[styles.input, { flex: 1 }]} value={maxElo} onChangeText={setMaxElo} keyboardType="numeric" placeholder="Max Elo" />
-          </View>
-
-          {/* Message */}
+          {/* ── Lời nhắn ──────────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>LỜI NHẮN VỚI ĐỐI THỦ</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={styles.messageInput}
             value={message}
             onChangeText={setMessage}
             multiline
-            placeholder="Yêu cầu riêng về trang phục, nước uống..."
+            numberOfLines={3}
+            placeholder="Yêu cầu trang phục, nước uống..."
+            placeholderTextColor={COLORS.outline}
           />
 
+          {/* ── CTA Button — dùng Button shared/ui ───────────────── */}
           <Button
-            variant="secondary"
-            onPress={handleSubmit}
-            disabled={loading || (flowType === 'DEPOSIT_HOLD' && isTtlDisabled)}
+            variant="primary"
+            size="lg"
+            title="XÁC NHẬN TẠO PHÒNG"
+            icon="arrow-forward"
+            iconPosition="right"
             loading={loading}
+            disabled={loading || (flowType === 'DEPOSIT_HOLD' && isTtlDisabled)}
+            onPress={handleSubmit}
             style={styles.submitBtn}
-          >
-            XÁC NHẬN TẠO PHÒNG
-          </Button>
+          />
         </ScrollView>
 
-        {/* Map Picker Modal */}
+        {/* ── Modals ──────────────────────────────────────────────── */}
         <MapPickerModal
           visible={showMapModal}
           onClose={() => setShowMapModal(false)}
@@ -314,6 +525,8 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -323,44 +536,56 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: SPACING.md,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontSize: TYPOGRAPHY.headlineMd.fontSize,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    ...TYPOGRAPHY.headlineMd,
     color: COLORS.onSurface,
+    flex: 1,
+    textAlign: 'center',
   },
-  formContent: {
+
+  body: {
     paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: 40,
     gap: SPACING.md,
   },
-  clubBannerCard: {
+
+  // Club Banner
+  clubCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.primaryOpacity05,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg, // 16px
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.primaryOpacity20,
   },
-  clubBannerLeft: {
+  clubCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
     flex: 1,
   },
-  clubAvatarCircle: {
+  clubAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -369,110 +594,110 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   clubAvatarText: {
+    ...TYPOGRAPHY.headlineMd,
     color: COLORS.onPrimary,
-    fontWeight: '800',
     fontSize: 18,
   },
-  clubBannerName: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 16,
-    fontWeight: '800',
+  clubName: {
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
+    fontWeight: '800',
   },
-  clubBannerSport: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+  clubSport: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurfaceVariant,
     marginTop: 2,
   },
-  highlightText: {
-    fontWeight: '700',
+  clubSportHighlight: {
     color: COLORS.primary,
+    fontWeight: '700',
   },
+
+  // Section Label
   sectionLabel: {
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontSize: 12,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
     fontWeight: '700',
-    marginTop: SPACING.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: -SPACING.xs,
   },
-  flowContainer: {
+
+  // Flow Selection
+  flowRow: {
+    flexDirection: 'row',
     gap: SPACING.sm,
   },
-  flowBox: {
+  flowCard: {
+    flex: 1,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1.5,
-    borderColor: COLORS.surfaceContainerHigh,
+    borderColor: COLORS.outlineVariant,
     backgroundColor: COLORS.surface,
-    gap: 6,
+    gap: 5,
   },
-  activeFlowBox: {
+  flowCardActive: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primaryOpacity05,
   },
-  flowHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  flowTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
-    fontWeight: '700',
+  flowCardTitle: {
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurface,
+    fontWeight: '700',
+    marginTop: 4,
   },
-  activeFlowTitle: {
+  flowCardTitleActive: {
     color: COLORS.primary,
   },
-  flowDesc: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 13,
+  flowCardDesc: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurfaceVariant,
-    lineHeight: 18,
+    lineHeight: 16,
   },
-  section: {
-    gap: SPACING.sm,
+
+  // Booking Cards
+  centerLoader: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
   },
-  bookingItem: {
+  bookingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1.5,
-    borderColor: COLORS.surfaceContainerHigh,
+    borderColor: COLORS.outlineVariant,
+    gap: SPACING.sm,
   },
-  activeBookingItem: {
+  bookingCardActive: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primaryOpacity05,
   },
-  bookingTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
-    fontWeight: '700',
+  bookingVenue: {
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurface,
+    fontWeight: '700',
   },
   bookingTime: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
     marginTop: 2,
   },
   bookingPrice: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 16,
-    fontWeight: '800',
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
+    fontWeight: '800',
   },
-  splitSubText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 11,
+  bookingSplit: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.secondary,
     fontWeight: '700',
   },
-  mapPickerCard: {
+
+  // Date Trigger Card — matches BookingMatrix date header style
+  dateTriggerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -480,9 +705,130 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
+    borderColor: COLORS.outlineVariant,
   },
-  mapPickerLeft: {
+  dateTriggerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+  },
+  dateTriggerIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryOpacity10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateTriggerValue: {
+    ...TYPOGRAPHY.titleMd,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+  dateTriggerSub: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
+    marginTop: 1,
+  },
+
+  // Time Slot Chips — horizontal scroll like BookingMatrix time row
+  timeSlotRow: {
+    gap: SPACING.xs,
+    alignItems: 'center',
+  },
+  timeSlotChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  timeSlotChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  timeSlotText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  timeSlotTextActive: {
+    color: COLORS.onPrimary,
+    fontWeight: '800',
+  },
+
+  // Duration Cards
+  durationRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  durationCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.outlineVariant,
+    gap: 2,
+  },
+  durationCardActive: {
+    backgroundColor: COLORS.primaryOpacity10,
+    borderColor: COLORS.primary,
+  },
+  durationMain: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '800',
+  },
+  durationMainActive: {
+    color: COLORS.primary,
+  },
+  durationSub: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
+  },
+  durationSubActive: {
+    color: COLORS.primary,
+  },
+
+  // Preview Card
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primaryOpacity05,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.default,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity20,
+  },
+  previewText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurface,
+    flex: 1,
+    lineHeight: 20,
+  },
+  previewHighlight: {
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+
+  // Map Trigger
+  mapTriggerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  mapTriggerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
@@ -496,43 +842,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mapPickerTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 14,
+  mapTriggerValue: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurface,
     fontWeight: '700',
-    color: COLORS.onSurface,
   },
-  mapPickerCoords: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 11,
+  mapTriggerSub: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
   },
-  input: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.outline,
-    borderRadius: BORDER_RADIUS.default,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 12,
-    color: COLORS.onSurface,
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: TYPOGRAPHY.bodyMd.fontSize,
-  },
-  textArea: {
-    height: 90,
-    textAlignVertical: 'top',
-  },
-  dashSeparator: {
-    alignSelf: 'center',
-    marginHorizontal: SPACING.xs,
-    color: COLORS.outline,
-    fontSize: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ttlInfoBanner: {
+
+  // Banners
+  bannerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
@@ -540,13 +861,12 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.default,
   },
-  ttlInfoText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+  bannerInfoText: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.amber,
     flex: 1,
   },
-  disabledTtlBanner: {
+  bannerError: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
@@ -554,35 +874,83 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.default,
   },
-  disabledTtlText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+  bannerErrorText: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onErrorContainer,
     flex: 1,
   },
-  formatRow: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-  },
+
+  // Format Chips
   chip: {
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
   },
-  activeChip: {
+  chipActive: {
     backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   chipText: {
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontSize: 13,
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurfaceVariant,
   },
-  activeChipText: {
+  chipTextActive: {
     color: COLORS.onPrimary,
+    fontWeight: '800',
+  },
+
+  // Elo Row
+  eloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  eloField: {
+    flex: 1,
+    gap: 4,
+  },
+  eloFieldLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
     fontWeight: '700',
   },
+  eloInput: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurface,
+    textAlign: 'center',
+  },
+  eloDash: {
+    width: 16,
+    height: 1.5,
+    backgroundColor: COLORS.outline,
+    marginTop: 22,
+  },
+
+  // Message
+  messageInput: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.default,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurface,
+    height: 80,
+    textAlignVertical: 'top',
+  },
+
+  // Submit CTA
   submitBtn: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.xs,
   },
 });

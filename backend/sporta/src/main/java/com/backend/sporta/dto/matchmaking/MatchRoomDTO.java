@@ -37,7 +37,7 @@ public class MatchRoomDTO {
     private LocalDateTime expectedEndTime;
 
     private java.util.UUID bookingId;
-    private Long courtId;
+    private java.util.UUID courtId;
     private String courtName;
     private String venueName;
     private BigDecimal priceSharePerTeam;

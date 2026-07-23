@@ -91,12 +91,11 @@ public class MatchmakingService {
             Court court = (booking.getDetails() != null && !booking.getDetails().isEmpty()) ? booking.getDetails().get(0).getCourt() : null;
             room.setCourt(court);
         } else { // DEPOSIT_HOLD
-            if (req.getCourtId() == null) {
-                throw new IllegalArgumentException("Luồng 2 phải chọn ô giờ sân trống");
+            if (req.getCourtId() != null) {
+                Court court = courtRepository.findById(req.getCourtId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
+                room.setCourt(court);
             }
-            Court court = courtRepository.findById(req.getCourtId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
-            room.setCourt(court);
             room.setDepositAmount(req.getDepositAmount() != null ? req.getDepositAmount() : BigDecimal.valueOf(50000));
             room.setTtlExpiresAt(calculateDynamicTTL(req.getExpectedStartTime()));
         }

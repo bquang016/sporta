@@ -135,3 +135,76 @@ export const requestApi = async (
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 };
+// ─── Axios-compatible apiClient wrapper ──────────────────────────────────────
+//
+// matchmaking.ts and other files import { apiClient } and call apiClient.post(...)
+// This wrapper bridges the fetch-based apiFetch to an axios-like interface so
+// existing callers work without modification.
+//
+// Response shape mirrors axios: { data: T, status: number }
+//
+
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+}
+
+const axiosLike = {
+  get: async <T = any>(path: string, config?: { params?: Record<string, any>; requiresAuth?: boolean }): Promise<ApiResponse<T>> => {
+    let url = path;
+    if (config?.params) {
+      const qs = new URLSearchParams(
+        Object.entries(config.params).reduce<Record<string, string>>((acc, [k, v]) => {
+          if (v !== undefined && v !== null) acc[k] = String(v);
+          return acc;
+        }, {})
+      ).toString();
+      if (qs) url = `${path}?${qs}`;
+    }
+    const data = await apiFetch<T>(url, { method: 'GET' }, config?.requiresAuth ?? true);
+    return { data, status: 200 };
+  },
+
+  post: async <T = any>(path: string, body?: unknown, config?: { requiresAuth?: boolean }): Promise<ApiResponse<T>> => {
+    const data = await apiFetch<T>(
+      path,
+      {
+        method: 'POST',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      },
+      config?.requiresAuth ?? true,
+    );
+    return { data, status: 200 };
+  },
+
+  put: async <T = any>(path: string, body?: unknown, config?: { requiresAuth?: boolean }): Promise<ApiResponse<T>> => {
+    const data = await apiFetch<T>(
+      path,
+      {
+        method: 'PUT',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      },
+      config?.requiresAuth ?? true,
+    );
+    return { data, status: 200 };
+  },
+
+  patch: async <T = any>(path: string, body?: unknown, config?: { requiresAuth?: boolean }): Promise<ApiResponse<T>> => {
+    const data = await apiFetch<T>(
+      path,
+      {
+        method: 'PATCH',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      },
+      config?.requiresAuth ?? true,
+    );
+    return { data, status: 200 };
+  },
+
+  delete: async <T = any>(path: string, config?: { requiresAuth?: boolean }): Promise<ApiResponse<T>> => {
+    const data = await apiFetch<T>(path, { method: 'DELETE' }, config?.requiresAuth ?? true);
+    return { data, status: 200 };
+  },
+};
+
+export const apiClient = axiosLike;

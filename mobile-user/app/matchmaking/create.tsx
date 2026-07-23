@@ -6,7 +6,20 @@ export default function CreateMatchRoomRoute() {
   const router = useRouter();
 
   const navigationMock = {
-    goBack: () => router.back(),
+    goBack: () => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/matchmaking');
+      }
+    },
+    navigate: (screenName: string, params?: any) => {
+      if (screenName === 'MatchRoomDetail') {
+        router.replace({ pathname: '/matchmaking/[id]', params: { id: params?.roomId } });
+      } else {
+        router.replace('/matchmaking');
+      }
+    },
   };
 
   return <CreateMatchRoomScreen navigation={navigationMock} />;
