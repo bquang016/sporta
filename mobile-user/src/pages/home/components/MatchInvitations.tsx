@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { MatchInvitation } from '../types';
 
@@ -41,6 +42,8 @@ const MATCH_INVITATIONS: MatchInvitation[] = [
 ];
 
 export function MatchInvitations() {
+  const router = useRouter();
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -49,7 +52,7 @@ export function MatchInvitations() {
           <View style={styles.liveDot} />
         </View>
         <TouchableOpacity
-          onPress={() => console.log('See all matches')}
+          onPress={() => router.push('/matchmaking')}
           style={styles.seeMoreButton}
           activeOpacity={0.7}
         >
@@ -71,7 +74,7 @@ export function MatchInvitations() {
           <TouchableOpacity
             key={inv.id}
             activeOpacity={0.85}
-            onPress={() => console.log('Join invitation:', inv.id)}
+            onPress={() => router.push('/matchmaking')}
             style={styles.cardContainer}
           >
             <ImageBackground

@@ -28,4 +28,12 @@ public class UserSport {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SportLevel level;
+
+    @Column(name = "elo")
+    @Builder.Default
+    private Double elo = 1200.0;
+
+    @Column(name = "matches_played")
+    @Builder.Default
+    private Integer matchesPlayed = 0;
 }

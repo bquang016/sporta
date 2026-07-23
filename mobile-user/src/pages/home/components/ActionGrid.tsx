@@ -40,7 +40,7 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
         <View style={styles.subGridColumn}>
           {/* Nút 2: Ghép kèo nhanh (Màu Nền tối giản nhẹ nhàng) */}
           <TouchableOpacity
-            onPress={() => console.log('Match matching')}
+            onPress={() => router.push('/matchmaking')}
             style={styles.subCtaContainer}
             activeOpacity={0.8}
           >
