@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { fetchSessionDetail } from '../../../entities/ticket/api/ticketApi';
 import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
@@ -16,25 +16,33 @@ export function TicketDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  useEffect(() => {
-    if (sessionId) {
-      loadSession();
-    }
-  }, [sessionId]);
-
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
+    if (!sessionId) return;
     try {
       setLoading(true);
       setError(null);
       const data = await fetchSessionDetail(sessionId as string);
       setSession(data);
+      // Auto-sync quantity to available remaining slots
+      const rem = Math.max(0, data.maxSlots - data.bookedSlots);
+      if (rem <= 0) {
+        setQuantity(1);
+      } else {
+        setQuantity((q) => Math.min(q, rem));
+      }
     } catch (err: any) {
       console.error('Failed to fetch session detail:', err);
       setError(err.message || 'Không thể tải thông tin ca xé vé');
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSession();
+    }, [loadSession])
+  );
 
   const getSportLevelLabel = (level?: SportLevel) => {
     switch (level) {
@@ -44,6 +52,14 @@ export function TicketDetailScreen() {
       case 'AVERAGE_GOOD': return 'Bán chuyên';
       case 'GOOD': return 'Chuyên nghiệp';
       default: return 'Tất cả trình độ';
+    }
+  };
+
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/ticket-sessions' as any);
     }
   };
 
@@ -68,7 +84,7 @@ export function TicketDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Ca Xé Vé</Text>
@@ -105,7 +121,7 @@ export function TicketDetailScreen() {
           )}
 
           {/* Floating Back Button */}
-          <TouchableOpacity onPress={() => router.back()} style={styles.floatingBackBtn} activeOpacity={0.8}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.floatingBackBtn} activeOpacity={0.8}>
             <MaterialIcons name="arrow-back" size={22} color={COLORS.onSurface} />
           </TouchableOpacity>
         </View>

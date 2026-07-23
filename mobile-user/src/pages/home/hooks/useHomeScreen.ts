@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useFacilities } from '../../../entities/facility';
+import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { clubStore } from '../../../entities/club';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
@@ -13,6 +14,12 @@ export function useHomeScreen() {
   const [userName, setUserName] = useState('Khách');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
+  const {
+    sessions: ticketSessions,
+    loading: ticketSessionsLoading,
+    error: ticketSessionsError,
+    refetch: refetchTicketSessions,
+  } = useTicketSessions();
 
   const getApiUrl = () => {
     if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
@@ -99,7 +106,8 @@ export function useHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       checkAuth();
-    }, [])
+      refetchTicketSessions();
+    }, [refetchTicketSessions])
   );
 
   const handleFacilityPress = (id: string) => router.push(`/booking/${id}`);
@@ -159,6 +167,9 @@ export function useHomeScreen() {
     facilities,
     facilitiesLoading,
     facilitiesError,
+    ticketSessions,
+    ticketSessionsLoading,
+    ticketSessionsError,
     handleFacilityPress,
     handleLoginPress,
     handleRegisterPress,

@@ -234,6 +234,9 @@ public class TicketSessionService {
         if (ticket.getStatus() == TicketStatus.REFUNDED) {
             throw new CustomException("Vé này đã được hoàn trả, không thể sử dụng.", 400);
         }
+        if (ticket.getSession().getStatus() == TicketSessionStatus.CANCELLED) {
+            throw new CustomException("Ca xé vé này đã bị hủy bởi chủ sân, không thể check-in.", 400);
+        }
 
         ticket.setStatus(TicketStatus.USED);
         ticketRepository.save(ticket);

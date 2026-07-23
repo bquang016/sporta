@@ -60,7 +60,13 @@ export interface SlotInfo {
   courtId: string;
   courtName: string;
   time: string;                   // "HH:mm"
-  status: 'available' | 'booked' | 'locked';
+  status: 'available' | 'booked' | 'locked' | 'matchmaking' | 'pending';
   price: number;
   isOwnerSplit?: boolean;
+  ticketSessionId?: string;
+  bookedSlots?: number;
+  maxSlots?: number;
+  sportLevel?: string;
+  pricePerTicket?: number;
+  customerName?: string;
 }

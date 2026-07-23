@@ -225,8 +225,8 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedTicketSessions() {
-        if (ticketSessionRepository.count() > 0) {
-            System.out.println("Data Seeder: Đã có ca xé vé trong database (" + ticketSessionRepository.count() + " ca).");
+        if (ticketSessionRepository.count() >= 8) {
+            System.out.println("Data Seeder: Đã có đủ ca xé vé trong database (" + ticketSessionRepository.count() + " ca).");
             return;
         }
 
@@ -286,6 +286,16 @@ public class DataSeeder implements CommandLineRunner {
             return courtRepository.save(court);
         });
 
+        Court c1_2 = courtRepository.findByVenueId(v1.getId()).stream().filter(c -> c.getName().contains("A2")).findFirst().orElseGet(() -> {
+            Court court = Court.builder()
+                    .venue(v1)
+                    .name("Sân 7 - Sân A2")
+                    .price(300000.0)
+                    .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
+                    .build();
+            return courtRepository.save(court);
+        });
+
         // Venue 2: Hoop Heaven Park
         Venue v2 = venueRepository.findAll().stream().filter(v -> v.getName() != null && v.getName().contains("Hoop Heaven")).findFirst().orElseGet(() -> {
             Venue venue = Venue.builder()
@@ -315,6 +325,16 @@ public class DataSeeder implements CommandLineRunner {
             Court court = Court.builder()
                     .venue(v2)
                     .name("Sân Cầu Lông Số 3")
+                    .price(120000.0)
+                    .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
+                    .build();
+            return courtRepository.save(court);
+        });
+
+        Court c2_1 = courtRepository.findByVenueId(v2.getId()).stream().filter(c -> c.getName().contains("Số 1")).findFirst().orElseGet(() -> {
+            Court court = Court.builder()
+                    .venue(v2)
+                    .name("Sân Cầu Lông Số 1")
                     .price(120000.0)
                     .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
                     .build();
@@ -356,67 +376,156 @@ public class DataSeeder implements CommandLineRunner {
             return courtRepository.save(court);
         });
 
-        // 1. Session 1: Green Field (Còn 3 slot)
-        TicketSession s1 = TicketSession.builder()
-                .venue(v1)
-                .court(c1)
-                .playDate(LocalDate.now())
-                .startTime(LocalTime.of(18, 0))
-                .endTime(LocalTime.of(20, 0))
-                .pricePerTicket(BigDecimal.valueOf(50000))
-                .maxSlots(10)
-                .bookedSlots(7)
-                .sportLevel(SportLevel.AVERAGE_GOOD)
-                .status(TicketSessionStatus.OPEN)
-                .build();
-        ticketSessionRepository.save(s1);
+        Court c3_2 = courtRepository.findByVenueId(v3.getId()).stream().filter(c -> c.getName().contains("P2")).findFirst().orElseGet(() -> {
+            Court court = Court.builder()
+                    .venue(v3)
+                    .name("Sân Pickleball P2")
+                    .price(150000.0)
+                    .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
+                    .build();
+            return courtRepository.save(court);
+        });
 
-        // 2. Session 2: Hoop Heaven (Còn đúng 1 slot - Dễ test Race Condition & Mua vé slot cuối)
-        TicketSession s2 = TicketSession.builder()
-                .venue(v2)
-                .court(c2)
+        if (ticketSessionRepository.count() == 0) {
+            // 1. Session 1: Green Field (Còn 3 slot)
+            TicketSession s1 = TicketSession.builder()
+                    .venue(v1)
+                    .court(c1)
+                    .playDate(LocalDate.now())
+                    .startTime(LocalTime.of(18, 0))
+                    .endTime(LocalTime.of(20, 0))
+                    .pricePerTicket(BigDecimal.valueOf(50000))
+                    .maxSlots(10)
+                    .bookedSlots(7)
+                    .sportLevel(SportLevel.AVERAGE_GOOD)
+                    .status(TicketSessionStatus.OPEN)
+                    .build();
+            ticketSessionRepository.save(s1);
+
+            // 2. Session 2: Hoop Heaven (Còn đúng 1 slot - Dễ test Race Condition & Mua vé slot cuối)
+            TicketSession s2 = TicketSession.builder()
+                    .venue(v2)
+                    .court(c2)
+                    .playDate(LocalDate.now())
+                    .startTime(LocalTime.of(20, 30))
+                    .endTime(LocalTime.of(22, 30))
+                    .pricePerTicket(BigDecimal.valueOf(60000))
+                    .maxSlots(4)
+                    .bookedSlots(3)
+                    .sportLevel(SportLevel.AVERAGE)
+                    .status(TicketSessionStatus.OPEN)
+                    .build();
+            ticketSessionRepository.save(s2);
+
+            // 3. Session 3: CMC Pickleball (Còn 3 slot, Ngày mai)
+            TicketSession s3 = TicketSession.builder()
+                    .venue(v3)
+                    .court(c3)
+                    .playDate(LocalDate.now().plusDays(1))
+                    .startTime(LocalTime.of(17, 0))
+                    .endTime(LocalTime.of(19, 0))
+                    .pricePerTicket(BigDecimal.valueOf(75000))
+                    .maxSlots(4)
+                    .bookedSlots(1)
+                    .sportLevel(SportLevel.WEAK)
+                    .status(TicketSessionStatus.OPEN)
+                    .build();
+            ticketSessionRepository.save(s3);
+
+            // 4. Session 4: Sân Cầu Lông Đã Hết Slot (Full)
+            TicketSession s4 = TicketSession.builder()
+                    .venue(v2)
+                    .court(c2)
+                    .playDate(LocalDate.now())
+                    .startTime(LocalTime.of(16, 0))
+                    .endTime(LocalTime.of(18, 0))
+                    .pricePerTicket(BigDecimal.valueOf(55000))
+                    .maxSlots(6)
+                    .bookedSlots(6)
+                    .sportLevel(SportLevel.AVERAGE)
+                    .status(TicketSessionStatus.FULL)
+                    .build();
+            ticketSessionRepository.save(s4);
+        }
+
+        // --- NHÓM CA XÉ VÉ MỚI (NHIỀU SLOT TRỐNG ĐỂ TEST ĐẶT NHIỀU VÉ CÙNG LÚC) ---
+
+        // 5. Session 5: Sân Bóng Đá Duy Tân - Tối nay - CÒN 12 SLOT TRỐNG (Đặt nhóm lớn)
+        TicketSession s5 = TicketSession.builder()
+                .venue(v1)
+                .court(c1_2)
                 .playDate(LocalDate.now())
-                .startTime(LocalTime.of(20, 30))
-                .endTime(LocalTime.of(22, 30))
+                .startTime(LocalTime.of(20, 0))
+                .endTime(LocalTime.of(22, 0))
                 .pricePerTicket(BigDecimal.valueOf(60000))
-                .maxSlots(4)
-                .bookedSlots(3)
+                .maxSlots(14)
+                .bookedSlots(2)
                 .sportLevel(SportLevel.AVERAGE)
                 .status(TicketSessionStatus.OPEN)
                 .build();
-        ticketSessionRepository.save(s2);
+        ticketSessionRepository.save(s5);
 
-        // 3. Session 3: CMC Pickleball (Còn 3 slot, Ngày mai)
-        TicketSession s3 = TicketSession.builder()
+        // 6. Session 6: CLB Cầu Lông Hoop Heaven - Tối nay - CÒN 7 SLOT TRỐNG
+        TicketSession s6 = TicketSession.builder()
+                .venue(v2)
+                .court(c2_1)
+                .playDate(LocalDate.now())
+                .startTime(LocalTime.of(18, 30))
+                .endTime(LocalTime.of(20, 30))
+                .pricePerTicket(BigDecimal.valueOf(55000))
+                .maxSlots(8)
+                .bookedSlots(1)
+                .sportLevel(SportLevel.WEAK_AVERAGE)
+                .status(TicketSessionStatus.OPEN)
+                .build();
+        ticketSessionRepository.save(s6);
+
+        // 7. Session 7: Sân Pickleball CMC Cầu Giấy - Tối nay - CÒN NGUYÊN 6 SLOT TRỐNG
+        TicketSession s7 = TicketSession.builder()
                 .venue(v3)
-                .court(c3)
+                .court(c3_2)
+                .playDate(LocalDate.now())
+                .startTime(LocalTime.of(19, 30))
+                .endTime(LocalTime.of(21, 30))
+                .pricePerTicket(BigDecimal.valueOf(80000))
+                .maxSlots(6)
+                .bookedSlots(0)
+                .sportLevel(SportLevel.GOOD)
+                .status(TicketSessionStatus.OPEN)
+                .build();
+        ticketSessionRepository.save(s7);
+
+        // 8. Session 8: Sân Bóng Đá Green Field - Ngày Mai - CÒN 8 SLOT TRỐNG
+        TicketSession s8 = TicketSession.builder()
+                .venue(v1)
+                .court(c1)
                 .playDate(LocalDate.now().plusDays(1))
-                .startTime(LocalTime.of(17, 0))
-                .endTime(LocalTime.of(19, 0))
-                .pricePerTicket(BigDecimal.valueOf(75000))
-                .maxSlots(4)
+                .startTime(LocalTime.of(19, 0))
+                .endTime(LocalTime.of(21, 0))
+                .pricePerTicket(BigDecimal.valueOf(50000))
+                .maxSlots(10)
+                .bookedSlots(2)
+                .sportLevel(SportLevel.AVERAGE_GOOD)
+                .status(TicketSessionStatus.OPEN)
+                .build();
+        ticketSessionRepository.save(s8);
+
+        // 9. Session 9: CLB Cầu Lông Hoop Heaven - Ngày Kia - CÒN 5 SLOT TRỐNG
+        TicketSession s9 = TicketSession.builder()
+                .venue(v2)
+                .court(c2)
+                .playDate(LocalDate.now().plusDays(2))
+                .startTime(LocalTime.of(17, 30))
+                .endTime(LocalTime.of(19, 30))
+                .pricePerTicket(BigDecimal.valueOf(65000))
+                .maxSlots(6)
                 .bookedSlots(1)
                 .sportLevel(SportLevel.WEAK)
                 .status(TicketSessionStatus.OPEN)
                 .build();
-        ticketSessionRepository.save(s3);
+        ticketSessionRepository.save(s9);
 
-        // 4. Session 4: Sân Cầu Lông Đã Hết Slot (Full)
-        TicketSession s4 = TicketSession.builder()
-                .venue(v2)
-                .court(c2)
-                .playDate(LocalDate.now())
-                .startTime(LocalTime.of(16, 0))
-                .endTime(LocalTime.of(18, 0))
-                .pricePerTicket(BigDecimal.valueOf(55000))
-                .maxSlots(6)
-                .bookedSlots(6)
-                .sportLevel(SportLevel.AVERAGE)
-                .status(TicketSessionStatus.FULL)
-                .build();
-        ticketSessionRepository.save(s4);
-
-        System.out.println("Data Seeder: Đã tạo 4 ca xé vé mẫu thành công vào Database!");
+        System.out.println("Data Seeder: Đã tạo thành công các ca xé vé đa dạng (nhiều slot trống) vào Database!");
     }
 
     private void migrateVenueLocations() {

@@ -73,6 +73,14 @@ export function TicketPaymentScreen() {
     }
   };
 
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/ticket-sessions' as any);
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-');
@@ -94,7 +102,7 @@ export function TicketPaymentScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.iconBtn}>
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.title}>Thanh toán mua vé</Text>
@@ -115,7 +123,7 @@ export function TicketPaymentScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.iconBtn}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
         </TouchableOpacity>
         <Text style={styles.title}>Thanh toán vé xé ({quantity} vé)</Text>

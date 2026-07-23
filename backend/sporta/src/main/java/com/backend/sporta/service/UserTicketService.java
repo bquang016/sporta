@@ -109,6 +109,10 @@ public class UserTicketService {
             }
         }
 
+        if (userEmail == null || "anonymousUser".equalsIgnoreCase(userEmail)) {
+            throw new CustomException("Vui lòng đăng nhập để thực hiện đặt vé xé", 401);
+        }
+
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin người dùng", 404));
 

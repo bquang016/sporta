@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { TicketSessionCard } from '../../../features/ticket-sessions/ui/TicketSessionCard';
 import { TicketFilterModal } from '../../../features/ticket-sessions/ui/TicketFilterModal';
@@ -22,6 +22,12 @@ export function TicketSessionsScreen() {
     refetch,
   } = useTicketSessions();
 
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
   const handleSearchSubmit = () => {
     updateFilters({ keyword: searchQuery });
   };
@@ -34,6 +40,14 @@ export function TicketSessionsScreen() {
     router.push(`/ticket-payment/${sessionId}` as any);
   };
 
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)' as any);
+    }
+  };
+
   const hasActiveFilters = Boolean(filters.radiusKm || (filters.timeSlot && filters.timeSlot !== 'ALL') || (filters.sportLevel && filters.sportLevel !== 'ALL'));
 
   return (
@@ -42,7 +56,7 @@ export function TicketSessionsScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Danh Sách Xé Vé</Text>

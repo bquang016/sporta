@@ -7,62 +7,7 @@ import { SearchBar } from '../../../features/search-bar';
 import { SportCategories } from '../../../features/sport-categories';
 import { AuthCtaBanner } from '../../../features/auth-cta';
 import { FacilityCard } from '../../../entities/facility';
-import { MatchCard, Match } from '../../../entities/match';
-
-import { useHomeScreen } from '../hooks/useHomeScreen';
-import { Header } from '../components/Header';
-import { PromoCarousel } from '../components/PromoCarousel';
-import { ActionGrid } from '../components/ActionGrid';
-import { MatchInvitations } from '../components/MatchInvitations';
-import { FadeInSection } from '../components/AnimationHelpers';
-
-const HOT_MATCHES: Match[] = [
-  {
-    id: 'match-1',
-    title: 'Sân Green Field',
-    time: '18:00 - 20:00 • Hôm nay',
-    elo: 'Bán chuyên',
-    eloType: 'gold',
-    sportIcon: 'sports-soccer',
-    joinedCount: 7,
-    maxCount: 10,
-    statusText: 'Còn 3 chỗ',
-    statusType: 'active',
-    location: '12 Duy Tân, Cầu Giấy',
-    distance: '2.5km',
-    imageUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c29jY2VyfGVufDB8fDB8fHww',
-  },
-  {
-    id: 'match-2',
-    title: 'Hoop Heaven Park',
-    time: '20:30 - 22:30 • Hôm nay',
-    elo: 'Trung bình',
-    eloType: 'silver',
-    sportIcon: 'sports-basketball',
-    joinedCount: 12,
-    maxCount: 12,
-    statusText: 'HẾT CHỖ',
-    statusType: 'full',
-    location: '34 Lê Văn Lương, Thanh Xuân',
-    distance: '3.1km',
-    imageUrl: 'https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'match-3',
-    title: 'Sân CMC Đại học',
-    time: '17:00 - 19:00 • Ngày mai',
-    elo: 'Yếu',
-    eloType: 'silver',
-    sportIcon: 'sports-tennis',
-    joinedCount: 3,
-    maxCount: 4,
-    statusText: 'Còn 1 chỗ',
-    statusType: 'active',
-    location: 'Đại học Quốc Gia, Cầu Giấy',
-    distance: '1.8km',
-    imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80',
-  },
-];
+import { TicketSessionCard } from '../../../features/ticket-sessions/ui/TicketSessionCard';
 
 export function HomeScreen() {
   const {
@@ -73,6 +18,9 @@ export function HomeScreen() {
     facilities,
     facilitiesLoading,
     facilitiesError,
+    ticketSessions,
+    ticketSessionsLoading,
+    ticketSessionsError,
     handleFacilityPress,
     handleLoginPress,
     handleRegisterPress,
@@ -172,9 +120,7 @@ export function HomeScreen() {
         <FadeInSection delay={350}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {isAuthenticated ? 'Sân Chơi Xé Vé' : 'Trận đấu hot'}
-              </Text>
+              <Text style={styles.sectionTitle}>Sân Chơi Xé Vé</Text>
               <TouchableOpacity
                 onPress={() => router.push('/ticket-sessions' as any)}
                 style={styles.seeMoreButton}
@@ -186,14 +132,22 @@ export function HomeScreen() {
             </View>
             
             <View style={styles.matchList}>
-              {HOT_MATCHES.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  onPress={() => console.log('View match detail:', match.id)}
-                  onJoinPress={() => console.log('Join match:', match.id)}
-                />
-              ))}
+              {ticketSessionsLoading ? (
+                <Text style={styles.loadingText}>Đang tải danh sách ca xé vé...</Text>
+              ) : ticketSessionsError ? (
+                <Text style={[styles.loadingText, { color: COLORS.error }]}>{ticketSessionsError}</Text>
+              ) : ticketSessions.length === 0 ? (
+                <Text style={styles.loadingText}>Chưa có ca xé vé nào đang mở</Text>
+              ) : (
+                ticketSessions.slice(0, 4).map((session) => (
+                  <TicketSessionCard
+                    key={session.id}
+                    session={session}
+                    onPress={() => router.push(`/ticket-sessions/${session.id}` as any)}
+                    onBuyPress={() => router.push(`/ticket-sessions/${session.id}` as any)}
+                  />
+                ))
+              )}
             </View>
           </View>
         </FadeInSection>

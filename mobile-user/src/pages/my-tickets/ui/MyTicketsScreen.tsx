@@ -26,6 +26,14 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
     return true;
   });
 
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile' as any);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -33,7 +41,7 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
       {/* Optional Header when opened standalone */}
       {showHeader && (
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Vé Của Tôi</Text>
