@@ -9,6 +9,13 @@ import { AuthCtaBanner } from '../../../features/auth-cta';
 import { FacilityCard } from '../../../entities/facility';
 import { TicketSessionCard } from '../../../features/ticket-sessions/ui/TicketSessionCard';
 
+import { useHomeScreen } from '../hooks/useHomeScreen';
+import { Header } from '../components/Header';
+import { FadeInSection } from '../components/AnimationHelpers';
+import { PromoCarousel } from '../components/PromoCarousel';
+import { ActionGrid } from '../components/ActionGrid';
+import { MatchInvitations } from '../components/MatchInvitations';
+
 export function HomeScreen() {
   const {
     router,

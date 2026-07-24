@@ -21,6 +21,7 @@ export interface VenueResponse {
   minPrice?: number;
   maxPrice?: number;
   sportName?: string | null;
+  district?: string | null;
 }
 
 // ─── CourtPriceRule ───────────────────────────────────────────────────────────
