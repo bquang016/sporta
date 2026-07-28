@@ -58,7 +58,7 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
           {/* Nút 3: Sân chơi xé vé (Màu Nền tối giản nhẹ nhàng) */}
           <TouchableOpacity
             style={styles.subCtaContainer}
-            onPress={() => console.log('Ticket matching')}
+            onPress={() => router.push('/ticket-sessions' as any)}
             activeOpacity={0.8}
           >
             <View style={[styles.subCtaCard, { backgroundColor: COLORS.surfaceContainerLow }]}>

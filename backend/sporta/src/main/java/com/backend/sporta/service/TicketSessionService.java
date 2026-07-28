@@ -142,29 +142,39 @@ public class TicketSessionService {
 
         TicketSession savedSession = ticketSessionRepository.save(session);
 
-        // Tạo sẵn 2 vé test
-        User testUser1 = getOrCreateTestUser("player1@sporta.vn", "Nguyễn Văn Hùng");
-        User testUser2 = getOrCreateTestUser("player2@sporta.vn", "Trần Anh Tuấn");
+        // Tạo sẵn 2 vé test nếu maxSlots >= 2
+        int initialBooked = 0;
+        if (savedSession.getMaxSlots() >= 2) {
+            User testUser1 = getOrCreateTestUser("player1@sporta.vn", "Nguyễn Văn Hùng");
+            User testUser2 = getOrCreateTestUser("player2@sporta.vn", "Trần Anh Tuấn");
 
-        Ticket t1 = Ticket.builder()
-                .session(savedSession)
-                .user(testUser1)
-                .status(TicketStatus.UNUSED)
-                .shortCode(generateUniqueShortCode())
-                .build();
-        t1 = ticketRepository.save(t1);
-        t1.setQrCodeToken(jwtTokenProvider.generateTicketToken(t1.getId(), testUser1.getId(), savedSession.getId()));
-        ticketRepository.save(t1);
+            Ticket t1 = Ticket.builder()
+                    .session(savedSession)
+                    .user(testUser1)
+                    .status(TicketStatus.UNUSED)
+                    .shortCode(generateUniqueShortCode())
+                    .build();
+            t1 = ticketRepository.save(t1);
+            t1.setQrCodeToken(jwtTokenProvider.generateTicketToken(t1.getId(), testUser1.getId(), savedSession.getId()));
+            ticketRepository.save(t1);
 
-        Ticket t2 = Ticket.builder()
-                .session(savedSession)
-                .user(testUser2)
-                .status(TicketStatus.UNUSED)
-                .shortCode(generateUniqueShortCode())
-                .build();
-        t2 = ticketRepository.save(t2);
-        t2.setQrCodeToken(jwtTokenProvider.generateTicketToken(t2.getId(), testUser2.getId(), savedSession.getId()));
-        ticketRepository.save(t2);
+            Ticket t2 = Ticket.builder()
+                    .session(savedSession)
+                    .user(testUser2)
+                    .status(TicketStatus.UNUSED)
+                    .shortCode(generateUniqueShortCode())
+                    .build();
+            t2 = ticketRepository.save(t2);
+            t2.setQrCodeToken(jwtTokenProvider.generateTicketToken(t2.getId(), testUser2.getId(), savedSession.getId()));
+            ticketRepository.save(t2);
+
+            initialBooked = 2;
+            savedSession.setBookedSlots(initialBooked);
+            if (savedSession.getBookedSlots() >= savedSession.getMaxSlots()) {
+                savedSession.setStatus(TicketSessionStatus.FULL);
+            }
+            savedSession = ticketSessionRepository.save(savedSession);
+        }
 
         return mapToResponse(savedSession);
     }
@@ -224,16 +234,14 @@ public class TicketSessionService {
         if (ticket.getStatus() == TicketStatus.REFUNDED) {
             throw new CustomException("Vé này đã được hoàn trả, không thể sử dụng.", 400);
         }
+        if (ticket.getSession().getStatus() == TicketSessionStatus.CANCELLED) {
+            throw new CustomException("Ca xé vé này đã bị hủy bởi chủ sân, không thể check-in.", 400);
+        }
 
         ticket.setStatus(TicketStatus.USED);
         ticketRepository.save(ticket);
 
         TicketSession session = ticket.getSession();
-        session.setBookedSlots(session.getBookedSlots() + 1);
-        if (session.getBookedSlots() >= session.getMaxSlots()) {
-            session.setStatus(TicketSessionStatus.FULL);
-        }
-        ticketSessionRepository.save(session);
 
         return TicketCheckInResponse.builder()
                 .ticketId(ticket.getId())
@@ -243,6 +251,7 @@ public class TicketSessionService {
                 .endTime(session.getEndTime())
                 .playDate(session.getPlayDate())
                 .sportLevel(session.getSportLevel())
+                .quantity(ticket.getQuantity())
                 .status("USED")
                 .build();
     }

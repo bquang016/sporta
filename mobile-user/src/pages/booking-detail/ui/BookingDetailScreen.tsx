@@ -24,6 +24,12 @@ export function BookingDetailScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [selectedSlotKeys, setSelectedSlotKeys] = useState<Set<string>>(new Set());
+  const [ticketSessionModal, setTicketSessionModal] = useState<{
+    visible: boolean;
+    courtName: string;
+    time: string;
+    ticketSessionId?: string;
+  }>({ visible: false, courtName: '', time: '' });
 
   // ── Fetch venue detail + schedule
   const { venue, slots, loading, error, refetch } = useVenueDetail(
@@ -50,6 +56,15 @@ export function BookingDetailScreen() {
   };
 
   const toggleSlot = (slot: SlotInfo) => {
+    if (slot.status === 'matchmaking' || slot.isOwnerSplit || slot.ticketSessionId) {
+      setTicketSessionModal({
+        visible: true,
+        courtName: slot.courtName,
+        time: slot.time,
+        ticketSessionId: slot.ticketSessionId,
+      });
+      return;
+    }
     if (slot.status !== 'available') return;
     const key = `${slot.courtId}|${slot.time}`;
     setSelectedSlotKeys(prev => {
@@ -168,6 +183,60 @@ export function BookingDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Ticket Session Info Modal */}
+      <Modal
+        visible={ticketSessionModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setTicketSessionModal(prev => ({ ...prev, visible: false }))}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlayCenter}
+          activeOpacity={1}
+          onPress={() => setTicketSessionModal(prev => ({ ...prev, visible: false }))}
+        >
+          <View style={styles.tsModalCard}>
+            <View style={styles.tsModalHeader}>
+              <View style={styles.tsModalIconBox}>
+                <MaterialIcons name="confirmation-number" size={26} color="#8B5CF6" />
+              </View>
+              <Text style={styles.tsModalTitle}>Khung giờ Xé Vé</Text>
+            </View>
+
+            <Text style={styles.tsModalBody}>
+              Khung giờ <Text style={{ fontWeight: '800' }}>{ticketSessionModal.time}</Text> tại <Text style={{ fontWeight: '800' }}>{ticketSessionModal.courtName}</Text> đang diễn ra Lượt trận Xé vé ghép cặp.
+              {'\n\n'}
+              Bạn không thể đặt trọn sân ở khung giờ này, nhưng có thể tham gia mua vé lẻ!
+            </Text>
+
+            <View style={styles.tsModalActions}>
+              <TouchableOpacity
+                style={styles.tsModalSecondaryBtn}
+                onPress={() => setTicketSessionModal(prev => ({ ...prev, visible: false }))}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tsModalSecondaryText}>Đóng</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.tsModalPrimaryBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setTicketSessionModal(prev => ({ ...prev, visible: false }));
+                  if (ticketSessionModal.ticketSessionId) {
+                    router.push(`/ticket-sessions/${ticketSessionModal.ticketSessionId}` as any);
+                  } else {
+                    router.push('/(tabs)/ticket-sessions' as any);
+                  }
+                }}
+              >
+                <Text style={styles.tsModalPrimaryText}>Xem ca xé vé</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <ScrollView style={styles.content} bounces={false}>
         {/* Venue Info */}
         <Card style={styles.venueCard} padding="md">
@@ -276,6 +345,7 @@ const styles = StyleSheet.create({
   totalPriceText: { ...TYPOGRAPHY.headlineMd, color: COLORS.primary },
 
   modalOverlay: { flex: 1, backgroundColor: COLORS.blackOpacity15 },
+  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   menuDropdown: {
     position: 'absolute', right: SPACING.md,
     backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.default,
@@ -285,4 +355,71 @@ const styles = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.sm },
   menuItemText: { ...TYPOGRAPHY.bodyMd, color: COLORS.onSurface },
   menuDivider: { height: 1, backgroundColor: COLORS.outlineVariant, marginHorizontal: SPACING.sm, marginVertical: SPACING.xs },
+
+  tsModalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    width: '85%',
+    maxWidth: 360,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  tsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  tsModalIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tsModalTitle: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+  },
+  tsModalBody: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+    lineHeight: 20,
+    marginBottom: SPACING.lg,
+  },
+  tsModalActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    justifyContent: 'flex-end',
+  },
+  tsModalSecondaryBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: COLORS.surfaceContainerLow,
+  },
+  tsModalSecondaryText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurfaceVariant,
+  },
+  tsModalPrimaryBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: '#8B5CF6',
+  },
+  tsModalPrimaryText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
 });
