@@ -36,6 +36,7 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/api/v1/upload/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/clubs", "/api/v1/clubs/**",

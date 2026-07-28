@@ -15,7 +15,7 @@ import { MembersModal, MemberItem } from './components/MembersModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { MatchmakeModal } from './components/MatchmakeModal';
 import { PollCard, PollData } from './components/PollCard';
-import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, deletePollApi } from '../../../shared/api/clubs';
+import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, deletePollApi, approveMemberApi, rejectMemberApi } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
@@ -98,7 +98,10 @@ export function ClubDetailJoinedScreen() {
   const club = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
 
   // Determine current user role
-  const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : (club?.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên');
+  const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : 'Thành viên';
+
+  const approvedMembers = members.filter(m => m.status === 'APPROVED' || !m.status);
+  const pendingMembers = members.filter(m => m.status === 'PENDING');
 
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
 
@@ -167,7 +170,6 @@ export function ClubDetailJoinedScreen() {
         
         let roleText = m.role;
         if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') roleText = 'Trưởng câu lạc bộ';
-        else if (m.role === 'Phó nhóm' || m.role === 'SUB_LEADER' || m.role === 'Phó câu lạc bộ') roleText = 'Phó câu lạc bộ';
         else roleText = 'Thành viên';
 
         return {
@@ -176,7 +178,8 @@ export function ClubDetailJoinedScreen() {
           name: m.name,
           role: roleText,
           elo: virtualElo,
-          avatar: m.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+          avatar: m.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80",
+          status: m.status || 'APPROVED'
         };
       });
       setMembers(mapped);
@@ -318,6 +321,46 @@ export function ClubDetailJoinedScreen() {
         'Hủy'
       );
     }, 400);
+  };
+
+  const handleApproveMember = (member: MemberItem) => {
+    if (!club) return;
+    showConfirm(
+      'Duyệt tham gia',
+      `Phê duyệt cho "${member.name}" tham gia câu lạc bộ?`,
+      async () => {
+        try {
+          await approveMemberApi(Number(club.id), member.userId);
+          showAlert('Thành công', `Đã duyệt "${member.name}" vào câu lạc bộ.`);
+          await Promise.all([fetchMembers(), refreshClubs()]);
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Phê duyệt thành viên thất bại.');
+        }
+      },
+      undefined,
+      'Duyệt',
+      'Hủy'
+    );
+  };
+
+  const handleRejectMember = (member: MemberItem) => {
+    if (!club) return;
+    showConfirm(
+      'Từ chối yêu cầu',
+      `Từ chối yêu cầu tham gia câu lạc bộ của "${member.name}"?`,
+      async () => {
+        try {
+          await rejectMemberApi(Number(club.id), member.userId);
+          showAlert('Thành công', `Đã từ chối yêu cầu của "${member.name}".`);
+          await Promise.all([fetchMembers(), refreshClubs()]);
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Từ chối yêu cầu thất bại.');
+        }
+      },
+      undefined,
+      'Từ chối',
+      'Hủy'
+    );
   };
 
   if (!club) {
@@ -579,6 +622,31 @@ export function ClubDetailJoinedScreen() {
             </Text>
           </Card>
           
+          {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
+          {currentUserRole === 'Trưởng câu lạc bộ' && pendingMembers.length > 0 && (
+            <TouchableOpacity 
+              style={styles.pendingBanner}
+              activeOpacity={0.85}
+              onPress={() => setIsMembersModalVisible(true)}
+            >
+              <View style={styles.pendingBannerContent}>
+                <View style={styles.pendingBadgeIcon}>
+                  <MaterialIcons name="person-add" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.pendingBannerTextContainer}>
+                  <Text style={styles.pendingBannerTitle}>Yêu cầu gia nhập mới</Text>
+                  <Text style={styles.pendingBannerSubtitle}>
+                    Có {pendingMembers.length} người đang chờ bạn phê duyệt
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pendingBannerActionBtn}>
+                <Text style={styles.pendingBannerActionText}>Duyệt ngay</Text>
+                <MaterialIcons name="chevron-right" size={18} color={COLORS.white} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Action buttons row below description */}
           <View style={styles.actionRow}>
             <TouchableOpacity 
@@ -636,7 +704,7 @@ export function ClubDetailJoinedScreen() {
       <MembersModal 
         visible={isMembersModalVisible}
         onClose={() => setIsMembersModalVisible(false)}
-        membersCount={members.length > 0 ? members.length : club.members}
+        membersCount={approvedMembers.length > 0 ? approvedMembers.length : club.members}
         members={members}
         onLeavePress={handleLeavePress}
         currentUserRole={currentUserRole}
@@ -645,6 +713,8 @@ export function ClubDetailJoinedScreen() {
         onAssignSubLeader={handleAssignSubLeader}
         onDemoteSubLeader={handleDemoteSubLeader}
         onKickMember={handleKickMember}
+        onApproveMember={handleApproveMember}
+        onRejectMember={handleRejectMember}
       />
 
       {/* Invite Friend Modal */}
@@ -783,6 +853,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.primaryOpacity08,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity15,
+    borderRadius: BORDER_RADIUS.default,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  pendingBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.md,
+  },
+  pendingBadgeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingBannerTextContainer: {
+    flex: 1,
+  },
+  pendingBannerTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  pendingBannerSubtitle: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    marginTop: 2,
+  },
+  pendingBannerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 2,
+  },
+  pendingBannerActionText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 12,
   },
   errorContainer: {
     flex: 1,
