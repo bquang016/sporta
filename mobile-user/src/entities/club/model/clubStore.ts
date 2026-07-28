@@ -5,6 +5,7 @@ import {
   joinClubApi, 
   leaveClubApi, 
   createClubApi,
+  updateClubApi,
   deleteClubApi,
   transferLeadershipApi,
   getClubMembersApi,
@@ -184,6 +185,19 @@ class ClubStore {
     }
   }
 
+  async updateClub(clubId: number | string, clubData: any) {
+    const numericClubId = typeof clubId === 'string' ? parseInt(clubId.replace('club-', ''), 10) : clubId;
+    if (isNaN(numericClubId)) return;
+    try {
+      const updated = await updateClubApi(numericClubId, clubData);
+      await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
+      return updated;
+    } catch (error) {
+      console.error('Lỗi cập nhật CLB:', error);
+      throw error;
+    }
+  }
+
   subscribe(listener: () => void) {
     this.listeners.push(listener);
     return () => {
@@ -235,5 +249,6 @@ export function useClubs() {
     demoteSubLeader: (clubId: number | string, userId: number) => clubStore.demoteSubLeader(clubId, userId),
     removeMember: (clubId: number | string, userId: number) => clubStore.removeMember(clubId, userId),
     createClub: (clubData: any) => clubStore.createClub(clubData),
+    updateClub: (clubId: number | string, clubData: any) => clubStore.updateClub(clubId, clubData),
   };
 }

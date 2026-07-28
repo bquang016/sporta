@@ -124,3 +124,25 @@ export const closePollApi = async (pollId: number): Promise<any> => {
 export const deletePollApi = async (pollId: number): Promise<void> => {
   return requestApi(`/clubs/polls/${pollId}`, { method: 'DELETE' });
 };
+
+export interface ClubMatchPayload {
+  opponentName: string;
+  opponentAvatar?: string;
+  date: string; // YYYY-MM-DD
+  ourScore: number;
+  opponentScore: number;
+  result: 'WIN' | 'LOSE' | 'DRAW';
+  location?: string;
+}
+
+export const getClubMatchesApi = async (clubId: number): Promise<any[]> => {
+  return requestApi(`/clubs/${clubId}/matches`, { method: 'GET' });
+};
+
+export const addClubMatchApi = async (clubId: number, data: ClubMatchPayload): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/matches`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+

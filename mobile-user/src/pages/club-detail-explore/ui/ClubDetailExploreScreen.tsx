@@ -103,18 +103,8 @@ export function ClubDetailExploreScreen() {
 
       {/* Main Content */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Reusable Club detail header */}
-        <ClubDetailHeader club={club} />
-
-        {/* Bio / Description */}
-        <View style={styles.infoSection}>
-          <Card variant="outline" style={styles.bioCard}>
-            <Text style={styles.sectionTitle}>Giới thiệu câu lạc bộ</Text>
-            <Text style={styles.description}>
-              {club.description || 'Không có mô tả chi tiết cho câu lạc bộ này.'}
-            </Text>
-          </Card>
-        </View>
+        {/* Reusable Club detail header with info expanded by default for explore screen */}
+        <ClubDetailHeader club={club} showDescription={true} defaultExpanded={true} />
       </ScrollView>
 
       {/* Sticky Bottom Footer */}

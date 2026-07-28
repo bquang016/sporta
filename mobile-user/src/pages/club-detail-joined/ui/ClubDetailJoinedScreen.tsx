@@ -12,10 +12,11 @@ import { MatchHistoryModal } from './components/MatchHistoryModal';
 import { InviteModal } from './components/InviteModal';
 import { LeaveConfirmationModal } from './components/LeaveConfirmationModal';
 import { MembersModal, MemberItem } from './components/MembersModal';
+import { EditClubModal } from './components/EditClubModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { MatchmakeModal } from './components/MatchmakeModal';
 import { PollCard, PollData } from './components/PollCard';
-import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, deletePollApi, approveMemberApi, rejectMemberApi } from '../../../shared/api/clubs';
+import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, deletePollApi, approveMemberApi, rejectMemberApi, getClubMatchesApi } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
@@ -79,7 +80,8 @@ export function ClubDetailJoinedScreen() {
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Custom Match History Modal State
+  // Custom Edit & History Modals State
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
 
   // Poll & Matchmaking States
@@ -229,9 +231,34 @@ export function ClubDetailJoinedScreen() {
     }
   };
 
+  const [realMatches, setRealMatches] = useState<MatchItem[]>([]);
+
+  const fetchMatches = async () => {
+    if (!club) return;
+    try {
+      const data = await getClubMatchesApi(Number(club.id));
+      if (Array.isArray(data)) {
+        const formatted: MatchItem[] = data.map((m: any) => ({
+          id: String(m.id || Math.random()),
+          opponentName: m.opponentName || 'Đối thủ',
+          opponentAvatar: m.opponentAvatar || 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80',
+          date: m.date || '',
+          ourScore: m.ourScore || 0,
+          opponentScore: m.opponentScore || 0,
+          result: (m.result ? String(m.result).toLowerCase() : 'win') as 'win' | 'lose' | 'draw',
+          location: m.location || 'Chưa cập nhật sân',
+        }));
+        setRealMatches(formatted);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải lịch sử trận đấu:', err);
+    }
+  };
+
   useEffect(() => {
     if (club?.id) {
       fetchActivePoll();
+      fetchMatches();
     }
   }, [club?.id]);
 
@@ -323,44 +350,26 @@ export function ClubDetailJoinedScreen() {
     }, 400);
   };
 
-  const handleApproveMember = (member: MemberItem) => {
+  const handleApproveMember = async (member: MemberItem) => {
     if (!club) return;
-    showConfirm(
-      'Duyệt tham gia',
-      `Phê duyệt cho "${member.name}" tham gia câu lạc bộ?`,
-      async () => {
-        try {
-          await approveMemberApi(Number(club.id), member.userId);
-          showAlert('Thành công', `Đã duyệt "${member.name}" vào câu lạc bộ.`);
-          await Promise.all([fetchMembers(), refreshClubs()]);
-        } catch (err: any) {
-          showAlert('Lỗi', err.message || 'Phê duyệt thành viên thất bại.');
-        }
-      },
-      undefined,
-      'Duyệt',
-      'Hủy'
-    );
+    try {
+      await approveMemberApi(Number(club.id), member.userId);
+      showAlert('Thành công', `Đã duyệt "${member.name}" vào câu lạc bộ.`);
+      await Promise.all([fetchMembers(), refreshClubs()]);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Phê duyệt thành viên thất bại.');
+    }
   };
 
-  const handleRejectMember = (member: MemberItem) => {
+  const handleRejectMember = async (member: MemberItem) => {
     if (!club) return;
-    showConfirm(
-      'Từ chối yêu cầu',
-      `Từ chối yêu cầu tham gia câu lạc bộ của "${member.name}"?`,
-      async () => {
-        try {
-          await rejectMemberApi(Number(club.id), member.userId);
-          showAlert('Thành công', `Đã từ chối yêu cầu của "${member.name}".`);
-          await Promise.all([fetchMembers(), refreshClubs()]);
-        } catch (err: any) {
-          showAlert('Lỗi', err.message || 'Từ chối yêu cầu thất bại.');
-        }
-      },
-      undefined,
-      'Từ chối',
-      'Hủy'
-    );
+    try {
+      await rejectMemberApi(Number(club.id), member.userId);
+      showAlert('Thành công', `Đã từ chối yêu cầu của "${member.name}".`);
+      await Promise.all([fetchMembers(), refreshClubs()]);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Từ chối yêu cầu thất bại.');
+    }
   };
 
   if (!club) {
@@ -570,6 +579,7 @@ export function ClubDetailJoinedScreen() {
   };
 
   const handleConfirmLeave = async () => {
+    if (!club) return;
     setIsLeaveModalVisible(false);
     setIsMembersModalVisible(false);
     try {
@@ -610,17 +620,18 @@ export function ClubDetailJoinedScreen() {
 
       {/* Main Content */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Reusable Club detail header */}
-        <ClubDetailHeader club={club} hideMembersMeta={true} />
+        {/* Reusable Club detail header with collapsible info accordion */}
+        <ClubDetailHeader 
+          club={club} 
+          hideMembersMeta={true} 
+          isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
+          onEditPress={() => setIsEditModalVisible(true)}
+          showDescription={true}
+        />
 
-        {/* Bio / Description */}
+        {/* Info Section */}
         <View style={styles.infoSection}>
-          <Card variant="outline" style={styles.bioCard}>
-            <Text style={styles.sectionTitle}>Giới thiệu câu lạc bộ</Text>
-            <Text style={styles.description}>
-              {club.description || 'Không có mô tả chi tiết cho câu lạc bộ này.'}
-            </Text>
-          </Card>
+          {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
           
           {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
           {currentUserRole === 'Trưởng câu lạc bộ' && pendingMembers.length > 0 && (
@@ -757,8 +768,22 @@ export function ClubDetailJoinedScreen() {
         visible={isHistoryModalVisible}
         onClose={() => setIsHistoryModalVisible(false)}
         club={club}
-        matches={MOCK_MATCH_HISTORY}
+        matches={realMatches.length > 0 ? realMatches : MOCK_MATCH_HISTORY}
+        isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
+        onRefreshMatches={fetchMatches}
       />
+
+      {/* Edit Club Modal (Dành riêng cho Trưởng câu lạc bộ) */}
+      {currentUserRole === 'Trưởng câu lạc bộ' && (
+        <EditClubModal 
+          visible={isEditModalVisible}
+          onClose={() => setIsEditModalVisible(false)}
+          club={club}
+          onSuccess={async () => {
+            await Promise.all([fetchMembers(), refreshClubs()]);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -801,6 +826,13 @@ const styles = StyleSheet.create({
   headerPlaceholder: {
     width: 40,
   },
+  editHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
   scroll: {
     flex: 1,
   },
@@ -810,10 +842,32 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl * 2,
   },
   bioCard: {
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
     backgroundColor: COLORS.primaryOpacity05,
     borderColor: COLORS.primaryOpacity15,
     borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
+  },
+  bioHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  editBioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xs + 4,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity08 || COLORS.surfaceContainerLow,
+    gap: 3,
+  },
+  editBioText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   sectionTitle: {
     ...TYPOGRAPHY.labelMd,
@@ -889,7 +943,7 @@ const styles = StyleSheet.create({
     color: COLORS.onSurface,
   },
   pendingBannerSubtitle: {
-    ...TYPOGRAPHY.bodySm,
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
     color: COLORS.onSurfaceVariant,
     marginTop: 2,

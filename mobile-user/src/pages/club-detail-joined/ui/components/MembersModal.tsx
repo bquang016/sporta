@@ -48,6 +48,8 @@ export function MembersModal({
 }: MembersModalProps) {
   const [selectedMemberForAction, setSelectedMemberForAction] = useState<MemberItem | null>(null);
   const [activeTab, setActiveTab] = useState<'members' | 'pending'>('members');
+  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'reject'; member: MemberItem } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const approvedMembers = members.filter(m => m.status === 'APPROVED' || !m.status);
   const pendingMembers = members.filter(m => m.status === 'PENDING');
@@ -181,7 +183,7 @@ export function MembersModal({
                           <TouchableOpacity 
                             style={[styles.pendingBtn, styles.approveBtn]}
                             activeOpacity={0.8}
-                            onPress={() => onApproveMember && onApproveMember(member)}
+                            onPress={() => setConfirmAction({ type: 'approve', member })}
                           >
                             <MaterialIcons name="check" size={16} color={COLORS.white} />
                             <Text style={styles.approveBtnText}>Duyệt</Text>
@@ -190,7 +192,7 @@ export function MembersModal({
                           <TouchableOpacity 
                             style={[styles.pendingBtn, styles.rejectBtn]}
                             activeOpacity={0.8}
-                            onPress={() => onRejectMember && onRejectMember(member)}
+                            onPress={() => setConfirmAction({ type: 'reject', member })}
                           >
                             <MaterialIcons name="close" size={16} color={COLORS.error} />
                             <Text style={styles.rejectBtnText}>Từ chối</Text>
@@ -219,6 +221,77 @@ export function MembersModal({
             </View>
           </View>
         </View>
+
+        {/* In-Modal Confirmation Popup for Approve / Reject */}
+        <Modal
+          visible={!!confirmAction}
+          transparent
+          animationType="fade"
+          onRequestClose={() => !isSubmitting && setConfirmAction(null)}
+        >
+          <View style={styles.confirmOverlay}>
+            <View style={styles.confirmCard}>
+              <View style={[
+                styles.confirmIconContainer, 
+                confirmAction?.type === 'approve' ? styles.confirmIconApprove : styles.confirmIconReject
+              ]}>
+                <MaterialIcons 
+                  name={confirmAction?.type === 'approve' ? "check-circle" : "cancel"} 
+                  size={32} 
+                  color={confirmAction?.type === 'approve' ? COLORS.primary : COLORS.error} 
+                />
+              </View>
+
+              <Text style={styles.confirmTitle}>
+                {confirmAction?.type === 'approve' ? 'Phê duyệt thành viên' : 'Từ chối yêu cầu'}
+              </Text>
+
+              <Text style={styles.confirmMessage}>
+                {confirmAction?.type === 'approve'
+                  ? `Bạn có chắc chắn muốn phê duyệt cho "${confirmAction?.member.name}" gia nhập câu lạc bộ không?`
+                  : `Bạn có chắc chắn muốn từ chối yêu cầu gia nhập của "${confirmAction?.member.name}" không?`}
+              </Text>
+
+              <View style={styles.confirmButtonsRow}>
+                <TouchableOpacity 
+                  style={[styles.confirmBtn, styles.confirmCancelBtn]}
+                  activeOpacity={0.7}
+                  disabled={isSubmitting}
+                  onPress={() => setConfirmAction(null)}
+                >
+                  <Text style={styles.confirmCancelBtnText}>Hủy</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[
+                    styles.confirmBtn, 
+                    confirmAction?.type === 'approve' ? styles.confirmApproveBtn : styles.confirmRejectBtn
+                  ]}
+                  activeOpacity={0.8}
+                  disabled={isSubmitting}
+                  onPress={async () => {
+                    if (!confirmAction) return;
+                    setIsSubmitting(true);
+                    try {
+                      if (confirmAction.type === 'approve' && onApproveMember) {
+                        await onApproveMember(confirmAction.member);
+                      } else if (confirmAction.type === 'reject' && onRejectMember) {
+                        await onRejectMember(confirmAction.member);
+                      }
+                    } finally {
+                      setIsSubmitting(false);
+                      setConfirmAction(null);
+                    }
+                  }}
+                >
+                  <Text style={styles.confirmSubmitBtnText}>
+                    {confirmAction?.type === 'approve' ? 'Phê duyệt' : 'Từ chối'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Custom Member Actions Bottom Sheet Modal */}
         <Modal
@@ -477,11 +550,11 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xxl,
+    paddingVertical: SPACING.xl,
     gap: SPACING.xs,
   },
   emptyTitle: {
-    ...TYPOGRAPHY.headlineSm,
+    ...TYPOGRAPHY.headlineMd,
     fontSize: 16,
     color: COLORS.onSurface,
     fontWeight: '700',
@@ -593,5 +666,90 @@ const styles = StyleSheet.create({
     color: COLORS.onSurfaceVariant,
     fontSize: 14,
     fontWeight: '600',
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.blackOpacity50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 24,
+  },
+  confirmIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  confirmIconApprove: {
+    backgroundColor: COLORS.primaryOpacity15,
+  },
+  confirmIconReject: {
+    backgroundColor: COLORS.surfaceContainerLow,
+  },
+  confirmTitle: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+    marginBottom: SPACING.xs,
+    textAlign: 'center',
+  },
+  confirmMessage: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+    lineHeight: 20,
+  },
+  confirmButtonsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    width: '100%',
+  },
+  confirmBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: BORDER_RADIUS.default,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmCancelBtn: {
+    backgroundColor: COLORS.surfaceContainerHigh || COLORS.outlineVariant,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  confirmCancelBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  confirmApproveBtn: {
+    backgroundColor: COLORS.primary,
+  },
+  confirmRejectBtn: {
+    backgroundColor: COLORS.error,
+  },
+  confirmSubmitBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
