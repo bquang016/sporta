@@ -152,10 +152,17 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
               </span>
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex justify-between border-b border-slate-200/50 pb-2">
               <span className="text-[10px] font-black text-slate-400 uppercase">Trình độ</span>
               <span className="text-xs font-black text-slate-800">
                 {getSportLevelLabel(checkInResult.sportLevel)}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase">Số lượng vé check-in</span>
+              <span className="text-xs font-black text-brand-emerald bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                {checkInResult.quantity || 1} slot (vé)
               </span>
             </div>
           </div>
