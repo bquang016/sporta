@@ -124,16 +124,14 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md, // 12px for primary CTAs per design
   },
   secondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.primary, // Green outline
-    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: COLORS.primary, // Deep Emerald
+    borderRadius: BORDER_RADIUS.md,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.md,
   },
   text: {
     backgroundColor: 'transparent',
@@ -142,7 +140,9 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
-    borderRadius: BORDER_RADIUS.default,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
   },
 
   // Disabled Variants
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     color: COLORS.onSecondary, // Black text on yellow background
   },
   text_secondary: {
-    color: COLORS.primary, // Green text on outline
+    color: COLORS.onPrimary, // White text on Deep Emerald
   },
   text_outline: {
     color: COLORS.primary,

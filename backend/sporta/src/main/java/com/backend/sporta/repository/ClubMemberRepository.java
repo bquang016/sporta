@@ -10,7 +10,11 @@ import java.util.Optional;
 @Repository
 public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
-    Optional<ClubMember> findByClubIdAndUserId(Long clubId, Long userId);
+    Optional<ClubMember> findFirstByClubIdAndUserId(Long clubId, Long userId);
+
+    default Optional<ClubMember> findByClubIdAndUserId(Long clubId, Long userId) {
+        return findFirstByClubIdAndUserId(clubId, userId);
+    }
 
     List<ClubMember> findByClubId(Long clubId);
 

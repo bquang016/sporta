@@ -144,7 +144,7 @@ export function BookingMatrix({
         {renderLegendItem(COLORS.error, 'Đã đặt')}
         {renderLegendItem(COLORS.surfaceVariant, 'Khoá')}
         {renderLegendItem(COLORS.secondary, 'Đang chọn')}
-        {renderLegendItem((COLORS as any).purple || '#8B5CF6', 'Xé vé')}
+        {renderLegendItem(COLORS.sportTeal, 'Xé vé')}
       </View>
 
       {/* Grid */}
@@ -191,20 +191,29 @@ export function BookingMatrix({
                     const isSelected = selectedSlotKeys.has(`${court.id}|${time}`);
                     const status = slot?.status ?? 'locked';
                     const isOwnerSplit = slot?.isOwnerSplit;
+                    const isMatchmaking = status === 'matchmaking' || isOwnerSplit || Boolean(slot?.ticketSessionId);
 
                     let bgColor = COLORS.surface;
                     if (isSelected) bgColor = COLORS.secondary;
+                    else if (isMatchmaking) bgColor = COLORS.sportTeal;
                     else if (status === 'booked') bgColor = COLORS.error;
                     else if (status === 'locked') bgColor = COLORS.surfaceVariant;
-                    else if (isOwnerSplit) bgColor = (COLORS as any).purple || '#8B5CF6';
 
                     return (
                       <TouchableOpacity
                         key={`${court.id}-${time}`}
-                        style={[styles.slotCell, { backgroundColor: bgColor }]}
+                        style={[
+                          styles.slotCell,
+                          { backgroundColor: bgColor },
+                          isMatchmaking && styles.matchmakingSlot,
+                        ]}
                         onPress={() => slot && onToggleSlot(slot)}
-                        activeOpacity={status === 'available' ? 0.7 : 1}
-                      />
+                        activeOpacity={0.7}
+                      >
+                        {isMatchmaking && (
+                          <MaterialIcons name="confirmation-number" size={16} color="#FFFFFF" />
+                        )}
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -241,7 +250,7 @@ const styles = StyleSheet.create({
 
   gridOuterContainer: {
     flexDirection: 'row', borderWidth: 1, borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default, overflow: 'hidden', marginTop: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg, overflow: 'hidden', marginTop: SPACING.md,
     backgroundColor: COLORS.surface,
   },
   frozenColumn: {
@@ -265,6 +274,10 @@ const styles = StyleSheet.create({
     width: SLOT_WIDTH, height: SLOT_HEIGHT,
     borderBottomWidth: 1, borderBottomColor: COLORS.outlineVariant,
     borderRightWidth: 1, borderRightColor: COLORS.outlineVariant,
+  },
+  matchmakingSlot: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   redLine: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: COLORS.error, zIndex: 10, alignItems: 'center' },
   redLineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error, marginTop: HEADER_HEIGHT / 2 - 4 },

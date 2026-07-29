@@ -104,7 +104,11 @@ export function ProfileScreen() {
             <View style={styles.menuCard}>
               <MenuRow icon="history" title="Lịch sử đặt sân" />
               <View style={styles.divider} />
-              <MenuRow icon="local-activity" title="Xé vé & Ghép trận" />
+              <MenuRow 
+                icon="local-activity" 
+                title="Xé vé & Ghép trận" 
+                onPress={() => router.push('/my-tickets' as any)} 
+              />
               <View style={styles.divider} />
               <MenuRow icon="groups" title="Câu lạc bộ của tôi" />
             </View>
@@ -151,9 +155,9 @@ export function ProfileScreen() {
 }
 
 // Sub-component for Menu Rows
-function MenuRow({ icon, title, badge }: { icon: keyof typeof MaterialIcons.glyphMap, title: string, badge?: string }) {
+function MenuRow({ icon, title, badge, onPress }: { icon: keyof typeof MaterialIcons.glyphMap, title: string, badge?: string, onPress?: () => void }) {
   return (
-    <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={onPress}>
       <View style={styles.menuRowLeft}>
         <View style={styles.menuIconBg}>
           <MaterialIcons name={icon} size={20} color="#064E3B" />

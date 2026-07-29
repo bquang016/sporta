@@ -18,6 +18,13 @@ public class TicketSessionResponse {
     private UUID id;
     private UUID venueId;
     private String venueName;
+    private String venueAddress;
+    private String venueLocation;
+    private String coverImage;
+    private Double latitude;
+    private Double longitude;
+    private String sportName;
+    
     private UUID courtId;
     private String courtName;
     
