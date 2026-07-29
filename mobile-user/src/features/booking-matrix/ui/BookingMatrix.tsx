@@ -144,7 +144,7 @@ export function BookingMatrix({
         {renderLegendItem(COLORS.error, 'Đã đặt')}
         {renderLegendItem(COLORS.surfaceVariant, 'Khoá')}
         {renderLegendItem(COLORS.secondary, 'Đang chọn')}
-        {renderLegendItem((COLORS as any).purple || '#8B5CF6', 'Xé vé')}
+        {renderLegendItem(COLORS.sportTeal, 'Xé vé')}
       </View>
 
       {/* Grid */}
@@ -195,7 +195,7 @@ export function BookingMatrix({
 
                     let bgColor = COLORS.surface;
                     if (isSelected) bgColor = COLORS.secondary;
-                    else if (isMatchmaking) bgColor = '#8B5CF6';
+                    else if (isMatchmaking) bgColor = COLORS.sportTeal;
                     else if (status === 'booked') bgColor = COLORS.error;
                     else if (status === 'locked') bgColor = COLORS.surfaceVariant;
 
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
 
   gridOuterContainer: {
     flexDirection: 'row', borderWidth: 1, borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default, overflow: 'hidden', marginTop: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg, overflow: 'hidden', marginTop: SPACING.md,
     backgroundColor: COLORS.surface,
   },
   frozenColumn: {

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
@@ -15,6 +17,7 @@ export function PaymentScreen() {
   const params = useLocalSearchParams();
   const { mutate: createBooking, loading } = useCreateBooking();
   const { showAlert } = useAlert();
+  const insets = useSafeAreaInsets();
 
   const [selectedMethod, setSelectedMethod] = useState('momo');
   const [conflictModalVisible, setConflictModalVisible] = useState(false);
@@ -113,7 +116,7 @@ export function PaymentScreen() {
         <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} bounces={false}>
         {/* Policy Warning */}
         <View style={styles.warningBox}>
           <MaterialIcons name="info" size={20} color={COLORS.amber} style={styles.warningIcon} />
@@ -209,15 +212,17 @@ export function PaymentScreen() {
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
 
-      {/* Bottom Button */}
-      <View style={styles.bottomBar}>
-        <Button 
-          title={`Thanh toán ${rawTotalPrice.toLocaleString('vi-VN')}đ & Xác nhận`} 
-          onPress={handlePayment}
-          style={{ width: '100%' }}
-          disabled={loading}
-          icon={loading ? <ActivityIndicator size="small" color={COLORS.onPrimary} /> : undefined}
-        />
+      {/* Floating Bottom Button */}
+      <View style={[styles.bottomBarWrapper, { bottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
+        <BlurView intensity={90} tint="light" style={styles.bottomBar}>
+          <Button 
+            title={`Thanh toán ${rawTotalPrice.toLocaleString('vi-VN')}đ & Xác nhận`} 
+            onPress={handlePayment}
+            style={{ width: '100%' }}
+            disabled={loading}
+            icon={loading ? <ActivityIndicator size="small" color={COLORS.onPrimary} /> : undefined}
+          />
+        </BlurView>
       </View>
 
       {/* Modals */}
@@ -270,6 +275,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.md,
   },
+  contentContainer: {
+    paddingBottom: 100,
+  },
   warningBox: {
     flexDirection: 'row',
     backgroundColor: COLORS.amberOpacity10,
@@ -300,6 +308,13 @@ const styles = StyleSheet.create({
   detailCard: {
     padding: SPACING.md,
     marginBottom: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 0,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   facilityInfo: {
     flexDirection: 'row',
@@ -352,12 +367,19 @@ const styles = StyleSheet.create({
   },
   slotPrice: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
+    color: COLORS.primary, // Emerald text for price
   },
   methodsCard: {
     padding: 0,
     marginBottom: SPACING.lg,
     overflow: 'hidden',
+    backgroundColor: COLORS.surface,
+    borderWidth: 0,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   methodItem: {
     flexDirection: 'row',
@@ -398,6 +420,13 @@ const styles = StyleSheet.create({
   summaryCard: {
     padding: SPACING.md,
     marginBottom: SPACING.xl,
+    backgroundColor: COLORS.surface,
+    borderWidth: 0,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   promoRow: {
     flexDirection: 'row',
@@ -451,10 +480,20 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.headlineLgMobile,
     color: COLORS.primary, // Emerald primary color
   },
+  bottomBarWrapper: {
+    position: 'absolute',
+    left: SPACING.md,
+    right: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: 'hidden',
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   bottomBar: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.outlineVariant,
+    padding: SPACING.lg,
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
 });
