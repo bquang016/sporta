@@ -106,7 +106,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
 
         List<ClubMember> members;
-        // If ADMIN, show all members (including PENDING requests to approve)
+        // If ADMIN (Trưởng câu lạc bộ), show all members (including PENDING requests to approve)
         if (caller.getStatus() == ClubMemberStatus.APPROVED && caller.getRole() == ClubMemberRole.ADMIN) {
             members = clubMemberRepository.findByClubId(clubId);
         } else {
@@ -199,9 +199,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
     }
 
     private ClubMemberResponse mapToResponse(ClubMember member) {
-        String roleText = "Thành viên";
-        if (member.getRole() == ClubMemberRole.ADMIN) roleText = "Trưởng câu lạc bộ";
-        else if (member.getRole() == ClubMemberRole.SUB_LEADER) roleText = "Phó câu lạc bộ";
+        String roleText = (member.getRole() == ClubMemberRole.ADMIN) ? "Trưởng câu lạc bộ" : "Thành viên";
 
         // Elo default logic for users
         Integer userElo = 1200; // Mock ELO as user profile currently has no ELO field, 1200 is default ELO.

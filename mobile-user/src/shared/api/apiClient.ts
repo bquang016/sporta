@@ -1,13 +1,9 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-// ─── Base URL ─────────────────────────────────────────────────────────────────
+import { getBaseUrl } from './config';
 
-const getBaseUrl = (): string => {
-  if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  return 'http://192.168.1.11:8387/api/v1';
-};
+// ─── Base URL ─────────────────────────────────────────────────────────────────
 
 export const BASE_URL = getBaseUrl();
 

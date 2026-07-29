@@ -53,7 +53,7 @@ public class ClubPollServiceImpl implements ClubPollService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkAdminOrSubLeaderPrivileges(clubId, user.getId());
+        checkApprovedMemberPrivileges(clubId, user.getId());
 
         // Close any active poll before creating a new one
         Optional<ClubPoll> activePollOpt = clubPollRepository.findFirstByClubIdAndIsClosedFalseOrderByCreatedAtDesc(clubId);
@@ -154,7 +154,7 @@ public class ClubPollServiceImpl implements ClubPollService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkAdminOrSubLeaderPrivileges(poll.getClub().getId(), user.getId());
+        checkApprovedMemberPrivileges(poll.getClub().getId(), user.getId());
 
         if (poll.getIsClosed()) {
             throw new RuntimeException("Cuộc bình chọn này đã đóng trước đó");
@@ -209,19 +209,18 @@ public class ClubPollServiceImpl implements ClubPollService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkAdminOrSubLeaderPrivileges(poll.getClub().getId(), user.getId());
+        checkApprovedMemberPrivileges(poll.getClub().getId(), user.getId());
 
         // Delete all votes first
         clubPollVoteRepository.deleteByPollId(pollId);
         clubPollRepository.delete(poll);
     }
 
-    private void checkAdminOrSubLeaderPrivileges(Long clubId, Long userId) {
+    private void checkApprovedMemberPrivileges(Long clubId, Long userId) {
         ClubMember member = clubMemberRepository.findByClubIdAndUserId(clubId, userId)
                 .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
-        if (member.getStatus() != ClubMemberStatus.APPROVED || 
-            (member.getRole() != ClubMemberRole.ADMIN && member.getRole() != ClubMemberRole.SUB_LEADER)) {
-            throw new RuntimeException("Bạn không có quyền thực hiện hành động này");
+        if (member.getStatus() != ClubMemberStatus.APPROVED) {
+            throw new RuntimeException("Chỉ thành viên đã gia nhập câu lạc bộ mới được thực hiện hành động này");
         }
     }
 

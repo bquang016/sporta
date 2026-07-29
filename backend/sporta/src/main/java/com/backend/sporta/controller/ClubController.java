@@ -12,9 +12,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/clubs")
+@CrossOrigin(origins = "*")
 public class ClubController {
 
     @Autowired
@@ -28,7 +30,6 @@ public class ClubController {
 
     @Autowired
     private ClubMatchHistoryService clubMatchHistoryService;
-
     private String getCurrentUserEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }

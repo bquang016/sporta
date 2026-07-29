@@ -1,1 +1,2 @@
-export { default } from '../../src/pages/social';
+import SocialScreen from '../../src/pages/social';
+export default SocialScreen;
