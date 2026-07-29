@@ -1,16 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Comment } from '../model/post.types';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface CommentItemProps {
   comment: Comment;
+  onUserPress?: (userId: string) => void;
 }
 
-export const CommentItem = React.memo(({ comment }: CommentItemProps) => {
+export const CommentItem = React.memo(({ comment, onUserPress }: CommentItemProps) => {
   const isOwner = comment.author.role === 'owner';
   
-  // Format Date (e.g., '10:30')
   const formatTime = (isoString: string) => {
     try {
       const date = new Date(isoString);
@@ -31,18 +31,24 @@ export const CommentItem = React.memo(({ comment }: CommentItemProps) => {
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: comment.author.avatar }} style={styles.avatar} />
+      <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress?.(comment.author.id)}>
+        <Image source={{ uri: comment.author.avatar }} style={styles.avatar} />
+      </TouchableOpacity>
       
       <View style={styles.contentBubble}>
         <View style={styles.header}>
-          <View style={styles.nameContainer}>
+          <TouchableOpacity
+            style={styles.nameContainer}
+            activeOpacity={0.8}
+            onPress={() => onUserPress?.(comment.author.id)}
+          >
             <Text style={styles.name}>{comment.author.name}</Text>
             {isOwner && (
               <View style={styles.ownerBadge}>
                 <Text style={styles.ownerBadgeText}>Chủ Sân</Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
           <Text style={styles.time}>{formatTime(comment.createdAt)}</Text>
         </View>
         
@@ -55,21 +61,25 @@ export const CommentItem = React.memo(({ comment }: CommentItemProps) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
+    marginBottom: 12,
+    gap: 10,
   },
   avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
     backgroundColor: COLORS.surfaceDim,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 78, 59, 0.1)',
   },
   contentBubble: {
     flex: 1,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.base,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.03)',
   },
   header: {
     flexDirection: 'row',
@@ -80,32 +90,35 @@ const styles = StyleSheet.create({
   nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 6,
   },
   name: {
-    ...TYPOGRAPHY.labelMd,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 13,
     color: COLORS.onSurface,
     fontWeight: '700',
   },
   ownerBadge: {
     backgroundColor: COLORS.primary,
     borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
   },
   ownerBadgeText: {
     fontSize: 9,
-    fontFamily: 'HankenGrotesk-SemiBold',
+    fontFamily: 'HankenGrotesk-Bold',
     color: COLORS.onPrimary,
+    fontWeight: '700',
   },
   time: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 10,
+    fontFamily: 'HankenGrotesk-Medium',
+    fontSize: 11,
     color: COLORS.grayText,
   },
   body: {
-    ...TYPOGRAPHY.bodyMd,
+    fontFamily: 'HankenGrotesk-Regular',
+    fontSize: 14,
     color: COLORS.onSurface,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });

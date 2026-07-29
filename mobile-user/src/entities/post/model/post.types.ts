@@ -1,49 +1,91 @@
-export interface Author {
+export type PostType = 'COMMUNITY' | 'MATCH_FINDING' | 'VENUE_PROMO';
+
+export type PostAudience = 'PUBLIC' | 'CLUB_MEMBERS';
+
+export interface AuthorUser {
   id: string;
   name: string;
   avatar: string;
-  role: 'user' | 'owner';
+  handle: string;
+  role?: string;
 }
 
-export interface TicketData {
-  venueName: string;
-  price: string;
-  originalPrice?: string;
-  timeSlot: string;
-  date: string;
-  courtType?: string;
-  discount?: string;
+// Alias for backwards compatibility
+export type User = AuthorUser;
+
+/**
+ * Match Finding Attachment Data
+ */
+export interface MatchAttachmentData {
+  matchId?: string;
+  sportName: string; // e.g. "Pickleball", "Bóng đá"
+  timeSlot: string; // e.g. "19:30 - 21:00 • Tối nay"
+  level: string; // e.g. "DUPR 3.0 - 3.5" or "Trình Khá"
+  pricePerSlot: string; // e.g. "50.000đ / người"
+  slotsLeft: number; // e.g. 2
+  venueName?: string; // e.g. "Sân Pickleball Cầu Giấy"
 }
 
-export interface MatchmakingData {
-  sport: string;
-  time: string;
-  location: string;
-  level: string;
-  joinedCount: number;
-  maxCount: number;
-  status: 'active' | 'full';
+/**
+ * Venue Promotion Attachment Data
+ */
+export interface VenuePromoAttachmentData {
+  venueId?: string;
+  venueName: string; // e.g. "Cụm Sân Pickleball Thăng Long"
+  address: string; // e.g. "Phường Dịch Vọng, Cầu Giấy"
+  discountCode?: string; // e.g. "SPORTA20"
+  discountPercent?: string; // e.g. "Giảm 20%"
+  bookingUrl?: string;
 }
 
-export interface Post {
+/**
+ * Club Info attached to a post (Facebook Group style)
+ */
+export interface ClubInfoData {
   id: string;
-  type: 'general' | 'matchmaking' | 'ticket';
-  author: Author;
-  content: string;
-  imageUrls: string[];
-  likeCount: number;
-  commentCount: number;
-  isLiked: boolean;
-  userReaction?: 'like' | 'love' | 'fire' | 'muscle' | 'trophy' | null;
-  createdAt: string;
-  ticketData?: TicketData;
-  matchmakingData?: MatchmakingData;
+  name: string; // e.g. "Pickleball Cầu Giấy Official"
+  avatarUrl: string;
 }
 
 export interface Comment {
   id: string;
-  postId: string;
-  author: Author;
+  postId?: string;
+  author: AuthorUser;
   content: string;
   createdAt: string;
+  likesCount?: number;
+  isLiked?: boolean;
+}
+
+export type PostComment = Comment;
+
+export interface Post {
+  id: string;
+  author: AuthorUser;
+  content: string;
+  mediaUrls?: string[];
+  createdAt: string;
+  type: PostType;
+  audience?: PostAudience;
+  clubInfo?: ClubInfoData; // Double Avatar if present
+  matchAttachment?: MatchAttachmentData;
+  venuePromoAttachment?: VenuePromoAttachmentData;
+  isPinned?: boolean;
+
+  // Reaction fields compatibility
+  isLiked?: boolean;
+  likeCount?: number;
+
+  // Reactions & Counters
+  reactionsCount: {
+    like: number;
+    love: number;
+    fire: number;
+    clap: number;
+  };
+  userReaction?: 'like' | 'love' | 'fire' | 'clap' | 'trophy' | 'muscle' | null;
+  commentsCount: number;
+  commentsCountOld?: number;
+  sharesCount: number;
+  comments?: PostComment[];
 }

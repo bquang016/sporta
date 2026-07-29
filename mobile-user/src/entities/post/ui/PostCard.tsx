@@ -1,888 +1,457 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Modal,
-  SafeAreaView,
-  Dimensions,
-  Platform,
-} from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Post } from '../model/post.types';
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Post, ClubInfoData } from '../model/post.types';
+import { MatchCardAttachment } from './MatchCardAttachment';
+import { VenuePromoAttachment } from './VenuePromoAttachment';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Custom Reaction Mappings with signature colors & Ionicons names
-export const REACTION_MAP = {
-  like: { iconName: 'thumbs-up' as const, label: 'Thích', color: '#064E3B' },
-  love: { iconName: 'heart' as const, label: 'Yêu thích', color: '#EF4444' },
-  fire: { iconName: 'flame' as const, label: 'Nhiệt', color: '#F97316' },
-  muscle: { iconName: 'flash' as const, label: 'Sung sức', color: '#EAB308' },
-  trophy: { iconName: 'trophy' as const, label: 'Đẳng cấp', color: '#10B981' },
-};
 
 interface PostCardProps {
   post: Post;
+  renderLikeButton?: (post: Post) => React.ReactNode;
   onLikePress?: () => void;
   onCommentPress?: () => void;
-  onTicketPress?: () => void;
-  onJoinMatchPress?: () => void;
-  onSelectReaction?: (reaction: 'like' | 'love' | 'fire' | 'muscle' | 'trophy' | null) => void;
-  // Let the parent render the custom animated Like button triggers
-  renderLikeButton?: (post: Post) => React.ReactNode;
+  onSharePress?: () => void;
+  onUserPress?: (userId: string) => void;
+  onClubPress?: (clubInfo: ClubInfoData) => void;
+  onOptionPress?: (post: Post) => void;
 }
 
 export const PostCard = React.memo(({
   post,
+  renderLikeButton,
   onLikePress,
   onCommentPress,
-  onTicketPress,
-  onJoinMatchPress,
-  onSelectReaction,
-  renderLikeButton,
+  onSharePress,
+  onUserPress,
+  onClubPress,
+  onOptionPress,
 }: PostCardProps) => {
-  const isOwner = post.author.role === 'owner';
-  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
-
-  // Helper to format creation time
-  const formatTime = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMins / 60);
-
-      if (diffMins < 1) return 'Vừa xong';
-      if (diffMins < 60) return `${diffMins} phút trước`;
-      if (diffHours < 24) return `${diffHours} giờ trước`;
-      
-      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
-
-  // Collage Layout Renderer
-  const renderCollage = () => {
-    const images = post.imageUrls;
-    const count = images.length;
-    if (count === 0) return null;
-
-    if (count === 1) {
-      return (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => setActiveImageIndex(0)}
-          style={styles.collageSingleWrapper}
-        >
-          <Image source={{ uri: images[0] }} style={styles.mediaImageSingle} />
-        </TouchableOpacity>
-      );
-    }
-
-    if (count === 2) {
-      return (
-        <View style={styles.collageTwo}>
-          <TouchableOpacity
-            style={styles.collageTwoItem}
-            activeOpacity={0.9}
-            onPress={() => setActiveImageIndex(0)}
-          >
-            <Image source={{ uri: images[0] }} style={styles.collageImage} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.collageTwoItem}
-            activeOpacity={0.9}
-            onPress={() => setActiveImageIndex(1)}
-          >
-            <Image source={{ uri: images[1] }} style={styles.collageImage} />
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (count === 3) {
-      return (
-        <View style={styles.collageThree}>
-          <TouchableOpacity
-            style={styles.collageThreeLeft}
-            activeOpacity={0.9}
-            onPress={() => setActiveImageIndex(0)}
-          >
-            <Image source={{ uri: images[0] }} style={styles.collageImage} />
-          </TouchableOpacity>
-          <View style={styles.collageThreeRight}>
-            <TouchableOpacity
-              style={styles.collageThreeRightItem}
-              activeOpacity={0.9}
-              onPress={() => setActiveImageIndex(1)}
-            >
-              <Image source={{ uri: images[1] }} style={styles.collageImage} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.collageThreeRightItem}
-              activeOpacity={0.9}
-              onPress={() => setActiveImageIndex(2)}
-            >
-              <Image source={{ uri: images[2] }} style={styles.collageImage} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
-    }
-
-    // count >= 4
-    const remaining = count - 3;
-    return (
-      <View style={styles.collageThree}>
-        <TouchableOpacity
-          style={styles.collageThreeLeft}
-          activeOpacity={0.9}
-          onPress={() => setActiveImageIndex(0)}
-        >
-          <Image source={{ uri: images[0] }} style={styles.collageImage} />
-        </TouchableOpacity>
-        <View style={styles.collageThreeRight}>
-          <TouchableOpacity
-            style={styles.collageThreeRightItem}
-            activeOpacity={0.9}
-            onPress={() => setActiveImageIndex(1)}
-          >
-            <Image source={{ uri: images[1] }} style={styles.collageImage} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.collageThreeRightItem}
-            activeOpacity={0.9}
-            onPress={() => setActiveImageIndex(2)}
-          >
-            <Image source={{ uri: images[2] }} style={styles.collageImage} />
-            {remaining > 0 && (
-              <View style={styles.collageOverlay}>
-                <Text style={styles.collageOverlayText}>+{remaining}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  // Get active reaction metadata
-  const currentReaction = post.userReaction ? REACTION_MAP[post.userReaction] : null;
+  const totalReactions =
+    post.reactionsCount.like +
+    post.reactionsCount.love +
+    post.reactionsCount.fire +
+    post.reactionsCount.clap;
 
   return (
-    <View style={styles.card}>
-      {/* ── Header ── */}
+    <View style={styles.cardContainer}>
+      {/* ── 1. Post Header ── */}
       <View style={styles.header}>
-        <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
-        <View style={styles.headerText}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{post.author.name}</Text>
-            {isOwner && (
-              <View style={styles.ownerBadge}>
-                <Text style={styles.ownerBadgeText}>Chủ Sân</Text>
-              </View>
-            )}
+        {/* Double Avatar (Facebook Group Style) if Post belongs to a Club */}
+        {post.clubInfo ? (
+          <View style={styles.doubleAvatarContainer}>
+            {/* Club Logo in Background */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => onClubPress && onClubPress(post.clubInfo!)}
+            >
+              <Image source={{ uri: post.clubInfo.avatarUrl }} style={styles.clubAvatar} />
+            </TouchableOpacity>
+
+            {/* User Avatar Overlapping on Bottom-Right */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => onUserPress && onUserPress(post.author.id)}
+              style={styles.userOverlappingTouch}
+            >
+              <Image source={{ uri: post.author.avatar }} style={styles.userOverlappingAvatar} />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.time}>{formatTime(post.createdAt)}</Text>
+        ) : (
+          /* Standard Single Avatar */
+          <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
+            <Image source={{ uri: post.author.avatar }} style={styles.singleAvatar} />
+          </TouchableOpacity>
+        )}
+
+        {/* User / Club Title Block */}
+        <View style={styles.headerTextGroup}>
+          {post.clubInfo ? (
+            /* Club Post Header: Club Name on TOP, Author Name BELOW */
+            <View style={styles.clubHeaderBlock}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => onClubPress && onClubPress(post.clubInfo!)}
+              >
+                <Text style={styles.clubTitleText} numberOfLines={1}>
+                  {post.clubInfo.name}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.subAuthorRow}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
+                  <Text style={styles.authorSubText}>{post.author.name}</Text>
+                </TouchableOpacity>
+                <Text style={styles.dotSeparator}>•</Text>
+                <Text style={styles.timestampText}>{post.createdAt}</Text>
+                <Text style={styles.dotSeparator}>•</Text>
+
+                {post.audience === 'CLUB_MEMBERS' ? (
+                  <View style={styles.clubAudienceBadge}>
+                    <Ionicons name="shield-checkmark" size={11} color={COLORS.primary} />
+                    <Text style={styles.clubAudienceBadgeText}>Nội bộ CLB</Text>
+                  </View>
+                ) : (
+                  <View style={styles.publicAudienceBadge}>
+                    <Ionicons name="earth" size={11} color={COLORS.grayText} />
+                    <Text style={styles.publicAudienceBadgeText}>Công khai</Text>
+                  </View>
+                )}
+
+                {post.isPinned && (
+                  <View style={styles.pinnedBadge}>
+                    <Ionicons name="pin" size={10} color={COLORS.secondary} />
+                    <Text style={styles.pinnedBadgeText}>Đã ghim</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : (
+            /* Standard User Post Header */
+            <View style={styles.standardHeaderBlock}>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
+                <Text style={styles.authorName}>{post.author.name}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.metaRow}>
+                <Text style={styles.timestampText}>{post.createdAt}</Text>
+                <Text style={styles.dotSeparator}>•</Text>
+                <View style={styles.publicAudienceBadge}>
+                  <Ionicons name="earth" size={12} color={COLORS.grayText} />
+                  <Text style={styles.publicAudienceBadgeText}>Công khai</Text>
+                </View>
+                {post.isPinned && (
+                  <View style={styles.pinnedBadge}>
+                    <Ionicons name="pin" size={11} color={COLORS.secondary} />
+                    <Text style={styles.pinnedBadgeText}>Đã ghim</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
         </View>
-        <TouchableOpacity style={styles.moreButton}>
-          <MaterialIcons name="more-horiz" size={20} color={COLORS.outline} />
+
+        {/* 3-Dots Menu Button */}
+        <TouchableOpacity
+          style={styles.moreButton}
+          activeOpacity={0.7}
+          onPress={() => onOptionPress && onOptionPress(post)}
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
 
-      {/* ── Content Text ── */}
-      <Text style={styles.content}>{post.content}</Text>
+      {/* ── 2. Caption Text ── */}
+      <View style={styles.captionContainer}>
+        <Text style={styles.captionText}>{post.content}</Text>
+      </View>
 
-      {/* ── General Post Collage ── */}
-      {post.type === 'general' && renderCollage()}
+      {/* ── 3. Embedded Attachments (Attachment Component Architecture) ── */}
+      {/* 3.1 Match Finding Attachment */}
+      {post.matchAttachment ? (
+        <MatchCardAttachment data={post.matchAttachment} />
+      ) : null}
 
-      {/* ── Ticket Post Layout (Phase 2 UI Placeholder) ── */}
-      {post.type === 'ticket' && post.ticketData && (
-        <View style={styles.ticketContainer}>
-          {post.imageUrls.length > 0 && (
-            <Image source={{ uri: post.imageUrls[0] }} style={styles.ticketImage} />
+      {/* 3.2 Venue Promo Attachment */}
+      {post.venuePromoAttachment ? (
+        <VenuePromoAttachment data={post.venuePromoAttachment} />
+      ) : null}
+
+      {/* ── 4. Media Images ── */}
+      {post.mediaUrls && post.mediaUrls.length > 0 ? (
+        <View style={styles.mediaContainer}>
+          <Image source={{ uri: post.mediaUrls[0] }} style={styles.mediaImage} />
+        </View>
+      ) : null}
+
+      {/* ── 5. Reaction & Comment Statistics Bar ── */}
+      <View style={styles.statsBar}>
+        <View style={styles.reactionsCountRow}>
+          {totalReactions > 0 && (
+            <View style={styles.stackedIconsRow}>
+              <View style={[styles.iconCircleBadge, { backgroundColor: COLORS.primary }]}>
+                <Ionicons name="thumbs-up" size={10} color="#FFFFFF" />
+              </View>
+              <View style={[styles.iconCircleBadge, { backgroundColor: '#EF4444', marginLeft: -4 }]}>
+                <Ionicons name="heart" size={10} color="#FFFFFF" />
+              </View>
+              <View style={[styles.iconCircleBadge, { backgroundColor: '#F59E0B', marginLeft: -4 }]}>
+                <Ionicons name="flame" size={10} color="#FFFFFF" />
+              </View>
+            </View>
           )}
-          <View style={styles.ticketBody}>
-            <View style={styles.ticketHeader}>
-              <Text style={styles.ticketTag}>ƯU ĐÃI CHỦ SÂN</Text>
-              {post.ticketData.discount && (
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountText}>-{post.ticketData.discount}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.ticketVenueName}>{post.ticketData.venueName}</Text>
-            
-            <View style={styles.ticketInfoGrid}>
-              <View style={styles.ticketInfoItem}>
-                <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.ticketInfoText}>{post.ticketData.date}</Text>
-              </View>
-              <View style={styles.ticketInfoItem}>
-                <Ionicons name="time-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.ticketInfoText}>{post.ticketData.timeSlot}</Text>
-              </View>
-              <View style={styles.ticketInfoItem}>
-                <Ionicons name="grid-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.ticketInfoText}>{post.ticketData.courtType}</Text>
-              </View>
-            </View>
-
-            <View style={styles.ticketFooter}>
-              <View style={styles.priceContainer}>
-                {post.ticketData.originalPrice && (
-                  <Text style={styles.originalPrice}>{post.ticketData.originalPrice}</Text>
-                )}
-                <Text style={styles.price}>{post.ticketData.price}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.ticketButton}
-                activeOpacity={0.8}
-                onPress={onTicketPress}
-              >
-                <Text style={styles.ticketButtonText}>Đặt ngay</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* ── Matchmaking Post Layout (Phase 2 UI Placeholder) ── */}
-      {post.type === 'matchmaking' && post.matchmakingData && (
-        <View style={styles.matchContainer}>
-          <View style={styles.matchHeader}>
-            <View style={styles.sportIconBg}>
-              <MaterialIcons
-                name={post.matchmakingData.sport === 'Bóng rổ' ? 'sports-basketball' : 'sports-tennis'}
-                size={20}
-                color={COLORS.primary}
-              />
-            </View>
-            <View style={styles.matchHeaderTitle}>
-              <Text style={styles.matchSportTitle}>{post.matchmakingData.sport} • Ghép kèo đấu</Text>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>{post.matchmakingData.level}</Text>
-              </View>
-            </View>
-            <View style={[
-              styles.statusTag,
-              post.matchmakingData.joinedCount === post.matchmakingData.maxCount ? styles.statusTagFull : styles.statusTagActive
-            ]}>
-              <Text style={styles.statusTagText}>
-                {post.matchmakingData.joinedCount === post.matchmakingData.maxCount
-                  ? 'Đủ người'
-                  : `Còn ${post.matchmakingData.maxCount - post.matchmakingData.joinedCount} chỗ`}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.matchBody}>
-            <View style={styles.matchInfoRow}>
-              <Ionicons name="time-outline" size={16} color={COLORS.grayText} />
-              <Text style={styles.matchInfoText}>{post.matchmakingData.time}</Text>
-            </View>
-            <View style={styles.matchInfoRow}>
-              <Ionicons name="location-outline" size={16} color={COLORS.grayText} />
-              <Text style={styles.matchInfoText} numberOfLines={1}>
-                {post.matchmakingData.location}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.matchFooter}>
-            <Text style={styles.matchSlotsCount}>
-              Đã tham gia: <Text style={{ fontWeight: '700', color: COLORS.onSurface }}>{post.matchmakingData.joinedCount}/{post.matchmakingData.maxCount}</Text>
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.matchButton,
-                post.matchmakingData.joinedCount === post.matchmakingData.maxCount && styles.matchButtonFull
-              ]}
-              disabled={post.matchmakingData.joinedCount === post.matchmakingData.maxCount}
-              activeOpacity={0.8}
-              onPress={onJoinMatchPress}
-            >
-              <Text style={styles.matchButtonText}>
-                {post.matchmakingData.joinedCount === post.matchmakingData.maxCount ? 'Đã đầy' : 'Tham gia'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* ── Footer Stats & Actions ── */}
-      <View style={styles.footer}>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Ionicons
-              name={post.isLiked ? 'heart' : 'heart-outline'}
-              size={18}
-              color={post.isLiked ? '#EF4444' : COLORS.outline}
-            />
-            <Text style={[styles.statText, post.isLiked && styles.statTextLiked]}>
-              {post.likeCount}
-            </Text>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="chatbubble-outline" size={17} color={COLORS.outline} />
-            <Text style={styles.statText}>{post.commentCount}</Text>
-          </View>
+          <Text style={styles.statsText}>{totalReactions > 0 ? totalReactions : ''}</Text>
         </View>
 
-        <View style={styles.actionRow}>
-          {renderLikeButton ? (
-            renderLikeButton(post)
-          ) : (
-            <TouchableOpacity style={styles.actionButton} onPress={onLikePress} activeOpacity={0.6}>
-              {currentReaction ? (
-                <Ionicons name={currentReaction.iconName} size={20} color={currentReaction.color} />
-              ) : (
-                <Ionicons
-                  name={post.isLiked ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={post.isLiked ? '#EF4444' : COLORS.onSurface}
-                />
-              )}
-              <Text style={[
-                styles.actionText, 
-                post.isLiked && styles.actionTextLiked,
-                currentReaction && { color: currentReaction.color }
-              ]}>
-                {currentReaction ? currentReaction.label : 'Thích'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity style={styles.actionButton} onPress={onCommentPress} activeOpacity={0.6}>
-            <Ionicons name="chatbubble-outline" size={19} color={COLORS.onSurface} />
-            <Text style={styles.actionText}>Bình luận</Text>
-          </TouchableOpacity>
+        <View style={styles.commentsCountRow}>
+          <Text style={styles.statsText}>{post.commentsCount} bình luận</Text>
+          <Text style={styles.dotSeparator}>•</Text>
+          <Text style={styles.statsText}>{post.sharesCount} chia sẻ</Text>
         </View>
       </View>
 
-      {/* ── Lightbox Full-screen Image Viewer Modal ── */}
-      <Modal
-        visible={activeImageIndex !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setActiveImageIndex(null)}
-      >
-        <SafeAreaView style={styles.lightboxContainer}>
-          {/* Backdrop Tap to Close */}
-          <TouchableOpacity
-            style={styles.lightboxBackdrop}
-            activeOpacity={1}
-            onPress={() => setActiveImageIndex(null)}
+      {/* ── 6. Bottom Interaction Buttons Bar ── */}
+      <View style={styles.actionsBar}>
+        {renderLikeButton ? (
+          renderLikeButton(post)
+        ) : (
+          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onLikePress}>
+            <Ionicons
+              name={post.userReaction ? 'thumbs-up' : 'thumbs-up-outline'}
+              size={19}
+              color={post.userReaction ? COLORS.primary : COLORS.onSurfaceVariant}
+            />
+            <Text
+              style={[
+                styles.actionButtonText,
+                post.userReaction && { color: COLORS.primary, fontWeight: '700' },
+              ]}
+            >
+              {post.userReaction ? 'Đã thích' : 'Thích'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onCommentPress}>
+          <MaterialCommunityIcons
+            name="comment-outline"
+            size={19}
+            color={COLORS.onSurfaceVariant}
           />
+          <Text style={styles.actionButtonText}>Bình luận</Text>
+        </TouchableOpacity>
 
-          {activeImageIndex !== null && post.imageUrls[activeImageIndex] && (
-            <View style={styles.lightboxContent}>
-              {/* Header Pager & Close button */}
-              <View style={styles.lightboxHeader}>
-                <Text style={styles.lightboxPagerText}>
-                  {activeImageIndex + 1} / {post.imageUrls.length}
-                </Text>
-                <TouchableOpacity
-                  style={styles.lightboxCloseBtn}
-                  onPress={() => setActiveImageIndex(null)}
-                >
-                  <Ionicons name="close" size={28} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Main Image */}
-              <Image
-                source={{ uri: post.imageUrls[activeImageIndex] }}
-                style={styles.lightboxFullImage}
-                resizeMode="contain"
-              />
-
-              {/* Navigation Arrows */}
-              {post.imageUrls.length > 1 && (
-                <View style={styles.lightboxNav}>
-                  <TouchableOpacity
-                    style={[styles.navArrow, activeImageIndex === 0 && styles.navArrowDisabled]}
-                    disabled={activeImageIndex === 0}
-                    onPress={() => setActiveImageIndex((prev) => (prev !== null ? prev - 1 : null))}
-                  >
-                    <Ionicons name="chevron-back" size={32} color="white" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.navArrow,
-                      activeImageIndex === post.imageUrls.length - 1 && styles.navArrowDisabled
-                    ]}
-                    disabled={activeImageIndex === post.imageUrls.length - 1}
-                    onPress={() => setActiveImageIndex((prev) => (prev !== null ? prev + 1 : null))}
-                  >
-                    <Ionicons name="chevron-forward" size={32} color="white" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
-        </SafeAreaView>
-      </Modal>
+        <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onSharePress}>
+          <MaterialCommunityIcons
+            name="share-outline"
+            size={21}
+            color={COLORS.onSurfaceVariant}
+          />
+          <Text style={styles.actionButtonText}>Chia sẻ</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  card: {
+  cardContainer: {
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.05)',
+    marginBottom: SPACING.xs,
+    paddingTop: SPACING.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.marginMobile,
+    marginBottom: SPACING.xs,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  singleAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: COLORS.surfaceDim,
   },
-  headerText: {
-    marginLeft: SPACING.sm,
-    flex: 1,
+
+  // Double Avatar (Facebook Group Style)
+  doubleAvatarContainer: {
+    position: 'relative',
+    width: 44,
+    height: 44,
   },
-  nameRow: {
+  clubAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceDim,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceContainerHigh,
+  },
+  userOverlappingTouch: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+  },
+  userOverlappingAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceDim,
+  },
+
+  headerTextGroup: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+  },
+  clubHeaderBlock: {
+    justifyContent: 'center',
+  },
+  clubTitleText: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+    lineHeight: 20,
+  },
+  subAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    flexWrap: 'wrap',
+    marginTop: 2,
+    gap: 4,
   },
-  name: {
+  authorSubText: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
+    fontSize: 12,
     fontWeight: '700',
-    fontSize: 14,
+    color: COLORS.primary,
   },
-  ownerBadge: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  standardHeaderBlock: {
+    justifyContent: 'center',
   },
-  ownerBadgeText: {
-    fontSize: 9,
-    fontFamily: 'HankenGrotesk-SemiBold',
-    color: COLORS.onPrimary,
+  authorName: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.onSurface,
   },
-  time: {
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 4,
+  },
+  timestampText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
     color: COLORS.grayText,
-    marginTop: 2,
+  },
+  dotSeparator: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    color: COLORS.grayText,
+  },
+  clubAudienceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: COLORS.primaryOpacity08,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  clubAudienceBadgeText: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 10,
+    color: COLORS.primary,
+  },
+  publicAudienceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  publicAudienceBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    color: COLORS.grayText,
+  },
+  pinnedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  pinnedBadgeText: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 10,
+    color: '#B45309',
   },
   moreButton: {
-    padding: SPACING.xs,
+    padding: 6,
   },
-  content: {
-    ...TYPOGRAPHY.bodyMd,
+  captionContainer: {
+    paddingHorizontal: SPACING.marginMobile,
+    marginBottom: SPACING.xs,
+  },
+  captionText: {
+    ...TYPOGRAPHY.bodyLg,
+    fontSize: 15,
+    lineHeight: 22,
     color: COLORS.onSurface,
-    lineHeight: 20,
-    marginBottom: SPACING.sm,
   },
-
-  // Collage Layout Styles
-  collageSingleWrapper: {
+  mediaContainer: {
     width: '100%',
-    height: 200,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
+    aspectRatio: 4 / 3,
     backgroundColor: COLORS.surfaceDim,
+    marginVertical: SPACING.xs,
   },
-  mediaImageSingle: {
-    width: '100%',
-    height: '100%',
-  },
-  collageTwo: {
-    flexDirection: 'row',
-    height: 150,
-    gap: 4,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
-  },
-  collageTwoItem: {
-    flex: 1,
-    height: '100%',
-    backgroundColor: COLORS.surfaceDim,
-  },
-  collageImage: {
+  mediaImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  collageThree: {
+  statsBar: {
     flexDirection: 'row',
-    height: 200,
-    gap: 4,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.marginMobile,
+    paddingVertical: SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceContainerHigh,
   },
-  collageThreeLeft: {
-    flex: 0.6,
-    height: '100%',
-    backgroundColor: COLORS.surfaceDim,
+  reactionsCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  collageThreeRight: {
-    flex: 0.4,
-    height: '100%',
-    gap: 4,
-  },
-  collageThreeRightItem: {
-    flex: 1,
-    height: '100%',
-    position: 'relative',
-    backgroundColor: COLORS.surfaceDim,
-  },
-  collageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
+  stackedIconsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  collageOverlayText: {
-    color: 'white',
-    fontSize: 18,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '700',
-  },
-  
-  // Ticket (Phase 2 UI Placeholder)
-  ticketContainer: {
+  iconCircleBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: COLORS.primaryOpacity15,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceContainerLowest,
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
+    borderColor: COLORS.surface,
   },
-  ticketImage: {
-    width: '100%',
-    height: 120,
-    backgroundColor: COLORS.surfaceDim,
-  },
-  ticketBody: {
-    padding: SPACING.sm,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  ticketTag: {
-    fontFamily: 'HankenGrotesk-ExtraBold',
-    fontSize: 10,
-    color: COLORS.primary,
-    letterSpacing: 0.5,
-  },
-  discountBadge: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  discountText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 11,
-    color: COLORS.onSecondary,
-  },
-  ticketVenueName: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 15,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-  },
-  ticketInfoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.base,
-    marginVertical: SPACING.xs,
-  },
-  ticketInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primaryOpacity05,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  ticketInfoText: {
-    fontFamily: 'HankenGrotesk-Medium',
-    fontSize: 11,
-    color: COLORS.primary,
-  },
-  ticketFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerHigh,
-    paddingTop: SPACING.sm,
-  },
-  priceContainer: {
-    justifyContent: 'center',
-  },
-  originalPrice: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.outline,
-    textDecorationLine: 'line-through',
-    fontSize: 11,
-  },
-  price: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.errorText,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  ticketButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.default,
-    paddingVertical: 8,
-    paddingHorizontal: SPACING.md,
-  },
-  ticketButtonText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 13,
-    color: COLORS.onPrimary,
-  },
-
-  // Matchmaking (Phase 2 UI Placeholder)
-  matchContainer: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.sm,
-    backgroundColor: COLORS.surfaceContainerLow,
-    marginBottom: SPACING.sm,
-  },
-  matchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  sportIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primaryOpacity10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  matchHeaderTitle: {
-    marginLeft: SPACING.xs,
-    flex: 1,
-    gap: 2,
-  },
-  matchSportTitle: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 13,
-    color: COLORS.onSurface,
-  },
-  levelBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.primaryOpacity08,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  levelText: {
-    fontFamily: 'HankenGrotesk-Medium',
-    fontSize: 10,
-    color: COLORS.primary,
-  },
-  statusTag: {
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  statusTagActive: {
-    backgroundColor: COLORS.secondaryOpacity15,
-  },
-  statusTagFull: {
-    backgroundColor: COLORS.grayOpacity10,
-  },
-  statusTagText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 10,
-    color: COLORS.onSecondaryContainer,
-  },
-  matchBody: {
-    gap: 4,
-    marginVertical: SPACING.xs,
-    paddingLeft: 4,
-  },
-  matchInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.base,
-  },
-  matchInfoText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
-  },
-  matchFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.outlineVariant,
-    paddingTop: SPACING.sm,
-  },
-  matchSlotsCount: {
-    fontFamily: 'HankenGrotesk-Regular',
-    fontSize: 12,
-    color: COLORS.grayText,
-  },
-  matchButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: BORDER_RADIUS.default,
-    paddingVertical: 8,
-    paddingHorizontal: SPACING.md,
-  },
-  matchButtonFull: {
-    backgroundColor: COLORS.grayOpacity20,
-  },
-  matchButtonText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 13,
-    color: COLORS.onSecondary,
-  },
-
-  // Stats & Actions
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerLow,
-    paddingTop: SPACING.sm,
-    marginTop: SPACING.xs,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    marginBottom: SPACING.sm,
-    paddingLeft: SPACING.xs,
-  },
-  stat: {
+  commentsCountRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  statText: {
+  statsText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 12,
     color: COLORS.grayText,
   },
-  statTextLiked: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-  actionRow: {
+  actionsBar: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerLow,
-    paddingTop: SPACING.xs,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 6,
+    borderBottomWidth: 8,
+    borderBottomColor: COLORS.background,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xs,
-    gap: SPACING.xs,
+    paddingVertical: 8,
+    gap: 6,
   },
-  actionText: {
+  actionButtonText: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
     fontSize: 13,
-  },
-  actionTextLiked: {
-    color: '#EF4444',
-    fontWeight: '700',
-  },
-
-  // Lightbox Viewer Styles
-  lightboxContainer: {
-    flex: 1,
-    backgroundColor: 'black',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  lightboxBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  lightboxContent: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  lightboxHeader: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    zIndex: 10,
-  },
-  lightboxPagerText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '700',
-  },
-  lightboxCloseBtn: {
-    padding: 6,
-  },
-  lightboxFullImage: {
-    width: SCREEN_WIDTH,
-    height: '75%',
-  },
-  lightboxNav: {
-    position: 'absolute',
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    zIndex: 5,
-  },
-  navArrow: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navArrowDisabled: {
-    opacity: 0.2,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
 });

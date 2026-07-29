@@ -60,7 +60,7 @@ export function useCommentPost(postId: string) {
                 if (post.id === postId) {
                   return {
                     ...post,
-                    commentCount: post.commentCount + 1,
+                    commentsCount: (post.commentsCount || 0) + 1,
                   };
                 }
                 return post;

@@ -5,19 +5,23 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from 'react';
-import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { REACTION_MAP } from '../../../entities/post/ui/PostCard';
 
-const REACTIONS: ('like' | 'love' | 'fire' | 'muscle' | 'trophy')[] = [
-  'like',
-  'love',
-  'fire',
-  'muscle',
-  'trophy',
+/* ── Sport-themed Reaction Badges ── */
+const REACTION_CONFIG = [
+  { key: 'like', icon: 'thumbs-up' as const, label: 'Thích', bg: '#2563EB' },
+  { key: 'love', icon: 'heart' as const, label: 'Yêu thích', bg: '#EF4444' },
+  { key: 'fire', icon: 'flame' as const, label: 'Cháy!!', bg: '#F97316' },
+  { key: 'muscle', icon: 'flash' as const, label: 'Sung sức', bg: '#EAB308' },
+  { key: 'trophy', icon: 'trophy' as const, label: 'Đẳng cấp', bg: '#10B981' },
 ];
 
-/* ── Imperative handle for parent to drive hover state ── */
+const BAR_WIDTH = 280;
+const BAR_HEIGHT = 56;
+const CIRCLE_SIZE = 38;
+
+/* ── Imperative Handle ── */
 export interface ReactionSelectorRef {
   setHoveredIndex: (index: number | null) => void;
   getHoveredIndex: () => number | null;
@@ -28,27 +32,28 @@ export const ReactionSelector = forwardRef<ReactionSelectorRef, {}>(
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const hoveredIndexRef = useRef<number | null>(null);
 
-    /* ── Animated values ── */
-    const containerScale = useRef(new Animated.Value(0.55)).current;
-    const containerOpacity = useRef(new Animated.Value(0)).current;
+    /* ── Container Animated Values ── */
+    const barOpacity = useRef(new Animated.Value(0)).current;
+    const barScale = useRef(new Animated.Value(0.92)).current;
+    const barTranslateY = useRef(new Animated.Value(8)).current;
 
-    // 5 item scales (entry + hover zoom)
-    const s1 = useRef(new Animated.Value(0)).current;
-    const s2 = useRef(new Animated.Value(0)).current;
-    const s3 = useRef(new Animated.Value(0)).current;
-    const s4 = useRef(new Animated.Value(0)).current;
-    const s5 = useRef(new Animated.Value(0)).current;
-    const itemScales = [s1, s2, s3, s4, s5];
+    /* ── Per-item Animated Values ── */
+    const sc0 = useRef(new Animated.Value(0.6)).current;
+    const sc1 = useRef(new Animated.Value(0.6)).current;
+    const sc2 = useRef(new Animated.Value(0.6)).current;
+    const sc3 = useRef(new Animated.Value(0.6)).current;
+    const sc4 = useRef(new Animated.Value(0.6)).current;
+    const itemScales = [sc0, sc1, sc2, sc3, sc4];
 
-    // 5 item translateY (hover lift-up)
+    // TranslateY (hover lift)
+    const ty0 = useRef(new Animated.Value(0)).current;
     const ty1 = useRef(new Animated.Value(0)).current;
     const ty2 = useRef(new Animated.Value(0)).current;
     const ty3 = useRef(new Animated.Value(0)).current;
     const ty4 = useRef(new Animated.Value(0)).current;
-    const ty5 = useRef(new Animated.Value(0)).current;
-    const itemTranslateYs = [ty1, ty2, ty3, ty4, ty5];
+    const itemYs = [ty0, ty1, ty2, ty3, ty4];
 
-    /* ── Imperative handle ── */
+    /* ── Imperative Handle ── */
     useImperativeHandle(ref, () => ({
       setHoveredIndex: (i: number | null) => {
         hoveredIndexRef.current = i;
@@ -57,119 +62,206 @@ export const ReactionSelector = forwardRef<ReactionSelectorRef, {}>(
       getHoveredIndex: () => hoveredIndexRef.current,
     }));
 
-    /* ── Entry animation on mount ── */
     useEffect(() => {
       Animated.parallel([
-        Animated.spring(containerScale, {
+        Animated.timing(barOpacity, {
           toValue: 1,
-          damping: 13,
-          stiffness: 160,
+          duration: 100,
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(containerOpacity, {
+        Animated.spring(barScale, {
           toValue: 1,
-          duration: 160,
+          damping: 16,
+          stiffness: 300,
+          mass: 0.5,
+          useNativeDriver: true,
+        }),
+        Animated.spring(barTranslateY, {
+          toValue: 0,
+          damping: 16,
+          stiffness: 300,
+          mass: 0.5,
           useNativeDriver: true,
         }),
       ]).start();
 
-      const staggerAnims = itemScales.map((scale) =>
-        Animated.spring(scale, {
-          toValue: 1,
-          friction: 4.5,
-          tension: 50,
-          useNativeDriver: true,
-        }),
-      );
-      Animated.stagger(30, staggerAnims).start();
+      Animated.stagger(
+        35,
+        itemScales.map((s) =>
+          Animated.spring(s, {
+            toValue: 1,
+            damping: 14,
+            stiffness: 340,
+            mass: 0.4,
+            useNativeDriver: true,
+          }),
+        ),
+      ).start();
     }, []);
 
-    /* ── Hover zoom + lift animation ── */
     useEffect(() => {
-      itemScales.forEach((scale, index) => {
-        const isActive = index === hoveredIndex;
+      itemScales.forEach((scale, i) => {
+        let toScale = 1.0;
+        let toY = 0;
+
+        if (hoveredIndex !== null) {
+          const dist = Math.abs(i - hoveredIndex);
+          if (dist === 0) {
+            toScale = 1.65;
+            toY = -24;
+          } else if (dist === 1) {
+            toScale = 1.12;
+            toY = -5;
+          } else {
+            toScale = 0.9;
+          }
+        }
+
         Animated.spring(scale, {
-          toValue: isActive ? 1.45 : 1.0,
-          friction: 4,
-          tension: isActive ? 140 : 80,
+          toValue: toScale,
+          damping: 14,
+          stiffness: 280,
+          mass: 0.35,
           useNativeDriver: true,
         }).start();
-      });
 
-      itemTranslateYs.forEach((ty, index) => {
-        Animated.spring(ty, {
-          toValue: index === hoveredIndex ? -14 : 0,
-          friction: 5,
-          tension: 100,
+        Animated.spring(itemYs[i], {
+          toValue: toY,
+          damping: 14,
+          stiffness: 240,
+          mass: 0.35,
           useNativeDriver: true,
         }).start();
       });
     }, [hoveredIndex]);
 
     return (
-      <Animated.View
-        style={[
-          styles.bar,
-          {
-            opacity: containerOpacity,
-            transform: [{ scale: containerScale }],
-          },
-        ]}
-      >
-        {REACTIONS.map((key, index) => {
-          const item = REACTION_MAP[key];
-          const scale = itemScales[index];
-          const translateY = itemTranslateYs[index];
+      <View style={styles.container}>
+        {/* White pill background container */}
+        <Animated.View
+          style={[
+            styles.barBg,
+            {
+              opacity: barOpacity,
+              transform: [{ scale: barScale }, { translateY: barTranslateY }],
+            },
+          ]}
+        />
 
-          return (
-            <Animated.View
-              key={key}
-              style={{ transform: [{ scale }, { translateY }] }}
-            >
-              <View style={styles.reactionItem}>
-                <Ionicons name={item.iconName} size={24} color={item.color} />
-                <Text style={[styles.label, { color: item.color }]}>
-                  {item.label}
-                </Text>
-              </View>
-            </Animated.View>
-          );
-        })}
-      </Animated.View>
+        {/* Reaction badges */}
+        <Animated.View
+          style={[
+            styles.badgesRow,
+            {
+              opacity: barOpacity,
+              transform: [{ translateY: barTranslateY }],
+            },
+          ]}
+        >
+          {REACTION_CONFIG.map((item, index) => {
+            const isActive = index === hoveredIndex;
+
+            return (
+              <Animated.View
+                key={item.key}
+                style={[
+                  styles.badgeSlot,
+                  {
+                    transform: [
+                      { scale: itemScales[index] },
+                      { translateY: itemYs[index] },
+                    ],
+                    zIndex: isActive ? 50 : 1,
+                    ...(Platform.OS === 'android' && {
+                      elevation: isActive ? 8 : 0,
+                    }),
+                  },
+                ]}
+              >
+                {/* Compact Floating Tooltip Pill */}
+                {isActive && (
+                  <View style={styles.tooltipPill}>
+                    <Text style={styles.tooltipText} numberOfLines={1}>
+                      {item.label}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Colored circle badge */}
+                <View
+                  style={[styles.iconCircle, { backgroundColor: item.bg }]}
+                >
+                  <Ionicons name={item.icon} size={20} color="#FFFFFF" />
+                </View>
+              </Animated.View>
+            );
+          })}
+        </Animated.View>
+      </View>
     );
   },
 );
 
-/* ── Styles ── */
 const styles = StyleSheet.create({
-  bar: {
-    width: 340,
-    height: 68,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderRadius: 34,
+  container: {
+    width: BAR_WIDTH,
+    height: BAR_HEIGHT,
+    overflow: 'visible' as any,
+  },
+  barBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BAR_HEIGHT / 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  badgesRow: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 6,
-    // Premium glassmorphic shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.06)',
+    justifyContent: 'space-evenly',
+    overflow: 'visible' as any,
+    paddingHorizontal: 8,
   },
-  reactionItem: {
+  badgeSlot: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
-    height: 54,
-    gap: 3,
+    overflow: 'visible' as any,
+    position: 'relative',
   },
-  label: {
-    fontFamily: 'HankenGrotesk-SemiBold',
-    fontSize: 9,
+  iconCircle: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  tooltipPill: {
+    position: 'absolute',
+    top: -22,
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+    alignSelf: 'center',
+  },
+  tooltipText: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 6.5,
+    color: '#FFFFFF',
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: 0,
   },
 });

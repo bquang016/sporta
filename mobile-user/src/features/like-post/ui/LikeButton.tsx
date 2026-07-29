@@ -1,221 +1,215 @@
-import React, { useRef, useCallback } from 'react';
-import { StyleSheet, Text, View, Animated, PanResponder } from 'react-native';
+import React, { useRef, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View, Animated, PanResponder, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLikePost } from '../model/useLikePost';
 import { useReactionOverlay } from './ReactionOverlayContext';
 import { Post } from '../../../entities/post';
-import { REACTION_MAP } from '../../../entities/post/ui/PostCard';
+import { REACTION_MAP } from '../../../entities/post';
 import { COLORS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface LikeButtonProps {
   post: Post;
+  onReactPost?: (postId: string, reaction: any) => void;
 }
 
-export function LikeButton({ post }: LikeButtonProps) {
+export function LikeButton({ post, onReactPost }: LikeButtonProps) {
   const { reactPost } = useLikePost();
   const overlay = useReactionOverlay();
 
-  /* ── Animated scale for tap bounce ── */
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  /* ── Refs for stable PanResponder closure ── */
+  /* ── Refs for stable closure inside PanResponder ── */
   const overlayRef = useRef(overlay);
   overlayRef.current = overlay;
-
   const postRef = useRef(post);
   postRef.current = post;
-
   const reactPostRef = useRef(reactPost);
   reactPostRef.current = reactPost;
+  const onReactPostRef = useRef(onReactPost);
+  onReactPostRef.current = onReactPost;
 
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLongPressingRef = useRef(false);
-  const grantPageYRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressActiveRef = useRef(false);
+  const touchYRef = useRef(0);
 
-  /* ── Bounce micro-animation ── */
-  const triggerBounce = useCallback(() => {
+  const handleApplyReaction = useCallback((reaction: any) => {
+    const p = postRef.current;
+    if (onReactPostRef.current) {
+      onReactPostRef.current(p.id, reaction);
+    }
+    reactPostRef.current({
+      postId: p.id,
+      reaction,
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  /* ── Tap animation (quick like toggle) ── */
+  const animateTap = useCallback(() => {
+    buttonScale.setValue(1);
     Animated.sequence([
-      Animated.spring(buttonScale, {
-        toValue: 0.82,
-        friction: 8,
-        tension: 150,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonScale, {
-        toValue: 1.15,
-        friction: 5,
-        tension: 120,
+      Animated.timing(buttonScale, {
+        toValue: 0.78,
+        duration: 70,
+        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
       Animated.spring(buttonScale, {
         toValue: 1,
-        friction: 8,
-        tension: 100,
+        damping: 6,
+        stiffness: 320,
+        mass: 0.45,
         useNativeDriver: true,
       }),
     ]).start();
   }, [buttonScale]);
 
-  const triggerBounceRef = useRef(triggerBounce);
-  triggerBounceRef.current = triggerBounce;
+  /* ── Select animation (reaction chosen from overlay) ── */
+  const animateSelect = useCallback(() => {
+    buttonScale.setValue(0.92);
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      damping: 10,
+      stiffness: 240,
+      mass: 0.4,
+      useNativeDriver: true,
+    }).start();
+  }, [buttonScale]);
 
-  /* ── PanResponder — single continuous touch gesture ── */
-  const panResponder = useRef(
+  const animateTapRef = useRef(animateTap);
+  animateTapRef.current = animateTap;
+  const animateSelectRef = useRef(animateSelect);
+  animateSelectRef.current = animateSelect;
+
+  /* ── PanResponder: single-touch Facebook-style gesture ── */
+  const pan = useRef(
     PanResponder.create({
-      // Claim the touch immediately
       onStartShouldSetPanResponder: () => true,
+      // Lock responder once long-press fires (block scroll)
+      onPanResponderTerminationRequest: () => !longPressActiveRef.current,
 
-      // Refuse to give up responder once long press is active
-      // (prevents ScrollView from stealing the gesture mid-drag)
-      onPanResponderTerminationRequest: () => !isLongPressingRef.current,
+      onPanResponderGrant: (e) => {
+        touchYRef.current = e.nativeEvent.pageY;
 
-      /* GRANT — finger down */
-      onPanResponderGrant: (evt) => {
-        grantPageYRef.current = evt.nativeEvent.pageY;
-
-        // Subtle press-down visual feedback
-        Animated.spring(buttonScale, {
+        // Subtle press-down
+        Animated.timing(buttonScale, {
           toValue: 0.92,
-          friction: 8,
+          duration: 80,
+          easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }).start();
 
-        // Start 350ms long-press timer
-        longPressTimerRef.current = setTimeout(() => {
-          isLongPressingRef.current = true;
+        // Start 400ms long-press detection
+        timerRef.current = setTimeout(() => {
+          longPressActiveRef.current = true;
 
-          overlayRef.current.show(
-            grantPageYRef.current,
-            (reaction: string) => {
-              // Called when user releases on a reaction
-              triggerBounceRef.current();
-              reactPostRef.current({
-                postId: postRef.current.id,
-                reaction: reaction as any,
-              });
-            },
-          );
-        }, 350);
+          overlayRef.current.show(touchYRef.current, (reaction: string) => {
+            animateSelectRef.current();
+            handleApplyReaction(reaction);
+          });
+        }, 400);
       },
 
-      /* MOVE — finger dragging */
-      onPanResponderMove: (evt, gestureState) => {
-        if (!isLongPressingRef.current) {
-          // Cancel long-press if finger drifted > 10px before timer
-          if (
-            Math.abs(gestureState.dx) > 10 ||
-            Math.abs(gestureState.dy) > 10
-          ) {
-            if (longPressTimerRef.current) {
-              clearTimeout(longPressTimerRef.current);
-              longPressTimerRef.current = null;
+      onPanResponderMove: (e, gs) => {
+        if (!longPressActiveRef.current) {
+          // Cancel long-press if finger drifts > 8px before timer
+          if (Math.abs(gs.dx) > 8 || Math.abs(gs.dy) > 8) {
+            if (timerRef.current) {
+              clearTimeout(timerRef.current);
+              timerRef.current = null;
             }
+            Animated.timing(buttonScale, {
+              toValue: 1,
+              duration: 80,
+              useNativeDriver: true,
+            }).start();
           }
           return;
         }
-
-        // Forward absolute coordinates to the overlay for hover calculation
+        // Forward absolute screen coords to overlay for hover detection
         overlayRef.current.updateHover(
-          evt.nativeEvent.pageX,
-          evt.nativeEvent.pageY,
+          e.nativeEvent.pageX,
+          e.nativeEvent.pageY,
         );
       },
 
-      /* RELEASE — finger lifted */
       onPanResponderRelease: () => {
-        // Clear any pending long-press timer
-        if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
         }
 
-        if (isLongPressingRef.current) {
-          // Was in long-press mode → commit the hovered selection
+        if (longPressActiveRef.current) {
+          // Commit whatever reaction is hovered (or cancel if none)
           overlayRef.current.commitSelection();
-          isLongPressingRef.current = false;
-          // Gentle return-to-normal
-          Animated.spring(buttonScale, {
-            toValue: 1,
-            friction: 8,
-            useNativeDriver: true,
-          }).start();
+          longPressActiveRef.current = false;
         } else {
           // Short tap → toggle standard like
-          triggerBounceRef.current();
+          animateTapRef.current();
           const p = postRef.current;
-          if (p.isLiked) {
-            reactPostRef.current({ postId: p.id, reaction: null });
-          } else {
-            reactPostRef.current({ postId: p.id, reaction: 'like' });
-          }
+          const nextReaction = p.userReaction || p.isLiked ? null : 'like';
+          handleApplyReaction(nextReaction);
         }
       },
 
-      /* TERMINATE — responder stolen (e.g., by ScrollView) */
       onPanResponderTerminate: () => {
-        if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
         }
-        if (isLongPressingRef.current) {
+        if (longPressActiveRef.current) {
           overlayRef.current.hide();
-          isLongPressingRef.current = false;
+          longPressActiveRef.current = false;
         }
-        Animated.spring(buttonScale, {
+        Animated.timing(buttonScale, {
           toValue: 1,
-          friction: 8,
+          duration: 100,
           useNativeDriver: true,
         }).start();
       },
     }),
   ).current;
 
-  /* ── Derived reaction state ── */
-  const activeReaction = post.userReaction
-    ? REACTION_MAP[post.userReaction]
-    : null;
+  /* ── Derived UI state ── */
+  const active = post.userReaction ? REACTION_MAP[post.userReaction] : null;
+  const isLikedStandard = !active && post.isLiked;
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <View style={styles.container} {...pan.panHandlers}>
       <Animated.View
-        style={[
-          styles.actionButtonInner,
-          { transform: [{ scale: buttonScale }] },
-        ]}
+        style={[styles.inner, { transform: [{ scale: buttonScale }] }]}
       >
-        {activeReaction ? (
-          <Ionicons
-            name={activeReaction.iconName}
-            size={20}
-            color={activeReaction.color}
-          />
+        {active ? (
+          <Ionicons name={active.iconName} size={20} color={active.color} />
         ) : (
           <Ionicons
-            name={post.isLiked ? 'heart' : 'heart-outline'}
+            name={isLikedStandard ? 'thumbs-up' : 'thumbs-up-outline'}
             size={20}
-            color={post.isLiked ? '#EF4444' : COLORS.onSurface}
+            color={isLikedStandard ? COLORS.primary : COLORS.onSurfaceVariant}
           />
         )}
         <Text
           style={[
-            styles.actionText,
-            post.isLiked && styles.actionTextLiked,
-            activeReaction && { color: activeReaction.color },
+            styles.label,
+            isLikedStandard && styles.labelLiked,
+            active && { color: active.color, fontWeight: '700' },
           ]}
         >
-          {activeReaction ? activeReaction.label : 'Thích'}
+          {active ? active.label : 'Thích'}
         </Text>
       </Animated.View>
     </View>
   );
 }
 
-/* ── Styles ── */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  actionButtonInner: {
+  container: { flex: 1 },
+  inner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -223,13 +217,13 @@ const styles = StyleSheet.create({
     gap: 6,
     width: '100%',
   },
-  actionText: {
+  label: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
+    color: COLORS.onSurfaceVariant,
     fontSize: 13,
   },
-  actionTextLiked: {
-    color: '#EF4444',
+  labelLiked: {
+    color: COLORS.primary,
     fontWeight: '700',
   },
 });

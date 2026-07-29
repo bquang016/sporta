@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mockCommunityDb } from '../../../shared/api/mockCommunityDb';
+import { likePostApi } from '../../../shared/api/posts';
 import { Post } from '../../../entities/post';
 
 interface InfiniteFeedData {
@@ -21,9 +22,12 @@ export function useLikePost() {
       postId: string;
       reaction: 'like' | 'love' | 'fire' | 'muscle' | 'trophy' | null;
     }) => {
-      return mockCommunityDb.reactPost(postId, reaction);
+      // Cập nhật local mock DB (dùng cho optimistic update state sync)
+      mockCommunityDb.reactPost(postId, reaction);
+      // Gọi API thật lên Spring Boot Backend
+      await likePostApi(postId);
     },
-    // Optimistic Update
+    // Optimistic Update — cập nhật UI tức thì, rollback nếu lỗi
     onMutate: async ({ postId, reaction }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['community-feed'] });
@@ -41,8 +45,8 @@ export function useLikePost() {
               ...page,
               data: page.data.map((post) => {
                 if (post.id === postId) {
-                  let isLiked = post.isLiked;
-                  let likeCount = post.likeCount;
+                  let isLiked = !!post.isLiked;
+                  let likeCount = post.likeCount || 0;
 
                   if (reaction === null) {
                     if (isLiked) {
@@ -78,10 +82,6 @@ export function useLikePost() {
       if (context?.previousFeed) {
         queryClient.setQueryData(['community-feed'], context.previousFeed);
       }
-    },
-    // Always refetch or invalidate after success or error to stay in sync
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['community-feed'] });
     },
   });
 
