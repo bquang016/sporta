@@ -128,7 +128,9 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
           const nextReaction = reaction;
           const isLiked = !!nextReaction;
 
-          const newReactionsCount = { ...p.reactionsCount };
+          const newReactionsCount = {
+            ...(p.reactionsCount || { like: p.likesCount || p.likeCount || 0, love: 0, fire: 0, clap: 0 }),
+          };
 
           // Decrement previous reaction count if existed
           if (oldReaction && newReactionsCount[oldReaction as keyof typeof newReactionsCount] !== undefined) {
