@@ -1,10 +1,8 @@
 import { Platform } from 'react-native';
 import { getBaseUrl } from './config';
 
-const BASE_URL = `${getBaseUrl()}/auth`;
-
 export const loginApi = async (email: string, password: string) => {
-  const response = await fetch(`${BASE_URL}/login`, {
+  const response = await fetch(`${getBaseUrl()}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -14,14 +12,14 @@ export const loginApi = async (email: string, password: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to login');
+    throw new Error(errorData.message || 'Email hoặc mật khẩu không đúng');
   }
 
   return response.json();
 };
 
 export const sendOtp = async (email: string) => {
-  const response = await fetch(`${BASE_URL}/send-otp`, {
+  const response = await fetch(`${getBaseUrl()}/auth/send-otp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -31,14 +29,14 @@ export const sendOtp = async (email: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to send OTP');
+    throw new Error(errorData.message || 'Gửi mã OTP thất bại');
   }
 
   return response.json();
 };
 
 export const verifyOtp = async (email: string, otp: string) => {
-  const response = await fetch(`${BASE_URL}/verify-otp`, {
+  const response = await fetch(`${getBaseUrl()}/auth/verify-otp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -48,14 +46,14 @@ export const verifyOtp = async (email: string, otp: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to verify OTP');
+    throw new Error(errorData.message || 'Mã OTP không hợp lệ');
   }
 
   return response.json();
 };
 
 export const registerUser = async (data: any) => {
-  const response = await fetch(`${BASE_URL}/register`, {
+  const response = await fetch(`${getBaseUrl()}/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -65,14 +63,14 @@ export const registerUser = async (data: any) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to register user');
+    throw new Error(errorData.message || 'Đăng ký tài khoản thất bại');
   }
 
   return response.json();
 };
 
 export const googleLoginApi = async (idToken: string) => {
-  const response = await fetch(`${BASE_URL}/google-login`, {
+  const response = await fetch(`${getBaseUrl()}/auth/google-login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

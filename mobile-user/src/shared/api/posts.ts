@@ -67,6 +67,13 @@ export const fetchPostsApi = async (): Promise<Post[]> => {
         promoCode: item.promoCode,
         discountText: item.discountText,
         likesCount: item.likeCount || 0,
+        likeCount: item.likeCount || 0,
+        reactionsCount: {
+          like: item.likeCount || 0,
+          love: 0,
+          fire: 0,
+          clap: 0,
+        },
         commentsCount: item.commentCount || 0,
         sharesCount: item.shareCount || 0,
       }));
@@ -120,6 +127,8 @@ export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> =
       type: item.type || 'COMMUNITY',
       audience: item.audience || 'PUBLIC',
       likesCount: 0,
+      likeCount: 0,
+      reactionsCount: { like: 0, love: 0, fire: 0, clap: 0 },
       commentsCount: 0,
       sharesCount: 0,
     };
@@ -135,6 +144,8 @@ export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> =
       type: newPostData.type || 'COMMUNITY',
       audience: newPostData.audience || 'PUBLIC',
       likesCount: 0,
+      likeCount: 0,
+      reactionsCount: { like: 0, love: 0, fire: 0, clap: 0 },
       commentsCount: 0,
       sharesCount: 0,
     };

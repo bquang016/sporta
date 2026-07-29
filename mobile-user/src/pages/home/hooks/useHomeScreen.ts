@@ -6,6 +6,7 @@ import { useFacilities } from '../../../entities/facility';
 import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { clubStore } from '../../../entities/club';
 import { useAlert } from '../../../shared/contexts/AlertContext';
+import { getBaseUrl } from '../../../shared/api/config';
 
 export function useHomeScreen() {
   const router = useRouter();
@@ -20,12 +21,6 @@ export function useHomeScreen() {
     error: ticketSessionsError,
     refetch: refetchTicketSessions,
   } = useTicketSessions();
-
-  const getApiUrl = () => {
-    if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'http://localhost:8387/api/v1';
-  };
 
   const checkAuth = async () => {
     try {
@@ -43,8 +38,12 @@ export function useHomeScreen() {
       }
 
       if (token) {
+        setIsAuthenticated(true);
+        setUserName(name || 'Thành viên');
+        setUserAvatar(avatar || null);
+
         try {
-          const response = await fetch(`${getApiUrl()}/auth/ping`, {
+          const response = await fetch(`${getBaseUrl()}/auth/ping`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -69,27 +68,26 @@ export function useHomeScreen() {
               return;
             }
           }
-          
-          if (!response.ok) throw new Error('Token không hợp lệ');
 
-          setIsAuthenticated(true);
-          setUserName(name || 'Thành viên');
-          setUserAvatar(avatar || null);
-        } catch (e) {
-          if (Platform.OS === 'web') {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userEmail');
-            localStorage.removeItem('userAvatar');
-          } else {
-            await SecureStore.deleteItemAsync('accessToken');
-            await SecureStore.deleteItemAsync('userName');
-            await SecureStore.deleteItemAsync('userEmail');
-            await SecureStore.deleteItemAsync('userAvatar');
+          if (response.status === 401) {
+            if (Platform.OS === 'web') {
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('userName');
+              localStorage.removeItem('userEmail');
+              localStorage.removeItem('userAvatar');
+            } else {
+              await SecureStore.deleteItemAsync('accessToken');
+              await SecureStore.deleteItemAsync('userName');
+              await SecureStore.deleteItemAsync('userEmail');
+              await SecureStore.deleteItemAsync('userAvatar');
+            }
+            setIsAuthenticated(false);
+            setUserName('Khách');
+            setUserAvatar(null);
           }
-          setIsAuthenticated(false);
-          setUserName('Khách');
-          setUserAvatar(null);
+        } catch (e) {
+          // Tránh xóa token khi gặp lỗi mạng (ví dụ mất kết nối tạm thời)
+          console.log('checkAuth ping network error, keeping local session');
         }
       } else {
         setIsAuthenticated(false);
