@@ -99,12 +99,12 @@ export function AuthRequiredModal({
 
   const handleLogin = () => {
     animateClose();
-    setTimeout(() => router.push('/auth/login' as any), 250);
+    setTimeout(() => router.push('/(auth)/login' as any), 250);
   };
 
   const handleRegister = () => {
     animateClose();
-    setTimeout(() => router.push('/auth/register' as any), 250);
+    setTimeout(() => router.push('/(auth)/register' as any), 250);
   };
 
   if (!visible) return null;
