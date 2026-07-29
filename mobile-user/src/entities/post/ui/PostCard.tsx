@@ -27,11 +27,12 @@ export const PostCard = React.memo(({
   onClubPress,
   onOptionPress,
 }: PostCardProps) => {
-  const totalReactions =
-    post.reactionsCount.like +
-    post.reactionsCount.love +
-    post.reactionsCount.fire +
-    post.reactionsCount.clap;
+  const totalReactions = post.reactionsCount
+    ? (post.reactionsCount.like || 0) +
+      (post.reactionsCount.love || 0) +
+      (post.reactionsCount.fire || 0) +
+      (post.reactionsCount.clap || 0)
+    : (post.likeCount || post.likesCount || 0);
 
   return (
     <View style={styles.cardContainer}>
