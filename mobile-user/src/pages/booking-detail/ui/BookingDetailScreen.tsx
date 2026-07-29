@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Modal, Image,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -198,7 +199,7 @@ export function BookingDetailScreen() {
           <View style={styles.tsModalCard}>
             <View style={styles.tsModalHeader}>
               <View style={styles.tsModalIconBox}>
-                <MaterialIcons name="confirmation-number" size={26} color="#8B5CF6" />
+                <MaterialIcons name="confirmation-number" size={26} color={COLORS.primary} />
               </View>
               <Text style={styles.tsModalTitle}>Khung giờ Xé Vé</Text>
             </View>
@@ -237,7 +238,7 @@ export function BookingDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <ScrollView style={styles.content} bounces={false}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} bounces={false}>
         {/* Venue Info */}
         <Card style={styles.venueCard} padding="md">
           <View style={styles.venueCardContent}>
@@ -245,13 +246,13 @@ export function BookingDetailScreen() {
               <Text style={styles.venueName} numberOfLines={2}>{venue.name}</Text>
               {venue.ownerPhone ? (
                 <View style={styles.venuePhoneRow}>
-                  <MaterialIcons name="phone" size={16} color={COLORS.secondary} />
+                  <MaterialIcons name="phone" size={16} color={COLORS.primary} />
                   <Text style={styles.venuePhoneText}>{venue.ownerPhone}</Text>
                 </View>
               ) : null}
               {venue.location ? (
                 <View style={styles.venueLocationRow}>
-                  <MaterialIcons name="location-on" size={16} color={COLORS.secondary} />
+                  <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
                   <Text style={styles.venueLocationText} numberOfLines={2}>{venue.location}</Text>
                 </View>
               ) : null}
@@ -260,7 +261,7 @@ export function BookingDetailScreen() {
               <Image source={{ uri: venue.coverImage }} style={styles.venueImage} />
             ) : (
               <View style={[styles.venueImage, styles.venueImagePlaceholder]}>
-                <MaterialIcons name="image" size={32} color={COLORS.whiteOpacity70} />
+                <MaterialIcons name="image" size={32} color={COLORS.onSurfaceVariant} />
               </View>
             )}
           </View>
@@ -279,23 +280,26 @@ export function BookingDetailScreen() {
         />
       </ScrollView>
 
-      {/* Bottom bar */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + SPACING.md }]}>
-        <View style={styles.priceContainer}>
-          <Text style={styles.selectedCountText}>
-            Đã chọn: {selectedSlotList.length} khung giờ
-          </Text>
-          <Text style={styles.totalPriceText}>
-            {totalPrice.toLocaleString('vi-VN')}đ
-          </Text>
-        </View>
-        <Button
-          title="Tiếp tục"
-          icon={<MaterialIcons name="arrow-forward" size={20} color={COLORS.onSecondary} />}
-          iconPosition="right"
-          onPress={handleContinue}
-          disabled={selectedSlotList.length === 0}
-        />
+      {/* Floating Bottom bar */}
+      <View style={[styles.bottomBarWrapper, { bottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
+        <BlurView intensity={90} tint="light" style={styles.bottomBar}>
+          <View style={styles.priceContainer}>
+            <Text style={styles.selectedCountText}>
+              Đã chọn: {selectedSlotList.length} khung giờ
+            </Text>
+            <Text style={styles.totalPriceText}>
+              {totalPrice.toLocaleString('vi-VN')}đ
+            </Text>
+          </View>
+          <Button
+            title="Tiếp tục"
+            icon={<MaterialIcons name="arrow-forward" size={20} color={COLORS.onSecondary} />}
+            iconPosition="right"
+            onPress={handleContinue}
+            disabled={selectedSlotList.length === 0}
+            style={styles.continueBtn}
+          />
+        </BlurView>
       </View>
     </View>
   );
@@ -324,21 +328,46 @@ const styles = StyleSheet.create({
   iconBtn: { padding: SPACING.xs },
 
   content: { flex: 1, padding: SPACING.md },
-  venueCard: { marginBottom: SPACING.md, backgroundColor: COLORS.primary, borderWidth: 0 },
+  contentContainer: { paddingBottom: 120 },
+  venueCard: { 
+    marginBottom: SPACING.md, 
+    backgroundColor: COLORS.surface, 
+    borderWidth: 0,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   venueCardContent: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   venueInfoContent: { flex: 1, gap: SPACING.xs },
-  venueName: { ...TYPOGRAPHY.headlineMd, color: COLORS.secondary },
+  venueName: { ...TYPOGRAPHY.headlineMd, color: COLORS.primary },
   venuePhoneRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-  venuePhoneText: { ...TYPOGRAPHY.labelMd, color: COLORS.onPrimary },
+  venuePhoneText: { ...TYPOGRAPHY.labelMd, color: COLORS.onSurfaceVariant },
   venueLocationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.xs },
-  venueLocationText: { ...TYPOGRAPHY.labelSm, color: COLORS.onPrimary, flex: 1, marginTop: 2, opacity: 0.9 },
-  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.primaryOpacity15 },
+  venueLocationText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant, flex: 1, marginTop: 2 },
+  venueImage: { width: 80, height: 80, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.surfaceVariant },
   venueImagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
 
+  bottomBarWrapper: {
+    position: 'absolute',
+    left: SPACING.md,
+    right: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: 'hidden',
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   bottomBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md, paddingTop: SPACING.md,
-    backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.outlineVariant,
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  continueBtn: {
+    paddingHorizontal: SPACING.lg,
   },
   priceContainer: { flex: 1 },
   selectedCountText: { ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant },
@@ -379,7 +408,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    backgroundColor: COLORS.primaryOpacity12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -415,7 +444,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.default,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: COLORS.primary,
   },
   tsModalPrimaryText: {
     ...TYPOGRAPHY.labelMd,
