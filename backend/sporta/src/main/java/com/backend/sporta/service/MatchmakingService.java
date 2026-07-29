@@ -35,22 +35,11 @@ public class MatchmakingService {
     private final EloRatingService eloRatingService;
 
     /**
-     * Tính toán Dynamic TTL cho Luồng 2 (Cọc giữ chỗ)
+     * Tính toán Dynamic TTL cho Luồng 2 (Cọc giữ chỗ) - Mặc định giữ phòng an toàn
      */
     public LocalDateTime calculateDynamicTTL(LocalDateTime matchStartTime) {
-        LocalDateTime now = LocalDateTime.now();
-        Duration duration = Duration.between(now, matchStartTime);
-        long hoursUntilMatch = duration.toHours();
-
-        if (hoursUntilMatch < 6) {
-            throw new IllegalArgumentException("Sát giờ thi đấu, vui lòng mua đứt sân để ghép trận.");
-        } else if (hoursUntilMatch <= 24) {
-            return now.plusMinutes(30);
-        } else if (hoursUntilMatch <= 48) {
-            return now.plusHours(1);
-        } else {
-            return now.plusHours(2);
-        }
+        if (matchStartTime == null) return LocalDateTime.now().plusHours(48);
+        return matchStartTime.plusHours(2);
     }
 
     @Transactional
@@ -85,6 +74,10 @@ public class MatchmakingService {
             if (req.getBookingId() == null) {
                 throw new IllegalArgumentException("Luồng 1 phải chọn Booking đã thanh toán 100%");
             }
+            List<java.util.UUID> usedIds = matchRoomRepository.findUsedBookingIds();
+            if (usedIds.contains(req.getBookingId())) {
+                throw new IllegalArgumentException("Sân đặt này đã được sử dụng tạo phòng ghép trận trước đó.");
+            }
             Booking booking = bookingRepository.findById(req.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
             room.setBooking(booking);
@@ -104,14 +97,34 @@ public class MatchmakingService {
         return mapToDTO(room);
     }
 
-    public List<MatchRoomDTO> getOpenMatchRooms() {
-        return matchRoomRepository.findByStatusOrderByCreatedAtDesc(MatchRoomStatus.OPEN)
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
+    public List<java.util.UUID> getUsedBookingIds() {
+        return matchRoomRepository.findUsedBookingIds();
     }
 
+    @Transactional
+    public List<MatchRoomDTO> getOpenMatchRooms() {
+        LocalDateTime now = LocalDateTime.now();
+        // Auto-heal any old EXPIRED rooms back to OPEN
+        List<MatchRoom> expiredRooms = matchRoomRepository.findByStatusOrderByCreatedAtDesc(MatchRoomStatus.EXPIRED);
+        for (MatchRoom r : expiredRooms) {
+            r.setStatus(MatchRoomStatus.OPEN);
+            matchRoomRepository.save(r);
+        }
+        return matchRoomRepository.findByStatusOrderByCreatedAtDesc(MatchRoomStatus.OPEN)
+                .stream()
+                .filter(r -> r.getExpectedStartTime() == null || r.getExpectedStartTime().isAfter(now))
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
     public MatchRoomDTO getMatchRoomById(Long roomId) {
         MatchRoom room = matchRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match room not found"));
+        if (room.getStatus() == MatchRoomStatus.EXPIRED) {
+            room.setStatus(MatchRoomStatus.OPEN);
+            room = matchRoomRepository.save(room);
+        }
         return mapToDTO(room);
     }
 
@@ -122,8 +135,16 @@ public class MatchmakingService {
     public MatchApplicationDTO applyToMatchRoom(Long matchRoomId, Long clubId, Long userId) {
         MatchRoom room = matchRoomRepository.findById(matchRoomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match room not found"));
+        if (room.getStatus() == MatchRoomStatus.EXPIRED) {
+            room.setStatus(MatchRoomStatus.OPEN);
+            room = matchRoomRepository.save(room);
+        }
         if (room.getStatus() != MatchRoomStatus.OPEN) {
             throw new IllegalStateException("Phòng ghép trận không ở trạng thái mở");
+        }
+
+        if (room.getCreatorClub().getId().equals(clubId)) {
+            throw new IllegalArgumentException("Không thể gửi yêu cầu ghép trận với chính câu lạc bộ của bạn");
         }
 
         Club applicantClub = clubRepository.findById(clubId)
@@ -164,11 +185,28 @@ public class MatchmakingService {
             throw new IllegalArgumentException("Chỉ chủ phòng Đội A mới được chốt kèo");
         }
 
+        if (room.getStatus() != MatchRoomStatus.OPEN) {
+            throw new IllegalStateException("Phòng ghép trận không ở trạng thái mở");
+        }
+
         MatchApplication app = matchApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
 
+        if (!app.getMatchRoom().getId().equals(matchRoomId)) {
+            throw new IllegalArgumentException("Đơn xin gia nhập không thuộc phòng ghép trận này");
+        }
+
         app.setStatus(MatchApplicationStatus.ACCEPTED);
         matchApplicationRepository.save(app);
+
+        // Từ chối tất cả các đơn đăng ký khác của phòng này
+        List<MatchApplication> otherPendingApps = matchApplicationRepository.findByMatchRoomIdAndStatus(matchRoomId, MatchApplicationStatus.PENDING);
+        for (MatchApplication otherApp : otherPendingApps) {
+            if (!otherApp.getId().equals(applicationId)) {
+                otherApp.setStatus(MatchApplicationStatus.REJECTED);
+                matchApplicationRepository.save(otherApp);
+            }
+        }
 
         room.setMatchedClub(app.getApplicantClub());
 
@@ -180,6 +218,57 @@ public class MatchmakingService {
             room.setTtlExpiresAt(LocalDateTime.now().plusMinutes(15));
         }
 
+        room = matchRoomRepository.save(room);
+        return mapToDTO(room);
+    }
+
+    /**
+     * Đội A chọn sân thi đấu từ danh sách gợi ý hệ thống (Luồng 2)
+     */
+    @Transactional
+    public MatchRoomDTO selectVenue(Long matchRoomId, SelectVenueRequest req, Long userId) {
+        MatchRoom room = matchRoomRepository.findById(matchRoomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match room not found"));
+        if (!room.getCreatorUser().getId().equals(userId) && !room.getCreatorClub().getCreator().getId().equals(userId)) {
+            throw new IllegalArgumentException("Chỉ chủ phòng Đội A mới được chọn sân");
+        }
+
+        if (req.getCourtId() != null) {
+            Court court = courtRepository.findById(req.getCourtId()).orElse(null);
+            if (court != null) {
+                room.setCourt(court);
+            }
+        }
+
+        if (room.getCourt() == null) {
+            List<Court> allCourts = courtRepository.findAll();
+            if (!allCourts.isEmpty()) {
+                room.setCourt(allCourts.get(0));
+            }
+        }
+
+        if (req.getHourlyPrice() != null) {
+            room.setPriceSharePerTeam(req.getHourlyPrice().divide(BigDecimal.valueOf(2)));
+        }
+
+        room.setStatus(MatchRoomStatus.CONFIRMED);
+        room = matchRoomRepository.save(room);
+        return mapToDTO(room);
+    }
+
+    /**
+     * Hủy phòng ghép trận (Mất tiền cọc giữ chỗ)
+     */
+    @Transactional
+    public MatchRoomDTO cancelMatchRoom(Long matchRoomId, Long userId) {
+        MatchRoom room = matchRoomRepository.findById(matchRoomId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match room not found"));
+
+        if (!room.getCreatorUser().getId().equals(userId) && !room.getCreatorClub().getCreator().getId().equals(userId)) {
+            throw new IllegalArgumentException("Chỉ chủ phòng mới được hủy phòng ghép trận");
+        }
+
+        room.setStatus(MatchRoomStatus.CANCELLED);
         room = matchRoomRepository.save(room);
         return mapToDTO(room);
     }
@@ -232,17 +321,17 @@ public class MatchmakingService {
         if (yesCount >= poll.getRequiredVotes()) {
             poll.setIsUnlocked(true);
         }
-        poll = matchPollRepository.save(poll);
+        MatchPoll updatedPoll = matchPollRepository.save(poll);
 
         return MatchPollDTO.builder()
-                .id(poll.getId())
+                .id(updatedPoll.getId())
                 .matchRoomId(room.getId())
                 .clubId(club.getId())
-                .requiredVotes(poll.getRequiredVotes())
-                .currentYesVotes(poll.getCurrentYesVotes())
-                .isUnlocked(poll.getIsUnlocked())
+                .requiredVotes(updatedPoll.getRequiredVotes())
+                .currentYesVotes(updatedPoll.getCurrentYesVotes())
+                .isUnlocked(updatedPoll.getIsUnlocked())
                 .userVotedYes(isAttending)
-                .createdAt(poll.getCreatedAt())
+                .createdAt(updatedPoll.getCreatedAt())
                 .build();
     }
 
@@ -306,8 +395,8 @@ public class MatchmakingService {
             }
         }
 
-        room = matchRoomRepository.save(room);
-        return mapToDTO(room);
+        MatchRoom updatedRoom = matchRoomRepository.save(room);
+        return mapToDTO(updatedRoom);
     }
 
     /**

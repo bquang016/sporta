@@ -5,41 +5,94 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { matchmakingApi, MatchRoom, MatchApplication, MatchPoll } from '../../../shared/api/matchmaking';
+import {
+  matchmakingApi,
+  MatchRoom,
+  MatchApplication,
+} from '../../../shared/api/matchmaking';
 import { getSuggestedVenuesApi, VenueSuggestion } from '../../../shared/api/bookings';
-import { Button } from '../../../shared/ui';
+import { usersApi } from '../../../shared/api/users';
+import { getJoinedClubsApi } from '../../../shared/api/clubs';
+import { Button, Card, AlertModal } from '../../../shared/ui';
+import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 
 export function MatchRoomDetailScreen({ route, navigation }: any) {
-  const roomId = route?.params?.roomId || 1;
+  const roomId = route?.params?.roomId ? Number(route.params.roomId) : 1;
+
   const [room, setRoom] = useState<MatchRoom | null>(null);
   const [applications, setApplications] = useState<MatchApplication[]>([]);
-  const [poll, setPoll] = useState<MatchPoll | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Venue Suggestion Modal States
+
+  // Dynamic Logged-In User Profile & Joined Clubs
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  const [myUserClubs, setMyUserClubs] = useState<any[]>([]);
+  const [myClubId, setMyClubId] = useState<number | null>(null);
+
+  // Venue Selection Modal
   const [showVenueModal, setShowVenueModal] = useState(false);
   const [suggestedVenues, setSuggestedVenues] = useState<VenueSuggestion[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<VenueSuggestion | null>(null);
   const [loadingVenues, setLoadingVenues] = useState(false);
 
-  const [isManagerB] = useState(false);
-  const [myUserId] = useState(1);
-  const [myClubId] = useState(1);
+  // Cancel Confirmation Modal State
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Alert Modal State
+  const [alertModalConfig, setAlertModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttonText?: string;
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const loadDetail = async () => {
     try {
       setLoading(true);
+      // 1. Fetch current logged-in user profile
+      try {
+        const profile = await usersApi.getProfile();
+        if (profile?.id) setMyUserId(profile.id);
+      } catch (e) {
+        console.log('Profile fetch notice:', e);
+      }
+
+      // 2. Fetch match room detail
       const data = await matchmakingApi.getMatchRoomById(roomId);
       setRoom(data);
+
+      // 3. Fetch applications for this room
       const apps = await matchmakingApi.getApplicationsForRoom(roomId);
       setApplications(apps);
+
+      // 4. Fetch joined clubs for Side B selection & creator verification
+      try {
+        const joinedClubs = await getJoinedClubsApi();
+        if (joinedClubs && Array.isArray(joinedClubs)) {
+          setMyUserClubs(joinedClubs);
+          const otherClub = joinedClubs.find((c: any) => Number(c.id) !== Number(data.creatorClubId));
+          if (otherClub) setMyClubId(otherClub.id);
+          else setMyClubId(null);
+        } else {
+          setMyUserClubs([]);
+          setMyClubId(null);
+        }
+      } catch (e) {
+        console.log('Clubs fetch notice:', e);
+        setMyUserClubs([]);
+        setMyClubId(null);
+      }
     } catch (err) {
       console.log('Error loading room detail:', err);
     } finally {
@@ -51,11 +104,28 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
     loadDetail();
   }, [roomId]);
 
+  // ── Open Suggested Venues (Chỉ dành cho Chủ phòng Đội A) ─────────────────
   const handleOpenVenueSuggestions = async () => {
+    if (!room) return;
+    const isCreatorByUserId = myUserId !== null && Number(room.creatorUserId) === Number(myUserId);
+    const isCreatorByClub = myUserClubs.some((c: any) => Number(c.id) === Number(room.creatorClubId));
+    const isCreator = isCreatorByUserId || isCreatorByClub || (myUserId === null && (room.creatorUserId === 1 || myUserClubs.length === 0));
+
+    if (!isCreator) {
+      setAlertModalConfig({
+        visible: true,
+        title: 'Không có quyền ⚠️',
+        message: 'Chỉ có Chủ phòng (Đội A) mới có quyền chọn Sân thi đấu từ danh sách gợi ý!',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+      return;
+    }
+
     try {
       setLoadingVenues(true);
       setShowVenueModal(true);
-      const venues = await getSuggestedVenuesApi(room?.sportId, room?.latitude, room?.longitude);
+      const venues = await getSuggestedVenuesApi(room.sportId, room.latitude, room.longitude);
       if (venues && venues.length > 0) {
         setSuggestedVenues(venues);
       } else {
@@ -72,256 +142,552 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
     }
   };
 
-  const handleConfirmVenueSelection = (venue: VenueSuggestion) => {
+  // ── Confirm Venue Choice (Chủ phòng Đội A) ────────────────────────────────
+  const handleConfirmVenueSelection = async (venue: VenueSuggestion) => {
     setSelectedVenue(venue);
     setShowVenueModal(false);
-    Alert.alert('Đã chọn sân 🎉', `Đã chọn ${venue.name}. Giá tiền cưa đôi tự động cập nhật: ${(venue.hourlyPrice / 2).toLocaleString()} đ/đội!`);
-  };
-
-  const handleApplyDirect = async () => {
+    const activeUserId = myUserId || room?.creatorUserId || 1;
+    
     try {
-      await matchmakingApi.applyToMatchRoom(roomId, myClubId, myUserId);
-      Alert.alert('Thành công 🎉', 'Đã gửi yêu cầu ghép trận đến Chủ phòng Đội A!');
-      loadDetail();
+      await matchmakingApi.selectVenue(roomId, {
+        courtId: venue.id ? Number(venue.id.replace(/\D/g, '')) || undefined : undefined,
+        courtName: venue.name,
+        venueName: venue.address,
+        hourlyPrice: venue.hourlyPrice,
+      }, activeUserId);
+
+      setAlertModalConfig({
+        visible: true,
+        title: 'Đã chốt sân thành công 🎉',
+        message: `Chủ phòng đã chọn ${venue.name}.\nBảng tính giá tiền cưa đôi 50/50 đã được cập nhật tự động!`,
+        buttonText: 'Xem chi tiết',
+        onConfirm: () => {
+          setAlertModalConfig(prev => ({ ...prev, visible: false }));
+          loadDetail();
+        },
+      });
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.response?.data?.message || err.message || 'Không thể gửi đơn xin');
+      const errMsg = err?.message || 'Không thể chốt sân thi đấu';
+      setAlertModalConfig({
+        visible: true,
+        title: 'Lỗi chọn sân ❌',
+        message: errMsg,
+        buttonText: 'Đóng',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
     }
   };
 
-  const handleVotePoll = async (isAttending: boolean) => {
+  // ── Team B Apply to Match ─────────────────────────────────────────────────
+  const handleApplyToMatch = async () => {
+    if (isCreatorA) {
+      setAlertModalConfig({
+        visible: true,
+        title: 'Thao tác không hợp lệ ⚠️',
+        message: 'Bạn là Chủ phòng (Đội A) của trận đấu này nên không thể gửi yêu cầu ghép trận.',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+      return;
+    }
+    if (!myClubId) {
+      setAlertModalConfig({
+        visible: true,
+        title: 'Chưa có Câu lạc bộ hợp lệ ⚠️',
+        message: 'Bạn cần gia nhập hoặc tạo một Câu lạc bộ (khác với Đội A) để gửi yêu cầu ghép trận.',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+      return;
+    }
+    const activeUserId = myUserId || 2;
     try {
-      const res = await matchmakingApi.voteInternalPoll(roomId, myClubId, myUserId, isAttending);
-      setPoll(res);
-      Alert.alert('Ghi nhận', isAttending ? 'Bạn đã vote CÓ THỂ ĐÁ!' : 'Bạn đã vote KHÔNG THỂ ĐÁ.');
+      await matchmakingApi.applyToMatchRoom(roomId, myClubId, activeUserId);
+      setAlertModalConfig({
+        visible: true,
+        title: 'Đã gửi yêu cầu 🤝',
+        message: 'Yêu cầu ghép trận đã được gửi tới Chủ phòng (Đội A). Vui lòng chờ Chủ phòng duyệt!',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => {
+          setAlertModalConfig(prev => ({ ...prev, visible: false }));
+          loadDetail();
+        },
+      });
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.response?.data?.message || err.message);
+      const errMsg = err?.message || 'Không thể gửi đơn xin ghép trận';
+      setAlertModalConfig({
+        visible: true,
+        title: 'Lỗi gửi yêu cầu ❌',
+        message: errMsg,
+        buttonText: 'Thử lại',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
     }
   };
 
-  const handleAcceptApp = async (appId: number) => {
+  // ── Creator Accepts Applicant (Ghép Đội) ──────────────────────────────────
+  const handleAcceptApplicant = async (app: MatchApplication) => {
+    const activeUserId = myUserId || room?.creatorUserId || 1;
     try {
-      await matchmakingApi.acceptApplication(roomId, appId, myUserId);
-      Alert.alert('Đã chốt kèo 🤝', '2 bên đã chấp thuận ghép trận! Vui lòng chọn Sân từ gợi ý hệ thống.');
-      loadDetail();
-      handleOpenVenueSuggestions();
+      await matchmakingApi.acceptApplication(roomId, app.id, activeUserId);
+      setAlertModalConfig({
+        visible: true,
+        title: 'Đã chấp nhận ghép đội 🤝',
+        message: `Hai bên (${room?.creatorClubName} vs ${app.applicantClubName}) đã đồng ý ghép trận!\n\nTiếp theo: Chủ phòng hãy chọn Sân từ gợi ý hệ thống để chốt giờ & tính tiền cưa đôi.`,
+        buttonText: '📍 Chọn Sân Ngay',
+        onConfirm: () => {
+          setAlertModalConfig(prev => ({ ...prev, visible: false }));
+          loadDetail();
+          handleOpenVenueSuggestions();
+        },
+      });
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.response?.data?.message || err.message);
+      const errMsg = err?.message || 'Không thể chấp nhận yêu cầu';
+      setAlertModalConfig({
+        visible: true,
+        title: 'Thao tác thất bại ❌',
+        message: errMsg,
+        buttonText: 'Đóng',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+    }
+  };
+
+  // ── Cancel Room (Hủy phòng - Mất cọc) ────────────────────────────────────
+  const handleConfirmCancelRoom = async () => {
+    setShowCancelModal(false);
+    const activeUserId = myUserId || 1;
+    try {
+      await matchmakingApi.cancelMatchRoom(roomId, activeUserId);
+      setAlertModalConfig({
+        visible: true,
+        title: 'Đã hủy phòng ghép trận ❌',
+        message: 'Phòng ghép trận đã bị hủy. Tiền cọc giữ chỗ (50.000đ) đã bị cấn trừ theo quy định.',
+        buttonText: 'Quay lại danh sách',
+        onConfirm: () => {
+          setAlertModalConfig(prev => ({ ...prev, visible: false }));
+          navigation?.goBack?.();
+        },
+      });
+    } catch (err: any) {
+      const errMsg = err?.message || 'Không thể hủy phòng';
+      setAlertModalConfig({
+        visible: true,
+        title: 'Lỗi hủy phòng ❌',
+        message: errMsg,
+        buttonText: 'Đóng',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
     }
   };
 
   if (loading || !room) {
     return (
-      <View style={styles.center}>
+      <View style={styles.centerLoading}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Đang tải chi tiết phòng...</Text>
       </View>
     );
   }
 
-  const isCreatorA = room.creatorUserId === myUserId;
-  const currentVenuePrice = selectedVenue ? selectedVenue.hourlyPrice : (room.priceSharePerTeam ? room.priceSharePerTeam * 2 : undefined);
-  const priceShare = currentVenuePrice ? currentVenuePrice / 2.0 : undefined;
+  // ── Dynamic Role & Status Checks ──────────────────────────────────────────
+  const isCreatorByUserId = myUserId !== null && Number(room.creatorUserId) === Number(myUserId);
+  const isCreatorByClub = myUserClubs.some((c: any) => Number(c.id) === Number(room.creatorClubId));
+  const isCreatorA = isCreatorByUserId || isCreatorByClub || (myUserId === null && (room.creatorUserId === 1 || myUserClubs.length === 0));
+
+  const isCancelled = room.status === 'CANCELLED';
+  const isExpired = room.status === 'EXPIRED';
+  const isMatched = !isCancelled && (room.matchedClubId != null || room.status === 'MATCHED' || room.status === 'CONFIRMED' || room.status === 'PENDING_PAYMENT');
+
+  // Venue is chosen ONLY IF room is matched AND (Flow 1 PAID_100 OR status is CONFIRMED OR courtName is set)
+  const isVenueChosen = !isCancelled && !isExpired && isMatched && (
+    room.flowType === 'PAID_100' || room.status === 'CONFIRMED' || Boolean(room.courtName) || selectedVenue !== null
+  );
+
+  const totalVenuePrice = selectedVenue
+    ? selectedVenue.hourlyPrice
+    : room.priceSharePerTeam
+    ? room.priceSharePerTeam * 2
+    : 0;
+
+  const priceShare = totalVenuePrice ? totalVenuePrice / 2 : 0;
   const depositAmount = room.depositAmount ?? 50000;
-  const remainingTeamA = (priceShare && room.flowType === 'DEPOSIT_HOLD') ? priceShare - depositAmount : 0;
+  const remainingTeamA = priceShare > depositAmount ? priceShare - depositAmount : 0;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        {/* Header */}
+
+        {/* ── Header ────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation?.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={() => navigation?.goBack?.()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.backBtn}
+          >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Phòng Ghép Trận</Text>
-          <View style={{ width: 24 }} />
+
+          {/* Cancel Room Option for Creator if room is active */}
+          {isCreatorA && !isCancelled && !isExpired ? (
+            <TouchableOpacity
+              onPress={() => setShowCancelModal(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.cancelHeaderBtnText}>Hủy phòng</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Main Room Card */}
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <View style={styles.clubHeader}>
-                <View style={styles.avatar}>
+
+          {/* ── Status Banner ──────────────────────────────────────── */}
+          <View style={[
+            styles.statusBanner,
+            isCancelled || isExpired
+              ? styles.statusBannerCancelled
+              : isVenueChosen
+              ? styles.statusBannerConfirmed
+              : isMatched
+              ? styles.statusBannerMatched
+              : styles.statusBannerOpen
+          ]}>
+            <MaterialIcons
+              name={isCancelled || isExpired ? 'cancel' : isVenueChosen ? 'check-circle' : isMatched ? 'handshake' : 'groups'}
+              size={20}
+              color={isCancelled || isExpired ? COLORS.error : isVenueChosen ? COLORS.primary : isMatched ? COLORS.primary : COLORS.amber}
+            />
+            <Text style={[
+              styles.statusBannerText,
+              isCancelled || isExpired
+                ? styles.statusBannerTextCancelled
+                : isVenueChosen
+                ? styles.statusBannerTextConfirmed
+                : isMatched
+                ? styles.statusBannerTextMatched
+                : styles.statusBannerTextOpen
+            ]}>
+              {isCancelled
+                ? 'Đã Hủy Phòng (Đã tịch thu tiền cọc) ❌'
+                : isExpired
+                ? 'Đã Hết Hạn ⚠️'
+                : isVenueChosen
+                ? 'Đã Chốt Sân & Giờ Thi Đấu ✅'
+                : isMatched
+                ? 'Đã Ghép Đội 🤝 — Trong Phòng Chờ (Chủ phòng đang chọn sân)'
+                : 'Đang Mở — Chờ Đội B Gửi Yêu Cầu Ghép'}
+            </Text>
+          </View>
+
+          {/* ── VS Card (Matchup Display) ─────────────────────────── */}
+          <Card style={styles.vsCard} padding="md">
+            <Text style={styles.cardHeaderLabel}>TRẬN ĐẤU THỂ THAO</Text>
+            
+            <View style={styles.vsRow}>
+              {/* Team A */}
+              <View style={styles.teamColumn}>
+                <View style={styles.teamAvatar}>
                   <Text style={styles.avatarText}>{room.creatorClubName?.charAt(0)}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.clubTitle} numberOfLines={1}>{room.creatorClubName}</Text>
-                  <View style={styles.crpRow}>
-                    <MaterialIcons name="emoji-events" size={14} color={COLORS.secondary} />
-                    <Text style={styles.crpBadge}>{room.creatorClubCrp ?? 100} CRP</Text>
-                  </View>
+                <Text style={styles.teamName} numberOfLines={1}>{room.creatorClubName}</Text>
+                <View style={styles.crpBadge}>
+                  <MaterialIcons name="emoji-events" size={13} color={COLORS.secondary} />
+                  <Text style={styles.crpText}>{room.creatorClubCrp ?? 120} CRP</Text>
                 </View>
+                <Text style={styles.roleTag}>ĐỘI A (CHỦ PHÒNG)</Text>
               </View>
-              <View style={[styles.statusBadge, room.flowType === 'PAID_100' ? styles.paidBadge : styles.holdBadge]}>
-                <Text style={[styles.badgeText, room.flowType === 'PAID_100' ? styles.paidText : styles.holdText]}>
-                  {room.flowType === 'PAID_100' ? 'Đã Chốt Sân (100%)' : 'Cọc Hold Giữ Chỗ'}
-                </Text>
+
+              {/* VS Badge */}
+              <View style={styles.vsBadgeCircle}>
+                <Text style={styles.vsBadgeText}>VS</Text>
+              </View>
+
+              {/* Team B */}
+              <View style={styles.teamColumn}>
+                {isMatched ? (
+                  <>
+                    <View style={[styles.teamAvatar, { backgroundColor: COLORS.secondary }]}>
+                      <Text style={[styles.avatarText, { color: COLORS.onSecondary }]}>
+                        {room.matchedClubName ? room.matchedClubName.charAt(0) : 'B'}
+                      </Text>
+                    </View>
+                    <Text style={styles.teamName} numberOfLines={1}>
+                      {room.matchedClubName ?? 'Đội B'}
+                    </Text>
+                    <View style={styles.crpBadge}>
+                      <MaterialIcons name="emoji-events" size={13} color={COLORS.secondary} />
+                      <Text style={styles.crpText}>{room.matchedClubCrp ?? 100} CRP</Text>
+                    </View>
+                    <Text style={styles.roleTag}>ĐỘI B (ĐỐI THỦ)</Text>
+                  </>
+                ) : (
+                  <>
+                    <View style={[styles.teamAvatar, styles.emptyAvatar]}>
+                      <MaterialIcons name="person-add" size={24} color={COLORS.outline} />
+                    </View>
+                    <Text style={[styles.teamName, { color: COLORS.outline }]} numberOfLines={1}>
+                      Chờ Đội B
+                    </Text>
+                    <Text style={styles.emptySubText}>
+                      {isCancelled ? 'Đã hủy' : 'Đang mở đăng ký'}
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
+          </Card>
 
-            {room.flowType === 'DEPOSIT_HOLD' && room.ttlExpiresAt && (
-              <View style={styles.ttlAlert}>
-                <MaterialIcons name="timer" size={18} color={COLORS.amber} />
-                <Text style={styles.ttlText}>
-                  Hạn giữ chỗ Dynamic TTL còn lại: {new Date(room.ttlExpiresAt).toLocaleTimeString('vi-VN')}
-                </Text>
-              </View>
-            )}
+          {/* ── General Match Parameters Card ──────────────────────── */}
+          <Card style={styles.infoCard} padding="md">
+            <Text style={styles.cardHeaderLabel}>THÔNG TIN THI ĐẤU</Text>
 
-            <View style={styles.divider} />
+            <View style={styles.infoGrid}>
+              <View style={styles.infoItem}>
+                <MaterialIcons name="sports" size={18} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.infoItemLabel}>Môn & Thể thức</Text>
+                  <Text style={styles.infoItemValue}>{room.sportName} ({room.format})</Text>
+                </View>
+              </View>
 
-            <View style={styles.infoBox}>
-              <View style={styles.infoLine}>
-                <MaterialIcons name="sports" size={16} color={COLORS.primary} />
-                <Text style={styles.infoText}>Môn: <Text style={styles.boldText}>{room.sportName}</Text> ({room.format})</Text>
-              </View>
-              <View style={styles.infoLine}>
-                <MaterialIcons name="event" size={16} color={COLORS.primary} />
-                <Text style={styles.infoText}>Giờ đá: {new Date(room.expectedStartTime).toLocaleString('vi-VN')}</Text>
-              </View>
-              <View style={styles.infoLine}>
-                <MaterialIcons name="place" size={16} color={COLORS.primary} />
-                <Text style={styles.infoText}>
-                  Sân chính thức: <Text style={[styles.boldText, { color: COLORS.primary }]}>
-                    {selectedVenue ? selectedVenue.name : (room.venueName ? `${room.venueName} (${room.courtName})` : 'Chưa chọn sân (Gợi ý sau khi ghép trận)')}
+              <View style={styles.infoItem}>
+                <MaterialIcons name="schedule" size={18} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.infoItemLabel}>Thời gian dự kiến</Text>
+                  <Text style={styles.infoItemValue}>
+                    {new Date(room.expectedStartTime).toLocaleString('vi-VN')}
                   </Text>
-                </Text>
+                </View>
               </View>
-              <View style={styles.infoLine}>
-                <MaterialIcons name="map" size={16} color={COLORS.primary} />
-                <Text style={styles.infoText}>Khu vực: {room.area}</Text>
+
+              <View style={styles.infoItem}>
+                <MaterialIcons name="location-on" size={18} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.infoItemLabel}>Khu vực tìm sân</Text>
+                  <Text style={styles.infoItemValue}>{room.area || 'Khu vực Cầu Giấy, Hà Nội'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoItem}>
+                <MaterialIcons name="grade" size={18} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.infoItemLabel}>Yêu cầu Elo</Text>
+                  <Text style={styles.infoItemValue}>
+                    {room.minElo ?? 1000} – {room.maxElo ?? 2000} Elo
+                  </Text>
+                </View>
               </View>
             </View>
 
-            {/* Split Price Box */}
-            {priceShare ? (
-              <View style={styles.splitBox}>
-                <View style={styles.splitHeader}>
-                  <MaterialIcons name="payments" size={18} color={COLORS.primary} />
-                  <Text style={styles.splitTitle}>CHI TIẾT TIỀN SÂN CƯA ĐÔI 5/5</Text>
-                </View>
+            {room.message ? (
+              <View style={styles.messageBox}>
+                <Text style={styles.messageTitle}>💬 Lời nhắn từ Đội A:</Text>
+                <Text style={styles.messageContent}>"{room.message}"</Text>
+              </View>
+            ) : null}
+          </Card>
 
+          {/* ── STEP 1: BEFORE MATCHING (Unmatched State) ──────────── */}
+          {!isMatched && !isCancelled && !isExpired && (
+            <Card style={styles.stepCard} padding="md">
+              <View style={styles.stepHeaderRow}>
+                <MaterialIcons name="info" size={20} color={COLORS.primary} />
+                <Text style={styles.stepTitle}>CHƯA CHỌN SÂN & CHI PHÍ</Text>
+              </View>
+              <Text style={styles.stepDesc}>
+                Vị trí sân cụ thể và chi phí cưa đôi 5/5 sẽ được hiển thị ngay sau khi 2 bên chấp nhận ghép trận và Chủ phòng chốt Sân từ gợi ý hệ thống.
+              </Text>
+
+              {/* Action Button for Team B Visitor */}
+              {!isCreatorA && (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  title="🤝 GỬI YÊU CẦU GHÉP TRẬN (ĐỘI B)"
+                  icon="handshake"
+                  onPress={handleApplyToMatch}
+                  style={styles.actionCTA}
+                />
+              )}
+
+              {/* Action Button for Creator: Cancel Room */}
+              {isCreatorA && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  title="HỦY PHÒNG GHÉP TRẬN (MẤT CỌC)"
+                  icon="cancel"
+                  onPress={() => setShowCancelModal(true)}
+                  style={{ marginTop: SPACING.xs }}
+                />
+              )}
+            </Card>
+          )}
+
+          {/* ── STEP 2: MATCHED — IN WAITING ROOM (Chờ chọn sân) ───── */}
+          {isMatched && !isVenueChosen && !isCancelled && !isExpired && (
+            <Card style={styles.matchedWaitingCard} padding="md">
+              <View style={styles.stepHeaderRow}>
+                <MaterialIcons name="meeting-room" size={22} color={COLORS.primary} />
+                <Text style={styles.matchedTitle}>PHÒNG CHỜ CHỐT SÂN</Text>
+              </View>
+
+              {isCreatorA ? (
+                <View style={styles.creatorActionBox}>
+                  <Text style={styles.creatorInstruction}>
+                    Đội A và Đội B đã chấp nhận ghép trận! Hãy chọn 1 sân phù hợp từ danh sách gợi ý hệ thống trong khu vực {room.area}.
+                  </Text>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    title="📍 CHỌN SÂN TỪ GỢI Ý HỆ THỐNG"
+                    icon="map"
+                    onPress={handleOpenVenueSuggestions}
+                    style={styles.actionCTA}
+                  />
+                </View>
+              ) : (
+                <View style={styles.visitorWaitBox}>
+                  <MaterialIcons name="hourglass-top" size={24} color={COLORS.amber} />
+                  <Text style={styles.visitorWaitText}>
+                    Đã chấp thuận ghép trận! Vui lòng chờ Chủ phòng (Đội A) chốt sân từ gợi ý hệ thống...
+                  </Text>
+                </View>
+              )}
+            </Card>
+          )}
+
+          {/* ── STEP 3: VENUE CHOSEN — FULL DETAILS & PRICE BREAKDOWN ── */}
+          {isVenueChosen && !isCancelled && !isExpired && (
+            <Card style={styles.confirmedVenueCard} padding="md">
+              <View style={styles.stepHeaderRow}>
+                <MaterialIcons name="check-circle" size={22} color={COLORS.primary} />
+                <Text style={styles.confirmedTitle}>SÂN THI ĐẤU CHÍNH THỨC</Text>
+              </View>
+
+              {/* Venue Info */}
+              <View style={styles.chosenVenueBox}>
+                <Text style={styles.chosenVenueName}>
+                  {selectedVenue ? selectedVenue.name : room.courtName || 'Sân Bóng Chùa Hà - Sân 7A'}
+                </Text>
+                <Text style={styles.chosenVenueAddress}>
+                  📍 {selectedVenue ? selectedVenue.address : room.venueName || 'Quận Cầu Giấy, Hà Nội'}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Price Breakdown */}
+              <Text style={styles.splitHeaderLabel}>CHI TIẾT THANH TOÁN CƯA ĐÔI 5/5</Text>
+              <View style={styles.splitPriceCard}>
                 <View style={styles.splitRow}>
                   <Text style={styles.splitLabel}>Tổng tiền sân thực tế:</Text>
-                  <Text style={styles.splitVal}>{currentVenuePrice?.toLocaleString()} đ</Text>
+                  <Text style={styles.splitVal}>{totalVenuePrice.toLocaleString()} đ</Text>
                 </View>
 
                 <View style={styles.splitRow}>
                   <Text style={styles.splitLabel}>Đội B thanh toán (50%):</Text>
-                  <Text style={[styles.splitVal, { color: COLORS.primary }]}>{priceShare.toLocaleString()} đ</Text>
+                  <Text style={[styles.splitVal, { color: COLORS.primary, fontWeight: '800' }]}>
+                    {priceShare.toLocaleString()} đ
+                  </Text>
                 </View>
 
                 {room.flowType === 'DEPOSIT_HOLD' ? (
                   <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Đội A (đã cọc {depositAmount.toLocaleString()}đ):</Text>
-                    <Text style={[styles.splitVal, { color: COLORS.secondary }]}>Trả nốt {remainingTeamA.toLocaleString()} đ</Text>
+                    <Text style={styles.splitLabel}>
+                      Đội A (đã cọc {depositAmount.toLocaleString()}đ):
+                    </Text>
+                    <Text style={[styles.splitVal, { color: COLORS.secondary, fontWeight: '800' }]}>
+                      Trả nốt {remainingTeamA.toLocaleString()} đ
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Đội A (đã trả 100%):</Text>
-                    <Text style={[styles.splitVal, { color: COLORS.primary }]}>Nhận lại {priceShare.toLocaleString()} đ từ Đội B</Text>
+                    <Text style={styles.splitLabel}>Đội A (đã thanh toán 100%):</Text>
+                    <Text style={[styles.splitVal, { color: COLORS.primary, fontWeight: '800' }]}>
+                      Nhận lại {priceShare.toLocaleString()} đ từ Đội B
+                    </Text>
                   </View>
                 )}
               </View>
-            ) : (
-              <View style={styles.noPriceBox}>
-                <MaterialIcons name="info" size={18} color={COLORS.primary} />
-                <Text style={styles.noPriceText}>
-                  Giá tiền sân sẽ được tự động tính ngay khi Chủ phòng chọn Sân từ Danh sách gợi ý của hệ thống sau khi 2 bên chốt kèo.
-                </Text>
-              </View>
-            )}
-
-            {/* Suggest Venue Button for Manager A */}
-            {isCreatorA && (
-              <Button
-                variant="primary"
-                onPress={handleOpenVenueSuggestions}
-                style={styles.suggestVenueBtn}
-              >
-                📍 CHỌN SÂN TỪ GỢI Ý HỆ THỐNG
-              </Button>
-            )}
-
-            {room.message && (
-              <View style={styles.messageBox}>
-                <Text style={styles.messageTitle}>Lời nhắn từ Đội A:</Text>
-                <Text style={styles.messageContent}>{room.message}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Section Đội B Actions & Internal Poll */}
-          {!isCreatorA && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>HÀNH ĐỘNG DÀNH CHO ĐỘI B</Text>
-              
-              {isManagerB ? (
-                <Button variant="secondary" onPress={handleApplyDirect}>
-                  XIN THAM GIA TRỰC TIẾP (MANAGER B)
-                </Button>
-              ) : (
-                <View style={styles.pollCard}>
-                  <Text style={styles.pollTitle}>KHOẢO SÁT NỘI BỘ CLB B DÀNH CHO TRẬN NÀY</Text>
-                  <Text style={styles.pollDesc}>Cần tối thiểu {poll?.requiredVotes ?? 5} người bấm CÓ THỂ ĐÁ để mở nút Xin Tham Gia.</Text>
-
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${Math.min(100, ((poll?.currentYesVotes ?? 0) / (poll?.requiredVotes ?? 5)) * 100)}%` }]} />
-                  </View>
-                  <Text style={styles.progressText}>Tiến độ: {poll?.currentYesVotes ?? 0}/{poll?.requiredVotes ?? 5} người đã Vote Có mặt</Text>
-
-                  <View style={styles.voteBtnRow}>
-                    <TouchableOpacity style={[styles.voteBtn, styles.voteYes]} onPress={() => handleVotePoll(true)}>
-                      <Text style={styles.voteYesText}>Quẹt Phải: ĐÁ ĐƯỢC (+1)</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.voteBtn, styles.voteNo]} onPress={() => handleVotePoll(false)}>
-                      <Text style={styles.voteNoText}>Quẹt Trái: BẬN</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <Button
-                    variant="secondary"
-                    disabled={!(poll?.isUnlocked)}
-                    onPress={handleApplyDirect}
-                  >
-                    XIN THAM GIA (ĐÃ ĐỦ {poll?.requiredVotes ?? 5} VOTE)
-                  </Button>
-                </View>
-              )}
-            </View>
+            </Card>
           )}
 
-          {/* Section Đội A: Applications Review */}
-          {isCreatorA && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>DANH SÁCH ĐỘI B XIN THAM GIA ({applications.length})</Text>
+          {/* ── Creator SECTION: Incoming Applications List ───────── */}
+          {isCreatorA && !isMatched && !isCancelled && !isExpired && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionHeaderTitle}>
+                DANH SÁCH ĐỘI B XIN GHÉP TRẬN ({applications.length})
+              </Text>
+              
               {applications.length === 0 ? (
-                <Text style={styles.emptyText}>Chưa có đội nào gửi yêu cầu xin tham gia.</Text>
+                <Card padding="md" style={styles.emptyAppCard}>
+                  <MaterialIcons name="person-search" size={32} color={COLORS.outline} />
+                  <Text style={styles.emptyAppText}>
+                    Chưa có đội nào gửi yêu cầu xin ghép trận.
+                  </Text>
+                </Card>
               ) : (
                 applications.map((app) => (
-                  <View key={app.id} style={styles.appCard}>
-                    <View style={styles.rowBetween}>
-                      <Text style={styles.appClubName}>{app.applicantClubName}</Text>
-                      <Text style={styles.appCrp}>Điểm CRP: {app.applicantClubCrp ?? 100}</Text>
+                  <Card key={app.id} padding="md" style={styles.appItemCard}>
+                    <View style={styles.appItemTop}>
+                      <View style={styles.appClubInfo}>
+                        <View style={[styles.teamAvatar, { width: 36, height: 36, borderRadius: 18 }]}>
+                          <Text style={{ color: COLORS.onPrimary, fontWeight: '800' }}>
+                            {app.applicantClubName.charAt(0)}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text style={styles.appClubName}>{app.applicantClubName}</Text>
+                          <Text style={styles.appRepresentative}>Đại diện: {app.applicantUserName}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.crpBadge}>
+                        <MaterialIcons name="emoji-events" size={13} color={COLORS.secondary} />
+                        <Text style={styles.crpText}>{app.applicantClubCrp ?? 100} CRP</Text>
+                      </View>
                     </View>
-                    <Text style={styles.applicantUser}>Đại diện gửi: {app.applicantUserName}</Text>
 
                     <Button
-                      variant="secondary"
+                      variant="primary"
                       size="sm"
-                      onPress={() => handleAcceptApp(app.id)}
-                      style={styles.acceptBtn}
-                    >
-                      🤝 CHỐT KÈO VỚI ĐỘI NÀY
-                    </Button>
-                  </View>
+                      title="🤝 CHẤP NHẬN GHÉP TRẬN VỚI ĐỘI NÀY"
+                      onPress={() => handleAcceptApplicant(app)}
+                      style={{ marginTop: SPACING.xs }}
+                    />
+                  </Card>
                 ))
               )}
             </View>
           )}
         </ScrollView>
 
-        {/* Suggested Venues Modal */}
+        {/* ── Cancel Confirmation Modal ───────────────────────────── */}
+        <ConfirmModal
+          visible={showCancelModal}
+          title="Hủy phòng ghép trận ⚠️"
+          message="Bạn có chắc chắn muốn hủy phòng ghép trận này?\n\nLưu ý: Tiền cọc giữ chỗ (50.000đ) sẽ bị tịch thu và không được hoàn lại theo quy định hệ thống."
+          confirmText="Hủy phòng (Mất cọc)"
+          cancelText="Quay lại"
+          icon="warning"
+          iconColor={COLORS.error}
+          onConfirm={handleConfirmCancelRoom}
+          onCancel={() => setShowCancelModal(false)}
+        />
+
+        {/* ── Shared AlertModal for Notifications ───────────────── */}
+        <AlertModal
+          visible={alertModalConfig.visible}
+          title={alertModalConfig.title}
+          message={alertModalConfig.message}
+          buttonText={alertModalConfig.buttonText}
+          onConfirm={alertModalConfig.onConfirm}
+        />
+
+        {/* ── Suggested Venues Modal (CHỈ MỞ BỞI CHỦ PHÒNG) ──────── */}
         <Modal visible={showVenueModal} animationType="slide" onRequestClose={() => setShowVenueModal(false)}>
           <SafeAreaView style={styles.safeArea} edges={['top']}>
             <View style={styles.venueModalContainer}>
@@ -329,34 +695,37 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
                 <TouchableOpacity onPress={() => setShowVenueModal(false)}>
                   <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
                 </TouchableOpacity>
-                <Text style={styles.venueModalTitle}>Gợi Ý Sân Thi Đấu Phù Hợp</Text>
-                <TouchableOpacity onPress={() => setShowVenueModal(false)}>
-                  <Text style={styles.doneBtnText}>ĐÓNG</Text>
-                </TouchableOpacity>
+                <Text style={styles.venueModalTitle}>Gợi Ý Sân Thi Đấu (Chủ phòng Đội A chọn)</Text>
+                <View style={{ width: 24 }} />
               </View>
 
               {loadingVenues ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
+                <View style={styles.centerLoading}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
               ) : (
                 <ScrollView contentContainerStyle={styles.venueListContent} showsVerticalScrollIndicator={false}>
                   {suggestedVenues.map((v) => (
                     <TouchableOpacity
                       key={v.id}
-                      style={styles.venueCard}
+                      style={styles.venueItemCard}
                       onPress={() => handleConfirmVenueSelection(v)}
                       activeOpacity={0.85}
                     >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.venueCardTitle}>{v.name}</Text>
-                        <Text style={styles.venueCardAddress}>📍 {v.address}</Text>
-                        <Text style={styles.venueCardRating}>⭐ {v.rating} (Đánh giá cao)</Text>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <Text style={styles.venueItemTitle}>{v.name}</Text>
+                        <Text style={styles.venueItemAddress}>📍 {v.address}</Text>
+                        <Text style={styles.venueItemRating}>⭐ {v.rating} (Đánh giá tốt)</Text>
                       </View>
                       <View style={{ alignItems: 'flex-end', gap: 4 }}>
                         <Text style={styles.venuePrice}>{v.hourlyPrice.toLocaleString()} đ/giờ</Text>
                         <Text style={styles.venueSplitPrice}>Cưa đôi: {(v.hourlyPrice / 2).toLocaleString()} đ/đội</Text>
-                        <View style={styles.selectVenuePill}>
-                          <Text style={styles.selectVenueText}>CHỌN SÂN NÀY</Text>
-                        </View>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          title="CHỌN SÂN NÀY"
+                          onPress={() => handleConfirmVenueSelection(v)}
+                        />
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -370,6 +739,8 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -379,161 +750,310 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  center: {
+  centerLoading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: SPACING.sm,
   },
+  loadingText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: SPACING.md,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontSize: TYPOGRAPHY.headlineMd.fontSize,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
+    ...TYPOGRAPHY.headlineMd,
     color: COLORS.onSurface,
+    flex: 1,
+    textAlign: 'center',
   },
+  cancelHeaderBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.error,
+    fontWeight: '700',
+  },
+
   content: {
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: SPACING.md,
     gap: SPACING.md,
   },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg, // 16px
-    padding: SPACING.md, // 16px
-    gap: SPACING.sm,
+
+  // Status Banners
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
   },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  statusBannerOpen: {
+    backgroundColor: COLORS.amberOpacity10,
+    borderColor: COLORS.amber,
   },
-  clubHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
+  statusBannerMatched: {
+    backgroundColor: COLORS.primaryOpacity10,
+    borderColor: COLORS.primary,
+  },
+  statusBannerConfirmed: {
+    backgroundColor: COLORS.primaryOpacity15,
+    borderColor: COLORS.primary,
+  },
+  statusBannerCancelled: {
+    backgroundColor: COLORS.errorContainer,
+    borderColor: COLORS.error,
+  },
+  statusBannerText: {
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '800',
     flex: 1,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  statusBannerTextOpen: { color: COLORS.amber },
+  statusBannerTextMatched: { color: COLORS.primary },
+  statusBannerTextConfirmed: { color: COLORS.primary },
+  statusBannerTextCancelled: { color: COLORS.onErrorContainer },
+
+  // VS Matchup Card
+  vsCard: {
+    gap: SPACING.md,
+    backgroundColor: COLORS.surface,
+  },
+  cardHeaderLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  vsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  teamColumn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  teamAvatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyAvatar: {
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1.5,
+    borderColor: COLORS.outlineVariant,
+    borderStyle: 'dashed',
+  },
   avatarText: {
+    ...TYPOGRAPHY.headlineLg,
     color: COLORS.onPrimary,
     fontWeight: '800',
-    fontSize: 18,
   },
-  clubTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 16,
-    fontWeight: '700',
+  teamName: {
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
+    fontWeight: '800',
+    textAlign: 'center',
   },
-  crpRow: {
+  crpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
   },
-  crpBadge: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+  crpText: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.secondary,
+    fontWeight: '800',
+  },
+  roleTag: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 9,
+    color: COLORS.outline,
     fontWeight: '700',
+    marginTop: 2,
   },
-  statusBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  paidBadge: {
-    backgroundColor: COLORS.primaryOpacity10,
-  },
-  holdBadge: {
-    backgroundColor: COLORS.secondaryOpacity20,
-  },
-  badgeText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
+  emptySubText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
     fontSize: 11,
-    fontWeight: '700',
   },
-  paidText: {
-    color: COLORS.primary,
+  vsBadgeCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  holdText: {
-    color: COLORS.onSecondaryContainer,
+  vsBadgeText: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 14,
+    fontWeight: '900',
+    color: COLORS.onSecondary,
   },
-  ttlAlert: {
+
+  // Info Card
+  infoCard: {
+    gap: SPACING.md,
+  },
+  infoGrid: {
+    gap: SPACING.sm,
+  },
+  infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.amberOpacity10,
+    gap: SPACING.sm,
+  },
+  infoItemLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
+  },
+  infoItemValue: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 14,
+    color: COLORS.onSurface,
+    fontWeight: '700',
+  },
+  messageBox: {
+    backgroundColor: COLORS.primaryOpacity05,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.default,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity15,
   },
-  ttlText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.amber,
+  messageTitle: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
     fontWeight: '700',
+  },
+  messageContent: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurface,
+    fontStyle: 'italic',
+  },
+
+  // Steps & Action Cards
+  stepCard: {
+    gap: SPACING.sm,
+    backgroundColor: COLORS.surface,
+  },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  stepTitle: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+  stepDesc: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    lineHeight: 20,
+  },
+  actionCTA: {
+    marginTop: SPACING.xs,
+  },
+
+  matchedWaitingCard: {
+    gap: SPACING.md,
+    backgroundColor: COLORS.surface,
+  },
+  matchedTitle: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  creatorActionBox: {
+    gap: SPACING.sm,
+  },
+  creatorInstruction: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurface,
+    lineHeight: 20,
+  },
+  visitorWaitBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.amberOpacity10,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  visitorWaitText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.amber,
+    flex: 1,
+    fontWeight: '600',
+  },
+
+  confirmedVenueCard: {
+    gap: SPACING.md,
+    backgroundColor: COLORS.surface,
+  },
+  confirmedTitle: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  chosenVenueBox: {
+    gap: 4,
+  },
+  chosenVenueName: {
+    ...TYPOGRAPHY.headlineMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  chosenVenueAddress: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.surfaceContainerLow,
+    backgroundColor: COLORS.outlineVariant,
   },
-  infoBox: {
-    gap: 8,
+  splitHeaderLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  infoLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoText: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 13,
-    color: COLORS.onSurface,
-    flex: 1,
-  },
-  boldText: {
-    fontWeight: '700',
-  },
-  splitBox: {
+  splitPriceCard: {
     backgroundColor: COLORS.primaryOpacity05,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.default,
-    gap: 6,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 8,
     borderWidth: 1,
     borderColor: COLORS.primaryOpacity20,
-  },
-  splitHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  splitTitle: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '800',
   },
   splitRow: {
     flexDirection: 'row',
@@ -541,157 +1061,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   splitLabel: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 13,
+    ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
   },
   splitVal: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
-    fontWeight: '700',
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
   },
-  noPriceBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: COLORS.surfaceContainerLow,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.default,
-  },
-  noPriceText: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    flex: 1,
-    lineHeight: 18,
-  },
-  suggestVenueBtn: {
+
+  // Applications Section
+  sectionContainer: {
+    gap: SPACING.sm,
     marginTop: SPACING.xs,
   },
-  messageBox: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
-    gap: 4,
-  },
-  messageTitle: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+  sectionHeaderTitle: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  messageContent: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 13,
-    color: COLORS.onSurface,
+  emptyAppCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.lg,
+  },
+  emptyAppText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.outline,
     fontStyle: 'italic',
   },
-  section: {
-    gap: SPACING.sm,
+  appItemCard: {
+    gap: SPACING.xs,
   },
-  sectionTitle: {
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontSize: 12,
-    color: COLORS.outline,
-    fontWeight: '700',
-  },
-  pollCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    gap: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
-  },
-  pollTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  pollDesc: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.outline,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-  },
-  progressText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-  },
-  voteBtnRow: {
+  appItemTop: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  voteBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.default,
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  voteYes: {
-    backgroundColor: COLORS.primaryOpacity10,
-  },
-  voteYesText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  voteNo: {
-    backgroundColor: COLORS.surfaceContainerLow,
-  },
-  voteNoText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.outline,
-  },
-  emptyText: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 13,
-    color: COLORS.outline,
-    fontStyle: 'italic',
-  },
-  appCard: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
+  appClubInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   appClubName: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  appCrp: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
-    color: COLORS.secondary,
-    fontWeight: '700',
-  },
-  applicantUser: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 13,
+  appRepresentative: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
   },
-  acceptBtn: {
-    marginTop: 4,
-  },
+
+  // Venue Modal
   venueModalContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -704,26 +1127,18 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
+    borderBottomColor: COLORS.outlineVariant,
   },
   venueModalTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 16,
+    ...TYPOGRAPHY.headlineMd,
     color: COLORS.onSurface,
-    fontWeight: '800',
-  },
-  doneBtnText: {
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: '800',
   },
   venueListContent: {
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: SPACING.md,
     gap: SPACING.md,
   },
-  venueCard: {
+  venueItemCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -731,50 +1146,31 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
+    borderColor: COLORS.outlineVariant,
   },
-  venueCardTitle: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
+  venueItemTitle: {
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
     fontWeight: '800',
   },
-  venueCardAddress: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+  venueItemAddress: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
     color: COLORS.outline,
-    marginTop: 2,
   },
-  venueCardRating: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 12,
+  venueItemRating: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.amber,
     fontWeight: '700',
-    marginTop: 2,
   },
   venuePrice: {
-    fontFamily: TYPOGRAPHY.titleMd.fontFamily,
-    fontSize: 15,
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.primary,
     fontWeight: '800',
   },
   venueSplitPrice: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 11,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.secondary,
     fontWeight: '700',
-  },
-  selectVenuePill: {
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: 4,
-  },
-  selectVenueText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontSize: 11,
-    color: COLORS.onSecondary,
-    fontWeight: '800',
   },
 });

@@ -27,15 +27,7 @@ public class MatchmakingScheduler {
     public void processExpiredMatchRooms() {
         LocalDateTime now = LocalDateTime.now();
 
-        // 1. Quét các phòng cọc hold quá hạn Dynamic TTL mà chưa có đối thủ
-        List<MatchRoom> expiredHoldRooms = matchRoomRepository.findExpiredHoldRooms(MatchRoomStatus.OPEN, now);
-        for (MatchRoom room : expiredHoldRooms) {
-            log.info("Match room {} expired TTL at {}, changing status to EXPIRED and forfeiting deposit", room.getId(), room.getTtlExpiresAt());
-            room.setStatus(MatchRoomStatus.EXPIRED);
-            matchRoomRepository.save(room);
-        }
-
-        // 2. Quét các phòng quá 15m chờ thanh toán cưa đôi
+        // 1. Quét các phòng quá 15m chờ thanh toán cưa đôi -> quay lại OPEN
         List<MatchRoom> expiredPaymentRooms = matchRoomRepository.findExpiredHoldRooms(MatchRoomStatus.PENDING_PAYMENT, now);
         for (MatchRoom room : expiredPaymentRooms) {
             log.info("Match room {} expired 15-min payment window, reverting to OPEN", room.getId());

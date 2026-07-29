@@ -21,6 +21,7 @@ export interface MatchRoom {
   sportName: string;
   format: string;
   minElo?: number;
+  maxElo?: number;
   area?: string;
   latitude?: number;
   longitude?: number;
@@ -87,6 +88,13 @@ export interface CreateMatchRoomPayload {
   message?: string;
 }
 
+export interface SelectVenuePayload {
+  courtId?: number;
+  courtName: string;
+  venueName: string;
+  hourlyPrice: number;
+}
+
 export interface ReportResultPayload {
   matchRoomId: number;
   clubId: number;
@@ -138,6 +146,9 @@ const mmFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> =
   const response = await fetch(`${MATCHMAKING_BASE}${path}`, { ...options, headers });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Phiên ĐĂNG NHẬP tài khoản đã hết hạn. Vui lòng đăng nhập lại.");
+    }
     const errData = await response.json().catch(() => ({}));
     throw new Error(errData.message || errData.error || `HTTP ${response.status}`);
   }
@@ -179,6 +190,13 @@ export const matchmakingApi = {
     );
   },
 
+  selectVenue: async (roomId: number, payload: SelectVenuePayload, userId: number): Promise<MatchRoom> => {
+    return mmFetch<MatchRoom>(
+      `/api/matchmaking/rooms/${roomId}/select-venue?userId=${userId}`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+  },
+
   voteInternalPoll: async (roomId: number, clubId: number, userId: number, isAttending: boolean): Promise<MatchPoll> => {
     return mmFetch<MatchPoll>(
       `/api/matchmaking/rooms/${roomId}/poll?clubId=${clubId}&userId=${userId}&isAttending=${isAttending}`,
@@ -191,5 +209,20 @@ export const matchmakingApi = {
       `/api/matchmaking/rooms/${roomId}/report?userId=${userId}`,
       { method: 'POST', body: JSON.stringify(payload) },
     );
+  },
+
+  cancelMatchRoom: async (roomId: number, userId: number): Promise<MatchRoom> => {
+    return mmFetch<MatchRoom>(
+      `/api/matchmaking/rooms/${roomId}/cancel?userId=${userId}`,
+      { method: 'POST' },
+    );
+  },
+
+  getUsedBookingIds: async (): Promise<string[]> => {
+    try {
+      return await mmFetch<string[]>('/api/matchmaking/used-booking-ids');
+    } catch {
+      return [];
+    }
   },
 };

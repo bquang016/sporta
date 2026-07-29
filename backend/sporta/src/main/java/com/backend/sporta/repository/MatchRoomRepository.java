@@ -19,4 +19,7 @@ public interface MatchRoomRepository extends JpaRepository<MatchRoom, Long> {
     List<MatchRoom> findExpiredHoldRooms(@Param("status") MatchRoomStatus status, @Param("now") LocalDateTime now);
 
     List<MatchRoom> findByCreatorClubIdOrMatchedClubId(Long clubId1, Long clubId2);
+
+    @Query("SELECT m.booking.id FROM MatchRoom m WHERE m.booking IS NOT NULL AND m.status NOT IN (com.backend.sporta.enums.MatchRoomStatus.CANCELLED, com.backend.sporta.enums.MatchRoomStatus.EXPIRED)")
+    List<java.util.UUID> findUsedBookingIds();
 }

@@ -27,6 +27,11 @@ public class MatchmakingController {
         return ResponseEntity.ok(matchmakingService.getOpenMatchRooms());
     }
 
+    @GetMapping("/used-booking-ids")
+    public ResponseEntity<List<java.util.UUID>> getUsedBookingIds() {
+        return ResponseEntity.ok(matchmakingService.getUsedBookingIds());
+    }
+
     @GetMapping("/rooms/{id}")
     public ResponseEntity<MatchRoomDTO> getMatchRoomById(@PathVariable Long id) {
         return ResponseEntity.ok(matchmakingService.getMatchRoomById(id));
@@ -51,6 +56,21 @@ public class MatchmakingController {
             @RequestParam Long applicationId,
             @RequestParam Long userId) {
         return ResponseEntity.ok(matchmakingService.acceptApplication(id, applicationId, userId));
+    }
+
+    @PostMapping("/rooms/{id}/select-venue")
+    public ResponseEntity<MatchRoomDTO> selectVenue(
+            @PathVariable Long id,
+            @RequestBody SelectVenueRequest req,
+            @RequestParam Long userId) {
+        return ResponseEntity.ok(matchmakingService.selectVenue(id, req, userId));
+    }
+
+    @PostMapping("/rooms/{id}/cancel")
+    public ResponseEntity<MatchRoomDTO> cancelMatchRoom(
+            @PathVariable Long id,
+            @RequestParam Long userId) {
+        return ResponseEntity.ok(matchmakingService.cancelMatchRoom(id, userId));
     }
 
     @PostMapping("/rooms/{id}/poll")

@@ -102,7 +102,18 @@ export function MatchmakingListScreen({ navigation }: any) {
     navigation?.navigate('CreateMatchRoom', { club });
   };
 
+  const now = new Date();
+
   const filteredRooms = rooms.filter(room => {
+    // 1. Không hiển thị các trận đã quá giờ thi đấu (quá hạn trong quá khứ)
+    if (room.expectedStartTime) {
+      try {
+        const startTime = new Date(room.expectedStartTime);
+        if (startTime <= now) return false;
+      } catch {
+        // ignore date parse errors
+      }
+    }
     if (selectedSport !== 'Tất cả' && room.sportName !== selectedSport) return false;
     if (activeTab !== 'ALL' && room.flowType !== activeTab) return false;
     if (selectedFormat !== 'Tất cả' && room.format !== selectedFormat) return false;

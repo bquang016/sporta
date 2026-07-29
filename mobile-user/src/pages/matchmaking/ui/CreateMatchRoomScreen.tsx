@@ -6,18 +6,17 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { matchmakingApi, MatchFlowType } from '../../../shared/api/matchmaking';
-import { CalendarPicker } from '../../../shared/ui';
-import { Button } from '../../../shared/ui';
+import { CalendarPicker, AlertModal, Button } from '../../../shared/ui';
 import { MapPickerModal } from '../components/MapPickerModal';
+import { TimePickerModal } from '../components/TimePickerModal';
 import { getMyBookingsApi, BookingItem } from '../../../shared/api/bookings';
+import { usersApi } from '../../../shared/api/users';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -28,13 +27,6 @@ const SPORT_FORMATS: Record<string, string[]> = {
   'Pickleball': ['Đơn', 'Đôi'],
   'Tennis': ['Đơn', 'Đôi'],
 };
-
-// Time slots: every 30 minutes from 05:00 to 22:30
-const TIME_SLOTS: string[] = [];
-for (let h = 5; h <= 22; h++) {
-  TIME_SLOTS.push(`${h.toString().padStart(2, '0')}:00`);
-  if (h < 22) TIME_SLOTS.push(`${h.toString().padStart(2, '0')}:30`);
-}
 
 const DURATION_OPTIONS = [
   { label: '60\'', subLabel: '1 tiếng', minutes: 60 },
@@ -53,20 +45,26 @@ function formatDateDisplay(d: Date) {
   return `${weekdays[d.getDay()]}, ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
-function formatTimeFromDate(d: Date) {
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-
 function applyTimeToDate(base: Date, timeStr: string): Date {
   const [h, m] = timeStr.split(':').map(Number);
   const next = new Date(base);
-  next.setHours(h, m, 0, 0);
+  next.setHours(h || 18, m || 0, 0, 0);
   return next;
 }
 
 function getEndTime(startDate: Date, durationMinutes: number): string {
   const end = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
   return `${pad2(end.getHours())}:${pad2(end.getMinutes())}`;
+}
+
+function formatLocalISO(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  const hh = d.getHours().toString().padStart(2, '0');
+  const min = d.getMinutes().toString().padStart(2, '0');
+  const ss = d.getSeconds().toString().padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -91,10 +89,28 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(18, 0, 0, 0);
 
-  const [startDate, setStartDate] = useState<Date>(tomorrow);       // only date portion
-  const [selectedTime, setSelectedTime] = useState<string>('18:00'); // HH:mm string
+  const [startDate, setStartDate] = useState<Date>(tomorrow);
+  const [selectedTime, setSelectedTime] = useState<string>('18:00');
   const [durationMinutes, setDurationMinutes] = useState(90);
+
+  // Modals
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  // Alert Modal State
+  const [alertModalConfig, setAlertModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttonText?: string;
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Common form fields
   const [format, setFormat] = useState(
@@ -106,10 +122,15 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   const [minElo, setMinElo] = useState('1200');
   const [maxElo, setMaxElo] = useState('1800');
   const [message, setMessage] = useState('Tìm đối thủ giao lưu fair play, đúng giờ!');
-  const [showMapModal, setShowMapModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [myUserId, setMyUserId] = useState<number>(1);
 
-  useEffect(() => { fetchUserBookings(); }, []);
+  useEffect(() => {
+    fetchUserBookings();
+    usersApi.getProfile().then(p => {
+      if (p?.id) setMyUserId(p.id);
+    }).catch(() => {});
+  }, []);
 
   const fetchUserBookings = async () => {
     try {
@@ -119,12 +140,8 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         setRealBookings(data);
         setSelectedBookingId(data[0].id);
       } else {
-        const mockFallback: BookingItem[] = [
-          { id: 'b1', venueName: 'Sân bóng Chùa Hà', courtName: 'Sân 7A', date: '2026-07-24', startTime: '19:00', endTime: '20:30', totalPrice: 600000, status: 'CONFIRMED' },
-          { id: 'b2', venueName: 'Sân bóng Cầu Giấy', courtName: 'Sân 5B', date: '2026-07-25', startTime: '20:30', endTime: '22:00', totalPrice: 450000, status: 'CONFIRMED' },
-        ];
-        setRealBookings(mockFallback);
-        setSelectedBookingId(mockFallback[0].id);
+        setRealBookings([]);
+        setSelectedBookingId('');
       }
     } catch (err) {
       console.log('Error fetching bookings:', err);
@@ -135,28 +152,42 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
 
   const availableFormats = SPORT_FORMATS[club.sportName] || ['5v5'];
 
-  // Construct full start datetime (date + selected time)
   const startDateTime = applyTimeToDate(startDate, selectedTime);
   const endTimeStr = getEndTime(startDateTime, durationMinutes);
 
-  // Dynamic TTL
+  // Checks if selected start time is in the past
+  const isTtlDisabled = startDateTime.getTime() <= Date.now();
+
   const hoursUntilStart = (startDateTime.getTime() - Date.now()) / (1000 * 3600);
   let dynamicTtlMinutes = 60;
-  let isTtlDisabled = false;
   if (hoursUntilStart > 48) dynamicTtlMinutes = 120;
   else if (hoursUntilStart >= 24) dynamicTtlMinutes = 60;
   else if (hoursUntilStart >= 6) dynamicTtlMinutes = 30;
-  else isTtlDisabled = true;
 
   const selectedBooking = realBookings.find(b => b.id === selectedBookingId);
   const calculatedPriceShare = selectedBooking ? selectedBooking.totalPrice / 2.0 : undefined;
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit Handler ──────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (flowType === 'DEPOSIT_HOLD' && isTtlDisabled) {
-      const msg = 'Dưới 6 giờ nữa là thi đấu. Vui lòng dùng luồng Sân đã mua đứt 100%.';
-      if (Platform.OS === 'web') window.alert(`Sát giờ thi đấu: ${msg}`);
-      else Alert.alert('Sát giờ thi đấu', msg);
+      setAlertModalConfig({
+        visible: true,
+        title: 'Giờ đá không hợp lệ ⚠️',
+        message: 'Khung giờ bạn chọn đã trôi qua. Vui lòng chọn ngày/giờ trong tương lai.',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+      return;
+    }
+
+    if (flowType === 'PAID_100' && !selectedBookingId) {
+      setAlertModalConfig({
+        visible: true,
+        title: 'Chưa chọn sân đặt ⚠️',
+        message: 'Bạn chưa có sân đã đặt hợp lệ (chưa quá giờ & chưa dùng tạo phòng khác) để ghép trận.',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
       return;
     }
 
@@ -173,37 +204,38 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         area,
         latitude,
         longitude,
-        expectedStartTime: startDateTime.toISOString(),
-        expectedEndTime: endDateTime.toISOString(),
+        expectedStartTime: formatLocalISO(startDateTime),
+        expectedEndTime: formatLocalISO(endDateTime),
         priceSharePerTeam: calculatedPriceShare,
         flowType,
         depositAmount: flowType === 'DEPOSIT_HOLD' ? 50000 : undefined,
         bookingId: flowType === 'PAID_100' ? selectedBookingId : undefined,
         message,
-      }, 1);
+      }, myUserId);
 
-      const navToRoom = () => {
-        if (createdRoom?.id) {
-          navigation?.navigate?.('MatchRoomDetail', { roomId: createdRoom.id });
-        } else {
-          navigation?.goBack?.();
-        }
-      };
-
-      if (Platform.OS === 'web') {
-        window.alert(`Đã tạo phòng thành công 🎉\nPhòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`);
-        navToRoom();
-      } else {
-        Alert.alert(
-          'Đã tạo phòng thành công 🎉',
-          `Phòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`,
-          [{ text: 'Xem phòng', onPress: navToRoom }]
-        );
-      }
+      setAlertModalConfig({
+        visible: true,
+        title: 'Đã tạo phòng thành công 🎉',
+        message: `Phòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`,
+        buttonText: 'Xem phòng ngay',
+        onConfirm: () => {
+          setAlertModalConfig(prev => ({ ...prev, visible: false }));
+          if (createdRoom?.id) {
+            navigation?.navigate?.('MatchRoomDetail', { roomId: createdRoom.id });
+          } else {
+            navigation?.goBack?.();
+          }
+        },
+      });
     } catch (err: any) {
       const errMsg = err?.message || 'Không thể tạo phòng';
-      if (Platform.OS === 'web') window.alert(`Lỗi: ${errMsg}`);
-      else Alert.alert('Lỗi', errMsg);
+      setAlertModalConfig({
+        visible: true,
+        title: 'Lỗi tạo phòng ❌',
+        message: errMsg,
+        buttonText: 'Thử lại',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
     } finally {
       setLoading(false);
     }
@@ -284,6 +316,13 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
                 <View style={styles.centerLoader}>
                   <ActivityIndicator color={COLORS.primary} />
                 </View>
+              ) : realBookings.length === 0 ? (
+                <View style={styles.bannerError}>
+                  <MaterialIcons name="info" size={18} color={COLORS.error} />
+                  <Text style={styles.bannerErrorText}>
+                    Bạn chưa có sân đã đặt hợp lệ nào (chưa quá giờ & chưa tạo ghép trận khác). Vui lòng sang luồng "Ghép Giữ Chỗ (TTL)" để tạo phòng.
+                  </Text>
+                </View>
               ) : (
                 realBookings.map(b => (
                   <TouchableOpacity
@@ -309,10 +348,9 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
           {/* ── Flow 2: Lịch thi đấu ─────────────────────────────── */}
           {flowType === 'DEPOSIT_HOLD' && (
             <>
-              {/* Chọn ngày — CalendarPicker giống BookingDetailScreen */}
+              {/* Chọn ngày — CalendarPicker */}
               <Text style={styles.sectionLabel}>NGÀY THI ĐẤU DỰ KIẾN</Text>
 
-              {/* Trigger card — same style as BookingMatrix date bar */}
               <TouchableOpacity
                 style={styles.dateTriggerCard}
                 onPress={() => setShowCalendar(true)}
@@ -324,13 +362,13 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
                   </View>
                   <View>
                     <Text style={styles.dateTriggerValue}>{formatDateDisplay(startDate)}</Text>
-                    <Text style={styles.dateTriggerSub}>Nhấn để đổi ngày</Text>
+                    <Text style={styles.dateTriggerSub}>Nhấn để chọn ngày trên lịch</Text>
                   </View>
                 </View>
                 <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
               </TouchableOpacity>
 
-              {/* CalendarPicker Modal — reuse exact shared component */}
+              {/* CalendarPicker Modal */}
               <CalendarPicker
                 visible={showCalendar}
                 selectedDate={startDate}
@@ -342,29 +380,36 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
                 onClose={() => setShowCalendar(false)}
               />
 
-              {/* Chọn giờ bắt đầu — horizontal chip scroll */}
-              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>GIỜ BẮT ĐẦU DỰ KIẾN</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.timeSlotRow}
+              {/* Chọn giờ bắt đầu — Trigger Card cho phép chọn bất kỳ mốc giờ linh hoạt (vd: 17:45) */}
+              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>GIỜ BẮT ĐẦU DỰ KIẾN (TỰ DO 17:45...)</Text>
+              
+              <TouchableOpacity
+                style={styles.dateTriggerCard}
+                onPress={() => setShowTimeModal(true)}
+                activeOpacity={0.85}
               >
-                {TIME_SLOTS.map(slot => {
-                  const isActive = selectedTime === slot;
-                  return (
-                    <TouchableOpacity
-                      key={slot}
-                      style={[styles.timeSlotChip, isActive && styles.timeSlotChipActive]}
-                      onPress={() => setSelectedTime(slot)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.timeSlotText, isActive && styles.timeSlotTextActive]}>
-                        {slot}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                <View style={styles.dateTriggerLeft}>
+                  <View style={styles.dateTriggerIconBg}>
+                    <MaterialIcons name="schedule" size={20} color={COLORS.primary} />
+                  </View>
+                  <View>
+                    <Text style={styles.dateTriggerValue}>{selectedTime}</Text>
+                    <Text style={styles.dateTriggerSub}>Nhấn để đổi giờ (tuỳ chọn linh hoạt)</Text>
+                  </View>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
+              </TouchableOpacity>
+
+              {/* TimePicker Modal */}
+              <TimePickerModal
+                visible={showTimeModal}
+                selectedTime={selectedTime}
+                onConfirm={(t) => {
+                  setSelectedTime(t);
+                  setShowTimeModal(false);
+                }}
+                onClose={() => setShowTimeModal(false)}
+              />
 
               {/* Chọn thời lượng */}
               <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>THỜI LƯỢNG TRẬN ĐẤU</Text>
@@ -389,7 +434,7 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
                 })}
               </View>
 
-              {/* Preview Card — kết quả cuối cùng */}
+              {/* Preview Card */}
               <View style={styles.previewCard}>
                 <MaterialIcons name="access-time-filled" size={18} color={COLORS.primary} />
                 <Text style={styles.previewText}>
@@ -509,7 +554,16 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
           />
         </ScrollView>
 
-        {/* ── Modals ──────────────────────────────────────────────── */}
+        {/* ── Shared AlertModal for UI Notifications ──────────────── */}
+        <AlertModal
+          visible={alertModalConfig.visible}
+          title={alertModalConfig.title}
+          message={alertModalConfig.message}
+          buttonText={alertModalConfig.buttonText}
+          onConfirm={alertModalConfig.onConfirm}
+        />
+
+        {/* ── Map Modal ──────────────────────────────────────────── */}
         <MapPickerModal
           visible={showMapModal}
           onClose={() => setShowMapModal(false)}
@@ -696,7 +750,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Date Trigger Card — matches BookingMatrix date header style
+  // Date/Time Trigger Cards
   dateTriggerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -730,33 +784,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
     marginTop: 1,
-  },
-
-  // Time Slot Chips — horizontal scroll like BookingMatrix time row
-  timeSlotRow: {
-    gap: SPACING.xs,
-    alignItems: 'center',
-  },
-  timeSlotChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-  timeSlotChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  timeSlotText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '600',
-  },
-  timeSlotTextActive: {
-    color: COLORS.onPrimary,
-    fontWeight: '800',
   },
 
   // Duration Cards
