@@ -143,7 +143,7 @@ export function MyClubsScreen() {
           styles.searchContainer,
           isSearchFocused && styles.searchContainerFocused
         ]}>
-          <MaterialIcons name="search" size={20} color={COLORS.outline} />
+          <MaterialIcons name="search" size={22} color={COLORS.primary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Tìm tên CLB hoặc môn thể thao..."
@@ -154,10 +154,18 @@ export function MyClubsScreen() {
             onBlur={() => setIsSearchFocused(false)}
           />
           {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
+            <TouchableOpacity 
+              style={styles.searchActionBtn}
+              activeOpacity={0.8}
+              onPress={() => setSearchQuery('')}
+            >
+              <MaterialIcons name="close" size={16} color={COLORS.white} />
             </TouchableOpacity>
-          ) : null}
+          ) : (
+            <View style={styles.searchActionBtn}>
+              <MaterialIcons name="tune" size={16} color={COLORS.white} />
+            </View>
+          )}
         </View>
 
         <SportsFilter 
@@ -263,13 +271,16 @@ const styles = StyleSheet.create({
     width: 40,
   },
   createBtn: {
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.sm + 2,
     paddingVertical: 0,
-    height: 32,
-    borderRadius: BORDER_RADIUS.default,
+    height: 36,
+    borderRadius: BORDER_RADIUS.md, // 12px radius for Primary CTAs per spec
+    backgroundColor: COLORS.secondaryContainer, // Athletic Yellow per spec
   },
   createBtnText: {
-    ...TYPOGRAPHY.labelSm,
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSecondaryContainer, // Deep Emerald contrast text
+    fontWeight: '700',
   },
   scrollList: {
     padding: SPACING.marginMobile,
@@ -299,7 +310,8 @@ const styles = StyleSheet.create({
   },
   exploreBtn: {
     width: '80%',
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.secondaryContainer,
   },
   filterSection: {
     backgroundColor: COLORS.surface,
@@ -312,16 +324,17 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderRadius: BORDER_RADIUS.full, // 9999px pill shape per spec
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity20,
-    paddingHorizontal: SPACING.sm,
-    height: 44,
+    borderColor: COLORS.primaryOpacity10,
+    paddingHorizontal: SPACING.md,
+    height: 48,
     gap: SPACING.base,
   },
   searchContainerFocused: {
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
   },
   searchInput: {
     flex: 1,
@@ -329,6 +342,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.onSurface,
     padding: 0,
+  },
+  searchActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: BORDER_RADIUS.full, // Docked circular Emerald container per spec
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   authPromptContainer: {
     flex: 1,

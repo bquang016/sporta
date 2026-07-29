@@ -12,10 +12,11 @@ import { MatchHistoryModal } from './components/MatchHistoryModal';
 import { InviteModal } from './components/InviteModal';
 import { LeaveConfirmationModal } from './components/LeaveConfirmationModal';
 import { MembersModal, MemberItem } from './components/MembersModal';
+import { EditClubModal } from './components/EditClubModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { MatchmakeModal } from './components/MatchmakeModal';
 import { PollCard, PollData } from './components/PollCard';
-import { getClubMembersApi } from '../../../shared/api/clubs';
+import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, deletePollApi, approveMemberApi, rejectMemberApi, getClubMatchesApi } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
@@ -79,7 +80,8 @@ export function ClubDetailJoinedScreen() {
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Custom Match History Modal State
+  // Custom Edit & History Modals State
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
 
   // Poll & Matchmaking States
@@ -98,7 +100,10 @@ export function ClubDetailJoinedScreen() {
   const club = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
 
   // Determine current user role
-  const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : (club?.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên');
+  const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : 'Thành viên';
+
+  const approvedMembers = members.filter(m => m.status === 'APPROVED' || !m.status);
+  const pendingMembers = members.filter(m => m.status === 'PENDING');
 
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
 
@@ -167,7 +172,6 @@ export function ClubDetailJoinedScreen() {
         
         let roleText = m.role;
         if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') roleText = 'Trưởng câu lạc bộ';
-        else if (m.role === 'Phó nhóm' || m.role === 'SUB_LEADER' || m.role === 'Phó câu lạc bộ') roleText = 'Phó câu lạc bộ';
         else roleText = 'Thành viên';
 
         return {
@@ -176,7 +180,8 @@ export function ClubDetailJoinedScreen() {
           name: m.name,
           role: roleText,
           elo: virtualElo,
-          avatar: m.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+          avatar: m.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80",
+          status: m.status || 'APPROVED'
         };
       });
       setMembers(mapped);
@@ -192,6 +197,70 @@ export function ClubDetailJoinedScreen() {
       fetchMembers();
     }
   }, [isMembersModalVisible]);
+
+  const fetchActivePoll = async () => {
+    if (!club) return;
+    try {
+      const data = await getActivePollApi(Number(club.id));
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        if (data.matchmadeTeams) {
+          setTeamA(data.matchmadeTeams.teamA || []);
+          setTeamB(data.matchmadeTeams.teamB || []);
+          setMatchmadeTeams(data.matchmadeTeams);
+        } else {
+          setMatchmadeTeams(null);
+        }
+      } else {
+        setActivePoll(null);
+        setUserVote(null);
+        setMatchmadeTeams(null);
+      }
+    } catch (err) {
+      console.error('Lỗi tải biểu quyết hoạt động:', err);
+    }
+  };
+
+  const [realMatches, setRealMatches] = useState<MatchItem[]>([]);
+
+  const fetchMatches = async () => {
+    if (!club) return;
+    try {
+      const data = await getClubMatchesApi(Number(club.id));
+      if (Array.isArray(data)) {
+        const formatted: MatchItem[] = data.map((m: any) => ({
+          id: String(m.id || Math.random()),
+          opponentName: m.opponentName || 'Đối thủ',
+          opponentAvatar: m.opponentAvatar || 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80',
+          date: m.date || '',
+          ourScore: m.ourScore || 0,
+          opponentScore: m.opponentScore || 0,
+          result: (m.result ? String(m.result).toLowerCase() : 'win') as 'win' | 'lose' | 'draw',
+          location: m.location || 'Chưa cập nhật sân',
+        }));
+        setRealMatches(formatted);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải lịch sử trận đấu:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (club?.id) {
+      fetchActivePoll();
+      fetchMatches();
+    }
+  }, [club?.id]);
 
   const handleTransferLeadership = (member: MemberItem) => {
     if (!club) return;
@@ -281,6 +350,28 @@ export function ClubDetailJoinedScreen() {
     }, 400);
   };
 
+  const handleApproveMember = async (member: MemberItem) => {
+    if (!club) return;
+    try {
+      await approveMemberApi(Number(club.id), member.userId);
+      showAlert('Thành công', `Đã duyệt "${member.name}" vào câu lạc bộ.`);
+      await Promise.all([fetchMembers(), refreshClubs()]);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Phê duyệt thành viên thất bại.');
+    }
+  };
+
+  const handleRejectMember = async (member: MemberItem) => {
+    if (!club) return;
+    try {
+      await rejectMemberApi(Number(club.id), member.userId);
+      showAlert('Thành công', `Đã từ chối yêu cầu của "${member.name}".`);
+      await Promise.all([fetchMembers(), refreshClubs()]);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Từ chối yêu cầu thất bại.');
+    }
+  };
+
   if (!club) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -341,72 +432,101 @@ export function ClubDetailJoinedScreen() {
     });
   };
 
-  const handleCreatePoll = () => {
+  const handleCreatePoll = async () => {
+    if (!club) return;
     const formattedTime = `${pollTimeHour.toString().padStart(2, '0')}:${pollTimeMinute.toString().padStart(2, '0')}`;
-    setActivePoll({
-      id: 'poll-' + Date.now(),
-      title: pollTitleInput.trim() || 'Ghép trận cuối tuần',
-      closeTime: formattedTime,
-      isClosed: false,
-      votes: {
-        join: ['Trần Thị Mai', 'Phạm Minh Hoàng'],
-        absent: ['Lê Hoàng Sơn'],
-      },
-    });
-    setUserVote(null);
-    setMatchmadeTeams(null);
-    setIsCreatePollModalVisible(false);
+    try {
+      const data = await createPollApi(Number(club.id), {
+        title: pollTitleInput.trim() || 'Ghép trận cuối tuần',
+        closeTime: formattedTime
+      });
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        setMatchmadeTeams(null);
+      }
+      setIsCreatePollModalVisible(false);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể tạo biểu quyết mới.');
+    }
   };
 
-  const handleVote = (option: 'join' | 'absent') => {
+  const handleVote = async (option: 'join' | 'absent') => {
     if (!activePoll || activePoll.isClosed) return;
 
-    setActivePoll(prev => {
-      if (!prev) return null;
-
-      let newJoin = [...prev.votes.join];
-      let newAbsent = [...prev.votes.absent];
-
-      newJoin = newJoin.filter(name => name !== 'Bạn (Tôi)');
-      newAbsent = newAbsent.filter(name => name !== 'Bạn (Tôi)');
-
-      if (userVote === option) {
-        setUserVote(null);
-      } else {
-        if (option === 'join') {
-          newJoin.push('Bạn (Tôi)');
-          setUserVote('join');
+    try {
+      const data = await votePollApi(Number(activePoll.id), option);
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        if (data.matchmadeTeams) {
+          setTeamA(data.matchmadeTeams.teamA || []);
+          setTeamB(data.matchmadeTeams.teamB || []);
+          setMatchmadeTeams(data.matchmadeTeams);
         } else {
-          newAbsent.push('Bạn (Tôi)');
-          setUserVote('absent');
+          setMatchmadeTeams(null);
         }
       }
-
-      return {
-        ...prev,
-        votes: {
-          join: newJoin,
-          absent: newAbsent,
-        },
-      };
-    });
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Lỗi khi biểu quyết.');
+    }
   };
 
-  const handleClosePoll = () => {
+  const handleClosePoll = async () => {
     if (!activePoll) return;
-    setActivePoll(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        isClosed: true,
-      };
-    });
+    try {
+      const data = await closePollApi(Number(activePoll.id));
+      if (data) {
+        setActivePoll({
+          id: String(data.id),
+          title: data.title,
+          closeTime: data.closeTime,
+          isClosed: data.isClosed,
+          votes: {
+            join: data.joinedMembers || [],
+            absent: data.absentMembers || [],
+          }
+        });
+        setUserVote(data.userVote as 'join' | 'absent' | null);
+        if (data.matchmadeTeams) {
+          setTeamA(data.matchmadeTeams.teamA || []);
+          setTeamB(data.matchmadeTeams.teamB || []);
+          setMatchmadeTeams(data.matchmadeTeams);
+        }
+      }
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể đóng biểu quyết.');
+    }
   };
 
-  const handleDeletePoll = () => {
-    setActivePoll(null);
-    setUserVote(null);
-    setMatchmadeTeams(null);
+  const handleDeletePoll = async () => {
+    if (!activePoll) return;
+    try {
+      await deletePollApi(Number(activePoll.id));
+      setActivePoll(null);
+      setUserVote(null);
+      setMatchmadeTeams(null);
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể xóa biểu quyết.');
+    }
   };
 
   const handleStartMatchmaking = () => {
@@ -459,6 +579,7 @@ export function ClubDetailJoinedScreen() {
   };
 
   const handleConfirmLeave = async () => {
+    if (!club) return;
     setIsLeaveModalVisible(false);
     setIsMembersModalVisible(false);
     try {
@@ -499,18 +620,44 @@ export function ClubDetailJoinedScreen() {
 
       {/* Main Content */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Reusable Club detail header */}
-        <ClubDetailHeader club={club} hideMembersMeta={true} />
+        {/* Reusable Club detail header with collapsible info accordion */}
+        <ClubDetailHeader 
+          club={club} 
+          hideMembersMeta={true} 
+          isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
+          onEditPress={() => setIsEditModalVisible(true)}
+          showDescription={true}
+        />
 
-        {/* Bio / Description */}
+        {/* Info Section */}
         <View style={styles.infoSection}>
-          <Card variant="outline" style={styles.bioCard}>
-            <Text style={styles.sectionTitle}>Giới thiệu câu lạc bộ</Text>
-            <Text style={styles.description}>
-              {club.description || 'Không có mô tả chi tiết cho câu lạc bộ này.'}
-            </Text>
-          </Card>
+          {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
           
+          {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
+          {currentUserRole === 'Trưởng câu lạc bộ' && pendingMembers.length > 0 && (
+            <TouchableOpacity 
+              style={styles.pendingBanner}
+              activeOpacity={0.85}
+              onPress={() => setIsMembersModalVisible(true)}
+            >
+              <View style={styles.pendingBannerContent}>
+                <View style={styles.pendingBadgeIcon}>
+                  <MaterialIcons name="person-add" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.pendingBannerTextContainer}>
+                  <Text style={styles.pendingBannerTitle}>Yêu cầu gia nhập mới</Text>
+                  <Text style={styles.pendingBannerSubtitle}>
+                    Có {pendingMembers.length} người đang chờ bạn phê duyệt
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pendingBannerActionBtn}>
+                <Text style={styles.pendingBannerActionText}>Duyệt ngay</Text>
+                <MaterialIcons name="chevron-right" size={18} color={COLORS.white} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Action buttons row below description */}
           <View style={styles.actionRow}>
             <TouchableOpacity 
@@ -568,7 +715,7 @@ export function ClubDetailJoinedScreen() {
       <MembersModal 
         visible={isMembersModalVisible}
         onClose={() => setIsMembersModalVisible(false)}
-        membersCount={members.length > 0 ? members.length : club.members}
+        membersCount={approvedMembers.length > 0 ? approvedMembers.length : club.members}
         members={members}
         onLeavePress={handleLeavePress}
         currentUserRole={currentUserRole}
@@ -577,6 +724,8 @@ export function ClubDetailJoinedScreen() {
         onAssignSubLeader={handleAssignSubLeader}
         onDemoteSubLeader={handleDemoteSubLeader}
         onKickMember={handleKickMember}
+        onApproveMember={handleApproveMember}
+        onRejectMember={handleRejectMember}
       />
 
       {/* Invite Friend Modal */}
@@ -619,8 +768,22 @@ export function ClubDetailJoinedScreen() {
         visible={isHistoryModalVisible}
         onClose={() => setIsHistoryModalVisible(false)}
         club={club}
-        matches={MOCK_MATCH_HISTORY}
+        matches={realMatches.length > 0 ? realMatches : MOCK_MATCH_HISTORY}
+        isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
+        onRefreshMatches={fetchMatches}
       />
+
+      {/* Edit Club Modal (Dành riêng cho Trưởng câu lạc bộ) */}
+      {currentUserRole === 'Trưởng câu lạc bộ' && (
+        <EditClubModal 
+          visible={isEditModalVisible}
+          onClose={() => setIsEditModalVisible(false)}
+          club={club}
+          onSuccess={async () => {
+            await Promise.all([fetchMembers(), refreshClubs()]);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -663,6 +826,13 @@ const styles = StyleSheet.create({
   headerPlaceholder: {
     width: 40,
   },
+  editHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
   scroll: {
     flex: 1,
   },
@@ -672,10 +842,32 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl * 2,
   },
   bioCard: {
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
     backgroundColor: COLORS.primaryOpacity05,
     borderColor: COLORS.primaryOpacity15,
     borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
+  },
+  bioHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  editBioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xs + 4,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity08 || COLORS.surfaceContainerLow,
+    gap: 3,
+  },
+  editBioText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   sectionTitle: {
     ...TYPOGRAPHY.labelMd,
@@ -715,6 +907,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.primaryOpacity08,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity15,
+    borderRadius: BORDER_RADIUS.default,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  pendingBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.md,
+  },
+  pendingBadgeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingBannerTextContainer: {
+    flex: 1,
+  },
+  pendingBannerTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  pendingBannerSubtitle: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    marginTop: 2,
+  },
+  pendingBannerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 2,
+  },
+  pendingBannerActionText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 12,
   },
   errorContainer: {
     flex: 1,

@@ -55,25 +55,29 @@ const styles = StyleSheet.create({
   },
   chipsContainer: {
     paddingHorizontal: SPACING.marginMobile,
-    paddingBottom: SPACING.base,
+    paddingBottom: SPACING.sm,
     gap: SPACING.base,
   },
   sportChip: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.xl,
+    paddingVertical: SPACING.xs + 3,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: COLORS.primaryOpacity08,
   },
   sportChipActive: {
-    backgroundColor: COLORS.secondaryContainer,
+    backgroundColor: COLORS.primaryContainer,
+    borderColor: COLORS.primaryContainer,
   },
   sportChipText: {
-    ...TYPOGRAPHY.labelSm,
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
     color: COLORS.onSurfaceVariant,
+    fontWeight: '500',
   },
   sportChipTextActive: {
-    color: COLORS.onSecondaryContainer,
+    color: COLORS.white,
+    fontWeight: '700',
   },
 });

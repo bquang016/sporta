@@ -101,3 +101,48 @@ export const assignSubLeaderApi = async (clubId: number, userId: number): Promis
 export const demoteSubLeaderApi = async (clubId: number, userId: number): Promise<void> => {
   return requestApi(`/clubs/${clubId}/members/${userId}/demote-subleader`, { method: 'POST' });
 };
+
+export const getActivePollApi = async (clubId: number): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/polls/active`, { method: 'GET' });
+};
+
+export const createPollApi = async (clubId: number, data: { title: string; closeTime: string }): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/polls`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+export const votePollApi = async (pollId: number, option: 'join' | 'absent'): Promise<any> => {
+  return requestApi(`/clubs/polls/${pollId}/vote?option=${option}`, { method: 'POST' });
+};
+
+export const closePollApi = async (pollId: number): Promise<any> => {
+  return requestApi(`/clubs/polls/${pollId}/close`, { method: 'POST' });
+};
+
+export const deletePollApi = async (pollId: number): Promise<void> => {
+  return requestApi(`/clubs/polls/${pollId}`, { method: 'DELETE' });
+};
+
+export interface ClubMatchPayload {
+  opponentName: string;
+  opponentAvatar?: string;
+  date: string; // YYYY-MM-DD
+  ourScore: number;
+  opponentScore: number;
+  result: 'WIN' | 'LOSE' | 'DRAW';
+  location?: string;
+}
+
+export const getClubMatchesApi = async (clubId: number): Promise<any[]> => {
+  return requestApi(`/clubs/${clubId}/matches`, { method: 'GET' });
+};
+
+export const addClubMatchApi = async (clubId: number, data: ClubMatchPayload): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/matches`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+

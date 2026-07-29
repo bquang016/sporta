@@ -36,7 +36,7 @@ export const useFacilities = () => {
             statusType: venue.status === 'ACTIVE' ? 'success' : 'warning',
             imageUrl: venue.coverImage || 'https://via.placeholder.com/300x160?text=No+Image',
             sport: venue.sportName || 'Khác',
-            area: venue.district || 'Khác',
+            area: venue.location || 'Khác',
             priceCategory: priceCategory,
           };
         });

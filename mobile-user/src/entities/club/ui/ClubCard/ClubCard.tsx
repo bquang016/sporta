@@ -26,7 +26,10 @@ export function ClubCard({ club, onPress, style }: ClubCardProps) {
           style={styles.avatar} 
         />
         <View style={styles.headerInfo}>
-          <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+            <MaterialIcons name="chevron-right" size={20} color={COLORS.outline} />
+          </View>
           
           {/* Row with sport and members */}
           <View style={styles.infoRow}>
@@ -35,7 +38,7 @@ export function ClubCard({ club, onPress, style }: ClubCardProps) {
               <MaterialIcons 
                 name="people" 
                 size={14} 
-                color={COLORS.onSurfaceVariant} 
+                color={COLORS.primary} 
                 style={styles.memberIcon} 
               />
               <Text style={styles.infoText}>
@@ -78,47 +81,59 @@ export function ClubCard({ club, onPress, style }: ClubCardProps) {
 const styles = StyleSheet.create({
   clubCard: {
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.lg, // 16px standard container radius
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.primaryOpacity12,
-    shadowColor: 'transparent',
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
     gap: SPACING.base,
   },
   cardHeader: {
     flexDirection: 'row',
     gap: SPACING.md,
+    alignItems: 'center',
   },
   avatar: {
     backgroundColor: COLORS.primaryOpacity10,
+    borderWidth: 2,
+    borderColor: COLORS.primaryOpacity15,
   },
   headerInfo: {
     flex: 1,
     justifyContent: 'center',
     gap: SPACING.xs,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.xs,
+  },
   clubName: {
-    ...TYPOGRAPHY.bodyMd,
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 16,
     fontFamily: 'HankenGrotesk-Bold',
     fontWeight: '700',
     color: COLORS.onSurface,
+    flex: 1,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.base,
-    marginTop: SPACING.xs,
+    marginTop: 2,
   },
   sportBadge: {},
   memberBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 4,
     backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.base,
     paddingVertical: 2,
   },
@@ -128,9 +143,9 @@ const styles = StyleSheet.create({
   eloBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 4,
     backgroundColor: COLORS.secondaryOpacity10,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: SPACING.base,
     paddingVertical: 2,
     borderWidth: 1,
@@ -141,14 +156,15 @@ const styles = StyleSheet.create({
   },
   infoText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
   areaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
-    marginTop: SPACING.xs,
+    marginTop: 2,
   },
   locationIcon: {
     marginRight: -2,

@@ -107,7 +107,7 @@ export function ClubsScreen() {
           styles.searchContainer,
           isSearchFocused && styles.searchContainerFocused
         ]}>
-          <MaterialIcons name="search" size={20} color={COLORS.outline} />
+          <MaterialIcons name="search" size={22} color={COLORS.primary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Tìm tên CLB hoặc môn thể thao..."
@@ -118,10 +118,18 @@ export function ClubsScreen() {
             onBlur={() => setIsSearchFocused(false)}
           />
           {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialIcons name="cancel" size={20} color={COLORS.outline} />
+            <TouchableOpacity 
+              style={styles.searchActionBtn}
+              activeOpacity={0.8}
+              onPress={() => setSearchQuery('')}
+            >
+              <MaterialIcons name="close" size={16} color={COLORS.white} />
             </TouchableOpacity>
-          ) : null}
+          ) : (
+            <View style={styles.searchActionBtn}>
+              <MaterialIcons name="tune" size={16} color={COLORS.white} />
+            </View>
+          )}
         </View>
 
         {/* Sports filter chips */}
@@ -251,16 +259,17 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderRadius: BORDER_RADIUS.full, // Full 9999px pill shape per spec
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity20,
-    paddingHorizontal: SPACING.sm,
-    height: 44,
+    borderColor: COLORS.primaryOpacity10,
+    paddingHorizontal: SPACING.md,
+    height: 48,
     gap: SPACING.base,
   },
   searchContainerFocused: {
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
   },
   searchInput: {
     flex: 1,
@@ -268,6 +277,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.onSurface,
     padding: 0,
+  },
+  searchActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: BORDER_RADIUS.full, // Docked circular Emerald container per spec
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollList: {
     padding: SPACING.marginMobile,
