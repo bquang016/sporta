@@ -1,11 +1,6 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-
-const getBaseUrl = () => {
-  if (Platform.OS === 'web') return 'http://localhost:8387/api/v1';
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  return 'http://localhost:8387/api/v1';
-};
+import { getBaseUrl } from './config';
 
 const getToken = async (): Promise<string> => {
   if (Platform.OS === 'web') {
@@ -43,17 +38,27 @@ export const uploadImageApi = async (
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${getBaseUrl()}/upload/image`, {
-    method: 'POST',
-    body: formData,
-    headers: headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || 'Upload ảnh thất bại');
+  try {
+    const response = await fetch(`${getBaseUrl()}/upload/image`, {
+      method: 'POST',
+      body: formData,
+      headers: headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Upload ảnh thất bại');
+    }
+
+    const data = await response.json();
+    return data.imageUrl;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.imageUrl;
 };

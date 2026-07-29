@@ -10,9 +10,8 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 
 import { Platform } from 'react-native';
-import { SessionExpiredModal } from '../src/shared/ui';
-import { AlertProvider } from '../src/shared/contexts/AlertContext';
-// Force Metro bundler rebuild
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../src/shared/api/queryClient';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -50,7 +49,7 @@ export default function RootLayout() {
   }
 
   return (
-    <AlertProvider>
+    <QueryClientProvider client={queryClient}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
@@ -62,7 +61,7 @@ export default function RootLayout() {
         <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
       </Stack>
-      <SessionExpiredModal />
-    </AlertProvider>
+    </QueryClientProvider>
   );
 }
+
