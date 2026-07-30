@@ -44,7 +44,7 @@ export function useEditProfile() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -111,8 +111,18 @@ export function useEditProfile() {
         ...extraData
       };
 
-      await usersApi.updateProfile(updateData);
+      const updatedProfile = await usersApi.updateProfile(updateData);
       
+      if (updatedProfile && updatedProfile.fullName) {
+        if (Platform.OS === 'web') {
+          localStorage.setItem('userName', updatedProfile.fullName);
+          if (updatedProfile.avatarUrl) localStorage.setItem('userAvatar', updatedProfile.avatarUrl);
+        } else {
+          await SecureStore.setItemAsync('userName', updatedProfile.fullName);
+          if (updatedProfile.avatarUrl) await SecureStore.setItemAsync('userAvatar', updatedProfile.avatarUrl);
+        }
+      }
+
       await refreshProfile();
       showAlert('Thành công', 'Cập nhật thành công.');
     } catch (error: any) {

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, RefreshControl, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { Platform, View, Text, StyleSheet, RefreshControl, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LikeButton, useReactionOverlay } from '../../like-post';
 import { CommentSectionModal } from '../../comment-post';
@@ -16,9 +16,10 @@ import {
 import { CustomConfirmModal } from '../../../shared/ui/CustomConfirmModal';
 import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
 import { useIsLoggedIn } from '../../../shared/hooks/useIsLoggedIn';
-import { MOCK_POSTS, mockCommunityDb } from '../../../shared/api/mockCommunityDb';
-import { fetchPostsApi, likePostApi } from '../../../shared/api/posts';
+import { fetchPostsApi, likePostApi, sharePostApi, deletePostApi } from '../../../shared/api/posts';
+import { usersApi } from '../../../shared/api/users';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
+import { PostCardSkeleton } from './PostCardSkeleton';
 
 const SafeFlashList = FlashList as any;
 
@@ -31,8 +32,30 @@ interface CommunityFeedProps {
 export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle }: CommunityFeedProps) {
   const overlay = useReactionOverlay();
   const { isLoggedIn } = useIsLoggedIn();
-  const [feedPosts, setFeedPosts] = useState<Post[]>(MOCK_POSTS);
+  const [feedPosts, setFeedPosts] = useState<Post[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Pagination States
+  const [page, setPage] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+
+  // Sync real user for comment modal
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      usersApi.getProfile().then((profile: any) => {
+        if (profile) {
+          setCurrentUser({
+            id: String(profile.id),
+            name: profile.fullName || 'Người dùng',
+            avatar: profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+            handle: `@user_${profile.id}`,
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [isLoggedIn]);
 
   // Auth Guard state
   const [authModal, setAuthModal] = useState<{
@@ -69,14 +92,16 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
     onConfirm: () => {},
   });
 
-  // Load posts from Spring Boot Backend API on mount
+  // Load initial posts (Page 0)
   React.useEffect(() => {
     let isMounted = true;
     const loadPosts = async () => {
       try {
-        const serverPosts = await fetchPostsApi();
-        if (isMounted && serverPosts && serverPosts.length > 0) {
-          setFeedPosts(serverPosts);
+        const { posts, hasNextPage: hasNext } = await fetchPostsApi(0, 10);
+        if (isMounted) {
+          setFeedPosts(posts);
+          setHasNextPage(hasNext);
+          setPage(0);
         }
       } catch (err) {
         console.log('Error fetching backend posts:', err);
@@ -98,10 +123,10 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const serverPosts = await fetchPostsApi();
-      if (serverPosts && serverPosts.length > 0) {
-        setFeedPosts(serverPosts);
-      }
+      const { posts, hasNextPage: hasNext } = await fetchPostsApi(0, 10);
+      setFeedPosts(posts);
+      setHasNextPage(hasNext);
+      setPage(0);
     } catch (err) {
       console.log('Error refreshing posts:', err);
     } finally {
@@ -109,8 +134,24 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
     }
   };
 
+  const loadMorePosts = async () => {
+    if (isFetchingNextPage || !hasNextPage) return;
+    setIsFetchingNextPage(true);
+    try {
+      const nextPage = page + 1;
+      const { posts, hasNextPage: hasNext } = await fetchPostsApi(nextPage, 10);
+      setFeedPosts((prev) => [...prev, ...posts]);
+      setHasNextPage(hasNext);
+      setPage(nextPage);
+    } catch (error) {
+      console.log('Error loading more posts', error);
+    } finally {
+      setIsFetchingNextPage(false);
+    }
+  };
+
   const handleReactPost = (postId: string, reaction: any) => {
-    // Auth Guard — yêu cầu đăng nhập để thả cảm xúc
+    // Auth Guard
     if (!isLoggedIn) {
       setAuthModal({
         visible: true,
@@ -128,21 +169,19 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
           const nextReaction = reaction;
           const isLiked = !!nextReaction;
 
-          const newReactionsCount = {
-            ...(p.reactionsCount || { like: p.likesCount || p.likeCount || 0, love: 0, fire: 0, clap: 0 }),
+          const newReactionsCount: Record<string, number> = {
+            like: 0, love: 0, fire: 0, clap: 0, muscle: 0, trophy: 0,
+            ...(p.reactionsCount || {}),
           };
 
           // Decrement previous reaction count if existed
-          if (oldReaction && newReactionsCount[oldReaction as keyof typeof newReactionsCount] !== undefined) {
-            newReactionsCount[oldReaction as keyof typeof newReactionsCount] = Math.max(
-              0,
-              newReactionsCount[oldReaction as keyof typeof newReactionsCount] - 1
-            );
+          if (oldReaction && newReactionsCount[oldReaction] !== undefined) {
+            newReactionsCount[oldReaction] = Math.max(0, (newReactionsCount[oldReaction] || 0) - 1);
           }
 
           // Increment new reaction count
-          if (nextReaction && newReactionsCount[nextReaction as keyof typeof newReactionsCount] !== undefined) {
-            newReactionsCount[nextReaction as keyof typeof newReactionsCount] += 1;
+          if (nextReaction) {
+            newReactionsCount[nextReaction] = (newReactionsCount[nextReaction] || 0) + 1;
           }
 
           return {
@@ -155,7 +194,8 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
         return p;
       })
     );
-    mockCommunityDb.reactPost(postId, reaction);
+    // Fire like API to backend
+    likePostApi(postId, reaction || 'like').catch(() => {});
   };
 
   const handleDeletePostConfirm = (postId: string) => {
@@ -165,17 +205,15 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
       message: 'Bạn có chắc chắn muốn xóa bài viết này? Thao tác này không thể hoàn tác.',
       type: 'danger',
       confirmText: 'Xóa ngay',
-      onConfirm: () => {
-        setFeedPosts((prev) => prev.filter((p) => p.id !== postId));
+      onConfirm: async () => {
         setConfirmModalData((prev) => ({ ...prev, visible: false }));
+        // Call API to soft delete
+        const success = await deletePostApi(postId);
+        if (success) {
+          setFeedPosts((prev) => prev.filter((p) => p.id !== postId));
+        }
       },
     });
-  };
-
-  const handlePinPost = (postId: string) => {
-    setFeedPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, isPinned: !p.isPinned } : p))
-    );
   };
 
   const renderItem = ({ item }: { item: Post }) => (
@@ -185,7 +223,6 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
         <LikeButton post={postItem} onReactPost={handleReactPost} />
       )}
       onCommentPress={() => {
-        // Auth Guard — yêu cầu đăng nhập để bình luận
         if (!isLoggedIn) {
           setAuthModal({
             visible: true,
@@ -204,11 +241,24 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
     />
   );
 
-  const renderFooter = () => (
-    <View style={styles.endOfFeed}>
-      <Text style={styles.endOfFeedText}>Bạn đã xem hết 20+ tin tức rồi 🏅</Text>
-    </View>
-  );
+  const renderFooter = () => {
+    if (isFetchingNextPage) {
+      return (
+        <View style={{ paddingTop: SPACING.md, paddingBottom: SPACING.xl }}>
+          <PostCardSkeleton />
+          <PostCardSkeleton />
+        </View>
+      );
+    }
+    if (!hasNextPage && feedPosts.length > 0) {
+      return (
+        <View style={styles.endOfFeed}>
+          <Text style={styles.endOfFeedText}>Bạn đã xem hết bài viết rồi 🏅</Text>
+        </View>
+      );
+    }
+    return <View style={{ height: 100 }} />;
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -222,6 +272,8 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
         scrollEventThrottle={16}
         contentContainerStyle={[styles.listContent, contentContainerStyle]}
         showsVerticalScrollIndicator={false}
+        onEndReached={loadMorePosts}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -232,10 +284,12 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
         }
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Chưa có bài viết nào.</Text>
-            <Text style={styles.emptySubtext}>Hãy là người đầu tiên chia sẻ bài viết của bạn!</Text>
-          </View>
+          !isRefreshing && feedPosts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Chưa có bài viết nào.</Text>
+              <Text style={styles.emptySubtext}>Hãy là người đầu tiên chia sẻ bài viết của bạn!</Text>
+            </View>
+          ) : null
         }
       />
 
@@ -245,6 +299,16 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
           visible={!!commentPostId}
           postId={commentPostId}
           onClose={() => setCommentPostId(null)}
+          currentUser={currentUser}
+          onCommentAdded={() => {
+            setFeedPosts((prev) =>
+              prev.map((p) =>
+                p.id === commentPostId
+                  ? { ...p, commentsCount: (p.commentsCount || 0) + 1 }
+                  : p
+              )
+            );
+          }}
         />
       )}
 
@@ -313,7 +377,6 @@ export function CommunityFeed({ newCreatedPost, onScroll, contentContainerStyle 
         currentUserId="current-user"
         onClose={() => setMenuPost(null)}
         onDeletePost={handleDeletePostConfirm}
-        onPinPost={handlePinPost}
         onReportPost={(postId) => setReportPostId(postId)}
       />
 

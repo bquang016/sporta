@@ -11,23 +11,7 @@ interface CommentItemProps {
 export const CommentItem = React.memo(({ comment, onUserPress }: CommentItemProps) => {
   const isOwner = comment.author.role === 'owner';
   
-  const formatTime = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMins / 60);
-
-      if (diffMins < 1) return 'Vừa xong';
-      if (diffMins < 60) return `${diffMins} phút trước`;
-      if (diffHours < 24) return `${diffHours} giờ trước`;
-      
-      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
+  // Formatting is handled by the API/store directly
 
   return (
     <View style={styles.container}>
@@ -49,7 +33,7 @@ export const CommentItem = React.memo(({ comment, onUserPress }: CommentItemProp
               </View>
             )}
           </TouchableOpacity>
-          <Text style={styles.time}>{formatTime(comment.createdAt)}</Text>
+          <Text style={styles.time}>{comment.createdAt}</Text>
         </View>
         
         <Text style={styles.body}>{comment.content}</Text>

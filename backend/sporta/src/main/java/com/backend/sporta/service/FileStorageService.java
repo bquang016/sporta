@@ -7,6 +7,11 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+
+import java.time.Duration;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -16,6 +21,9 @@ public class FileStorageService {
 
     @Autowired
     private S3Client s3Client;
+
+    @Autowired
+    private S3Presigner s3Presigner;
 
     @Value("${r2.bucket}")
     private String bucketName;
@@ -58,5 +66,42 @@ public class FileStorageService {
         } catch (IOException e) {
             throw new RuntimeException("Lỗi khi tải ảnh lên Cloudflare R2: " + e.getMessage(), e);
         }
+    }
+
+    public java.util.Map<String, String> generatePresignedUrl(String folder, String extension, String contentType) {
+        String pathPrefix = folder;
+        if (pathPrefix == null || pathPrefix.trim().isEmpty()) {
+            pathPrefix = "general";
+        }
+        if (pathPrefix.endsWith("/")) {
+            pathPrefix = pathPrefix.substring(0, pathPrefix.length() - 1);
+        }
+
+        String fileName = pathPrefix + "/" + UUID.randomUUID().toString() + extension;
+
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(fileName)
+                .contentType(contentType)
+                .build();
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(15))
+                .putObjectRequest(objectRequest)
+                .build();
+
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
+
+        String baseUrl = publicUrl;
+        if (!baseUrl.endsWith("/")) {
+            baseUrl = baseUrl + "/";
+        }
+        String filePublicUrl = baseUrl + fileName;
+
+        java.util.Map<String, String> result = new java.util.HashMap<>();
+        result.put("presignedUrl", presignedRequest.url().toString());
+        result.put("publicUrl", filePublicUrl);
+        
+        return result;
     }
 }
