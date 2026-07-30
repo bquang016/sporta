@@ -43,4 +43,8 @@ public class VenueResponse {
     private Double maxPrice;
 
     private String sportName;
+    
+    // Thêm cho tính năng Search LBS & Availability
+    private Double distanceKm;
+    private Integer availableSlotsCount;
 }
