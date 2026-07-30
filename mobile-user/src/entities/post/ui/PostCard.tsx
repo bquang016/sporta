@@ -29,10 +29,10 @@ export const PostCard = React.memo(({
 }: PostCardProps) => {
   const totalReactions = post.reactionsCount
     ? (post.reactionsCount.like || 0) +
-      (post.reactionsCount.love || 0) +
-      (post.reactionsCount.fire || 0) +
-      (post.reactionsCount.clap || 0)
-    : (post.likeCount || post.likesCount || 0);
+    (post.reactionsCount.love || 0) +
+    (post.reactionsCount.fire || 0) +
+    (post.reactionsCount.clap || 0)
+    : (post.likeCount || post.likeCount || 0);
 
   return (
     <View style={styles.cardContainer}>
