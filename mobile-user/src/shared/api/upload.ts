@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { getBaseUrl } from './config';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const getToken = async (): Promise<string> => {
   if (Platform.OS === 'web') {
@@ -15,50 +16,65 @@ const getToken = async (): Promise<string> => {
 
 export const uploadImageApi = async (
   uri: string,
-  type: 'avatar' | 'court_cover' | 'general' = 'general'
+  type: 'avatar' | 'court_cover' | 'general' | 'post' = 'general'
 ): Promise<string> => {
   const token = await getToken();
-  const formData = new FormData();
+  
+  // 1. Convert to WebP (No crop/resize, just compress to save 80% size)
+  let localUriToUpload = uri;
+  try {
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { compress: 0.8, format: ImageManipulator.SaveFormat.WEBP }
+    );
+    localUriToUpload = manipResult.uri;
+  } catch (error) {
+    console.log('WebP conversion failed, fallback to original:', error);
+  }
 
-  const uriParts = uri.split('/');
-  const fileName = uriParts[uriParts.length - 1] || 'image.jpg';
-  const fileType = fileName.split('.').pop() || 'jpg';
-
-  // React Native FormData format for files
-  formData.append('file', {
-    uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
-    name: fileName,
-    type: `image/${fileType === 'jpg' ? 'jpeg' : fileType}`,
-  } as any);
-
-  formData.append('type', type);
-
+  // 2. Fetch Presigned URL
   const headers: Record<string, string> = {};
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
-
-  try {
-    const response = await fetch(`${getBaseUrl()}/upload/image`, {
-      method: 'POST',
-      body: formData,
-      headers: headers,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Upload ảnh thất bại');
+  const presignResponse = await fetch(
+    `${getBaseUrl()}/upload/presigned-url?type=${type}&extension=.webp&contentType=image/webp`,
+    {
+      method: 'GET',
+      headers,
     }
+  );
 
-    const data = await response.json();
-    return data.imageUrl;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    throw error;
+  if (!presignResponse.ok) {
+    throw new Error('Could not get presigned url');
   }
+
+  const { presignedUrl, publicUrl } = await presignResponse.json();
+
+  // 3. Upload File Directly to R2
+  let blob: Blob;
+  if (Platform.OS === 'web') {
+    const response = await fetch(localUriToUpload);
+    blob = await response.blob();
+  } else {
+    // For React Native, we can use fetch to convert local file uri to blob
+    const response = await fetch(localUriToUpload);
+    blob = await response.blob();
+  }
+
+  const uploadResponse = await fetch(presignedUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'image/webp',
+    },
+    body: blob,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error('Failed to upload to R2 directly');
+  }
+
+  return publicUrl;
 };

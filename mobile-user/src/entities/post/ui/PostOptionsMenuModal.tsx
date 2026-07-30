@@ -19,7 +19,6 @@ interface PostOptionsMenuModalProps {
   currentUserId: string;
   onClose: () => void;
   onDeletePost?: (postId: string) => void;
-  onPinPost?: (postId: string) => void;
   onReportPost?: (postId: string) => void;
 }
 
@@ -29,7 +28,6 @@ export const PostOptionsMenuModal = React.memo(({
   currentUserId,
   onClose,
   onDeletePost,
-  onPinPost,
   onReportPost,
 }: PostOptionsMenuModalProps) => {
   const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -88,8 +86,6 @@ export const PostOptionsMenuModal = React.memo(({
     setTimeout(() => {
       if (actionName === 'report' && onReportPost) {
         onReportPost(post.id);
-      } else if (actionName === 'pin' && onPinPost) {
-        onPinPost(post.id);
       }
     }, 200);
   };
@@ -119,19 +115,7 @@ export const PostOptionsMenuModal = React.memo(({
             <View style={styles.menuList}>
               {isOwner ? (
                 <>
-                  {/* 1. Pin Post */}
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    activeOpacity={0.7}
-                    onPress={() => handleAction('pin')}
-                  >
-                    <Ionicons name="pin-outline" size={22} color={COLORS.onSurface} />
-                    <Text style={styles.menuItemText}>
-                      {post.isPinned ? 'Bỏ ghim bài viết' : 'Ghim bài viết lên đầu'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* 2. Edit Post */}
+                  {/* 1. Edit Post */}
                   <TouchableOpacity
                     style={styles.menuItem}
                     activeOpacity={0.7}

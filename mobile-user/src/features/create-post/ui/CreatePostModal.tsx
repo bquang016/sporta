@@ -28,26 +28,30 @@ interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmitPost: (newPost: Partial<Post>) => void;
+  currentUser?: any;
 }
 
 export const CreatePostModal = React.memo(({
   visible,
   onClose,
   onSubmitPost,
+  currentUser,
 }: CreatePostModalProps) => {
   if (!visible) return null;
 
-  return <CreatePostModalContent visible={visible} onClose={onClose} onSubmitPost={onSubmitPost} />;
+  return <CreatePostModalContent visible={visible} onClose={onClose} onSubmitPost={onSubmitPost} currentUser={currentUser} />;
 });
 
 function CreatePostModalContent({
   visible,
   onClose,
   onSubmitPost,
+  currentUser,
 }: {
   visible: boolean;
   onClose: () => void;
   onSubmitPost: (newPost: Partial<Post>) => void;
+  currentUser?: any;
 }) {
   const [content, setContent] = useState('');
   const [audience, setAudience] = useState<PostAudience>('PUBLIC');
@@ -211,7 +215,7 @@ function CreatePostModalContent({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsMultipleSelection: true,
         quality: 0.8,
         selectionLimit: 5,
@@ -250,7 +254,7 @@ function CreatePostModalContent({
             return uri; // Already a remote web URL
           }
           try {
-            const uploadedUrl = await uploadImageApi(uri, 'general');
+            const uploadedUrl = await uploadImageApi(uri, 'post');
             return uploadedUrl || uri;
           } catch (err) {
             console.log('Upload fallback to local URI:', err);
@@ -262,7 +266,7 @@ function CreatePostModalContent({
       }
 
       const newPostData: Partial<Post> = {
-        author: CURRENT_USER,
+        author: currentUser || CURRENT_USER,
         content: content.trim() || 'Hình ảnh mới chia sẻ từ Sporta',
         mediaUrls: finalMediaUrls.length > 0 ? finalMediaUrls : undefined,
         createdAt: 'Vừa xong',
@@ -347,10 +351,10 @@ function CreatePostModalContent({
             >
               {/* User Info & Audience Selector */}
               <View style={styles.userHeaderRow}>
-                <Image source={{ uri: CURRENT_USER.avatar }} style={styles.userAvatar} />
+                <Image source={{ uri: currentUser?.avatar || CURRENT_USER.avatar }} style={styles.userAvatar} />
 
                 <View style={styles.userTextCol}>
-                  <Text style={styles.userName}>{CURRENT_USER.name}</Text>
+                  <Text style={styles.userName}>{currentUser?.name || CURRENT_USER.name}</Text>
 
                   {/* Audience Selector Button */}
                   <TouchableOpacity
