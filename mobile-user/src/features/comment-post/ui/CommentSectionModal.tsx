@@ -23,8 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCommentPost } from '../model/useCommentPost';
 import { UserProfileModal } from '../../user-profile';
 import { CommentItem } from '../../../entities/post';
-import { CURRENT_USER } from '../../../shared/api/mockCommunityDb';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { CommentSkeleton } from './CommentSkeleton';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -32,31 +32,56 @@ interface CommentSectionModalProps {
   visible: boolean;
   postId: string;
   onClose: () => void;
+  currentUser?: any;
+  onCommentAdded?: () => void;
 }
 
-export function CommentSectionModal({ visible, postId, onClose }: CommentSectionModalProps) {
+export function CommentSectionModal({ visible, postId, onClose, currentUser, onCommentAdded }: CommentSectionModalProps) {
   if (!visible) return null;
 
-  return <CommentSectionModalContent visible={visible} postId={postId} onClose={onClose} />;
+  return (
+    <CommentSectionModalContent
+      visible={visible}
+      postId={postId}
+      onClose={onClose}
+      currentUser={currentUser}
+      onCommentAdded={onCommentAdded}
+    />
+  );
 }
 
 function CommentSectionModalContent({
   visible,
   postId,
   onClose,
+  currentUser,
+  onCommentAdded,
 }: {
   visible: boolean;
   postId: string;
   onClose: () => void;
+  currentUser?: any;
+  onCommentAdded?: () => void;
 }) {
   const [commentText, setCommentText] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const {
     comments,
     isCommentsLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     addComment,
     isSubmittingComment,
-  } = useCommentPost(postId);
+  } = useCommentPost(postId, currentUser);
+
+  const handleSubmit = () => {
+    if (!commentText.trim()) return;
+    addComment(commentText.trim());
+    setCommentText('');
+    Keyboard.dismiss();
+    if (onCommentAdded) onCommentAdded();
+  };
 
   // Animated values for 60fps Native Driver Fade Backdrop + Slide Sheet
   const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -187,13 +212,6 @@ function CommentSectionModalContent({
     isAtTopRef.current = y <= 2;
   };
 
-  const handleSubmit = () => {
-    if (!commentText.trim()) return;
-    Keyboard.dismiss();
-    addComment(commentText.trim());
-    setCommentText('');
-  };
-
   const handleUserPress = (userId: string) => {
     setSelectedUserId(userId);
   };
@@ -260,9 +278,10 @@ function CommentSectionModalContent({
 
               {/* Comments List */}
               {isCommentsLoading ? (
-                <View style={styles.loaderContainer}>
-                  <ActivityIndicator size="large" color={COLORS.primary} />
-                  <Text style={styles.loaderText}>Đang tải bình luận...</Text>
+                <View style={{ paddingTop: SPACING.md }}>
+                  <CommentSkeleton />
+                  <CommentSkeleton />
+                  <CommentSkeleton />
                 </View>
               ) : (
                 <FlatList
@@ -280,6 +299,23 @@ function CommentSectionModalContent({
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchEnd}
+                  onEndReached={() => {
+                    if (hasNextPage && !isFetchingNextPage) {
+                      fetchNextPage();
+                    }
+                  }}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={() => {
+                    if (isFetchingNextPage) {
+                      return (
+                        <View style={{ paddingTop: SPACING.md }}>
+                          <CommentSkeleton />
+                          <CommentSkeleton />
+                        </View>
+                      );
+                    }
+                    return null;
+                  }}
                   ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                       <View style={styles.emptyIconBg}>
@@ -294,7 +330,7 @@ function CommentSectionModalContent({
 
               {/* Modern Capsule Input Bar */}
               <View style={styles.inputBarWrapper}>
-                <Image source={{ uri: CURRENT_USER.avatar }} style={styles.inputAvatar} />
+                <Image source={{ uri: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80' }} style={styles.inputAvatar} />
                 <View style={styles.inputContainer}>
                   <TextInput
                     style={styles.input}

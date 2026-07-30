@@ -8,14 +8,16 @@ import React, {
 import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { REACTION_MAP } from '../../../entities/post';
+
 /* ── Sport-themed Reaction Badges ── */
-const REACTION_CONFIG = [
-  { key: 'like', icon: 'thumbs-up' as const, label: 'Thích', bg: '#2563EB' },
-  { key: 'love', icon: 'heart' as const, label: 'Yêu thích', bg: '#EF4444' },
-  { key: 'fire', icon: 'flame' as const, label: 'Cháy!!', bg: '#F97316' },
-  { key: 'muscle', icon: 'flash' as const, label: 'Sung sức', bg: '#EAB308' },
-  { key: 'trophy', icon: 'trophy' as const, label: 'Đẳng cấp', bg: '#10B981' },
-];
+const REACTION_KEYS = ['like', 'love', 'fire', 'muscle', 'trophy'] as const;
+const REACTION_CONFIG = REACTION_KEYS.map((key) => ({
+  key,
+  icon: REACTION_MAP[key].iconName,
+  label: REACTION_MAP[key].label,
+  bg: REACTION_MAP[key].color,
+}));
 
 const BAR_WIDTH = 280;
 const BAR_HEIGHT = 56;

@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Post, ClubInfoData } from '../model/post.types';
 import { MatchCardAttachment } from './MatchCardAttachment';
 import { VenuePromoAttachment } from './VenuePromoAttachment';
+import { PostImageViewerModal } from './PostImageViewerModal';
+import { REACTION_MAP } from '../index';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface PostCardProps {
@@ -27,11 +29,9 @@ export const PostCard = React.memo(({
   onClubPress,
   onOptionPress,
 }: PostCardProps) => {
+  const [viewerVisible, setViewerVisible] = useState(false);
   const totalReactions = post.reactionsCount
-    ? (post.reactionsCount.like || 0) +
-    (post.reactionsCount.love || 0) +
-    (post.reactionsCount.fire || 0) +
-    (post.reactionsCount.clap || 0)
+    ? Object.values(post.reactionsCount).reduce((sum, count) => sum + (count || 0), 0)
     : (post.likeCount || post.likeCount || 0);
 
   return (
@@ -160,27 +160,63 @@ export const PostCard = React.memo(({
 
       {/* ── 4. Media Images ── */}
       {post.mediaUrls && post.mediaUrls.length > 0 ? (
-        <View style={styles.mediaContainer}>
-          <Image source={{ uri: post.mediaUrls[0] }} style={styles.mediaImage} />
-        </View>
+        <>
+          <TouchableOpacity activeOpacity={0.9} onPress={() => setViewerVisible(true)}>
+            <View style={styles.mediaContainer}>
+              <Image source={{ uri: post.mediaUrls[0] }} style={styles.mediaImage} />
+            </View>
+          </TouchableOpacity>
+          <PostImageViewerModal
+            visible={viewerVisible}
+            post={post}
+            initialIndex={0}
+            onClose={() => setViewerVisible(false)}
+            onReact={onLikePress ? () => onLikePress() : undefined}
+            onOptionPress={onOptionPress}
+            onComment={() => {
+              setViewerVisible(false);
+              setTimeout(() => {
+                if (onCommentPress) onCommentPress();
+              }, 300);
+            }}
+          />
+        </>
       ) : null}
 
       {/* ── 5. Reaction & Comment Statistics Bar ── */}
       <View style={styles.statsBar}>
         <View style={styles.reactionsCountRow}>
-          {totalReactions > 0 && (
-            <View style={styles.stackedIconsRow}>
-              <View style={[styles.iconCircleBadge, { backgroundColor: COLORS.primary }]}>
-                <Ionicons name="thumbs-up" size={10} color="#FFFFFF" />
+          {totalReactions > 0 && (() => {
+            // Facebook-pattern: only show reaction icons that have count > 0,
+            // sorted by count descending, max 3 icons
+            const reactionTypes: { key: string; count: number; icon: string; color: string }[] = Object.keys(REACTION_MAP).map(key => ({
+              key,
+              count: (post.reactionsCount as any)?.[key] || 0,
+              icon: REACTION_MAP[key].iconName,
+              color: REACTION_MAP[key].color,
+            }));
+            const activeReactions = reactionTypes
+              .filter((r) => r.count > 0)
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 3);
+
+            return (
+              <View style={styles.stackedIconsRow}>
+                {activeReactions.map((r, idx) => (
+                  <View
+                    key={r.key}
+                    style={[
+                      styles.iconCircleBadge,
+                      { backgroundColor: r.color },
+                      idx > 0 && { marginLeft: -4 },
+                    ]}
+                  >
+                    <Ionicons name={r.icon as any} size={10} color="#FFFFFF" />
+                  </View>
+                ))}
               </View>
-              <View style={[styles.iconCircleBadge, { backgroundColor: '#EF4444', marginLeft: -4 }]}>
-                <Ionicons name="heart" size={10} color="#FFFFFF" />
-              </View>
-              <View style={[styles.iconCircleBadge, { backgroundColor: '#F59E0B', marginLeft: -4 }]}>
-                <Ionicons name="flame" size={10} color="#FFFFFF" />
-              </View>
-            </View>
-          )}
+            );
+          })()}
           <Text style={styles.statsText}>{totalReactions > 0 ? totalReactions : ''}</Text>
         </View>
 

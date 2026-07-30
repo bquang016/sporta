@@ -82,6 +82,8 @@ export interface Post {
     love: number;
     fire: number;
     clap: number;
+    muscle: number;
+    trophy: number;
   };
   userReaction?: 'like' | 'love' | 'fire' | 'clap' | 'trophy' | 'muscle' | null;
   commentsCount: number;
