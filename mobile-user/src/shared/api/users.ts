@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { BASE_URL, ApiError } from './apiClient';
+import { getBaseUrl } from './config';
+import { ApiError } from './apiClient';
 
 export interface UserProfileDto {
   id: number;
@@ -46,7 +47,7 @@ const getToken = async (): Promise<string | null> => {
 export const usersApi = {
   getProfile: async (): Promise<UserProfileDto> => {
     const token = await getToken();
-    const response = await fetch(`${BASE_URL}/users/profile`, {
+    const response = await fetch(`${getBaseUrl()}/users/profile`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -102,7 +103,7 @@ export const usersApi = {
       }
     }
 
-    const response = await fetch(`${BASE_URL}/users/profile`, {
+    const response = await fetch(`${getBaseUrl()}/users/profile`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,

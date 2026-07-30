@@ -145,6 +145,7 @@ export function BookingMatrix({
         {renderLegendItem(COLORS.surfaceVariant, 'Khoá')}
         {renderLegendItem(COLORS.secondary, 'Đang chọn')}
         {renderLegendItem(COLORS.sportTeal, 'Xé vé')}
+        {renderLegendItem('#F59E0B', 'Giữ chỗ')}
       </View>
 
       {/* Grid */}
@@ -191,10 +192,12 @@ export function BookingMatrix({
                     const isSelected = selectedSlotKeys.has(`${court.id}|${time}`);
                     const status = slot?.status ?? 'locked';
                     const isOwnerSplit = slot?.isOwnerSplit;
+                    const isHold = status === 'MATCHMAKING_HOLD';
                     const isMatchmaking = status === 'matchmaking' || isOwnerSplit || Boolean(slot?.ticketSessionId);
 
                     let bgColor = COLORS.surface;
                     if (isSelected) bgColor = COLORS.secondary;
+                    else if (isHold) bgColor = '#F59E0B';
                     else if (isMatchmaking) bgColor = COLORS.sportTeal;
                     else if (status === 'booked') bgColor = COLORS.error;
                     else if (status === 'locked') bgColor = COLORS.surfaceVariant;
@@ -205,14 +208,16 @@ export function BookingMatrix({
                         style={[
                           styles.slotCell,
                           { backgroundColor: bgColor },
-                          isMatchmaking && styles.matchmakingSlot,
+                          (isMatchmaking || isHold) && styles.matchmakingSlot,
                         ]}
                         onPress={() => slot && onToggleSlot(slot)}
                         activeOpacity={0.7}
                       >
-                        {isMatchmaking && (
+                        {isHold ? (
+                          <MaterialIcons name="timer" size={16} color="#FFFFFF" />
+                        ) : isMatchmaking ? (
                           <MaterialIcons name="confirmation-number" size={16} color="#FFFFFF" />
-                        )}
+                        ) : null}
                       </TouchableOpacity>
                     );
                   })}

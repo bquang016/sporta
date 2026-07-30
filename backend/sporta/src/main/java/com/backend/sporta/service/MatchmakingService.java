@@ -35,11 +35,27 @@ public class MatchmakingService {
     private final EloRatingService eloRatingService;
 
     /**
-     * Tính toán Dynamic TTL cho Luồng 2 (Cọc giữ chỗ) - Mặc định giữ phòng an toàn
+     * Tính toán Dynamic TTL cho Luồng 2 (Cọc giữ chỗ):
+     * - > 48h: Đếm ngược 2 tiếng.
+     * - 24h - 48h: Đếm ngược 1 tiếng.
+     * - 6h - 24h: Đếm ngược 30 phút.
+     * - < 6h: Vô hiệu hóa -> Ném lỗi "Sát giờ thi đấu, vui lòng mua đứt sân để ghép trận".
      */
     public LocalDateTime calculateDynamicTTL(LocalDateTime matchStartTime) {
-        if (matchStartTime == null) return LocalDateTime.now().plusHours(48);
-        return matchStartTime.plusHours(2);
+        if (matchStartTime == null) {
+            throw new IllegalArgumentException("Giờ thi đấu dự kiến không được để trống");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        long hoursToMatch = Duration.between(now, matchStartTime).toHours();
+        if (hoursToMatch < 6) {
+            throw new IllegalArgumentException("Sát giờ thi đấu, vui lòng mua đứt sân để ghép trận");
+        } else if (hoursToMatch > 48) {
+            return now.plusHours(2);
+        } else if (hoursToMatch >= 24) {
+            return now.plusHours(1);
+        } else {
+            return now.plusMinutes(30);
+        }
     }
 
     @Transactional
@@ -84,11 +100,12 @@ public class MatchmakingService {
             Court court = (booking.getDetails() != null && !booking.getDetails().isEmpty()) ? booking.getDetails().get(0).getCourt() : null;
             room.setCourt(court);
         } else { // DEPOSIT_HOLD
-            if (req.getCourtId() != null) {
-                Court court = courtRepository.findById(req.getCourtId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
-                room.setCourt(court);
+            if (req.getCourtId() == null) {
+                throw new IllegalArgumentException("Vui lòng chọn sân và khung giờ trước khi cọc giữ chỗ");
             }
+            Court court = courtRepository.findById(req.getCourtId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
+            room.setCourt(court);
             room.setDepositAmount(req.getDepositAmount() != null ? req.getDepositAmount() : BigDecimal.valueOf(50000));
             room.setTtlExpiresAt(calculateDynamicTTL(req.getExpectedStartTime()));
         }

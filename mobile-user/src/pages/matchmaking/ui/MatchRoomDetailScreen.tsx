@@ -527,45 +527,73 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
             </Card>
           )}
 
-          {/* ── STEP 2: MATCHED — IN WAITING ROOM (Chờ chọn sân) ───── */}
-          {isMatched && !isVenueChosen && !isCancelled && !isExpired && (
+          {/* ── STEP 2: MATCHED & PENDING PAYMENT (Cửa sổ 15 phút thanh toán nốt) ── */}
+          {isMatched && (room.status === 'PENDING_PAYMENT' || (!isVenueChosen && !isCancelled && !isExpired)) && (
             <Card style={styles.matchedWaitingCard} padding="md">
               <View style={styles.stepHeaderRow}>
-                <MaterialIcons name="meeting-room" size={22} color={COLORS.primary} />
-                <Text style={styles.matchedTitle}>PHÒNG CHỜ CHỐT SÂN</Text>
+                <MaterialIcons name="hourglass-top" size={22} color={COLORS.amber} />
+                <Text style={styles.matchedTitle}>CỬA SỔ THANH TOÁN NỐT (15 PHÚT)</Text>
               </View>
 
-              {isCreatorA ? (
-                <View style={styles.creatorActionBox}>
-                  <Text style={styles.creatorInstruction}>
-                    Đội A và Đội B đã chấp nhận ghép trận! Hãy chọn 1 sân phù hợp từ danh sách gợi ý hệ thống trong khu vực {room.area}.
-                  </Text>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    title="📍 CHỌN SÂN TỪ GỢI Ý HỆ THỐNG"
-                    icon="map"
-                    onPress={handleOpenVenueSuggestions}
-                    style={styles.actionCTA}
-                  />
-                </View>
-              ) : (
-                <View style={styles.visitorWaitBox}>
-                  <MaterialIcons name="hourglass-top" size={24} color={COLORS.amber} />
-                  <Text style={styles.visitorWaitText}>
-                    Đã chấp thuận ghép trận! Vui lòng chờ Chủ phòng (Đội A) chốt sân từ gợi ý hệ thống...
-                  </Text>
-                </View>
-              )}
+              <View style={styles.bannerInfo}>
+                <MaterialIcons name="timer" size={18} color={COLORS.amber} />
+                <Text style={styles.bannerInfoText}>
+                  Hai bên đã chốt kèo! Còn <Text style={{ fontWeight: '800' }}>15:00 phút</Text> để hoàn tất thanh toán phần tiền còn lại.
+                </Text>
+              </View>
+
+              <View style={{ marginVertical: SPACING.xs, gap: 4 }}>
+                <Text style={styles.splitLabel}>📍 Sân thi đấu: <Text style={{ fontWeight: '800', color: COLORS.onSurface }}>{room.courtName || room.venueName || 'Sân bóng Chùa Hà'}</Text></Text>
+                <Text style={styles.splitLabel}>💰 Đội A (đã cọc {depositAmount.toLocaleString()}đ): <Text style={{ fontWeight: '800', color: COLORS.primary }}>Trả nốt {remainingTeamA.toLocaleString()} đ</Text></Text>
+                <Text style={styles.splitLabel}>💰 Đội B (đối thủ): <Text style={{ fontWeight: '800', color: COLORS.primary }}>Thanh toán 50% ({priceShare.toLocaleString()} đ)</Text></Text>
+              </View>
+
+              <Button
+                variant="primary"
+                size="lg"
+                title="💳 THANH TOÁN NỐT TIỀN SÂN (MOCK AUTO-SUCCESS)"
+                icon="check-circle"
+                onPress={async () => {
+                  const activeUserId = myUserId || room?.creatorUserId || 1;
+                  try {
+                    await matchmakingApi.selectVenue(roomId, {
+                      courtId: room.courtId || 1,
+                      courtName: room.courtName || 'Sân 1',
+                      venueName: room.venueName || room.area || 'Sân bóng',
+                      hourlyPrice: (room.priceSharePerTeam || 150000) * 2,
+                    }, activeUserId);
+
+                    setAlertModalConfig({
+                      visible: true,
+                      title: 'Thanh toán nốt thành công 🎉',
+                      message: 'Đã hoàn tất thanh toán 100% tiền sân (Auto-success).\nTrận đấu đã chính thức được CHỐT KÈO và Sân đã đổi thành BOOKED!',
+                      buttonText: 'Đã hiểu',
+                      onConfirm: () => {
+                        setAlertModalConfig(prev => ({ ...prev, visible: false }));
+                        loadDetail();
+                      },
+                    });
+                  } catch (err: any) {
+                    setAlertModalConfig({
+                      visible: true,
+                      title: 'Lỗi thanh toán ❌',
+                      message: err?.message || 'Không thể thanh toán nốt tiền sân.',
+                      buttonText: 'Đóng',
+                      onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+                    });
+                  }
+                }}
+                style={styles.actionCTA}
+              />
             </Card>
           )}
 
-          {/* ── STEP 3: VENUE CHOSEN — FULL DETAILS & PRICE BREAKDOWN ── */}
-          {isVenueChosen && !isCancelled && !isExpired && (
+          {/* ── STEP 3: VENUE CHOSEN & CONFIRMED ── */}
+          {isVenueChosen && room.status === 'CONFIRMED' && !isCancelled && !isExpired && (
             <Card style={styles.confirmedVenueCard} padding="md">
               <View style={styles.stepHeaderRow}>
                 <MaterialIcons name="check-circle" size={22} color={COLORS.primary} />
-                <Text style={styles.confirmedTitle}>SÂN THI ĐẤU CHÍNH THỨC</Text>
+                <Text style={styles.confirmedTitle}>TRẬN ĐẤU ĐÃ CHÍNH THỨC CHỐT KÈO ✅</Text>
               </View>
 
               {/* Venue Info */}
@@ -581,7 +609,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
               <View style={styles.divider} />
 
               {/* Price Breakdown */}
-              <Text style={styles.splitHeaderLabel}>CHI TIẾT THANH TOÁN CƯA ĐÔI 5/5</Text>
+              <Text style={styles.splitHeaderLabel}>CHI TIẾT THANH TOÁN CƯA ĐÔI 5/5 (ĐÃ HOÀN TẤT)</Text>
               <View style={styles.splitPriceCard}>
                 <View style={styles.splitRow}>
                   <Text style={styles.splitLabel}>Tổng tiền sân thực tế:</Text>
@@ -589,7 +617,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
                 </View>
 
                 <View style={styles.splitRow}>
-                  <Text style={styles.splitLabel}>Đội B thanh toán (50%):</Text>
+                  <Text style={styles.splitLabel}>Đội B đã thanh toán (50%):</Text>
                   <Text style={[styles.splitVal, { color: COLORS.primary, fontWeight: '800' }]}>
                     {priceShare.toLocaleString()} đ
                   </Text>
@@ -598,10 +626,10 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
                 {room.flowType === 'DEPOSIT_HOLD' ? (
                   <View style={styles.splitRow}>
                     <Text style={styles.splitLabel}>
-                      Đội A (đã cọc {depositAmount.toLocaleString()}đ):
+                      Đội A (đã cọc 50k & trả nốt 100k):
                     </Text>
                     <Text style={[styles.splitVal, { color: COLORS.secondary, fontWeight: '800' }]}>
-                      Trả nốt {remainingTeamA.toLocaleString()} đ
+                      Đã hoàn tất ({priceShare.toLocaleString()} đ)
                     </Text>
                   </View>
                 ) : (

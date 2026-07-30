@@ -78,6 +78,9 @@ public class VenueService {
     @Autowired
     private TicketSessionRepository ticketSessionRepository;
 
+    @Autowired
+    private com.backend.sporta.repository.MatchRoomRepository matchRoomRepository;
+
     public List<VenueResponse> getVenuesByOwnerEmail(String email) {
         return venueRepository.findByOwnerUserEmail(email).stream()
                 .map(venue -> mapToResponse(venue, checkHasPendingRevision(venue.getId())))
@@ -200,6 +203,23 @@ public class VenueService {
         List<TicketSession> ticketSessions = ticketSessionRepository.findByVenueIdAndPlayDate(venueId, date).stream()
                 .filter(ts -> ts.getStatus() != com.backend.sporta.enums.TicketSessionStatus.CANCELLED)
                 .collect(Collectors.toList());
+
+        java.time.LocalDateTime dayStart = date.atStartOfDay();
+        java.time.LocalDateTime dayEnd = date.atTime(23, 59, 59);
+        java.time.LocalDateTime nowDateTime = java.time.LocalDateTime.now();
+
+        java.util.List<com.backend.sporta.entity.MatchRoom> activeMatchRooms = matchRoomRepository.findAll().stream()
+                .filter(mr -> mr.getCourt() != null
+                        && mr.getFlowType() == com.backend.sporta.enums.MatchFlowType.DEPOSIT_HOLD
+                        && (mr.getStatus() == com.backend.sporta.enums.MatchRoomStatus.OPEN
+                                || mr.getStatus() == com.backend.sporta.enums.MatchRoomStatus.PENDING_PAYMENT
+                                || mr.getStatus() == com.backend.sporta.enums.MatchRoomStatus.CONFIRMED)
+                        && mr.getExpectedStartTime() != null
+                        && !mr.getExpectedStartTime().isBefore(dayStart)
+                        && !mr.getExpectedStartTime().isAfter(dayEnd)
+                        && (mr.getTtlExpiresAt() == null || mr.getTtlExpiresAt().isAfter(nowDateTime)))
+                .collect(Collectors.toList());
+
         List<SlotResponse> result = new ArrayList<>();
 
         for (Court court : courts) {
@@ -224,6 +244,9 @@ public class VenueService {
                 String sportLevel = null;
                 Double pricePerTicket = null;
                 String customerName = null;
+                Long matchRoomId = null;
+                java.time.LocalDateTime ttlExpiresAt = null;
+                Long remainingTtlSeconds = null;
 
                 // Kiểm tra xem slot có thuộc ca xé vé không
                 TicketSession matchedSession = null;
@@ -233,6 +256,19 @@ public class VenueService {
                             && currentSlot.isBefore(ts.getEndTime())) {
                         matchedSession = ts;
                         break;
+                    }
+                }
+
+                // Kiểm tra xem slot có phòng ghép trận cọc giữ chỗ (MATCHMAKING_HOLD) không
+                com.backend.sporta.entity.MatchRoom matchedHoldRoom = null;
+                for (com.backend.sporta.entity.MatchRoom mr : activeMatchRooms) {
+                    if (mr.getCourt().getId().equals(court.getId()) && mr.getExpectedStartTime() != null) {
+                        LocalTime roomStartTime = mr.getExpectedStartTime().toLocalTime();
+                        LocalTime roomEndTime = mr.getExpectedEndTime() != null ? mr.getExpectedEndTime().toLocalTime() : roomStartTime.plusHours(1);
+                        if (!currentSlot.isBefore(roomStartTime) && currentSlot.isBefore(roomEndTime)) {
+                            matchedHoldRoom = mr;
+                            break;
+                        }
                     }
                 }
 
@@ -269,6 +305,15 @@ public class VenueService {
                             customerName = "Khách vãng lai";
                         }
                     }
+                } else if (matchedHoldRoom != null) {
+                    status = "MATCHMAKING_HOLD";
+                    matchRoomId = matchedHoldRoom.getId();
+                    ttlExpiresAt = matchedHoldRoom.getTtlExpiresAt();
+                    if (ttlExpiresAt != null) {
+                        long secs = java.time.Duration.between(nowDateTime, ttlExpiresAt).getSeconds();
+                        remainingTtlSeconds = Math.max(0L, secs);
+                    }
+                    customerName = "Ghép trận giữ chỗ (" + (matchedHoldRoom.getCreatorClub() != null ? matchedHoldRoom.getCreatorClub().getName() : "Đội A") + ")";
                 } else if (isToday && !currentSlot.isAfter(now)) {
                     status = "locked";
                 } else {
@@ -325,6 +370,9 @@ public class VenueService {
                         .sportLevel(sportLevel)
                         .pricePerTicket(pricePerTicket)
                         .customerName(customerName)
+                        .matchRoomId(matchRoomId)
+                        .ttlExpiresAt(ttlExpiresAt)
+                        .remainingTtlSeconds(remainingTtlSeconds)
                         .build());
 
                 slotTime = slotTime.plusMinutes(shiftMinutes);

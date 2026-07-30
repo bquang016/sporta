@@ -22,4 +22,7 @@ public class SlotResponse {
     private String sportLevel;
     private Double pricePerTicket;
     private String customerName;
+    private Long matchRoomId;
+    private java.time.LocalDateTime ttlExpiresAt;
+    private Long remainingTtlSeconds;
 }

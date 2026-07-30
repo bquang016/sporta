@@ -12,8 +12,19 @@ import { Button } from '../../../shared/ui/Button';
 import { Card } from '../../../shared/ui/Card';
 import { CalendarPicker } from '../../../shared/ui/CalendarPicker';
 import { useVenueDetail } from '../../../entities/facility/model/useVenueDetail';
-import type { SlotInfo } from '../../../entities/facility/model/facility.types';
-import { BookingMatrix } from '../../../features/booking-matrix';
+import { matchmakingApi } from '../../../shared/api/matchmaking';
+import { usersApi } from '../../../shared/api/users';
+import { AlertModal } from '../../../shared/ui/AlertModal';
+
+function formatLocalISO(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+  const dd = d.getDate().toString().padStart(2, '0');
+  const hh = d.getHours().toString().padStart(2, '0');
+  const min = d.getMinutes().toString().padStart(2, '0');
+  const ss = d.getSeconds().toString().padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
+}
 
 export function BookingDetailScreen() {
   const router = useRouter();
@@ -31,6 +42,20 @@ export function BookingDetailScreen() {
     time: string;
     ticketSessionId?: string;
   }>({ visible: false, courtName: '', time: '' });
+
+  const [holdInfoModal, setHoldInfoModal] = useState<{
+    visible: boolean;
+    slot: SlotInfo | null;
+  }>({ visible: false, slot: null });
+
+  const [optionModal, setOptionModal] = useState(false);
+  const [holdCreating, setHoldCreating] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ visible: false, title: '', message: '', onConfirm: () => {} });
 
   // ── Fetch venue detail + schedule
   const { venue, slots, loading, error, refetch } = useVenueDetail(
@@ -57,6 +82,10 @@ export function BookingDetailScreen() {
   };
 
   const toggleSlot = (slot: SlotInfo) => {
+    if (slot.status === 'MATCHMAKING_HOLD') {
+      setHoldInfoModal({ visible: true, slot });
+      return;
+    }
     if (slot.status === 'matchmaking' || slot.isOwnerSplit || slot.ticketSessionId) {
       setTicketSessionModal({
         visible: true,
@@ -95,10 +124,15 @@ export function BookingDetailScreen() {
     [selectedSlotList],
   );
 
-  // ── Navigate to Payment
+  // ── Continue action
   const handleContinue = () => {
     if (!venue || selectedSlotList.length === 0) return;
+    setOptionModal(true);
+  };
 
+  const handleDirectBooking = () => {
+    if (!venue || selectedSlotList.length === 0) return;
+    setOptionModal(false);
     const slotsParam = encodeURIComponent(JSON.stringify(selectedSlotList));
     router.push({
       pathname: '/booking/payment' as any,
@@ -112,6 +146,52 @@ export function BookingDetailScreen() {
         totalPrice: String(totalPrice),
       },
     });
+  };
+
+  const handleCreateHoldRoom = async () => {
+    try {
+      setHoldCreating(true);
+      const userProfile = await usersApi.getProfile().catch(() => null);
+      const userId = userProfile?.id ?? 1;
+
+      const firstSlot = selectedSlotList[0];
+      const matchStart = new Date(selectedDate);
+      const [h, m] = firstSlot.time.split(':').map(Number);
+      matchStart.setHours(h, m, 0, 0);
+      const matchEnd = new Date(matchStart.getTime() + 90 * 60 * 1000);
+
+      await matchmakingApi.createMatchRoom({
+        clubId: 1,
+        sportId: 1,
+        format: '5v5',
+        courtId: Number(firstSlot.courtId) || 1,
+        expectedStartTime: formatLocalISO(matchStart),
+        expectedEndTime: formatLocalISO(matchEnd),
+        flowType: 'DEPOSIT_HOLD',
+        depositAmount: 50000,
+        message: `Tạo cọc giữ chỗ tại ${firstSlot.courtName} (${firstSlot.time})`,
+      }, userId);
+
+      setOptionModal(false);
+      setSelectedSlotKeys(new Set());
+      refetch();
+
+      setAlertConfig({
+        visible: true,
+        title: 'Cọc giữ chỗ thành công 🎉',
+        message: `Đã cọc 50.000đ và tạo phòng ghép giữ chỗ tại ${firstSlot.courtName} (${firstSlot.time}). Trạng thái sân đã chuyển thành MATCHMAKING_HOLD.`,
+        onConfirm: () => setAlertConfig(prev => ({ ...prev, visible: false })),
+      });
+    } catch (err: any) {
+      setAlertConfig({
+        visible: true,
+        title: 'Lỗi cọc giữ chỗ ❌',
+        message: err?.message || 'Không thể tạo phòng cọc giữ chỗ.',
+        onConfirm: () => setAlertConfig(prev => ({ ...prev, visible: false })),
+      });
+    } finally {
+      setHoldCreating(false);
+    }
   };
 
   // ── Loading / Error states
@@ -301,6 +381,190 @@ export function BookingDetailScreen() {
           />
         </BlurView>
       </View>
+      {/* MATCHMAKING_HOLD Info Modal */}
+      <Modal
+        visible={holdInfoModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setHoldInfoModal({ visible: false, slot: null })}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlayCenter}
+          activeOpacity={1}
+          onPress={() => setHoldInfoModal({ visible: false, slot: null })}
+        >
+          <View style={styles.tsModalCard}>
+            <View style={styles.tsModalHeader}>
+              <View style={[styles.tsModalIconBox, { backgroundColor: '#FEF3C7' }]}>
+                <MaterialIcons name="timer" size={26} color="#D97706" />
+              </View>
+              <Text style={styles.tsModalTitle}>Sân Giữ Chỗ Ghép Trận</Text>
+            </View>
+
+            <Text style={styles.tsModalBody}>
+              Khung giờ <Text style={{ fontWeight: '800' }}>{holdInfoModal.slot?.time}</Text> tại <Text style={{ fontWeight: '800' }}>{holdInfoModal.slot?.courtName}</Text> đang được cọc giữ chỗ ghép trận.
+              {'\n\n'}
+              📌 {holdInfoModal.slot?.customerName || 'Đã có đội đặt cọc 50.000đ giữ chỗ.'}
+              {'\n'}
+              ⏳ Thời gian đếm ngược còn lại: <Text style={{ fontWeight: '800', color: COLORS.primary }}>
+                {holdInfoModal.slot?.remainingTtlSeconds
+                  ? `${Math.floor(holdInfoModal.slot.remainingTtlSeconds / 60)} phút ${holdInfoModal.slot.remainingTtlSeconds % 60} giây`
+                  : 'Đang đếm ngược Dynamic TTL'}
+              </Text>
+            </Text>
+
+            <View style={styles.tsModalActions}>
+              <TouchableOpacity
+                style={styles.tsModalSecondaryBtn}
+                onPress={() => setHoldInfoModal({ visible: false, slot: null })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tsModalSecondaryText}>Đóng</Text>
+              </TouchableOpacity>
+
+              {holdInfoModal.slot?.matchRoomId ? (
+                <TouchableOpacity
+                  style={[styles.tsModalPrimaryBtn, { backgroundColor: '#D97706' }]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const roomId = holdInfoModal.slot?.matchRoomId;
+                    setHoldInfoModal({ visible: false, slot: null });
+                    router.push(`/matchmaking/${roomId}` as any);
+                  }}
+                >
+                  <Text style={styles.tsModalPrimaryText}>Xem phòng ghép</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Option Selection Modal: Direct Booking vs Hold Matchmaking */}
+      <Modal
+        visible={optionModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setOptionModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlayCenter}
+          activeOpacity={1}
+          onPress={() => setOptionModal(false)}
+        >
+          <View style={[styles.tsModalCard, { width: '90%', maxWidth: 400 }]}>
+            <View style={styles.tsModalHeader}>
+              <View style={styles.tsModalIconBox}>
+                <MaterialIcons name="sports-soccer" size={26} color={COLORS.primary} />
+              </View>
+              <Text style={styles.tsModalTitle}>Tùy chọn đặt sân & Ghép trận</Text>
+            </View>
+
+            {selectedSlotList.length > 0 && (() => {
+              const firstSlot = selectedSlotList[0];
+              const matchStart = new Date(selectedDate);
+              const [h, m] = firstSlot.time.split(':').map(Number);
+              matchStart.setHours(h, m, 0, 0);
+              const hoursToMatch = (matchStart.getTime() - Date.now()) / (1000 * 3600);
+              const isHoldDisabled = hoursToMatch < 6;
+
+              let ttlText = '';
+              if (hoursToMatch > 48) ttlText = '⏱️ Dynamic TTL: Đếm ngược 2 tiếng (120 phút)';
+              else if (hoursToMatch >= 24) ttlText = '⏱️ Dynamic TTL: Đếm ngược 1 tiếng (60 phút)';
+              else if (hoursToMatch >= 6) ttlText = '⏱️ Dynamic TTL: Đếm ngược 30 phút';
+
+              return (
+                <View style={{ gap: SPACING.sm, marginVertical: SPACING.sm }}>
+                  <Text style={styles.tsModalBody}>
+                    Bạn đang chọn <Text style={{ fontWeight: '800' }}>{selectedSlotList.length} khung giờ</Text> tại <Text style={{ fontWeight: '800' }}>{venue.name}</Text>. Vui lòng chọn hình thức:
+                  </Text>
+
+                  {/* Option 1: Direct booking 100% */}
+                  <TouchableOpacity
+                    style={{
+                      padding: SPACING.md,
+                      borderRadius: BORDER_RADIUS.md,
+                      backgroundColor: COLORS.surfaceContainerLow,
+                      borderWidth: 1,
+                      borderColor: COLORS.primary,
+                    }}
+                    onPress={handleDirectBooking}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+                      <MaterialIcons name="verified" size={22} color={COLORS.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ ...TYPOGRAPHY.labelMd, color: COLORS.primary, fontWeight: '800' }}>
+                          1. Mua đứt sân (Thanh toán 100%)
+                        </Text>
+                        <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant, marginTop: 2 }}>
+                          Giữ sân trọn vẹn ({totalPrice.toLocaleString('vi-VN')}đ). Có thể dùng tạo phòng ghép sau.
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option 2: Hold Matchmaking Deposit */}
+                  <TouchableOpacity
+                    style={{
+                      padding: SPACING.md,
+                      borderRadius: BORDER_RADIUS.md,
+                      backgroundColor: isHoldDisabled ? COLORS.surfaceVariant : '#FEF3C7',
+                      borderWidth: 1,
+                      borderColor: isHoldDisabled ? COLORS.outlineVariant : '#D97706',
+                      opacity: isHoldDisabled ? 0.6 : 1,
+                    }}
+                    onPress={() => !isHoldDisabled && handleCreateHoldRoom()}
+                    disabled={isHoldDisabled || holdCreating}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+                      {holdCreating ? (
+                        <ActivityIndicator color="#D97706" />
+                      ) : (
+                        <MaterialIcons name="timer" size={22} color={isHoldDisabled ? COLORS.outline : '#D97706'} />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ ...TYPOGRAPHY.labelMd, color: isHoldDisabled ? COLORS.outline : '#B45309', fontWeight: '800' }}>
+                          2. Ghép trận cọc giữ chỗ (Cọc 50.000đ)
+                        </Text>
+                        {isHoldDisabled ? (
+                          <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.error, fontWeight: '700', marginTop: 2 }}>
+                            ⚠️ Sát giờ thi đấu (&lt; 6h), vui lòng mua đứt sân để ghép trận.
+                          </Text>
+                        ) : (
+                          <Text style={{ ...TYPOGRAPHY.labelSm, color: '#92400E', marginTop: 2 }}>
+                            Cọc 50.000đ giữ chỗ. Trạng thái ô giờ đổi thành MATCHMAKING_HOLD.{'\n'}
+                            {ttlText}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+
+            <View style={[styles.tsModalActions, { marginTop: SPACING.sm }]}>
+              <TouchableOpacity
+                style={styles.tsModalSecondaryBtn}
+                onPress={() => setOptionModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tsModalSecondaryText}>Hủy</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Shared AlertModal */}
+      <AlertModal
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onConfirm={alertConfig.onConfirm}
+      />
     </View>
   );
 }

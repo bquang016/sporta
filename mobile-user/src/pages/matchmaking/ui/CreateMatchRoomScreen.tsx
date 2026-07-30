@@ -15,7 +15,7 @@ import { matchmakingApi, MatchFlowType } from '../../../shared/api/matchmaking';
 import { CalendarPicker, AlertModal, Button } from '../../../shared/ui';
 import { MapPickerModal } from '../components/MapPickerModal';
 import { TimePickerModal } from '../components/TimePickerModal';
-import { getMyBookingsApi, BookingItem } from '../../../shared/api/bookings';
+import { getMyBookingsApi, getSuggestedVenuesApi, BookingItem, VenueSuggestion } from '../../../shared/api/bookings';
 import { usersApi } from '../../../shared/api/users';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -84,6 +84,14 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string>('');
 
+  // Flow 2 – Venue & Court Selection
+  const [suggestedVenues, setSuggestedVenues] = useState<VenueSuggestion[]>([]);
+  const [selectedVenue, setSelectedVenue] = useState<VenueSuggestion | null>(null);
+  const [selectedCourtId, setSelectedCourtId] = useState<number>(1);
+  const [selectedCourtName, setSelectedCourtName] = useState<string>('Sân 1 (Tiêu chuẩn)');
+  const [showVenueModal, setShowVenueModal] = useState(false);
+  const [showMockDepositModal, setShowMockDepositModal] = useState(false);
+
   // Flow 2 – Date + Time + Duration
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -127,6 +135,19 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
 
   useEffect(() => {
     fetchUserBookings();
+    getSuggestedVenuesApi().then(venues => {
+      if (venues && venues.length > 0) {
+        setSuggestedVenues(venues);
+        setSelectedVenue(venues[0]);
+        setArea(venues[0].address);
+        setLatitude(venues[0].latitude);
+        setLongitude(venues[0].longitude);
+      } else {
+        const defaultV: VenueSuggestion = { id: '1', name: 'Sân Bóng Chùa Hà', address: 'Quận Cầu Giấy, Hà Nội', latitude: 21.0368, longitude: 105.7905, hourlyPrice: 300000, rating: 4.8 };
+        setSuggestedVenues([defaultV]);
+        setSelectedVenue(defaultV);
+      }
+    }).catch(() => {});
     usersApi.getProfile().then(p => {
       if (p?.id) setMyUserId(p.id);
     }).catch(() => {});
@@ -155,30 +176,44 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   const startDateTime = applyTimeToDate(startDate, selectedTime);
   const endTimeStr = getEndTime(startDateTime, durationMinutes);
 
-  // Checks if selected start time is in the past
-  const isTtlDisabled = startDateTime.getTime() <= Date.now();
-
+  // Checks if selected start time is less than 6 hours away
   const hoursUntilStart = (startDateTime.getTime() - Date.now()) / (1000 * 3600);
+  const isTtlDisabled = hoursUntilStart < 6;
+
   let dynamicTtlMinutes = 60;
   if (hoursUntilStart > 48) dynamicTtlMinutes = 120;
   else if (hoursUntilStart >= 24) dynamicTtlMinutes = 60;
   else if (hoursUntilStart >= 6) dynamicTtlMinutes = 30;
 
   const selectedBooking = realBookings.find(b => b.id === selectedBookingId);
-  const calculatedPriceShare = selectedBooking ? selectedBooking.totalPrice / 2.0 : undefined;
+  const calculatedPriceShare = selectedBooking 
+    ? selectedBooking.totalPrice / 2.0 
+    : selectedVenue 
+    ? selectedVenue.hourlyPrice / 2.0 
+    : 150000;
 
   // ── Submit Handler ──────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (flowType === 'DEPOSIT_HOLD' && isTtlDisabled) {
-      setAlertModalConfig({
-        visible: true,
-        title: 'Giờ đá không hợp lệ ⚠️',
-        message: 'Khung giờ bạn chọn đã trôi qua. Vui lòng chọn ngày/giờ trong tương lai.',
-        buttonText: 'Đã hiểu',
-        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
-      });
-      return;
+  const handlePressSubmit = () => {
+    if (flowType === 'DEPOSIT_HOLD') {
+      if (isTtlDisabled) {
+        setAlertModalConfig({
+          visible: true,
+          title: 'Không thể tạo phòng ⚠️',
+          message: 'Sát giờ thi đấu (< 6h), vui lòng mua đứt sân để ghép trận.',
+          buttonText: 'Đã hiểu',
+          onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+        });
+        return;
+      }
+      // Open Mock Deposit Payment Dialog first for DEPOSIT_HOLD
+      setShowMockDepositModal(true);
+    } else {
+      handleSubmit();
     }
+  };
+
+  const handleSubmit = async () => {
+    setShowMockDepositModal(false);
 
     if (flowType === 'PAID_100' && !selectedBookingId) {
       setAlertModalConfig({
@@ -201,13 +236,14 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         format,
         minElo: parseInt(minElo, 10),
         maxElo: parseInt(maxElo, 10),
-        area,
+        area: selectedVenue ? `${selectedVenue.name} - ${selectedVenue.address}` : area,
         latitude,
         longitude,
         expectedStartTime: formatLocalISO(startDateTime),
         expectedEndTime: formatLocalISO(endDateTime),
         priceSharePerTeam: calculatedPriceShare,
         flowType,
+        courtId: flowType === 'DEPOSIT_HOLD' ? selectedCourtId : undefined,
         depositAmount: flowType === 'DEPOSIT_HOLD' ? 50000 : undefined,
         bookingId: flowType === 'PAID_100' ? selectedBookingId : undefined,
         message,
@@ -215,8 +251,10 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
 
       setAlertModalConfig({
         visible: true,
-        title: 'Đã tạo phòng thành công 🎉',
-        message: `Phòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`,
+        title: flowType === 'DEPOSIT_HOLD' ? 'Cọc 50.000đ giữ chỗ thành công 🎉' : 'Đã tạo phòng thành công 🎉',
+        message: flowType === 'DEPOSIT_HOLD'
+          ? `Đã cọc 50.000đ thành công (Auto-success).\nPhòng ghép giữ chỗ tại ${selectedVenue?.name || 'Sân bóng'} (${selectedCourtName}) cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}.`
+          : `Phòng ghép trận cho ${club.name} đã sẵn sàng!\nKhung giờ: ${selectedTime} – ${endTimeStr}, ngày ${formatDateDisplay(startDate)}`,
         buttonText: 'Xem phòng ngay',
         onConfirm: () => {
           setAlertModalConfig(prev => ({ ...prev, visible: false }));
@@ -345,11 +383,35 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
             </>
           )}
 
-          {/* ── Flow 2: Lịch thi đấu ─────────────────────────────── */}
+          {/* ── Flow 2: Lịch thi đấu & Sân ─────────────────────────── */}
           {flowType === 'DEPOSIT_HOLD' && (
             <>
+              {/* Chọn Sân Thi Đấu cụ thể */}
+              <Text style={styles.sectionLabel}>CHỌN SÂN THI ĐẤU & KHUNG GIỜ</Text>
+
+              <TouchableOpacity
+                style={styles.dateTriggerCard}
+                onPress={() => setShowVenueModal(true)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.dateTriggerLeft}>
+                  <View style={[styles.dateTriggerIconBg, { backgroundColor: COLORS.primaryOpacity15 }]}>
+                    <MaterialIcons name="sports-soccer" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dateTriggerValue} numberOfLines={1}>
+                      {selectedVenue ? selectedVenue.name : 'Chọn Sân bóng...'}
+                    </Text>
+                    <Text style={styles.dateTriggerSub} numberOfLines={1}>
+                      {selectedCourtName} — {selectedVenue ? `${selectedVenue.hourlyPrice.toLocaleString()} đ/giờ` : ''}
+                    </Text>
+                  </View>
+                </View>
+                <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
+              </TouchableOpacity>
+
               {/* Chọn ngày — CalendarPicker */}
-              <Text style={styles.sectionLabel}>NGÀY THI ĐẤU DỰ KIẾN</Text>
+              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>NGÀY THI ĐẤU DỰ KIẾN</Text>
 
               <TouchableOpacity
                 style={styles.dateTriggerCard}
@@ -380,8 +442,8 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
                 onClose={() => setShowCalendar(false)}
               />
 
-              {/* Chọn giờ bắt đầu — Trigger Card cho phép chọn bất kỳ mốc giờ linh hoạt (vd: 17:45) */}
-              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>GIỜ BẮT ĐẦU DỰ KIẾN (TỰ DO 17:45...)</Text>
+              {/* Chọn giờ bắt đầu */}
+              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>GIỜ BẮT ĐẦU DỰ KIẾN</Text>
               
               <TouchableOpacity
                 style={styles.dateTriggerCard}
@@ -443,25 +505,6 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
                   {', ngày '}{formatDateDisplay(startDate)}
                 </Text>
               </View>
-
-              {/* Khu vực — Map Picker */}
-              <Text style={[styles.sectionLabel, { marginTop: SPACING.xs }]}>KHU VỰC THI ĐẤU (LỌC BÁN KÍNH MAP)</Text>
-              <TouchableOpacity
-                style={styles.mapTriggerCard}
-                onPress={() => setShowMapModal(true)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.mapTriggerLeft}>
-                  <View style={styles.mapIconBg}>
-                    <MaterialIcons name="map" size={20} color={COLORS.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mapTriggerValue} numberOfLines={1}>{area}</Text>
-                    <Text style={styles.mapTriggerSub}>{latitude.toFixed(4)}, {longitude.toFixed(4)}</Text>
-                  </View>
-                </View>
-                <MaterialIcons name="edit-location" size={20} color={COLORS.primary} />
-              </TouchableOpacity>
 
               {/* Dynamic TTL Banner */}
               {isTtlDisabled ? (
@@ -544,15 +587,139 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
           <Button
             variant="primary"
             size="lg"
-            title="XÁC NHẬN TẠO PHÒNG"
+            title={flowType === 'DEPOSIT_HOLD' ? 'XÁC NHẬN CỌC 50.000Đ & TẠO PHÒNG' : 'XÁC NHẬN TẠO PHÒNG'}
             icon="arrow-forward"
             iconPosition="right"
             loading={loading}
             disabled={loading || (flowType === 'DEPOSIT_HOLD' && isTtlDisabled)}
-            onPress={handleSubmit}
+            onPress={handlePressSubmit}
             style={styles.submitBtn}
           />
         </ScrollView>
+
+        {/* ── Venue Selection Modal (Chủ phòng chọn sân) ──────────── */}
+        <Modal visible={showVenueModal} animationType="slide" onRequestClose={() => setShowVenueModal(false)}>
+          <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => setShowVenueModal(false)}>
+                <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Chọn Sân & Khung Giờ</Text>
+              <View style={{ width: 24 }} />
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: SPACING.md, gap: SPACING.md }}>
+              <Text style={styles.sectionLabel}>DANH SÁCH SÂN BÓNG GỢI Ý KHU VỰC</Text>
+              {suggestedVenues.map(v => (
+                <TouchableOpacity
+                  key={v.id}
+                  style={[
+                    styles.bookingCard,
+                    selectedVenue?.id === v.id && styles.bookingCardActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedVenue(v);
+                    setArea(v.address);
+                    setLatitude(v.latitude);
+                    setLongitude(v.longitude);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.bookingVenue}>{v.name}</Text>
+
+                    {/* Court Selector for this Venue */}
+                    <Text style={styles.bookingTime}>📍 {v.address}</Text>
+                    
+                    {selectedVenue?.id === v.id && (
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                        {['Sân 1 (Tiêu chuẩn)', 'Sân 2 (Mặt cỏ nhân tạo)', 'Sân 3 (Sân VIP)'].map((courtName, idx) => (
+                          <TouchableOpacity
+                            key={courtName}
+                            style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 6,
+                              backgroundColor: selectedCourtId === (idx + 1) ? COLORS.primary : COLORS.surfaceContainerLow,
+                            }}
+                            onPress={() => {
+                              setSelectedCourtId(idx + 1);
+                              setSelectedCourtName(courtName);
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, color: selectedCourtId === (idx + 1) ? '#FFF' : COLORS.onSurface }}>
+                              {courtName.split(' ')[0]} {courtName.split(' ')[1]}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Text style={styles.bookingPrice}>{v.hourlyPrice.toLocaleString()} đ/h</Text>
+                    <Text style={styles.bookingSplit}>Cưa đôi: {(v.hourlyPrice / 2).toLocaleString()} đ</Text>
+                    {selectedVenue?.id === v.id ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        title="ĐÃ CHỌN"
+                        onPress={() => setShowVenueModal(false)}
+                      />
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              <Button
+                variant="primary"
+                size="lg"
+                title="XÁC NHẬN CHỌN SÂN NÀY"
+                onPress={() => setShowVenueModal(false)}
+                style={{ marginTop: SPACING.md }}
+              />
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* ── Mock Deposit Payment Modal (Cọc 50.000đ Auto-success) ── */}
+        <Modal visible={showMockDepositModal} transparent animationType="fade" onRequestClose={() => setShowMockDepositModal(false)}>
+          <View style={styles.modalOverlayCenter}>
+            <View style={[styles.tsModalCard, { width: '90%', maxWidth: 380 }]}>
+              <View style={styles.tsModalHeader}>
+                <View style={[styles.tsModalIconBox, { backgroundColor: COLORS.primaryOpacity15 }]}>
+                  <MaterialIcons name="account-balance-wallet" size={26} color={COLORS.primary} />
+                </View>
+                <Text style={styles.tsModalTitle}>Thanh toán Cọc Giữ Chỗ</Text>
+              </View>
+
+              <Text style={styles.tsModalBody}>
+                Thanh toán tạm thời (Mock Payment):{'\n'}
+                📌 Tiền cọc giữ chỗ: <Text style={{ fontWeight: '800', color: COLORS.primary }}>50.000 đ</Text>{'\n'}
+                📍 Sân chọn: <Text style={{ fontWeight: '800' }}>{selectedVenue?.name || 'Sân bóng'}</Text> ({selectedCourtName}){'\n'}
+                🕒 Thời gian: <Text style={{ fontWeight: '800' }}>{selectedTime} - {endTimeStr}</Text>{'\n'}
+                ⏱️ Hạn cọc Dynamic TTL: <Text style={{ fontWeight: '800', color: COLORS.amber }}>{dynamicTtlMinutes} phút</Text>{'\n\n'}
+                *Nhấn nút bên dưới để tự động thanh toán cọc thành công.*
+              </Text>
+
+              <View style={styles.tsModalActions}>
+                <TouchableOpacity
+                  style={styles.tsModalSecondaryBtn}
+                  onPress={() => setShowMockDepositModal(false)}
+                >
+                  <Text style={styles.tsModalSecondaryText}>Hủy</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.tsModalPrimaryBtn, { backgroundColor: COLORS.primary }]}
+                  onPress={handleSubmit}
+                >
+                  <Text style={styles.tsModalPrimaryText}>Xác nhận cọc 50.000đ (Auto)</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── Shared AlertModal for UI Notifications ──────────────── */}
         <AlertModal

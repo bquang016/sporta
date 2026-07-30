@@ -119,12 +119,11 @@ export interface ReportResultPayload {
 // Therefore we use a direct fetch wrapper here instead of apiClient to hit the right URL.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import { getBaseUrl } from './config';
 
-const MATCHMAKING_BASE = Platform.OS === 'web'
-  ? 'http://localhost:8387'
-  : (process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://192.168.1.11:8387');
+const getMatchmakingBaseUrl = (): string => {
+  return getBaseUrl().replace('/api/v1', '');
+};
 
 const getToken = async (): Promise<string | null> => {
   try {
@@ -143,7 +142,8 @@ const mmFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> =
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${MATCHMAKING_BASE}${path}`, { ...options, headers });
+  const baseUrl = getMatchmakingBaseUrl();
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
 
   if (!response.ok) {
     if (response.status === 401) {

@@ -61,7 +61,7 @@ export interface SlotInfo {
   courtId: string;
   courtName: string;
   time: string;                   // "HH:mm"
-  status: 'available' | 'booked' | 'locked' | 'matchmaking' | 'pending';
+  status: 'available' | 'booked' | 'locked' | 'matchmaking' | 'pending' | 'MATCHMAKING_HOLD';
   price: number;
   isOwnerSplit?: boolean;
   ticketSessionId?: string;
@@ -70,4 +70,7 @@ export interface SlotInfo {
   sportLevel?: string;
   pricePerTicket?: number;
   customerName?: string;
+  matchRoomId?: number;
+  ttlExpiresAt?: string;
+  remainingTtlSeconds?: number;
 }

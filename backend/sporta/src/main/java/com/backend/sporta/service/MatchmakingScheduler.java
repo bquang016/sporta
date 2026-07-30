@@ -35,5 +35,15 @@ public class MatchmakingScheduler {
             room.setStatus(MatchRoomStatus.OPEN);
             matchRoomRepository.save(room);
         }
+
+        // 2. Quét các phòng cọc giữ chỗ (DEPOSIT_HOLD) ở trạng thái OPEN quá hạn Dynamic TTL -> chuyển thành EXPIRED (nhả sân)
+        List<MatchRoom> expiredHoldRooms = matchRoomRepository.findExpiredHoldRooms(MatchRoomStatus.OPEN, now);
+        for (MatchRoom room : expiredHoldRooms) {
+            if (room.getFlowType() == com.backend.sporta.enums.MatchFlowType.DEPOSIT_HOLD) {
+                log.info("Match room {} expired Dynamic TTL hold window, setting status to EXPIRED", room.getId());
+                room.setStatus(MatchRoomStatus.EXPIRED);
+                matchRoomRepository.save(room);
+            }
+        }
     }
 }
