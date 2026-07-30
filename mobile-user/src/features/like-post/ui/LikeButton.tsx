@@ -1,7 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, Animated, PanResponder, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLikePost } from '../model/useLikePost';
 import { useReactionOverlay } from './ReactionOverlayContext';
 import { Post } from '../../../entities/post';
 import { REACTION_MAP } from '../../../entities/post';
@@ -13,7 +12,6 @@ interface LikeButtonProps {
 }
 
 export function LikeButton({ post, onReactPost }: LikeButtonProps) {
-  const { reactPost } = useLikePost();
   const overlay = useReactionOverlay();
 
   const buttonScale = useRef(new Animated.Value(1)).current;
@@ -23,8 +21,6 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
   overlayRef.current = overlay;
   const postRef = useRef(post);
   postRef.current = post;
-  const reactPostRef = useRef(reactPost);
-  reactPostRef.current = reactPost;
   const onReactPostRef = useRef(onReactPost);
   onReactPostRef.current = onReactPost;
 
@@ -37,10 +33,6 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
     if (onReactPostRef.current) {
       onReactPostRef.current(p.id, reaction);
     }
-    reactPostRef.current({
-      postId: p.id,
-      reaction,
-    });
   }, []);
 
   useEffect(() => {

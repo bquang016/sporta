@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CommunityFeed } from '../../../features/community-feed';
-import { CreatePostModal } from '../../../features/create-post';
+import { CreatePostModal, PostUploadProgressBar } from '../../../features/create-post';
 import { ReactionOverlayProvider } from '../../../features/like-post';
 import { SocialSearchModal } from '../../../features/community-search';
 import { NotificationsModal } from '../../../features/notifications';
@@ -22,6 +22,7 @@ import { MessagesListModal } from '../../../features/messages';
 import { UserProfileModal } from '../../../features/user-profile';
 import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
 import { useIsLoggedIn } from '../../../shared/hooks/useIsLoggedIn';
+import { usersApi } from '../../../shared/api/users';
 import { Post } from '../../../entities/post';
 import { CURRENT_USER } from '../../../shared/api/mockCommunityDb';
 import { createPostApi } from '../../../shared/api/posts';
@@ -35,6 +36,49 @@ export function SocialScreen() {
   const { isLoggedIn } = useIsLoggedIn();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newCreatedPost, setNewCreatedPost] = useState<Post | null>(null);
+
+  // Sync real user profile
+  const [currentUser, setCurrentUser] = useState(CURRENT_USER);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchUser = async () => {
+      try {
+        if (isLoggedIn) {
+          const profile = await usersApi.getProfile();
+          if (isMounted && profile) {
+            setCurrentUser({
+              id: String(profile.id),
+              name: profile.fullName || 'Thành viên Sporta',
+              avatar: profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              handle: `@user_${profile.id}`,
+            });
+          }
+        }
+      } catch (e) {
+        console.log('Error loading user profile in SocialScreen:', e);
+      }
+    };
+    fetchUser();
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn]);
+
+  // Upload Overlay Progress Bar State
+  const [uploadState, setUploadState] = useState<{
+    isUploading: boolean;
+    progress: number;
+    step: string;
+    isSuccess: boolean;
+    isError: boolean;
+  }>({
+    isUploading: false,
+    progress: 0,
+    step: '',
+    isSuccess: false,
+    isError: false,
+  });
 
   // Auth Guard state
   const [authModal, setAuthModal] = useState<{
@@ -56,31 +100,21 @@ export function SocialScreen() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // ─── Collapsible Top Bar (Header + Compose) ───────────────────────────────
-  //
-  // Tương thích 100% mọi màn hình (iPhone 13/14/15/16 Pro Dynamic Island & Android):
-  // - insets.top: Tự động vừa vặn với notch/status bar từng mẫu điện thoại.
-  // - Khi cuộn xuống: Logo header (56px) trượt ẩn phía sau status bar.
-  // - Khung Đăng bài ("Bạn muốn chia sẻ...") tự động được đẩy lên nằm sát ngay DƯỚI NOTCH và GIỮ STICKY.
-  // - Feed cuộn trơn tru phía dưới không bị đè hay hở khoảng trắng.
-  //
-  const COLLAPSE_HEIGHT = HEADER_HEIGHT; // 56px (chỉ thu gọn phần logo/icon header)
-  const TOTAL_TOP_BAR_HEIGHT = insets.top + HEADER_HEIGHT + 64; // insets.top + 56 + 64 (chiều cao toàn bộ khi mở đủ)
+  const COLLAPSE_HEIGHT = HEADER_HEIGHT;
+  const TOTAL_TOP_BAR_HEIGHT = insets.top + HEADER_HEIGHT + 64;
 
   const scrollAnim = useRef(new Animated.Value(0)).current;
 
-  // diffClamp tích lũy delta scroll trong khoảng [0, 56]
   const clampedScrollAnim = useRef(
     Animated.diffClamp(scrollAnim, 0, COLLAPSE_HEIGHT)
   ).current;
 
-  // Top bar trượt lên tối đa 56px (logo ẩn, compose card đẩy lên đỉnh)
   const topBarTranslateY = clampedScrollAnim.interpolate({
     inputRange: [0, COLLAPSE_HEIGHT],
     outputRange: [0, -COLLAPSE_HEIGHT],
     extrapolate: 'clamp',
   });
 
-  // FlashList handler: đảm bảo khi y <= 0 (ở đầu trang) header luôn hiện đầy đủ 100%
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = event.nativeEvent.contentOffset.y;
@@ -96,7 +130,7 @@ export function SocialScreen() {
   const handlePostCreated = async (postData: Partial<Post>) => {
     const fullPost: Post = {
       id: `post-${Date.now()}`,
-      author: CURRENT_USER,
+      author: currentUser,
       content: postData.content || '',
       mediaUrls: postData.mediaUrls,
       createdAt: 'Vừa xong',
@@ -105,17 +139,64 @@ export function SocialScreen() {
       clubInfo: postData.clubInfo,
       matchAttachment: postData.matchAttachment,
       venuePromoAttachment: postData.venuePromoAttachment,
+      likeCount: 0,
+      likesCount: 0,
       reactionsCount: { like: 0, love: 0, fire: 0, clap: 0 },
       commentsCount: 0,
       sharesCount: 0,
     };
 
-    setNewCreatedPost(fullPost);
+    setUploadState({
+      isUploading: true,
+      progress: 25,
+      step: 'Đang xử lý nội dung...',
+      isSuccess: false,
+      isError: false,
+    });
+
+    // Smooth incremental progress interval so progress never gets stuck at 75%
+    const progressInterval = setInterval(() => {
+      setUploadState((prev) => {
+        if (!prev.isUploading) return prev;
+        if (prev.progress < 85) {
+          const nextProgress = prev.progress + 15;
+          return {
+            ...prev,
+            progress: nextProgress,
+            step: nextProgress > 50 ? 'Đang lưu bài vào hệ thống...' : 'Đang xử lý nội dung & hình ảnh...',
+          };
+        }
+        return prev;
+      });
+    }, 450);
 
     try {
-      await createPostApi(postData);
-    } catch (err) {
+      const serverPost = await createPostApi({ ...postData, author: currentUser });
+
+      clearInterval(progressInterval);
+
+      setNewCreatedPost(serverPost || fullPost);
+
+      setUploadState({
+        isUploading: false,
+        progress: 100,
+        step: 'Đã đăng bài viết thành công!',
+        isSuccess: true,
+        isError: false,
+      });
+    } catch (err: any) {
+      clearInterval(progressInterval);
       console.log('Error creating post on backend:', err);
+      const errorMsg = err?.message?.includes('upload size')
+        ? 'Ảnh quá lớn, chọn ảnh nhỏ hơn.'
+        : 'Đăng bài thất bại. Vui lòng thử lại.';
+      setUploadState({
+        isUploading: false,
+        progress: 100,
+        step: errorMsg,
+        isSuccess: false,
+        isError: true,
+      });
     }
   };
 
@@ -209,7 +290,7 @@ export function SocialScreen() {
                 setCreateModalVisible(true);
               }}
             >
-              <Image source={{ uri: CURRENT_USER.avatar }} style={styles.userAvatar} />
+              <Image source={{ uri: currentUser?.avatar || CURRENT_USER.avatar }} style={styles.userAvatar} />
               <View style={styles.quickInputPlaceholder}>
                 <Text style={styles.placeholderText}>
                   Bạn muốn chia sẻ điều gì hôm nay?
@@ -233,6 +314,20 @@ export function SocialScreen() {
           </View>
         </Animated.View>
 
+        {/* Global Floating Custom Sports Ball Upload Widget (Bottom-Right FAB) */}
+        {(uploadState.isUploading || uploadState.isSuccess || uploadState.isError) && (
+          <View style={styles.uploadOverlayContainer} pointerEvents="box-none">
+            <PostUploadProgressBar
+              progress={uploadState.progress}
+              step={uploadState.step}
+              isUploading={uploadState.isUploading}
+              isSuccess={uploadState.isSuccess}
+              isError={uploadState.isError}
+              onDismiss={() => setUploadState((prev) => ({ ...prev, isUploading: false, isSuccess: false, isError: false }))}
+            />
+          </View>
+        )}
+
         {/* ── Single Infinite Scroll Feed ── */}
         <View style={styles.feedWrapper}>
           <CommunityFeed
@@ -247,6 +342,7 @@ export function SocialScreen() {
           visible={createModalVisible}
           onClose={() => setCreateModalVisible(false)}
           onSubmitPost={handlePostCreated}
+          currentUser={currentUser}
         />
 
         <SocialSearchModal
@@ -411,6 +507,14 @@ const styles = StyleSheet.create({
   feedWrapper: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  uploadOverlayContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 9999,
   },
 });
 

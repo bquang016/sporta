@@ -1,94 +1,95 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mockCommunityDb, CURRENT_USER } from '../../../shared/api/mockCommunityDb';
-import { Comment, Post } from '../../../entities/post';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Comment } from '../../../entities/post';
+import { commentPostApi, fetchCommentsApi } from '../../../shared/api/posts';
 
-interface InfiniteFeedData {
-  pages: {
-    data: Post[];
-    nextCursor: string | null;
-  }[];
-  pageParams: any[];
-}
-
-export function useCommentPost(postId: string) {
+export function useCommentPost(postId: string, currentUser?: any) {
   const queryClient = useQueryClient();
 
-  // 1. Fetch Comments Query
-  const commentsQuery = useQuery({
+  // 1. Fetch Comments with Infinite Query
+  const commentsQuery = useInfiniteQuery({
     queryKey: ['post-comments', postId],
-    queryFn: () => mockCommunityDb.getComments(postId),
+    queryFn: async ({ pageParam = 0 }) => {
+      return fetchCommentsApi(postId, pageParam, 10);
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.hasNextPage) {
+        return allPages.length;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
     enabled: !!postId,
   });
 
+  const comments = commentsQuery.data?.pages.flatMap((page) => page.comments) || [];
+
   // 2. Add Comment Mutation
   const addCommentMutation = useMutation({
-    mutationFn: (content: string) => mockCommunityDb.addComment(postId, content),
+    mutationFn: async (content: string) => {
+      // Real API call to save comment
+      await commentPostApi(postId, content);
+      
+      const newComment: Comment = {
+        id: `temp-comment-${Date.now()}`,
+        postId,
+        author: currentUser || {
+          id: 'current-user',
+          name: 'Thành viên Sporta',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          handle: '@user',
+        },
+        content,
+        createdAt: 'Vừa xong',
+      };
+      return newComment;
+    },
     // Optimistic Update
     onMutate: async (content: string) => {
-      // Cancel queries
       await queryClient.cancelQueries({ queryKey: ['post-comments', postId] });
-      await queryClient.cancelQueries({ queryKey: ['community-feed'] });
 
-      // Snapshots
-      const previousComments = queryClient.getQueryData<Comment[]>(['post-comments', postId]) || [];
-      const previousFeed = queryClient.getQueryData<InfiniteFeedData>(['community-feed']);
-
-      // 2a. Optimistically update comments list
-      const tempCommentId = `temp-comment-${Date.now()}`;
       const optimisticComment: Comment = {
-        id: tempCommentId,
+        id: `temp-${Date.now()}`,
         postId,
-        author: CURRENT_USER,
+        author: currentUser || {
+          id: 'current-user',
+          name: 'Thành viên Sporta',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          handle: '@user',
+        },
         content,
-        createdAt: new Date().toISOString(),
+        createdAt: 'Vừa xong',
       };
-      
-      queryClient.setQueryData<Comment[]>(
-        ['post-comments', postId],
-        [...previousComments, optimisticComment]
-      );
 
-      // 2b. Optimistically update feed post comment count
-      if (previousFeed) {
-        queryClient.setQueryData<InfiniteFeedData>(
-          ['community-feed'],
-          {
-            ...previousFeed,
-            pages: previousFeed.pages.map((page) => ({
-              ...page,
-              data: page.data.map((post) => {
-                if (post.id === postId) {
-                  return {
-                    ...post,
-                    commentsCount: (post.commentsCount || 0) + 1,
-                  };
-                }
-                return post;
-              }),
-            })),
-          }
-        );
-      }
+      queryClient.setQueryData(['post-comments', postId], (oldData: any) => {
+        if (!oldData) {
+          return {
+            pages: [{ comments: [optimisticComment], hasNextPage: false }],
+            pageParams: [0],
+          };
+        }
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any, index: number) => 
+            index === 0 
+              ? { ...page, comments: [optimisticComment, ...page.comments] }
+              : page
+          )
+        };
+      });
 
-      return { previousComments, previousFeed };
+      return { optimisticComment };
     },
-    // Rollback on error
-    onError: (err, content, context) => {
-      if (context) {
-        queryClient.setQueryData(['post-comments', postId], context.previousComments);
-        queryClient.setQueryData(['community-feed'], context.previousFeed);
-      }
-    },
-    // Refetch to sync
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['post-comments', postId] });
-      queryClient.invalidateQueries({ queryKey: ['community-feed'] });
     },
   });
 
   return {
-    comments: commentsQuery.data || [],
+    comments,
     isCommentsLoading: commentsQuery.isLoading,
+    isFetchingNextPage: commentsQuery.isFetchingNextPage,
+    hasNextPage: commentsQuery.hasNextPage,
+    fetchNextPage: commentsQuery.fetchNextPage,
     isCommentsError: commentsQuery.isError,
     addComment: addCommentMutation.mutate,
     isSubmittingComment: addCommentMutation.isPending,

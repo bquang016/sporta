@@ -64,6 +64,10 @@ public class Post {
     @Column(name = "share_count")
     private Integer shareCount = 0;
 
+    @Builder.Default
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

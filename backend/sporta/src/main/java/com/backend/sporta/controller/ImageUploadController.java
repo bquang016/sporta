@@ -40,4 +40,33 @@ public class ImageUploadController {
         String imageUrl = fileStorageService.uploadFile(file, folder);
         return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
     }
+
+    @GetMapping("/presigned-url")
+    public ResponseEntity<?> getPresignedUrl(
+            @RequestParam(value = "type", required = false, defaultValue = "general") String type,
+            @RequestParam(value = "extension", required = false, defaultValue = ".webp") String extension,
+            @RequestParam(value = "contentType", required = false, defaultValue = "image/webp") String contentType) {
+        
+        String folder;
+        switch (type.toLowerCase()) {
+            case "avatar":
+                folder = "avatars";
+                break;
+            case "court_cover":
+                folder = "courts/covers";
+                break;
+            case "court_detail":
+                folder = "courts/details";
+                break;
+            case "post":
+                folder = "posts";
+                break;
+            default:
+                folder = "general";
+                break;
+        }
+
+        Map<String, String> urls = fileStorageService.generatePresignedUrl(folder, extension, contentType);
+        return ResponseEntity.ok(urls);
+    }
 }

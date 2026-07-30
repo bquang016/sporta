@@ -84,6 +84,28 @@ export function useHomeScreen() {
             setIsAuthenticated(false);
             setUserName('Khách');
             setUserAvatar(null);
+            return;
+          }
+
+          // Fetch full user profile to sync name and avatar with Profile Screen
+          try {
+            const { usersApi } = require('../../../shared/api/users');
+            const profile = await usersApi.getProfile();
+            if (profile && profile.fullName) {
+              setUserName(profile.fullName);
+              if (profile.avatarUrl) {
+                setUserAvatar(profile.avatarUrl);
+              }
+              if (Platform.OS === 'web') {
+                localStorage.setItem('userName', profile.fullName);
+                if (profile.avatarUrl) localStorage.setItem('userAvatar', profile.avatarUrl);
+              } else {
+                await SecureStore.setItemAsync('userName', profile.fullName);
+                if (profile.avatarUrl) await SecureStore.setItemAsync('userAvatar', profile.avatarUrl);
+              }
+            }
+          } catch (profileErr) {
+            console.log('Profile sync on Home warning:', profileErr);
           }
         } catch (e) {
           // Tránh xóa token khi gặp lỗi mạng (ví dụ mất kết nối tạm thời)

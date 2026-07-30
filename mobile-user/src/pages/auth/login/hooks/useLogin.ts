@@ -143,17 +143,36 @@ export function useLogin() {
     setLoading(true);
     try {
       const response = await loginApi(email, password);
-      const username = email.split('@')[0];
-      const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
-      
+      let realFullName = email.split('@')[0];
+      realFullName = realFullName.charAt(0).toUpperCase() + realFullName.slice(1);
+      let realAvatar: string | null = null;
+
       if (Platform.OS === 'web') {
         localStorage.setItem('accessToken', response.accessToken);
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userName', capitalizedUsername);
       } else {
         await SecureStore.setItemAsync('accessToken', response.accessToken);
+      }
+
+      // Sync real profile from backend
+      try {
+        const { usersApi } = require('../../../../shared/api/users');
+        const profile = await usersApi.getProfile();
+        if (profile && profile.fullName) {
+          realFullName = profile.fullName;
+          realAvatar = profile.avatarUrl || null;
+        }
+      } catch (err) {
+        console.log('Profile sync on login warning:', err);
+      }
+      
+      if (Platform.OS === 'web') {
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', realFullName);
+        if (realAvatar) localStorage.setItem('userAvatar', realAvatar);
+      } else {
         await SecureStore.setItemAsync('userEmail', email);
-        await SecureStore.setItemAsync('userName', capitalizedUsername);
+        await SecureStore.setItemAsync('userName', realFullName);
+        if (realAvatar) await SecureStore.setItemAsync('userAvatar', realAvatar);
       }
       router.replace('/(tabs)');
     } catch (error: any) {
