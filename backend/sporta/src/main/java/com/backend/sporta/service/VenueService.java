@@ -39,6 +39,10 @@ import com.backend.sporta.repository.CourtPriceRuleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.domain.Specification;
+
+import com.backend.sporta.dto.VenueSearchCriteriaDTO;
+import com.backend.sporta.repository.specification.VenueSpecification;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -1087,5 +1091,83 @@ public class VenueService {
         rev.setReviewedAt(java.time.LocalDateTime.now());
         rev.setReviewerNotes(reason);
         venueRevisionRepository.save(rev);
+    }
+    
+    private double calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Bán kính trái đất (km)
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    public List<VenueResponse> searchVenues(VenueSearchCriteriaDTO criteria) {
+        Specification<Venue> spec = VenueSpecification.buildSearchSpecification(criteria);
+        List<Venue> venues = venueRepository.findAll(spec);
+        
+        List<VenueResponse> results = new ArrayList<>();
+        
+        for (Venue venue : venues) {
+            Double distanceKm = null;
+            if (criteria.getUserLat() != null && criteria.getUserLng() != null && venue.getLatitude() != null && venue.getLongitude() != null) {
+                distanceKm = calculateHaversineDistance(criteria.getUserLat(), criteria.getUserLng(), venue.getLatitude(), venue.getLongitude());
+                if (criteria.getRadiusKm() != null && distanceKm > criteria.getRadiusKm()) {
+                    continue;
+                }
+            }
+            
+            Integer availableSlots = null;
+            if (criteria.getBookingDate() != null && criteria.getStartTime() != null && criteria.getEndTime() != null) {
+                boolean hasAvailable = checkVenueAvailability(venue, criteria.getBookingDate(), criteria.getStartTime(), criteria.getEndTime());
+                if (!hasAvailable) {
+                    continue;
+                }
+                availableSlots = 1; 
+            }
+            
+            VenueResponse response = mapToResponse(venue, false);
+            response.setDistanceKm(distanceKm);
+            response.setAvailableSlotsCount(availableSlots);
+            results.add(response);
+        }
+        
+        if (criteria.getUserLat() != null && criteria.getUserLng() != null) {
+            results.sort((v1, v2) -> {
+                if (v1.getDistanceKm() == null) return 1;
+                if (v2.getDistanceKm() == null) return -1;
+                return v1.getDistanceKm().compareTo(v2.getDistanceKm());
+            });
+        }
+        
+        return results;
+    }
+    
+    private boolean checkVenueAvailability(Venue venue, LocalDate date, LocalTime start, LocalTime end) {
+        List<Court> activeCourts = courtRepository.findByVenueId(venue.getId()).stream()
+                .filter(c -> c.getStatus() == CourtStatus.ACTIVE)
+                .collect(Collectors.toList());
+                
+        for (Court court : activeCourts) {
+            List<com.backend.sporta.entity.BookingDetail> bookings = bookingDetailRepository
+                    .findByCourtIdAndBookingDateAndBookingStatusIn(
+                            court.getId(), date,
+                            Arrays.asList(BookingStatus.CONFIRMED, BookingStatus.PENDING));
+            
+            boolean courtAvailable = true;
+            for (com.backend.sporta.entity.BookingDetail bd : bookings) {
+                if (start.isBefore(bd.getEndTime()) && end.isAfter(bd.getStartTime())) {
+                    courtAvailable = false;
+                    break;
+                }
+            }
+            
+            if (courtAvailable) {
+                return true;
+            }
+        }
+        return false;
     }
 }
