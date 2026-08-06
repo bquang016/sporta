@@ -31,7 +31,7 @@ export const PostCard = React.memo(({
   const [viewerVisible, setViewerVisible] = useState(false);
   const totalReactions = post.reactionsCount
     ? Object.values(post.reactionsCount).reduce((sum, count) => sum + (count || 0), 0)
-    : (post.likeCount || post.likesCount || 0);
+    : (post.likeCount || post.likeCount || 0);
 
   return (
     <View style={styles.cardContainer}>

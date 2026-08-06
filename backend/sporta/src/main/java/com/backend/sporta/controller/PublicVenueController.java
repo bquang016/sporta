@@ -3,6 +3,7 @@ package com.backend.sporta.controller;
 import com.backend.sporta.dto.SlotResponse;
 import com.backend.sporta.dto.VenueDetailResponse;
 import com.backend.sporta.dto.VenueResponse;
+import com.backend.sporta.dto.VenueSearchCriteriaDTO;
 import com.backend.sporta.service.VenueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,6 +21,13 @@ public class PublicVenueController {
 
     @Autowired
     private VenueService venueService;
+
+
+    /** POST /api/v1/public/venues/search — Tìm kiếm và lọc cụm sân */
+    @PostMapping("/search")
+    public ResponseEntity<List<VenueResponse>> searchVenues(@RequestBody VenueSearchCriteriaDTO criteria) {
+        return ResponseEntity.ok(venueService.searchVenues(criteria));
+    }
 
     /** GET /api/v1/public/venues — Danh sách tất cả venue đang ACTIVE */
     @GetMapping

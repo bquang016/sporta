@@ -17,6 +17,8 @@ export interface Facility {
   sport?: string;
   area?: string;
   priceCategory?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface FacilityCardProps {
