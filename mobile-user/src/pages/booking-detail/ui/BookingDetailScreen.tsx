@@ -12,8 +12,11 @@ import { Button } from '../../../shared/ui/Button';
 import { Card } from '../../../shared/ui/Card';
 import { CalendarPicker } from '../../../shared/ui/CalendarPicker';
 import { useVenueDetail } from '../../../entities/facility/model/useVenueDetail';
+import type { SlotInfo } from '../../../entities/facility';
+import { BookingMatrix } from '../../../features/booking-matrix';
 import { matchmakingApi } from '../../../shared/api/matchmaking';
 import { usersApi } from '../../../shared/api/users';
+import { getJoinedClubsApi } from '../../../pages/matchmaking/components/SelectClubSheet';
 import { AlertModal } from '../../../shared/ui/AlertModal';
 
 function formatLocalISO(d: Date): string {
@@ -154,6 +157,14 @@ export function BookingDetailScreen() {
       const userProfile = await usersApi.getProfile().catch(() => null);
       const userId = userProfile?.id ?? 1;
 
+      let userClubId = 1;
+      try {
+        const clubs = await getJoinedClubsApi();
+        if (clubs && clubs.length > 0) {
+          userClubId = Number(clubs[0].id) || 1;
+        }
+      } catch (e) {}
+
       const firstSlot = selectedSlotList[0];
       const matchStart = new Date(selectedDate);
       const [h, m] = firstSlot.time.split(':').map(Number);
@@ -161,7 +172,7 @@ export function BookingDetailScreen() {
       const matchEnd = new Date(matchStart.getTime() + 90 * 60 * 1000);
 
       await matchmakingApi.createMatchRoom({
-        clubId: 1,
+        clubId: userClubId,
         sportId: 1,
         format: '5v5',
         courtId: Number(firstSlot.courtId) || 1,
@@ -466,12 +477,12 @@ export function BookingDetailScreen() {
               const [h, m] = firstSlot.time.split(':').map(Number);
               matchStart.setHours(h, m, 0, 0);
               const hoursToMatch = (matchStart.getTime() - Date.now()) / (1000 * 3600);
-              const isHoldDisabled = hoursToMatch < 6;
+              const isHoldDisabled = hoursToMatch < 2;
 
               let ttlText = '';
               if (hoursToMatch > 48) ttlText = '⏱️ Dynamic TTL: Đếm ngược 2 tiếng (120 phút)';
               else if (hoursToMatch >= 24) ttlText = '⏱️ Dynamic TTL: Đếm ngược 1 tiếng (60 phút)';
-              else if (hoursToMatch >= 6) ttlText = '⏱️ Dynamic TTL: Đếm ngược 30 phút';
+              else if (hoursToMatch >= 2) ttlText = '⏱️ Dynamic TTL: Đếm ngược 30 phút';
 
               return (
                 <View style={{ gap: SPACING.sm, marginVertical: SPACING.sm }}>
@@ -530,7 +541,7 @@ export function BookingDetailScreen() {
                         </Text>
                         {isHoldDisabled ? (
                           <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.error, fontWeight: '700', marginTop: 2 }}>
-                            ⚠️ Sát giờ thi đấu (&lt; 6h), vui lòng mua đứt sân để ghép trận.
+                            ⚠️ Sát giờ thi đấu (&lt; 2h), vui lòng mua đứt sân để ghép trận.
                           </Text>
                         ) : (
                           <Text style={{ ...TYPOGRAPHY.labelSm, color: '#92400E', marginTop: 2 }}>

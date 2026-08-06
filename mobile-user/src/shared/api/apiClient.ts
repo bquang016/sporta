@@ -116,6 +116,13 @@ export const requestApi = async (
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearCachedToken();
+      try {
+        const { globalEvent } = require('../lib/eventEmitter');
+        globalEvent?.emit?.('auth:expired');
+      } catch (e) {}
+    }
     const errorText = await response.text();
     let parsedError;
     try {

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Post, ClubInfoData } from '../model/post.types';
+import { Post, ClubInfoData, REACTION_MAP } from '../model/post.types';
 import { MatchCardAttachment } from './MatchCardAttachment';
 import { VenuePromoAttachment } from './VenuePromoAttachment';
 import { PostImageViewerModal } from './PostImageViewerModal';
-import { REACTION_MAP } from '../index';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface PostCardProps {

@@ -46,18 +46,11 @@ export function SelectClubSheet({ visible, onClose, onSelectClub }: SelectClubSh
         }));
         setClubs(mappedClubs);
       } else {
-        // Fallback default user clubs
-        setClubs([
-          { id: 1, name: 'CLB Bóng đá Alpha', sportName: 'Bóng đá', sportEmoji: '⚽', crp: 120, memberCount: 15 },
-          { id: 2, name: 'CLB Cầu lông SuperHit', sportName: 'Cầu lông', sportEmoji: '🏸', crp: 150, memberCount: 8 },
-        ]);
+        setClubs([]);
       }
     } catch (err) {
       console.log('Error fetching user clubs:', err);
-      setClubs([
-        { id: 1, name: 'CLB Bóng đá Alpha', sportName: 'Bóng đá', sportEmoji: '⚽', crp: 120, memberCount: 15 },
-        { id: 2, name: 'CLB Cầu lông SuperHit', sportName: 'Cầu lông', sportEmoji: '🏸', crp: 150, memberCount: 8 },
-      ]);
+      setClubs([]);
     } finally {
       setLoading(false);
     }

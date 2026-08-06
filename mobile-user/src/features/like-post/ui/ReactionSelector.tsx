@@ -8,7 +8,7 @@ import React, {
 import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { REACTION_MAP } from '../../../entities/post';
+import { REACTION_MAP } from '../../../entities/post/model/post.types';
 
 /* ── Sport-themed Reaction Badges ── */
 const REACTION_KEYS = ['like', 'love', 'fire', 'muscle', 'trophy'] as const;

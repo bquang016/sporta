@@ -14,6 +14,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { matchmakingApi, MatchRoom } from '../../../shared/api/matchmaking';
+import { getJoinedClubsApi } from '../../../shared/api/clubs';
+import { AlertModal } from '../../../shared/ui';
 import { SelectClubSheet, UserClubItem } from '../components/SelectClubSheet';
 
 // Available Sports with Emojis & Material Icons
@@ -89,16 +91,36 @@ export function MatchmakingListScreen({ navigation }: any) {
     fetchRooms();
   }, []);
 
-  const handleCreateRoomPress = () => {
-    if (MOCK_USER_CLUBS.length >= 2) {
-      setShowClubSheet(true);
-    } else {
-      const defaultClub = MOCK_USER_CLUBS[0];
-      navigation?.navigate('CreateMatchRoom', { club: defaultClub });
+  const handleCreateRoomPress = async () => {
+    try {
+      setLoading(true);
+      const res = await getJoinedClubsApi();
+      if (!res || res.length === 0) {
+        alert("Bạn chưa tham gia Câu lạc bộ nào. Vui lòng gia nhập hoặc tạo một CLB trước khi tạo phòng ghép trận!");
+        return;
+      }
+      if (res.length === 1) {
+        const c = res[0];
+        navigation?.navigate('CreateMatchRoom', {
+          club: {
+            id: c.id,
+            name: c.name,
+            sportName: c.sportName || 'Bóng đá',
+            sportEmoji: '⚽',
+          }
+        });
+      } else {
+        setShowClubSheet(true);
+      }
+    } catch (err: any) {
+      console.log('Error fetching user clubs on create:', err);
+      alert("Không thể tải danh sách CLB của bạn. Vui lòng kiểm tra lại kết nối.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSelectClubToCreate = (club: UserClubItem) => {
+  const handleSelectClubToCreate = (club: any) => {
     navigation?.navigate('CreateMatchRoom', { club });
   };
 
@@ -106,13 +128,16 @@ export function MatchmakingListScreen({ navigation }: any) {
 
   const filteredRooms = rooms.filter(room => {
     // 1. Không hiển thị các trận đã quá giờ thi đấu (quá hạn trong quá khứ)
-    if (room.expectedStartTime) {
+    if (room.expectedEndTime) {
+      try {
+        const endTime = new Date(room.expectedEndTime);
+        if (endTime <= now) return false;
+      } catch {}
+    } else if (room.expectedStartTime) {
       try {
         const startTime = new Date(room.expectedStartTime);
-        if (startTime <= now) return false;
-      } catch {
-        // ignore date parse errors
-      }
+        if (startTime.getTime() + 2 * 3600 * 1000 <= now.getTime()) return false;
+      } catch {}
     }
     if (selectedSport !== 'Tất cả' && room.sportName !== selectedSport) return false;
     if (activeTab !== 'ALL' && room.flowType !== activeTab) return false;

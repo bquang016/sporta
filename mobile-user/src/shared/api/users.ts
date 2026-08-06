@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { getBaseUrl } from './config';
-import { ApiError } from './apiClient';
+import { apiFetch, ApiError } from './apiClient';
 
 export interface UserProfileDto {
   id: number;
@@ -46,19 +46,7 @@ const getToken = async (): Promise<string | null> => {
 
 export const usersApi = {
   getProfile: async (): Promise<UserProfileDto> => {
-    const token = await getToken();
-    const response = await fetch(`${getBaseUrl()}/users/profile`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new ApiError(errorData.message || 'Lỗi khi lấy thông tin cá nhân', response.status);
-    }
-    return response.json();
+    return apiFetch<UserProfileDto>('/users/profile', { method: 'GET' }, true);
   },
 
   updateProfile: async (data: UpdateUserProfileRequest, avatarUri?: string): Promise<UserProfileDto> => {

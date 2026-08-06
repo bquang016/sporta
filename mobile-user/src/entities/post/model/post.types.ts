@@ -91,3 +91,12 @@ export interface Post {
   sharesCount: number;
   comments?: PostComment[];
 }
+
+export const REACTION_MAP: Record<string, { label: string; iconName: any; color: string }> = {
+  like: { label: 'Thích', iconName: 'thumbs-up', color: '#10B981' },
+  love: { label: 'Yêu thích', iconName: 'heart', color: '#EF4444' },
+  fire: { label: 'Bùng cháy', iconName: 'flame', color: '#F59E0B' },
+  clap: { label: 'Vỗ tay', iconName: 'hand-left', color: '#10B981' },
+  trophy: { label: 'Đẳng cấp', iconName: 'trophy', color: '#8B5CF6' },
+  muscle: { label: 'Sung sức', iconName: 'barbell', color: '#EC4899' },
+};

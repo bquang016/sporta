@@ -17,10 +17,9 @@ import {
 } from 'react-native';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import { Ionicons } from '@expo/vector-icons';
-import { Post } from '../model/post.types';
+import { Post, REACTION_MAP } from '../model/post.types';
 import { COLORS } from '../../../shared/config/theme';
 import { ReactionSelector, ReactionSelectorRef } from '../../../features/like-post/ui/ReactionSelector';
-import { REACTION_MAP } from '../index';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BAR_WIDTH = 280;
@@ -289,7 +288,7 @@ export const PostImageViewerModal = ({
         />
 
         {/* ── Top Overlay ── */}
-        <Animated.View style={[styles.topOverlay, { opacity: overlayOpacity }]} pointerEvents={showOverlay ? 'auto' : 'none'}>
+        <Animated.View style={[styles.topOverlay, { opacity: overlayOpacity, pointerEvents: showOverlay ? 'auto' : 'none' }]}>
           <SafeAreaView>
             <View style={styles.header}>
               <TouchableOpacity onPress={handleClose} style={styles.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -309,7 +308,7 @@ export const PostImageViewerModal = ({
         </Animated.View>
 
         {/* ── Bottom Overlay ── */}
-        <Animated.View style={[styles.bottomOverlay, { opacity: overlayOpacity }]} pointerEvents={showOverlay ? 'auto' : 'none'}>
+        <Animated.View style={[styles.bottomOverlay, { opacity: overlayOpacity, pointerEvents: showOverlay ? 'auto' : 'none' }]}>
           {post.content ? (
             <View style={styles.captionWrap}>
               <Text style={styles.captionText} numberOfLines={3}>{post.content}</Text>
@@ -357,8 +356,8 @@ export const PostImageViewerModal = ({
         {/* ── Reaction Selector Overlay ── */}
         {reactionSelectorVisible && (
           <>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none" />
-            <View style={[styles.selectorWrap, { top: selectorTop }]} pointerEvents="none">
+            <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]} />
+            <View style={[styles.selectorWrap, { top: selectorTop, pointerEvents: 'none' }]}>
               <ReactionSelector ref={selectorRef} />
             </View>
           </>

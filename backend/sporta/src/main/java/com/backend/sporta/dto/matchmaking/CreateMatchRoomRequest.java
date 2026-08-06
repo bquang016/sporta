@@ -18,8 +18,8 @@ public class CreateMatchRoomRequest {
     private Double longitude;
     private LocalDateTime expectedStartTime;
     private LocalDateTime expectedEndTime;
-    private java.util.UUID bookingId; // Nếu là PAID_100
-    private java.util.UUID courtId;   // Nếu là DEPOSIT_HOLD (optional)
+    private String bookingId; // Nếu là PAID_100 (UUID String hoặc null)
+    private String courtId;   // Nếu là DEPOSIT_HOLD (UUID String hoặc null)
     private BigDecimal priceSharePerTeam;
     private MatchFlowType flowType;
     private BigDecimal depositAmount;

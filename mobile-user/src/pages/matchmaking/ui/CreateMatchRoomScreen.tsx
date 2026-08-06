@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import { MapPickerModal } from '../components/MapPickerModal';
 import { TimePickerModal } from '../components/TimePickerModal';
 import { getMyBookingsApi, getSuggestedVenuesApi, BookingItem, VenueSuggestion } from '../../../shared/api/bookings';
 import { usersApi } from '../../../shared/api/users';
+import { SelectClubSheet, getJoinedClubsApi } from '../components/SelectClubSheet';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -77,6 +79,9 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
     sportEmoji: '⚽',
   };
 
+  const [activeHostClub, setActiveHostClub] = useState<any>(route?.params?.club ?? club);
+  const [showClubSheet, setShowClubSheet] = useState(false);
+
   const [flowType, setFlowType] = useState<MatchFlowType>('PAID_100');
 
   // Flow 1 – Paid Booking
@@ -91,6 +96,12 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   const [selectedCourtName, setSelectedCourtName] = useState<string>('Sân 1 (Tiêu chuẩn)');
   const [showVenueModal, setShowVenueModal] = useState(false);
   const [showMockDepositModal, setShowMockDepositModal] = useState(false);
+
+  // Search & Filter State for Venue Modal
+  const [venueSearchQuery, setVenueSearchQuery] = useState('');
+  const [selectedDistrictFilter, setSelectedDistrictFilter] = useState('Tất cả');
+  const [venueSortFilter, setVenueSortFilter] = useState<'ALL' | 'CHEAPEST' | 'TOP_RATED'>('ALL');
+  const [onlyAvailableSlots, setOnlyAvailableSlots] = useState(true);
 
   // Flow 2 – Date + Time + Duration
   const tomorrow = new Date();
@@ -133,6 +144,15 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [myUserId, setMyUserId] = useState<number>(1);
 
+  const DEFAULT_MOCK_VENUES: VenueSuggestion[] = [
+    { id: '1', name: 'Sân Bóng Chùa Hà', address: '36 Chùa Hà, Quận Cầu Giấy, Hà Nội', latitude: 21.0368, longitude: 105.7905, hourlyPrice: 300000, rating: 4.8 },
+    { id: '2', name: 'Sân Bóng Thủy Lợi', address: '175 Tây Sơn, Quận Đống Đa, Hà Nội', latitude: 21.0076, longitude: 105.8247, hourlyPrice: 260000, rating: 4.6 },
+    { id: '3', name: 'Sân Bóng Viettel', address: '158 Hoàng Văn Thái, Quận Thanh Xuân, Hà Nội', latitude: 20.9965, longitude: 105.8285, hourlyPrice: 320000, rating: 4.9 },
+    { id: '4', name: 'Sân Bóng FPT Cầu Giấy', address: '10 Phạm Văn Bạch, Quận Cầu Giấy, Hà Nội', latitude: 21.0285, longitude: 105.7834, hourlyPrice: 280000, rating: 4.7 },
+    { id: '5', name: 'Sân Bóng Mỹ Đình', address: 'Đường Lê Đức Thọ, Quận Nam Từ Liêm, Hà Nội', latitude: 21.0205, longitude: 105.7645, hourlyPrice: 350000, rating: 4.9 },
+    { id: '6', name: 'Sân Bóng Bách Khoa', address: '1 Đại Cồ Việt, Quận Hai Bà Trưng, Hà Nội', latitude: 21.0045, longitude: 105.8456, hourlyPrice: 240000, rating: 4.5 },
+  ];
+
   useEffect(() => {
     fetchUserBookings();
     getSuggestedVenuesApi().then(venues => {
@@ -143,11 +163,13 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         setLatitude(venues[0].latitude);
         setLongitude(venues[0].longitude);
       } else {
-        const defaultV: VenueSuggestion = { id: '1', name: 'Sân Bóng Chùa Hà', address: 'Quận Cầu Giấy, Hà Nội', latitude: 21.0368, longitude: 105.7905, hourlyPrice: 300000, rating: 4.8 };
-        setSuggestedVenues([defaultV]);
-        setSelectedVenue(defaultV);
+        setSuggestedVenues(DEFAULT_MOCK_VENUES);
+        setSelectedVenue(DEFAULT_MOCK_VENUES[0]);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      setSuggestedVenues(DEFAULT_MOCK_VENUES);
+      setSelectedVenue(DEFAULT_MOCK_VENUES[0]);
+    });
     usersApi.getProfile().then(p => {
       if (p?.id) setMyUserId(p.id);
     }).catch(() => {});
@@ -231,7 +253,7 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
       const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
       
       const createdRoom = await matchmakingApi.createMatchRoom({
-        clubId: club.id,
+        clubId: activeHostClub?.id ? Number(activeHostClub.id) : club.id,
         sportId: 1,
         format,
         minElo: parseInt(minElo, 10),
@@ -243,7 +265,7 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         expectedEndTime: formatLocalISO(endDateTime),
         priceSharePerTeam: calculatedPriceShare,
         flowType,
-        courtId: flowType === 'DEPOSIT_HOLD' ? selectedCourtId : undefined,
+        courtId: flowType === 'DEPOSIT_HOLD' ? String(selectedCourtId) : undefined,
         depositAmount: flowType === 'DEPOSIT_HOLD' ? 50000 : undefined,
         bookingId: flowType === 'PAID_100' ? selectedBookingId : undefined,
         message,
@@ -300,22 +322,26 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
 
           {/* ── CLB Banner ────────────────────────────────────────── */}
-          <View style={styles.clubCard}>
+          <TouchableOpacity
+            style={styles.clubCard}
+            activeOpacity={0.85}
+            onPress={async () => {
+              const userClubs = await getJoinedClubsApi().catch(() => []);
+              if (userClubs.length > 1) {
+                setShowClubSheet(true);
+              }
+            }}
+          >
             <View style={styles.clubCardLeft}>
               <View style={styles.clubAvatar}>
-                <Text style={styles.clubAvatarText}>{club.name?.charAt(0)}</Text>
+                <Text style={styles.clubAvatarText}>{(activeHostClub?.name || club.name)?.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
-                <Text style={styles.clubSport}>
-                  {club.sportEmoji}{' '}
-                  <Text style={styles.clubSportHighlight}>{club.sportName}</Text>
-                  {' '}— Môn khóa theo CLB
-                </Text>
+                <Text style={styles.clubName} numberOfLines={1}>{activeHostClub?.name || club.name}</Text>
+                <Text style={styles.clubSportSub}>{(activeHostClub?.sportName || club.sportName)} • Nhấn để đổi CLB chủ nhà</Text>
               </View>
             </View>
-            <MaterialIcons name="lock" size={18} color={COLORS.primary} />
-          </View>
+          </TouchableOpacity>
 
           {/* ── Hình thức ghép trận ───────────────────────────────── */}
           <Text style={styles.sectionLabel}>HÌNH THỨC GHÉP TRẬN</Text>
@@ -386,28 +412,50 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
           {/* ── Flow 2: Lịch thi đấu & Sân ─────────────────────────── */}
           {flowType === 'DEPOSIT_HOLD' && (
             <>
-              {/* Chọn Sân Thi Đấu cụ thể */}
+              {/* Chọn Sân Thi Đấu cụ thể — Stylized Hero Card */}
               <Text style={styles.sectionLabel}>CHỌN SÂN THI ĐẤU & KHUNG GIỜ</Text>
 
               <TouchableOpacity
-                style={styles.dateTriggerCard}
+                style={styles.heroVenueCard}
                 onPress={() => setShowVenueModal(true)}
-                activeOpacity={0.85}
+                activeOpacity={0.88}
               >
-                <View style={styles.dateTriggerLeft}>
-                  <View style={[styles.dateTriggerIconBg, { backgroundColor: COLORS.primaryOpacity15 }]}>
-                    <MaterialIcons name="sports-soccer" size={20} color={COLORS.primary} />
+                <View style={styles.heroVenueHeader}>
+                  <View style={styles.heroVenueBadge}>
+                    <MaterialIcons name="sports-soccer" size={16} color={COLORS.primary} />
+                    <Text style={styles.heroVenueBadgeText}>SÂN THI ĐẤU ĐÃ CHỌN</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.dateTriggerValue} numberOfLines={1}>
-                      {selectedVenue ? selectedVenue.name : 'Chọn Sân bóng...'}
-                    </Text>
-                    <Text style={styles.dateTriggerSub} numberOfLines={1}>
-                      {selectedCourtName} — {selectedVenue ? `${selectedVenue.hourlyPrice.toLocaleString()} đ/giờ` : ''}
-                    </Text>
+
+                  <View style={styles.heroVenueRating}>
+                    <MaterialIcons name="star" size={14} color={COLORS.secondary} />
+                    <Text style={styles.heroVenueRatingText}>{selectedVenue?.rating || 4.8}</Text>
                   </View>
                 </View>
-                <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
+
+                <Text style={styles.heroVenueName}>{selectedVenue ? selectedVenue.name : 'Chưa chọn Sân bóng...'}</Text>
+                <Text style={styles.heroVenueAddress} numberOfLines={1}>📍 {selectedVenue ? selectedVenue.address : 'Nhấn để tìm & chọn sân bóng khu vực'}</Text>
+
+                <View style={styles.heroVenueFooter}>
+                  <View style={styles.heroVenuePillGroup}>
+                    <View style={styles.heroCourtChip}>
+                      <MaterialIcons name="flag" size={14} color={COLORS.primary} />
+                      <Text style={styles.heroCourtChipText}>{selectedCourtName}</Text>
+                    </View>
+
+                    {selectedVenue && (
+                      <View style={styles.heroPriceChip}>
+                        <Text style={styles.heroPriceChipText}>
+                          {selectedVenue.hourlyPrice.toLocaleString()} đ/h • Cưa đôi: {(selectedVenue.hourlyPrice / 2).toLocaleString()} đ
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <TouchableOpacity style={styles.heroChangeBtn} onPress={() => setShowVenueModal(true)}>
+                    <Text style={styles.heroChangeBtnText}>Đổi sân</Text>
+                    <MaterialIcons name="chevron-right" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                </View>
               </TouchableOpacity>
 
               {/* Chọn ngày — CalendarPicker */}
@@ -597,86 +645,232 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
           />
         </ScrollView>
 
-        {/* ── Venue Selection Modal (Chủ phòng chọn sân) ──────────── */}
+        {/* ── Venue Selection Modal (Chủ phòng chọn sân & lọc nâng cao) ──────────── */}
         <Modal visible={showVenueModal} animationType="slide" onRequestClose={() => setShowVenueModal(false)}>
           <SafeAreaView style={styles.safeArea} edges={['top']}>
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => setShowVenueModal(false)}>
+            {/* Modal Header */}
+            <View style={styles.modalHeaderBox}>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowVenueModal(false)}>
                 <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Chọn Sân & Khung Giờ</Text>
-              <View style={{ width: 24 }} />
+              <Text style={styles.modalTitleText}>Tìm & Chọn Sân Thi Đấu</Text>
+              <TouchableOpacity onPress={() => setShowMapModal(true)}>
+                <MaterialIcons name="map" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={{ padding: SPACING.md, gap: SPACING.md }}>
-              <Text style={styles.sectionLabel}>DANH SÁCH SÂN BÓNG GỢI Ý KHU VỰC</Text>
-              {suggestedVenues.map(v => (
+              {/* 1. Search Bar */}
+              <View style={styles.searchBarBox}>
+                <MaterialIcons name="search" size={22} color={COLORS.primary} />
+                <TextInput
+                  style={styles.searchInputField}
+                  placeholder="Tìm theo tên sân, đường, hoặc quận..."
+                  placeholderTextColor={COLORS.outline}
+                  value={venueSearchQuery}
+                  onChangeText={setVenueSearchQuery}
+                />
+                {venueSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setVenueSearchQuery('')}>
+                    <MaterialIcons name="cancel" size={18} color={COLORS.outline} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* 2. Region / District Filter Chips */}
+              <Text style={styles.sectionLabel}>LỌC THEO KHU VỰC / QUẬN</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.xs }}>
+                {['Tất cả', 'Cầu Giấy', 'Đống Đa', 'Thanh Xuân', 'Nam Từ Liêm', 'Hai Bà Trưng'].map(district => {
+                  const isActive = selectedDistrictFilter === district;
+                  return (
+                    <TouchableOpacity
+                      key={district}
+                      style={[styles.filterChip, isActive && styles.filterChipActive]}
+                      onPress={() => setSelectedDistrictFilter(district)}
+                    >
+                      <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{district}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* 3. Sort Filter Chips */}
+              <View style={{ flexDirection: 'row', gap: SPACING.xs, alignItems: 'center', flexWrap: 'wrap' }}>
                 <TouchableOpacity
-                  key={v.id}
-                  style={[
-                    styles.bookingCard,
-                    selectedVenue?.id === v.id && styles.bookingCardActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedVenue(v);
-                    setArea(v.address);
-                    setLatitude(v.latitude);
-                    setLongitude(v.longitude);
-                  }}
-                  activeOpacity={0.85}
+                  style={[styles.sortChip, venueSortFilter === 'ALL' && styles.sortChipActive]}
+                  onPress={() => setVenueSortFilter('ALL')}
                 >
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.bookingVenue}>{v.name}</Text>
-
-                    {/* Court Selector for this Venue */}
-                    <Text style={styles.bookingTime}>📍 {v.address}</Text>
-                    
-                    {selectedVenue?.id === v.id && (
-                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                        {['Sân 1 (Tiêu chuẩn)', 'Sân 2 (Mặt cỏ nhân tạo)', 'Sân 3 (Sân VIP)'].map((courtName, idx) => (
-                          <TouchableOpacity
-                            key={courtName}
-                            style={{
-                              paddingHorizontal: 10,
-                              paddingVertical: 4,
-                              borderRadius: 6,
-                              backgroundColor: selectedCourtId === (idx + 1) ? COLORS.primary : COLORS.surfaceContainerLow,
-                            }}
-                            onPress={() => {
-                              setSelectedCourtId(idx + 1);
-                              setSelectedCourtName(courtName);
-                            }}
-                          >
-                            <Text style={{ fontSize: 12, color: selectedCourtId === (idx + 1) ? '#FFF' : COLORS.onSurface }}>
-                              {courtName.split(' ')[0]} {courtName.split(' ')[1]}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <Text style={styles.bookingPrice}>{v.hourlyPrice.toLocaleString()} đ/h</Text>
-                    <Text style={styles.bookingSplit}>Cưa đôi: {(v.hourlyPrice / 2).toLocaleString()} đ</Text>
-                    {selectedVenue?.id === v.id ? (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        title="ĐÃ CHỌN"
-                        onPress={() => setShowVenueModal(false)}
-                      />
-                    ) : null}
-                  </View>
+                  <Text style={[styles.sortChipText, venueSortFilter === 'ALL' && styles.sortChipTextActive]}>Tất cả</Text>
                 </TouchableOpacity>
-              ))}
+
+                <TouchableOpacity
+                  style={[styles.sortChip, venueSortFilter === 'CHEAPEST' && styles.sortChipActive]}
+                  onPress={() => setVenueSortFilter('CHEAPEST')}
+                >
+                  <Text style={[styles.sortChipText, venueSortFilter === 'CHEAPEST' && styles.sortChipTextActive]}>Giá tốt nhất 🏷️</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sortChip, venueSortFilter === 'TOP_RATED' && styles.sortChipActive]}
+                  onPress={() => setVenueSortFilter('TOP_RATED')}
+                >
+                  <Text style={[styles.sortChipText, venueSortFilter === 'TOP_RATED' && styles.sortChipTextActive]}>Đánh giá 4.8+ ⭐</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sortChip, onlyAvailableSlots && styles.sortChipActive, { backgroundColor: onlyAvailableSlots ? COLORS.primaryOpacity15 : COLORS.surfaceContainerLow }]}
+                  onPress={() => setOnlyAvailableSlots(!onlyAvailableSlots)}
+                >
+                  <Text style={[styles.sortChipText, onlyAvailableSlots && styles.sortChipTextActive, { color: onlyAvailableSlots ? COLORS.primary : COLORS.onSurfaceVariant }]}>
+                    {onlyAvailableSlots ? '✅ Chỉ hiện sân trống' : '👁️ Hiện cả sân hết giờ'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* 4. Map Preview Trigger Banner */}
+              <TouchableOpacity style={styles.mapBannerTrigger} onPress={() => setShowMapModal(true)}>
+                <View style={styles.mapBannerIconBg}>
+                  <MaterialIcons name="my-location" size={20} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mapBannerTitle}>Bản Đồ Vị Trí Vệ Tinh (GPS)</Text>
+                  <Text style={styles.mapBannerSub}>Bấm để mở bản đồ tìm sân theo bán kính khu vực</Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+
+              {/* 5. Filtered Venues List */}
+              <Text style={styles.sectionLabel}>
+                DANH SÁCH SÂN BÓNG GỢI Ý (KHUNG GIỜ {selectedTime}–{endTimeStr})
+              </Text>
+
+              {suggestedVenues
+                .filter(v => {
+                  const matchQ = !venueSearchQuery.trim() || v.name.toLowerCase().includes(venueSearchQuery.toLowerCase()) || v.address.toLowerCase().includes(venueSearchQuery.toLowerCase());
+                  const matchD = selectedDistrictFilter === 'Tất cả' || v.address.toLowerCase().includes(selectedDistrictFilter.toLowerCase());
+                  const isAvail = v.id !== '6' || (selectedTime !== '18:00' && selectedTime !== '19:00');
+                  if (onlyAvailableSlots && !isAvail) return false;
+                  return matchQ && matchD;
+                })
+                .sort((a, b) => {
+                  if (venueSortFilter === 'CHEAPEST') return a.hourlyPrice - b.hourlyPrice;
+                  if (venueSortFilter === 'TOP_RATED') return (b.rating || 4.5) - (a.rating || 4.5);
+                  return 0;
+                })
+                .map(v => {
+                  const isSelected = selectedVenue?.id === v.id;
+                  const isAvail = v.id !== '6' || (selectedTime !== '18:00' && selectedTime !== '19:00');
+                  return (
+                    <TouchableOpacity
+                      key={v.id}
+                      style={[
+                        styles.venueListCard,
+                        isSelected && styles.venueListCardSelected,
+                        !isAvail && { opacity: 0.6 },
+                      ]}
+                      disabled={!isAvail}
+                      onPress={() => {
+                        if (!isAvail) return;
+                        setSelectedVenue(v);
+                        setArea(v.address);
+                        setLatitude(v.latitude);
+                        setLongitude(v.longitude);
+                      }}
+                      activeOpacity={0.88}
+                    >
+                      <View style={styles.venueCardTop}>
+                        <View style={styles.venueIconSquare}>
+                          <MaterialIcons name="sports-soccer" size={24} color={isAvail ? COLORS.primary : COLORS.outline} />
+                        </View>
+
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={styles.venueCardTitle}>{v.name}</Text>
+                            <View style={styles.venueRatingTag}>
+                              <MaterialIcons name="star" size={12} color={COLORS.secondary} />
+                              <Text style={styles.venueRatingVal}>{v.rating || 4.8}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.venueCardAddress} numberOfLines={1}>📍 {v.address}</Text>
+                        </View>
+                      </View>
+
+                      {!isAvail && (
+                        <View style={{ backgroundColor: COLORS.errorContainer, padding: 6, borderRadius: BORDER_RADIUS.sm, marginTop: 4 }}>
+                          <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.onErrorContainer, fontWeight: '700' }}>
+                            🔴 HẾT SÂN TRỐNG KHUNG GIỜ {selectedTime}–{endTimeStr}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={styles.venueCardDivider} />
+
+                      <View style={styles.venuePriceRow}>
+                        <View>
+                          <Text style={styles.venuePriceMain}>{v.hourlyPrice.toLocaleString()} đ/h</Text>
+                          <Text style={styles.venuePriceSub}>Cưa đôi: {(v.hourlyPrice / 2).toLocaleString()} đ/đội</Text>
+                        </View>
+
+                        {isSelected ? (
+                          <View style={styles.selectedBadgeBox}>
+                            <MaterialIcons name="check-circle" size={16} color={COLORS.onPrimary} />
+                            <Text style={styles.selectedBadgeText}>ĐÃ CHỌN</Text>
+                          </View>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            title={isAvail ? "CHỌN SÂN" : "HẾT SÂN"}
+                            disabled={!isAvail}
+                            onPress={() => {
+                              if (!isAvail) return;
+                              setSelectedVenue(v);
+                              setArea(v.address);
+                              setLatitude(v.latitude);
+                              setLongitude(v.longitude);
+                            }}
+                          />
+                        )}
+                      </View>
+
+                      {/* Sub-Court Selector Pills */}
+                      {isSelected && (
+                        <View style={styles.subCourtsBox}>
+                          <Text style={styles.subCourtLabel}>CHỌN SÂN CON CỤ THỂ:</Text>
+                          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                            {['Sân 1 (Tiêu chuẩn)', 'Sân 2 (Mặt cỏ nhân tạo)', 'Sân 3 (Sân VIP)'].map((courtName, idx) => {
+                              const isCourtActive = selectedCourtId === (idx + 1);
+                              return (
+                                <TouchableOpacity
+                                  key={courtName}
+                                  style={[
+                                    styles.courtPill,
+                                    isCourtActive && styles.courtPillActive,
+                                  ]}
+                                  onPress={() => {
+                                    setSelectedCourtId(idx + 1);
+                                    setSelectedCourtName(courtName);
+                                  }}
+                                >
+                                  <Text style={[styles.courtPillText, isCourtActive && styles.courtPillTextActive]}>
+                                    {courtName}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
 
               <Button
                 variant="primary"
                 size="lg"
-                title="XÁC NHẬN CHỌN SÂN NÀY"
+                title="XÁC NHẬN SÂN ĐÃ CHỌN"
                 onPress={() => setShowVenueModal(false)}
-                style={{ marginTop: SPACING.md }}
+                style={{ marginTop: SPACING.sm }}
               />
             </ScrollView>
           </SafeAreaView>
@@ -740,6 +934,15 @@ export function CreateMatchRoomScreen({ route, navigation }: any) {
           longitude={longitude}
           setLatitude={setLatitude}
           setLongitude={setLongitude}
+        />
+
+        <SelectClubSheet
+          visible={showClubSheet}
+          onClose={() => setShowClubSheet(false)}
+          onSelectClub={(selectedC: any) => {
+            setActiveHostClub(selectedC);
+            setShowClubSheet(false);
+          }}
         />
       </View>
     </SafeAreaView>
@@ -1146,5 +1349,423 @@ const styles = StyleSheet.create({
   // Submit CTA
   submitBtn: {
     marginTop: SPACING.xs,
+  },
+
+  // ── Hero Venue Card (Form Trigger Card) ──────────────────────
+  heroVenueCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryOpacity30,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    gap: SPACING.xs,
+  },
+  heroVenueHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroVenueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primaryOpacity15,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  heroVenueBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  heroVenueRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  heroVenueRatingText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+  heroVenueName: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+  heroVenueAddress: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+  },
+  heroVenueFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.xs,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.outlineVariant,
+  },
+  heroVenuePillGroup: {
+    flex: 1,
+    gap: 4,
+  },
+  heroCourtChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  heroCourtChipText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  heroPriceChip: {
+    marginTop: 2,
+  },
+  heroPriceChipText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.secondary,
+    fontWeight: '800',
+  },
+  heroChangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryOpacity10,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  heroChangeBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+
+  // ── Modal Styles ─────────────────────────────────────────────
+  modalHeaderBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+    backgroundColor: COLORS.surface,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalTitleText: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+
+  // Search Bar
+  searchBarBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  searchInputField: {
+    flex: 1,
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurface,
+    padding: 0,
+  },
+
+  // Region / District Filter Chips
+  filterChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurfaceVariant,
+  },
+  filterChipTextActive: {
+    color: COLORS.onPrimary,
+    fontWeight: '800',
+  },
+
+  // Sort Chips
+  sortChip: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceContainerLow,
+  },
+  sortChipActive: {
+    backgroundColor: COLORS.primaryOpacity15,
+  },
+  sortChipText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  sortChipTextActive: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+
+  // Map Banner Trigger
+  mapBannerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primaryOpacity10,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity30,
+  },
+  mapBannerIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapBannerTitle: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  mapBannerSub: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 11,
+  },
+
+  // Venue Cards in List
+  venueListCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.outlineVariant,
+    gap: SPACING.xs,
+  },
+  venueListCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryOpacity05,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  venueCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  venueIconSquare: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primaryOpacity15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  venueCardTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 16,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+  venueRatingTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  venueRatingVal: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+  },
+  venueCardAddress: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.outline,
+  },
+  venueCardDivider: {
+    height: 1,
+    backgroundColor: COLORS.outlineVariant,
+    marginVertical: 4,
+  },
+  venuePriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  venuePriceMain: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.primary,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  venuePriceSub: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.secondary,
+    fontWeight: '700',
+  },
+  selectedBadgeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  selectedBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onPrimary,
+    fontWeight: '800',
+  },
+
+  // Sub-Court Selector Pills
+  subCourtsBox: {
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.xs,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.outlineVariant,
+    gap: 6,
+  },
+  subCourtLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  courtPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  courtPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  courtPillText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurface,
+    fontWeight: '600',
+  },
+  courtPillTextActive: {
+    color: COLORS.onPrimary,
+    fontWeight: '800',
+  },
+
+  // ── Mock Deposit Payment Modal Styles ────────────────────────
+  modalOverlayCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  tsModalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  tsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  tsModalIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tsModalTitle: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+    flex: 1,
+  },
+  tsModalBody: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    lineHeight: 22,
+  },
+  tsModalActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  tsModalSecondaryBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceContainerLow,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  tsModalSecondaryText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurface,
+    fontWeight: '700',
+  },
+  tsModalPrimaryBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tsModalPrimaryText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onPrimary,
+    fontWeight: '800',
   },
 });

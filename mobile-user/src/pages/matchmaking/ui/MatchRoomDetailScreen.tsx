@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
+  Switch,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -39,9 +41,60 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
   const [suggestedVenues, setSuggestedVenues] = useState<VenueSuggestion[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<VenueSuggestion | null>(null);
   const [loadingVenues, setLoadingVenues] = useState(false);
+  const [poll, setPoll] = useState<any | null>(null);
 
   // Cancel Confirmation Modal State
   const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Edit Room Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editMessage, setEditMessage] = useState('');
+  const [editMinElo, setEditMinElo] = useState('1200');
+  const [editMaxElo, setEditMaxElo] = useState('1800');
+  const [editAllowDifferentLevel, setEditAllowDifferentLevel] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const handleOpenEditModal = () => {
+    if (!room) return;
+    setEditMessage(room.message || '');
+    setEditMinElo(String(room.minElo || 1200));
+    setEditMaxElo(String(room.maxElo || 1800));
+    setEditAllowDifferentLevel(!!room.allowDifferentLevel);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditRoom = async () => {
+    const activeUserId = myUserId || room?.creatorUserId || 1;
+    try {
+      setEditSaving(true);
+      await matchmakingApi.updateMatchRoom(roomId, {
+        message: editMessage,
+        minElo: parseInt(editMinElo, 10) || 1200,
+        maxElo: parseInt(editMaxElo, 10) || 1800,
+        allowDifferentLevel: editAllowDifferentLevel,
+      }, activeUserId);
+
+      setShowEditModal(false);
+      loadDetail();
+      setAlertModalConfig({
+        visible: true,
+        title: 'Cập nhật thành công 🎉',
+        message: 'Thông tin phòng ghép trận đã được cập nhật!',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+    } catch (err: any) {
+      setAlertModalConfig({
+        visible: true,
+        title: 'Lỗi cập nhật ❌',
+        message: err?.message || 'Không thể cập nhật phòng',
+        buttonText: 'Đóng',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   // Alert Modal State
   const [alertModalConfig, setAlertModalConfig] = useState<{
@@ -56,6 +109,24 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
     message: '',
     onConfirm: () => {},
   });
+
+  const handleVotePoll = async (isAttending: boolean) => {
+    if (!myClubId) return;
+    const activeUserId = myUserId || 1;
+    try {
+      const updatedPoll = await matchmakingApi.voteInternalPoll(roomId, myClubId, activeUserId, isAttending);
+      setPoll(updatedPoll);
+      setAlertModalConfig({
+        visible: true,
+        title: 'Đã biểu quyết 🗳️',
+        message: isAttending ? 'Đã ghi nhận bạn THAM GIA kèo này!' : 'Đã ghi nhận bạn KHÔNG THAM GIA.',
+        buttonText: 'Đã hiểu',
+        onConfirm: () => setAlertModalConfig(prev => ({ ...prev, visible: false })),
+      });
+    } catch (err: any) {
+      console.log('Error voting poll:', err);
+    }
+  };
 
   const loadDetail = async () => {
     try {
@@ -150,7 +221,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
     
     try {
       await matchmakingApi.selectVenue(roomId, {
-        courtId: venue.id ? Number(venue.id.replace(/\D/g, '')) || undefined : undefined,
+        courtId: venue.id ? String(venue.id) : undefined,
         courtName: venue.name,
         venueName: venue.address,
         hourlyPrice: venue.hourlyPrice,
@@ -233,12 +304,11 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
       setAlertModalConfig({
         visible: true,
         title: 'Đã chấp nhận ghép đội 🤝',
-        message: `Hai bên (${room?.creatorClubName} vs ${app.applicantClubName}) đã đồng ý ghép trận!\n\nTiếp theo: Chủ phòng hãy chọn Sân từ gợi ý hệ thống để chốt giờ & tính tiền cưa đôi.`,
-        buttonText: '📍 Chọn Sân Ngay',
+        message: `Hai bên (${room?.creatorClubName} vs ${app.applicantClubName}) đã đồng ý ghép trận!\n\n📍 Sân thi đấu: ${room?.courtName || room?.venueName || room?.area || 'Sân đã chọn'}.\nTiếp theo: Hai bên hoàn tất thanh toán nốt chi phí cưa đôi 50/50 để chốt đơn đặt sân chính thức!`,
+        buttonText: 'Đã hiểu',
         onConfirm: () => {
           setAlertModalConfig(prev => ({ ...prev, visible: false }));
           loadDetail();
-          handleOpenVenueSuggestions();
         },
       });
     } catch (err: any) {
@@ -256,7 +326,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
   // ── Cancel Room (Hủy phòng - Mất cọc) ────────────────────────────────────
   const handleConfirmCancelRoom = async () => {
     setShowCancelModal(false);
-    const activeUserId = myUserId || 1;
+    const activeUserId = myUserId || room?.creatorUserId || 1;
     try {
       await matchmakingApi.cancelMatchRoom(roomId, activeUserId);
       setAlertModalConfig({
@@ -297,11 +367,13 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
 
   const isCancelled = room.status === 'CANCELLED';
   const isExpired = room.status === 'EXPIRED';
-  const isMatched = !isCancelled && (room.matchedClubId != null || room.status === 'MATCHED' || room.status === 'CONFIRMED' || room.status === 'PENDING_PAYMENT');
+  const isMatched = !isCancelled && !isExpired && room.matchedClubId != null && (
+    room.status === 'MATCHED' || room.status === 'CONFIRMED' || room.status === 'PENDING_PAYMENT' || room.status === 'COMPLETED'
+  );
 
-  // Venue is chosen ONLY IF room is matched AND (Flow 1 PAID_100 OR status is CONFIRMED OR courtName is set)
+  // Venue is chosen ONLY IF room is matched AND status is CONFIRMED/COMPLETED or explicitly selected
   const isVenueChosen = !isCancelled && !isExpired && isMatched && (
-    room.flowType === 'PAID_100' || room.status === 'CONFIRMED' || Boolean(room.courtName) || selectedVenue !== null
+    room.status === 'CONFIRMED' || room.status === 'COMPLETED' || selectedVenue !== null
   );
 
   const totalVenuePrice = selectedVenue
@@ -329,14 +401,22 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Phòng Ghép Trận</Text>
 
-          {/* Cancel Room Option for Creator if room is active */}
+          {/* Cancel & Edit Room Option for Creator if room is active */}
           {isCreatorA && !isCancelled && !isExpired ? (
-            <TouchableOpacity
-              onPress={() => setShowCancelModal(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.cancelHeaderBtnText}>Hủy phòng</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity
+                onPress={handleOpenEditModal}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons name="edit" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowCancelModal(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.cancelHeaderBtnText}>Hủy phòng</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View style={{ width: 40 }} />
           )}
@@ -377,7 +457,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
                 : isVenueChosen
                 ? 'Đã Chốt Sân & Giờ Thi Đấu ✅'
                 : isMatched
-                ? 'Đã Ghép Đội 🤝 — Trong Phòng Chờ (Chủ phòng đang chọn sân)'
+                ? 'Đã Ghép Đội 🤝 — Chờ Hoàn Tất Thanh Toán Nốt (15 Phút)'
                 : 'Đang Mở — Chờ Đội B Gửi Yêu Cầu Ghép'}
             </Text>
           </View>
@@ -501,6 +581,37 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
                 Vị trí sân cụ thể và chi phí cưa đôi 5/5 sẽ được hiển thị ngay sau khi 2 bên chấp nhận ghép trận và Chủ phòng chốt Sân từ gợi ý hệ thống.
               </Text>
 
+              {/* Poll Voting Box for Team B Members */}
+              {!isCreatorA && myClubId && (
+                <View style={{ backgroundColor: COLORS.surfaceContainerLow, padding: SPACING.sm, borderRadius: BORDER_RADIUS.md, marginVertical: SPACING.xs, gap: 6 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ ...TYPOGRAPHY.labelMd, color: COLORS.onSurface, fontWeight: '700' }}>🗳️ KHOẢO SÁT VOTE NỘI BỘ CLB B</Text>
+                    <Text style={{ ...TYPOGRAPHY.labelSm, color: poll?.isUnlocked ? COLORS.primary : COLORS.amber, fontWeight: '800' }}>
+                      {poll ? `${poll.currentYesVotes}/${poll.requiredVotes} người` : '3/5 người'}
+                    </Text>
+                  </View>
+                  <Text style={{ ...TYPOGRAPHY.bodySm, color: COLORS.outline }}>
+                    {poll?.isUnlocked 
+                      ? '✅ Đã đủ số lượng tối thiểu! Thành viên có thể đại diện gửi yêu cầu.' 
+                      : 'Cần tối thiểu 5 thành viên vote "Có mặt" để mở nút Xin tham gia cho thành viên bình thường (Chủ nhiệm CLB có thể gửi trực tiếp).'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: SPACING.xs, marginTop: 4 }}>
+                    <TouchableOpacity
+                      style={{ flex: 1, backgroundColor: COLORS.primary, paddingVertical: 8, borderRadius: BORDER_RADIUS.sm, alignItems: 'center' }}
+                      onPress={() => handleVotePoll(true)}
+                    >
+                      <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.onPrimary, fontWeight: '700' }}>👍 Tham gia (+1 Vote)</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{ flex: 1, backgroundColor: COLORS.surfaceContainerHigh, paddingVertical: 8, borderRadius: BORDER_RADIUS.sm, alignItems: 'center' }}
+                      onPress={() => handleVotePoll(false)}
+                    >
+                      <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant, fontWeight: '700' }}>👎 Không tham gia</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               {/* Action Button for Team B Visitor */}
               {!isCreatorA && (
                 <Button
@@ -557,7 +668,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
                   const activeUserId = myUserId || room?.creatorUserId || 1;
                   try {
                     await matchmakingApi.selectVenue(roomId, {
-                      courtId: room.courtId || 1,
+                      courtId: room.courtId ? String(room.courtId) : undefined,
                       courtName: room.courtName || 'Sân 1',
                       venueName: room.venueName || room.area || 'Sân bóng',
                       hourlyPrice: (room.priceSharePerTeam || 150000) * 2,
@@ -761,6 +872,109 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
               )}
             </View>
           </SafeAreaView>
+        {/* ── Edit Room Modal ────────────────────────────────────────── */}
+        <Modal
+          visible={showEditModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowEditModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.cancelModalCard, { width: '90%', maxWidth: 400 }]}>
+              <Text style={styles.cancelModalTitle}>Chỉnh sửa thông tin phòng ✏️</Text>
+              
+              <ScrollView style={{ maxHeight: 350, marginVertical: 12 }}>
+                <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant, marginBottom: 4 }}>
+                  Lời nhắn / Thông điệp tìm đối thủ:
+                </Text>
+                <TextInput
+                  style={{
+                    backgroundColor: COLORS.surfaceContainerLow,
+                    borderWidth: 1,
+                    borderColor: COLORS.outlineVariant,
+                    borderRadius: BORDER_RADIUS.md,
+                    padding: 10,
+                    marginBottom: 12,
+                    color: COLORS.onSurface,
+                  }}
+                  value={editMessage}
+                  onChangeText={setEditMessage}
+                  multiline
+                  numberOfLines={3}
+                  placeholder="Nhập thông điệp tìm đối thủ..."
+                />
+
+                <Text style={{ ...TYPOGRAPHY.labelSm, color: COLORS.onSurfaceVariant, marginBottom: 4 }}>
+                  Khoảng Elo mong muốn (Tối thiểu - Tối đa):
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      backgroundColor: COLORS.surfaceContainerLow,
+                      borderWidth: 1,
+                      borderColor: COLORS.outlineVariant,
+                      borderRadius: BORDER_RADIUS.md,
+                      padding: 10,
+                      color: COLORS.onSurface,
+                    }}
+                    value={editMinElo}
+                    onChangeText={setEditMinElo}
+                    keyboardType="numeric"
+                    placeholder="Elo Min (1200)"
+                  />
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      backgroundColor: COLORS.surfaceContainerLow,
+                      borderWidth: 1,
+                      borderColor: COLORS.outlineVariant,
+                      borderRadius: BORDER_RADIUS.md,
+                      padding: 10,
+                      color: COLORS.onSurface,
+                    }}
+                    value={editMaxElo}
+                    onChangeText={setEditMaxElo}
+                    keyboardType="numeric"
+                    placeholder="Elo Max (1800)"
+                  />
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={{ ...TYPOGRAPHY.labelMd, color: COLORS.onSurface }}>
+                    Chấp nhận lệch trình Elo:
+                  </Text>
+                  <Switch
+                    value={editAllowDifferentLevel}
+                    onValueChange={setEditAllowDifferentLevel}
+                    trackColor={{ false: COLORS.outlineVariant, true: COLORS.primary }}
+                  />
+                </View>
+              </ScrollView>
+
+              <View style={styles.cancelModalActions}>
+                <TouchableOpacity
+                  style={styles.cancelModalBackBtn}
+                  onPress={() => setShowEditModal(false)}
+                  disabled={editSaving}
+                >
+                  <Text style={styles.cancelModalBackText}>Hủy</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.cancelModalConfirmBtn, { backgroundColor: COLORS.primary }]}
+                  onPress={handleSaveEditRoom}
+                  disabled={editSaving}
+                >
+                  {editSaving ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.cancelModalConfirmText}>Lưu thay đổi</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </View>
     </SafeAreaView>

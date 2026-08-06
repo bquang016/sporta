@@ -37,6 +37,14 @@ public class MatchmakingController {
         return ResponseEntity.ok(matchmakingService.getMatchRoomById(id));
     }
 
+    @PutMapping("/rooms/{id}")
+    public ResponseEntity<MatchRoomDTO> updateMatchRoom(
+            @PathVariable Long id,
+            @RequestBody UpdateMatchRoomRequest req,
+            @RequestParam Long userId) {
+        return ResponseEntity.ok(matchmakingService.updateMatchRoom(id, req, userId));
+    }
+
     @PostMapping("/rooms/{id}/apply")
     public ResponseEntity<MatchApplicationDTO> applyToMatchRoom(
             @PathVariable Long id,

@@ -80,7 +80,7 @@ export interface CreateMatchRoomPayload {
   expectedStartTime: string;
   expectedEndTime?: string;
   bookingId?: string;
-  courtId?: number;
+  courtId?: string;
   priceSharePerTeam?: number;
   flowType: MatchFlowType;
   depositAmount?: number;
@@ -89,7 +89,7 @@ export interface CreateMatchRoomPayload {
 }
 
 export interface SelectVenuePayload {
-  courtId?: number;
+  courtId?: string;
   courtName: string;
   venueName: string;
   hourlyPrice: number;
@@ -156,10 +156,25 @@ const mmFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> =
   return response.json() as Promise<T>;
 };
 
+export interface UpdateMatchRoomPayload {
+  format?: string;
+  minElo?: number;
+  maxElo?: number;
+  allowDifferentLevel?: boolean;
+  message?: string;
+}
+
 export const matchmakingApi = {
   createMatchRoom: async (data: CreateMatchRoomPayload, userId: number): Promise<MatchRoom> => {
     return mmFetch<MatchRoom>(`/api/matchmaking/rooms?userId=${userId}`, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateMatchRoom: async (matchRoomId: number, data: UpdateMatchRoomPayload, userId: number): Promise<MatchRoom> => {
+    return mmFetch<MatchRoom>(`/api/matchmaking/rooms/${matchRoomId}?userId=${userId}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   },
@@ -224,5 +239,16 @@ export const matchmakingApi = {
     } catch {
       return [];
     }
+  },
+
+  getOpenDisputes: async (): Promise<any[]> => {
+    return mmFetch<any[]>('/api/admin/disputes');
+  },
+
+  resolveDispute: async (payload: { matchRoomId: number; winnerClubId: number; winnerGoals: number; loserGoals: number; penaltyClubId?: number }): Promise<MatchRoom> => {
+    return mmFetch<MatchRoom>('/api/admin/disputes/resolve', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };

@@ -13,7 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SelectVenueRequest {
-    private UUID courtId;
+    private String courtId;
     private String courtName;
     private String venueName;
     private BigDecimal hourlyPrice;

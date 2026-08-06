@@ -9,8 +9,8 @@ async function check() {
   }
 
   try {
-    console.log('Checking IP 192.168.1.4...');
-    const res2 = await fetch('http://192.168.1.4:8387/api/v1/auth/ping');
+    console.log('Checking IP 192.168.1.6...');
+    const res2 = await fetch('http://192.168.1.6:8387/api/v1/auth/ping');
     console.log('IP ping status:', res2.status);
     console.log('IP body:', await res2.text());
   } catch (err) {
