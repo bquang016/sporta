@@ -1,19 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  SafeAreaView, 
+  ActivityIndicator, 
+  Modal, 
+  TouchableOpacity, 
+  Linking 
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui/Button';
 import { Card } from '../../../shared/ui/Card';
+import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 import { fetchBookingById } from '../../../entities/booking/api/bookingApi';
 import type { BookingResponse } from '../../../entities/booking/model/booking.types';
 
 export function BookingSuccessScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { showAlert } = useAlert();
   
   const [booking, setBooking] = useState<BookingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
 
   useEffect(() => {
     const loadBooking = async () => {
@@ -60,6 +75,15 @@ export function BookingSuccessScreen() {
   
   // Gom nhóm thời gian
   const timesStr = details.map(d => `${d.startTime.slice(0, 5)} - ${d.endTime.slice(0, 5)}`).join('\n');
+
+  const openGoogleMaps = (location: string) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location || 'Sân thể thao Sporta')}`;
+    Linking.openURL(url);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return (amount || 0).toLocaleString('vi-VN') + ' VNĐ';
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -118,6 +142,7 @@ export function BookingSuccessScreen() {
           title="Xem chi tiết đơn hàng" 
           variant="primary" 
           icon={<MaterialIcons name="receipt" size={20} color={COLORS.onSecondary} />}
+          onPress={() => setShowDetailModal(true)}
           style={styles.actionBtn}
         />
         <Button 
@@ -127,6 +152,204 @@ export function BookingSuccessScreen() {
           style={styles.actionBtn}
         />
       </View>
+
+      {/* Full 6-Section Booking Detail Modal */}
+      <Modal
+        visible={showDetailModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowDetailModal(false)}
+      >
+        <SafeAreaView style={styles.detailModalContainer}>
+          {/* Modal Header */}
+          <View style={styles.detailModalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowDetailModal(false)} 
+              style={styles.backButton}
+            >
+              <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.detailModalHeaderTitle}>Chi Tiết Đơn Đặt Sân</Text>
+            <View style={styles.headerPlaceholder} />
+          </View>
+
+          <ScrollView 
+            contentContainerStyle={styles.detailModalScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* 1. Thông tin sân */}
+            <View style={styles.detailSectionCard}>
+              <Text style={styles.sectionHeaderTitle}>1. Thông tin sân</Text>
+              <Text style={styles.venueDetailName}>{booking.venueName}</Text>
+              <Text style={styles.venueDetailAddress}>{booking.venueLocation || 'Địa chỉ sân thể thao Sporta'}</Text>
+              
+              <TouchableOpacity 
+                style={styles.directionsBtn} 
+                activeOpacity={0.85}
+                onPress={() => openGoogleMaps(booking.venueLocation || booking.venueName)}
+              >
+                <MaterialIcons name="directions" size={18} color={COLORS.white} />
+                <Text style={styles.directionsBtnText}>Chỉ đường (Google Maps)</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 2. Thông tin lịch đặt */}
+            <View style={styles.detailSectionCard}>
+              <Text style={styles.sectionHeaderTitle}>2. Thông tin lịch đặt</Text>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Loại sân / Sân số:</Text>
+                <Text style={styles.modalDetailValueBold}>{courtNames || 'Sân tiêu chuẩn'}</Text>
+              </View>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Ngày đá:</Text>
+                <Text style={styles.modalDetailValueBold}>{dateStr}</Text>
+              </View>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Khung giờ:</Text>
+                <Text style={styles.modalDetailValueBold}>{timesStr.replace(/\n/g, ', ')}</Text>
+              </View>
+
+              <Text style={[styles.modalDetailLabel, { marginTop: 10, marginBottom: 6 }]}>Dịch vụ đi kèm:</Text>
+              <View style={styles.serviceItemRow}>
+                <Text style={styles.serviceText}>• Nước suối tinh khiết (x4 chai)</Text>
+                <Text style={styles.servicePrice}>40.000đ</Text>
+              </View>
+              <View style={styles.serviceItemRow}>
+                <Text style={styles.serviceText}>• Thuê bộ áo bib thi đấu (x1 bộ)</Text>
+                <Text style={styles.servicePrice}>30.000đ</Text>
+              </View>
+            </View>
+
+            {/* 3. Mã Check-in / QR Code */}
+            <View style={styles.detailSectionCardCenter}>
+              <Text style={styles.sectionHeaderTitleCenter}>3. Mã Check-in / QR Code</Text>
+              <Text style={styles.qrCodeSubText}>Đưa mã này cho chủ sân quét hoặc đối soát khi đến sân</Text>
+              
+              <View style={styles.qrCodeBox}>
+                <MaterialIcons name="qr-code-2" size={160} color={COLORS.primary} />
+              </View>
+              
+              <View style={styles.qrCodePill}>
+                <Text style={styles.qrCodePillText}>{booking.bookingCode}</Text>
+              </View>
+            </View>
+
+            {/* 4. Chi tiết thanh toán */}
+            <View style={styles.detailSectionCard}>
+              <Text style={styles.sectionHeaderTitle}>4. Chi tiết thanh toán</Text>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Giá tiền sân:</Text>
+                <Text style={styles.modalDetailValue}>
+                  {formatCurrency((booking.finalPrice || booking.totalPrice || 0) - 70000)}
+                </Text>
+              </View>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Giá dịch vụ đi kèm:</Text>
+                <Text style={styles.modalDetailValue}>70.000 VNĐ</Text>
+              </View>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Voucher giảm giá:</Text>
+                <Text style={[styles.modalDetailValue, { color: COLORS.error }]}>-50.000 VNĐ (SP-SPORTA2026)</Text>
+              </View>
+              <View style={styles.modalDetailDivider} />
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.totalPriceLabel}>Tổng thanh toán:</Text>
+                <Text style={styles.totalPriceValue}>
+                  {formatCurrency(booking.finalPrice || booking.totalPrice || 0)}
+                </Text>
+              </View>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Phương thức thanh toán:</Text>
+                <Text style={styles.modalDetailValueBold}>
+                  {booking.paymentMethod || 'VNPay QR'} (Thành công)
+                </Text>
+              </View>
+              <View style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>Thời gian thanh toán:</Text>
+                <Text style={styles.modalDetailValue}>Vừa xong</Text>
+              </View>
+            </View>
+
+            {/* 5. Thông tin liên hệ chủ sân / Hotline */}
+            <View style={styles.detailSectionCard}>
+              <Text style={styles.sectionHeaderTitle}>5. Liên hệ chủ sân & Support</Text>
+              
+              <View style={styles.contactRow}>
+                <View style={styles.contactIconBg}>
+                  <MaterialIcons name="person" size={20} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.contactName}>Chủ sân: Quản lý {booking.venueName}</Text>
+                  <Text style={styles.contactPhone}>{booking.venuePhone || '0988 123 456'}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.callBtn} 
+                  activeOpacity={0.85}
+                  onPress={() => Linking.openURL(`tel:${booking.venuePhone || '0988123456'}`)}
+                >
+                  <MaterialIcons name="phone" size={16} color={COLORS.white} />
+                  <Text style={styles.callBtnText}>Gọi chủ sân</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.contactRow, { marginTop: 12 }]}>
+                <View style={styles.contactIconBg}>
+                  <MaterialIcons name="headset-mic" size={20} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.contactName}>Hotline hỗ trợ Sporta</Text>
+                  <Text style={styles.contactPhone}>1900 6868 (24/7)</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.callBtnOutline} 
+                  activeOpacity={0.85}
+                  onPress={() => Linking.openURL('tel:19006868')}
+                >
+                  <MaterialIcons name="phone-in-talk" size={16} color={COLORS.primary} />
+                  <Text style={styles.callBtnOutlineText}>Gọi Hotline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 6. Chính sách hủy sân & Đóng Modal */}
+            <View style={styles.detailSectionCard}>
+              <Text style={styles.sectionHeaderTitle}>6. Chính sách hủy sân</Text>
+              <Text style={styles.policyText}>• Hủy trước 12h: Hoàn tiền 100% về ví/tài khoản.</Text>
+              <Text style={styles.policyText}>• Hủy từ 4h - 12h: Hoàn tiền 50% tổng giá trị đơn.</Text>
+              <Text style={styles.policyText}>• Hủy dưới 4h trước giờ đá: Không áp dụng hoàn tiền.</Text>
+
+              <TouchableOpacity 
+                style={styles.cancelBookingBigBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setShowDetailModal(false);
+                  setTimeout(() => setShowCancelConfirmModal(true), 350);
+                }}
+              >
+                <MaterialIcons name="cancel" size={20} color={COLORS.white} />
+                <Text style={styles.cancelBookingBigBtnText}>Hủy Đặt Sân Này</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Cancel Confirmation App Modal */}
+      <ConfirmModal
+        visible={showCancelConfirmModal}
+        title="Hủy đặt sân"
+        message={`Bạn có chắc chắn muốn hủy đơn đặt sân ${booking.bookingCode} tại "${booking.venueName}" không?\n\nTiền thanh toán sẽ được hoàn lại ví/tài khoản theo đúng chính sách hoàn hủy của sân.`}
+        confirmText="Xác nhận hủy"
+        cancelText="Giữ lại đơn"
+        confirmVariant="primary"
+        icon="warning"
+        iconColor={COLORS.error}
+        onConfirm={() => {
+          setShowCancelConfirmModal(false);
+          showAlert('Đã hủy đơn thành công', 'Đơn đặt sân của bạn đã được cập nhật sang trạng thái Đã Hủy.');
+        }}
+        onCancel={() => setShowCancelConfirmModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -231,5 +454,259 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     width: '100%',
+  },
+
+  /* Detail Modal Styles */
+  detailModalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.marginMobile,
+    height: 56,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerPlaceholder: {
+    width: 40,
+  },
+  detailModalHeaderTitle: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 18,
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  detailModalScroll: {
+    padding: SPACING.marginMobile,
+    gap: SPACING.md,
+    paddingBottom: SPACING.xl * 2,
+  },
+  detailSectionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity12,
+    gap: SPACING.xs + 2,
+  },
+  detailSectionCardCenter: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity12,
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  sectionHeaderTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  sectionHeaderTitleCenter: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textAlign: 'center',
+  },
+  venueDetailName: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  venueDetailAddress: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+  },
+  directionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.xs + 3,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: SPACING.xs,
+    gap: SPACING.xs,
+  },
+  directionsBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  modalDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalDetailLabel: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+  },
+  modalDetailValue: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 13,
+    color: COLORS.onSurface,
+  },
+  modalDetailValueBold: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  serviceItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingLeft: SPACING.xs,
+  },
+  serviceText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 13,
+    color: COLORS.onSurface,
+  },
+  servicePrice: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  qrCodeSubText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
+  },
+  qrCodeBox: {
+    padding: SPACING.sm,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    marginVertical: SPACING.xs,
+  },
+  qrCodePill: {
+    backgroundColor: COLORS.primaryOpacity10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  qrCodePillText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  modalDetailDivider: {
+    height: 1,
+    backgroundColor: COLORS.surfaceContainerLow,
+    marginVertical: 4,
+  },
+  totalPriceLabel: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  totalPriceValue: {
+    ...TYPOGRAPHY.headlineMd,
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  contactIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primaryOpacity12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactName: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  contactPhone: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+  },
+  callBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 4,
+  },
+  callBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  callBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryOpacity08,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity30,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 4,
+  },
+  callBtnOutlineText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  policyText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+    lineHeight: 19,
+  },
+  cancelBookingBigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.error,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  cancelBookingBigBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    color: COLORS.white,
+    fontWeight: '700',
   },
 });

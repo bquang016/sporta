@@ -102,7 +102,11 @@ export function ProfileScreen() {
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>Hoạt Động</Text>
             <View style={styles.menuCard}>
-              <MenuRow icon="history" title="Lịch sử đặt sân" />
+              <MenuRow 
+                icon="history" 
+                title="Lịch sử đặt sân" 
+                onPress={() => router.push('/profile/booking-history' as any)} 
+              />
               <View style={styles.divider} />
               <MenuRow 
                 icon="local-activity" 
@@ -110,7 +114,11 @@ export function ProfileScreen() {
                 onPress={() => router.push('/my-tickets' as any)} 
               />
               <View style={styles.divider} />
-              <MenuRow icon="groups" title="Câu lạc bộ của tôi" />
+              <MenuRow 
+                icon="groups" 
+                title="Câu lạc bộ của tôi" 
+                onPress={() => router.push('/my-clubs' as any)} 
+              />
             </View>
           </View>
 
@@ -121,9 +129,17 @@ export function ProfileScreen() {
               <View style={styles.divider} />
               <MenuRow icon="account-balance-wallet" title="Ví & Thanh toán" />
               <View style={styles.divider} />
-              <MenuRow icon="settings" title="Cài đặt tài khoản" />
+              <MenuRow 
+                icon="settings" 
+                title="Cài đặt tài khoản" 
+                onPress={() => router.push('/profile/settings' as any)} 
+              />
               <View style={styles.divider} />
-              <MenuRow icon="help-outline" title="Trung tâm trợ giúp" />
+              <MenuRow 
+                icon="help-outline" 
+                title="Trung tâm trợ giúp" 
+                onPress={() => router.push('/profile/help' as any)} 
+              />
             </View>
           </View>
 
