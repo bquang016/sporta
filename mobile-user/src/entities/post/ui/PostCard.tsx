@@ -68,22 +68,23 @@ export const PostCard = React.memo(({
         {/* User / Club Title Block */}
         <View style={styles.headerTextGroup}>
           {post.clubInfo ? (
-            /* Club Post Header: Club Name on TOP, Author Name BELOW */
+            /* Club Post Header: Author Name -> Club Name (Facebook Group Style) */
             <View style={styles.clubHeaderBlock}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => onClubPress && onClubPress(post.clubInfo!)}
-              >
-                <Text style={styles.clubTitleText} numberOfLines={1}>
-                  {post.clubInfo.name}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.clubTitleRow}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
+                  <Text style={styles.authorTitleText} numberOfLines={1}>{post.author.name}</Text>
+                </TouchableOpacity>
+
+                <Ionicons name="caret-forward" size={12} color={COLORS.grayText} style={styles.clubTitleArrow} />
+
+                <TouchableOpacity activeOpacity={0.8} onPress={() => onClubPress && onClubPress(post.clubInfo!)} style={{ flex: 1 }}>
+                  <Text style={styles.clubTitleText} numberOfLines={1}>
+                    {post.clubInfo.name}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.subAuthorRow}>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
-                  <Text style={styles.authorSubText}>{post.author.name}</Text>
-                </TouchableOpacity>
-                <Text style={styles.dotSeparator}>•</Text>
                 <Text style={styles.timestampText}>{post.createdAt}</Text>
                 <Text style={styles.dotSeparator}>•</Text>
 
@@ -325,12 +326,25 @@ const styles = StyleSheet.create({
   clubHeaderBlock: {
     justifyContent: 'center',
   },
-  clubTitleText: {
+  clubTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+  },
+  authorTitleText: {
     ...TYPOGRAPHY.titleMd,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: COLORS.onSurface,
-    lineHeight: 20,
+  },
+  clubTitleArrow: {
+    marginHorizontal: 4,
+  },
+  clubTitleText: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   subAuthorRow: {
     flexDirection: 'row',
