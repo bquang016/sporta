@@ -8,8 +8,12 @@ const isLocalhostUrl = (url: string): boolean => {
 export const getBaseUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-  // 1. Web browser: luôn dùng .env hoặc localhost
+  // 1. Web browser: tự động lấy hostname của trình duyệt (hoặc localhost) để tránh IP bị timeout khi chuyển Wi-Fi
   if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const hostname = window.location.hostname;
+      return `http://${hostname}:8387/api/v1`;
+    }
     return envUrl || 'http://localhost:8387/api/v1';
   }
 

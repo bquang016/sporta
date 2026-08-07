@@ -5,7 +5,11 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 import { matchmakingApi } from '../../../shared/api/matchmaking';
 
 export function ReportMatchResultScreen({ route, navigation }: any) {
-  const roomId = route?.params?.roomId || 1;
+  const roomId = route?.params?.roomId 
+    ? Number(route.params.roomId) 
+    : route?.params?.id 
+    ? Number(route.params.id) 
+    : 1;
   const [ourGoals, setOurGoals] = useState('3');
   const [opponentGoals, setOpponentGoals] = useState('2');
   const [evidenceUrl, setEvidenceUrl] = useState('');

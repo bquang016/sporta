@@ -25,7 +25,11 @@ import { Button, Card, AlertModal } from '../../../shared/ui';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 
 export function MatchRoomDetailScreen({ route, navigation }: any) {
-  const roomId = route?.params?.roomId ? Number(route.params.roomId) : 1;
+  const roomId = route?.params?.roomId 
+    ? Number(route.params.roomId) 
+    : route?.params?.id 
+    ? Number(route.params.id) 
+    : 1;
 
   const [room, setRoom] = useState<MatchRoom | null>(null);
   const [applications, setApplications] = useState<MatchApplication[]>([]);
@@ -872,6 +876,7 @@ export function MatchRoomDetailScreen({ route, navigation }: any) {
               )}
             </View>
           </SafeAreaView>
+        </Modal>
         {/* ── Edit Room Modal ────────────────────────────────────────── */}
         <Modal
           visible={showEditModal}
