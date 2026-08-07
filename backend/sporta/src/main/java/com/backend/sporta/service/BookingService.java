@@ -18,6 +18,7 @@ import com.backend.sporta.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -41,6 +42,12 @@ public class BookingService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PaymentService paymentService;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     // ─── Create Booking ────────────────────────────────────────────────────────
 
@@ -67,7 +74,7 @@ public class BookingService {
                 .venue(venue)
                 .bookingCode(generateBookingCode())
                 .paymentMethod(request.getPaymentMethod())
-                .status(request.getStatus() != null ? request.getStatus() : BookingStatus.CONFIRMED)
+                .status("payos".equals(request.getPaymentMethod()) ? BookingStatus.PENDING : (request.getStatus() != null ? request.getStatus() : BookingStatus.CONFIRMED))
                 .isManual(request.getIsManual() != null ? request.getIsManual() : false)
                 .customerName(request.getCustomerName())
                 .build();
@@ -112,7 +119,24 @@ public class BookingService {
         booking.setFinalPrice(totalPrice); // Chưa tính discount
 
         booking = bookingRepository.save(booking);
-        return mapToResponse(booking);
+
+        BookingResponse response = mapToResponse(booking);
+
+        // Generate PayOS link if needed
+        if ("payos".equals(request.getPaymentMethod())) {
+            com.backend.sporta.dto.CreatePaymentResponse paymentResponse = paymentService.createPaymentLink(
+                    user.getId(),
+                    Math.round(totalPrice),
+                    com.backend.sporta.enums.PaymentTransactionType.BOOKING_PAYMENT,
+                    "Thanh toán đặt sân - " + booking.getBookingCode(),
+                    "BOOKING",
+                    booking.getId()
+            );
+            response.setCheckoutUrl(paymentResponse.getCheckoutUrl());
+            response.setOrderCode(paymentResponse.getOrderCode());
+        }
+
+        return response;
     }
 
     // ─── Get Booking by ID ─────────────────────────────────────────────────────
@@ -126,6 +150,30 @@ public class BookingService {
         }
 
         return mapToResponse(booking);
+    }
+
+    // ─── Confirm Booking Payment (Webhook) ──────────────────────────────────────
+
+    @Transactional
+    public void confirmBookingPayment(UUID bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy đơn đặt sân", 404));
+
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            return; // Idempotent check
+        }
+
+        booking.setStatus(BookingStatus.CONFIRMED);
+        bookingRepository.save(booking);
+
+        // Publish event for Owner Wallet
+        eventPublisher.publishEvent(new com.backend.sporta.event.BookingPaidEvent(
+                this,
+                booking.getId(),
+                Math.round(booking.getFinalPrice()),
+                booking.getVenue().getId(),
+                booking.getVenue().getOwner().getId()
+        ));
     }
 
     // ─── My Bookings ───────────────────────────────────────────────────────────

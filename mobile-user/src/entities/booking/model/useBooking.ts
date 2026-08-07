@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { createBooking } from '../api/bookingApi';
+import { payBookingWithWallet } from '../../../features/wallet/api/walletApi';
 import { CreateBookingRequest, BookingResponse } from './booking.types';
 
 interface UseCreateBookingResult {
@@ -22,7 +23,12 @@ export const useCreateBooking = (): UseCreateBookingResult => {
     setLoading(true);
     setError(null);
     try {
-      const result = await createBooking(request);
+      let result;
+      if (request.paymentMethod === 'wallet') {
+        result = await payBookingWithWallet(request);
+      } else {
+        result = await createBooking(request);
+      }
       setData(result);
       return result;
     } catch (err: any) {
