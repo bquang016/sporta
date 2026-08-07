@@ -229,19 +229,19 @@ function CommentSectionModalContent({
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={animateClose} />
         </Animated.View>
 
-        {/* Animated Floating Bottom Sheet Container with Capture Phase PanResponder */}
-        <Animated.View
-          {...handlePanResponder.panHandlers}
-          style={[
-            styles.sheetContainer,
-            {
-              transform: [{ translateY }],
-            },
-          ]}
+        {/* KeyboardAvoidingView wrapped around Animated Sheet Container */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingView}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ flex: 1 }}
+          <Animated.View
+            {...handlePanResponder.panHandlers}
+            style={[
+              styles.sheetContainer,
+              {
+                transform: [{ translateY }],
+              },
+            ]}
           >
             <SafeAreaView style={styles.safeArea}>
               {/* Top Handle Bar */}
@@ -368,8 +368,8 @@ function CommentSectionModalContent({
                 />
               )}
             </SafeAreaView>
-          </KeyboardAvoidingView>
-        </Animated.View>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -384,17 +384,21 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
+  keyboardAvoidingView: {
+    width: '100%',
+    height: '78%',
+    justifyContent: 'flex-end',
+  },
   sheetContainer: {
+    flex: 1,
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    height: '78%',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 16,
-    overflow: 'hidden',
   },
   safeArea: {
     flex: 1,

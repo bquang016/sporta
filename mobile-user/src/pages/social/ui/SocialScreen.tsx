@@ -23,7 +23,7 @@ import { UserProfileModal } from '../../../features/user-profile';
 import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
 import { useIsLoggedIn } from '../../../shared/hooks/useIsLoggedIn';
 import { usersApi } from '../../../shared/api/users';
-import { Post } from '../../../entities/post';
+import { Post, ClubInfoModal, ClubInfoData } from '../../../entities/post';
 import { CURRENT_USER } from '../../../shared/api/mockCommunityDb';
 import { createPostApi } from '../../../shared/api/posts';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
@@ -98,6 +98,7 @@ export function SocialScreen() {
   const [notifModalVisible, setNotifModalVisible] = useState(false);
   const [messagesModalVisible, setMessagesModalVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedClubInfo, setSelectedClubInfo] = useState<ClubInfoData | null>(null);
 
   // ─── Collapsible Top Bar (Header + Compose) ───────────────────────────────
   const COLLAPSE_HEIGHT = HEADER_HEIGHT;
@@ -175,7 +176,14 @@ export function SocialScreen() {
 
       clearInterval(progressInterval);
 
-      setNewCreatedPost(serverPost || fullPost);
+      const mergedPost: Post = {
+        ...fullPost,
+        ...(serverPost || {}),
+        audience: postData.audience || serverPost?.audience || 'PUBLIC',
+        clubInfo: postData.clubInfo || serverPost?.clubInfo,
+      };
+
+      setNewCreatedPost(mergedPost);
 
       setUploadState({
         isUploading: false,
@@ -348,6 +356,10 @@ export function SocialScreen() {
         <SocialSearchModal
           visible={searchModalVisible}
           onClose={() => setSearchModalVisible(false)}
+          onSelectClub={(clubInfo) => {
+            setSelectedClubInfo(clubInfo);
+          }}
+          newPost={newCreatedPost}
         />
 
         <NotificationsModal
@@ -365,6 +377,14 @@ export function SocialScreen() {
             visible={!!selectedUserId}
             userId={selectedUserId}
             onClose={() => setSelectedUserId(null)}
+          />
+        )}
+
+        {selectedClubInfo && (
+          <ClubInfoModal
+            visible={!!selectedClubInfo}
+            clubInfo={selectedClubInfo}
+            onClose={() => setSelectedClubInfo(null)}
           />
         )}
 
