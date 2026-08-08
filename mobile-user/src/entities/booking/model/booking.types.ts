@@ -20,24 +20,26 @@ export interface BookingResponse {
   id: string;
   bookingCode: string;    // "SP-A3K9-X2"
 
-  courtId: string;
+  courtId?: string;
   courtName: string;
-  venueId: string;
+  courtType?: string;
+  venueId?: string;
   venueName: string;
   venueLocation: string;
-  venuePhone: string | null;
+  venuePhone?: string | null;
 
   totalPrice: number;
-  discountAmount: number;
+  discountAmount?: number;
   finalPrice: number;
   
   details: BookingDetailResponse[];
   
   paymentMethod: string;
+  paymentStatus?: string;
   status: BookingStatus;
 
-  playerName: string;
-  playerEmail: string;
+  playerName?: string;
+  playerEmail?: string;
   createdAt: string;
 }
 
@@ -51,8 +53,8 @@ export interface SelectedSlot {
 }
 
 export interface BookingDetailResponse {
-  id: string;
-  courtId: string;
+  id?: string;
+  courtId?: string;
   courtName: string;
   bookingDate: string;
   startTime: string;

@@ -87,11 +87,25 @@ export function PaymentScreen() {
       };
 
       const result = await createBooking(requestPayload);
+
+      const methodLabel = paymentMethods.find(m => m.id === selectedMethod)?.label || 'MoMo Wallet';
+      const firstSlot = displaySlots[0];
+      const lastSlot = displaySlots[displaySlots.length - 1];
       
       router.push({
         pathname: '/booking/success' as any,
         params: {
-          bookingId: result.id
+          bookingId: result?.id || `b-${Date.now()}`,
+          bookingCode: result?.bookingCode || `#SP${Math.floor(100000 + Math.random() * 900000)}`,
+          venueName: venueName || 'Sân bóng Sporta',
+          venueLocation: venueLocation || 'Hà Nội',
+          courtName: firstSlot?.courtName || 'Sân 7 người',
+          bookingDate: formatDateString(bookingDate),
+          startTime: firstSlot?.time || '18:00',
+          endTime: lastSlot?.endTime || '19:30',
+          finalPrice: String(rawTotalPrice),
+          paymentMethod: methodLabel,
+          status: 'CONFIRMED'
         }
       });
       

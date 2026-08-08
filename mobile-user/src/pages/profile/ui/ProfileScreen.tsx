@@ -176,9 +176,9 @@ function MenuRow({ icon, title, badge, onPress }: { icon: keyof typeof MaterialI
     <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={onPress}>
       <View style={styles.menuRowLeft}>
         <View style={styles.menuIconBg}>
-          <MaterialIcons name={icon} size={20} color="#064E3B" />
+          <MaterialIcons name={icon} size={20} color={COLORS.primary} />
         </View>
-        <Text style={styles.menuRowTitle}>{title}</Text>
+        <Text style={styles.menuRowTitle} numberOfLines={1}>{title}</Text>
       </View>
       <View style={styles.menuRowRight}>
         {badge && (
@@ -186,7 +186,7 @@ function MenuRow({ icon, title, badge, onPress }: { icon: keyof typeof MaterialI
             <Text style={styles.menuBadgeText}>{badge}</Text>
           </View>
         )}
-        <MaterialIcons name="chevron-right" size={24} color="#bfc9c3" />
+        <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
       </View>
     </TouchableOpacity>
   );
@@ -353,6 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    flex: 1,
   },
   menuIconBg: {
     width: 40,
@@ -366,6 +367,8 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyLg,
     color: '#151c27',
     fontWeight: '500',
+    flex: 1,
+    flexShrink: 1,
   },
   menuRowRight: {
     flexDirection: 'row',

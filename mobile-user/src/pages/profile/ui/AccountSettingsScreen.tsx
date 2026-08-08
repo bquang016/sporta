@@ -1,38 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Switch, 
   TextInput, 
   Modal, 
   StatusBar,
-  Image
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui';
-import { Avatar } from '../../../shared/ui/Avatar/Avatar';
+import { CalendarPicker } from '../../../shared/ui/CalendarPicker/CalendarPicker';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
+import { ProvincePickerModal, ProvinceItem } from '../../create-club/ui/components/ProvincePickerModal';
+import { usersApi } from '../../../shared/api/users';
+import { changePasswordApi } from '../../../shared/api/auth';
 import { useAlert } from '../../../shared/contexts/AlertContext';
+
+import { SecurityGroup } from './components/settings/SecurityGroup';
+import { NotificationGroup } from './components/settings/NotificationGroup';
+import { PrivacyDangerGroup } from './components/settings/PrivacyDangerGroup';
 
 export function AccountSettingsScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
 
-  // Profile Info State
-  const [avatarUri, setAvatarUri] = useState<string>('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80');
-  const [fullName, setFullName] = useState<string>('Chủ Sân Sporta');
-  const [phone, setPhone] = useState<string>('0988 123 456');
-  const [email, setEmail] = useState<string>('owner@sporta.vn');
-  const [dob, setDob] = useState<string>('15/08/1995');
-  const [gender, setGender] = useState<string>('Nam');
-  const [defaultAddress, setDefaultAddress] = useState<string>('Khương Thượng, Đống Đa, Hà Nội');
+  // Loading & Saving state
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Real Profile Info State
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [dob, setDob] = useState<string>(''); // YYYY-MM-DD
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | string>('MALE');
+  const [defaultAddress, setDefaultAddress] = useState<string>('');
 
   // Notification Toggles State
   const [notifBooking, setNotifBooking] = useState(true);
@@ -50,28 +60,120 @@ export function AccountSettingsScreen() {
 
   // Modals State
   const [isEditProfileModal, setIsEditProfileModal] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isChangePasswordModal, setIsChangePasswordModal] = useState(false);
   const [isDeleteConfirmModal, setIsDeleteConfirmModal] = useState(false);
+
+  // Friendly Warning Modal State
+  const [warningModal, setWarningModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    icon: keyof typeof MaterialIcons.glyphMap;
+    iconColor: string;
+    confirmText?: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    icon: 'warning',
+    iconColor: '#F59E0B',
+    confirmText: 'Đã hiểu',
+  });
+
+  // Provinces API State
+  const [provinces, setProvinces] = useState<ProvinceItem[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [isProvinceModalVisible, setIsProvinceModalVisible] = useState(false);
 
   // Form Inputs for Password Change
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleBackPress = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.push('/(tabs)/profile' as any);
+  // Fetch Real User Profile from Database
+  const fetchProfile = async () => {
+    setLoading(true);
+    try {
+      const data = await usersApi.getProfile();
+      if (data) {
+        setFullName(data.fullName || '');
+        setEmail(data.email || '');
+        setPhone(data.phoneNumber || '');
+        setAvatarUri(data.avatarUrl || null);
+        setGender(data.gender || 'MALE');
+        setDob(data.dateOfBirth ? String(data.dateOfBirth) : '');
+        setDefaultAddress(data.location || '');
+
+        setNotifBooking(data.notifBooking ?? true);
+        setNotifPromo(data.notifPromo ?? true);
+        setNotifMatchmake(data.notifMatchmake ?? true);
+        setLinkGoogle(data.linkGoogle ?? true);
+        setLinkFacebook(data.linkFacebook ?? true);
+        setLinkApple(data.linkApple ?? false);
+        setEnableBiometrics(data.enableBiometrics ?? true);
+        setPrivateMode(data.privateMode ?? false);
+      }
+    } catch (err: any) {
+      console.warn('Lỗi tải thông tin cá nhân từ CSDL:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Avatar Picker Handler
+  // Fetch Provinces API
+  const fetchProvinces = async () => {
+    setLoadingProvinces(true);
+    try {
+      const response = await fetch('https://provinces.open-api.vn/api/v2/p/');
+      if (response.ok) {
+        const data = await response.json();
+        setProvinces(data);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải danh sách tỉnh thành:', err);
+    } finally {
+      setLoadingProvinces(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+    fetchProvinces();
+  }, []);
+
+  const showFriendlyModal = (
+    title: string,
+    message: string,
+    icon: keyof typeof MaterialIcons.glyphMap = 'warning',
+    iconColor: string = '#F59E0B',
+    confirmText: string = 'Đã hiểu'
+  ) => {
+    setWarningModal({
+      visible: true,
+      title,
+      message,
+      icon,
+      iconColor,
+      confirmText,
+    });
+  };
+
+  // Instant Setting Switch Toggle Persistence to DB
+  const handleToggleSetting = async (key: string, value: boolean) => {
+    try {
+      await usersApi.updateProfile({ [key]: value });
+    } catch (err: any) {
+      showFriendlyModal('Không thể lưu', 'Không thể cập nhật cài đặt vào CSDL lúc này.', 'error-outline', COLORS.error, 'Thử lại');
+    }
+  };
+
+  // Upload Avatar & Save URL to Database
   const handlePickAvatar = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showAlert('Cần cấp quyền', 'Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.');
+        showFriendlyModal('Cần cấp quyền', 'Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.', 'info-outline', '#3B82F6');
         return;
       }
 
@@ -83,39 +185,112 @@ export function AccountSettingsScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setAvatarUri(result.assets[0].uri);
-        showAlert('Thành công', 'Đã cập nhật ảnh đại diện mới thành công!');
+        const selectedUri = result.assets[0].uri;
+        setAvatarUri(selectedUri);
+        
+        setSaving(true);
+        try {
+          const updated = await usersApi.updateProfile({}, selectedUri);
+          if (updated && updated.avatarUrl) {
+            setAvatarUri(updated.avatarUrl);
+          }
+          showFriendlyModal('Thành công', 'Đã tải lên và lưu ảnh đại diện mới vào CSDL thành công!', 'check-circle', COLORS.primary, 'Tuyệt vời');
+        } catch (apiErr: any) {
+          showFriendlyModal('Lỗi tải ảnh', apiErr.message || 'Không thể lưu ảnh đại diện vào CSDL.', 'error-outline', COLORS.error, 'Đóng');
+        } finally {
+          setSaving(false);
+        }
       }
     } catch (err) {
       console.error('Error picking avatar:', err);
     }
   };
 
-  const handleSaveProfile = () => {
-    setIsEditProfileModal(false);
-    showAlert('Thành công', 'Đã cập nhật thông tin cá nhân.');
+  // Save Full Profile Changes into MySQL Database
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const updated = await usersApi.updateProfile({
+        fullName: fullName.trim(),
+        phoneNumber: phone.trim(),
+        gender: gender as any,
+        dateOfBirth: dob.trim(),
+        location: defaultAddress.trim(),
+      });
+
+      if (updated) {
+        setFullName(updated.fullName || fullName);
+        setPhone(updated.phoneNumber || phone);
+        setGender(updated.gender || gender);
+        setDob(updated.dateOfBirth ? String(updated.dateOfBirth) : dob);
+        setDefaultAddress(updated.location || defaultAddress);
+        if (updated.avatarUrl) setAvatarUri(updated.avatarUrl);
+      }
+
+      setIsEditProfileModal(false);
+      showFriendlyModal('Thành công', 'Đã cập nhật và lưu toàn bộ thông tin cá nhân vào CSDL thành công!', 'check-circle', COLORS.primary, 'Tuyệt vời');
+    } catch (err: any) {
+      showFriendlyModal('Lưu thất bại', err.message || 'Cập nhật thông tin thất bại.', 'error-outline', COLORS.error, 'Thử lại');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleChangePassword = () => {
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      showAlert('Cảnh báo', 'Vui lòng nhập đầy đủ các trường thông tin mật khẩu.');
+  // Real Password Change via Auth API
+  const handleChangePassword = async () => {
+    if (!oldPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      showFriendlyModal('Thiếu thông tin', 'Vui lòng nhập đầy đủ mật khẩu hiện tại, mật khẩu mới và xác nhận mật khẩu mới.', 'info-outline', '#3B82F6', 'Nhập lại');
       return;
     }
+
     if (newPassword !== confirmPassword) {
-      showAlert('Lỗi', 'Mật khẩu mới và mật khẩu xác nhận không trùng khớp.');
+      showFriendlyModal('Mật khẩu không khớp', 'Xác nhận mật khẩu mới không trùng khớp với mật khẩu mới đã nhập. Vui lòng kiểm tra và nhập lại chính xác!', 'warning', '#F59E0B', 'Thử lại');
       return;
     }
-    setIsChangePasswordModal(false);
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    showAlert('Thành công', 'Đổi mật khẩu tài khoản thành công! Vui lòng sử dụng mật khẩu mới cho lần đăng nhập sau.');
+
+    setSaving(true);
+    try {
+      await changePasswordApi(oldPassword, newPassword, confirmPassword);
+      setIsChangePasswordModal(false);
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showFriendlyModal('Thành công', 'Mật khẩu của bạn đã được thay đổi và cập nhật trong CSDL thành công!', 'check-circle', COLORS.primary, 'Hoàn tất');
+    } catch (err: any) {
+      const errMsg = err.message || '';
+      if (errMsg.includes('hiện tại không chính xác') || errMsg.includes('mật khẩu hiện tại') || errMsg.includes('currentPassword')) {
+        showFriendlyModal('Sai mật khẩu hiện tại', 'Mật khẩu hiện tại bạn nhập không chính xác. Vui lòng kiểm tra lại mật khẩu cũ của bạn!', 'lock-reset', COLORS.error, 'Nhập lại');
+      } else {
+        showFriendlyModal('Đổi mật khẩu thất bại', errMsg || 'Không thể thay đổi mật khẩu lúc này. Vui lòng thử lại sau.', 'error-outline', COLORS.error, 'Đóng');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeleteAccount = () => {
-    setIsDeleteConfirmModal(false);
-    showAlert('Yêu cầu đã gửi', 'Yêu cầu xóa tài khoản của bạn đã được ghi nhận. Hệ thống sẽ xử lý và gửi phản hồi qua email trong vòng 24h.');
+  const getGenderLabel = (g: string) => {
+    if (g === 'FEMALE' || g === 'Nữ') return 'Nữ';
+    if (g === 'OTHER' || g === 'Khác') return 'Khác';
+    return 'Nam';
   };
+
+  const formatDisplayDob = (d: string) => {
+    if (!d) return 'Chưa cập nhật';
+    if (d.includes('-')) {
+      const parts = d.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return d;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerState}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Đang tải cài đặt tài khoản từ CSDL...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -127,307 +302,45 @@ export function AccountSettingsScreen() {
           <TouchableOpacity 
             style={styles.backButton} 
             activeOpacity={0.7} 
-            onPress={handleBackPress}
+            onPress={() => router.back()}
           >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cài Đặt Tài Khoản</Text>
-          <View style={styles.headerPlaceholder} />
+          <View style={{ width: 40 }} />
         </View>
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Section 1: Security & Accounts Group Sub-component */}
+        <SecurityGroup
+          enableBiometrics={enableBiometrics}
+          linkGoogle={linkGoogle}
+          linkFacebook={linkFacebook}
+          linkApple={linkApple}
+          onOpenChangePasswordModal={() => setIsChangePasswordModal(true)}
+          onToggleBiometrics={(val) => { setEnableBiometrics(val); handleToggleSetting('enableBiometrics', val); }}
+          onToggleGoogle={(val) => { setLinkGoogle(val); handleToggleSetting('linkGoogle', val); }}
+          onToggleFacebook={(val) => { setLinkFacebook(val); handleToggleSetting('linkFacebook', val); }}
+          onToggleApple={(val) => { setLinkApple(val); handleToggleSetting('linkApple', val); }}
+        />
 
-        {/* ─── GROUP 1: Thông Tin Cá Nhân (Profile Information) ─── */}
-        <Text style={styles.sectionGroupTitle}>1. Thông Tin Cá Nhân</Text>
+        {/* Section 3: Notification Settings Sub-component */}
+        <NotificationGroup
+          notifBooking={notifBooking}
+          notifPromo={notifPromo}
+          notifMatchmake={notifMatchmake}
+          onToggleBooking={(val) => { setNotifBooking(val); handleToggleSetting('notifBooking', val); }}
+          onTogglePromo={(val) => { setNotifPromo(val); handleToggleSetting('notifPromo', val); }}
+          onToggleMatchmake={(val) => { setNotifMatchmake(val); handleToggleSetting('notifMatchmake', val); }}
+        />
 
-        {/* Avatar Section */}
-        <View style={styles.avatarCard}>
-          <View style={styles.avatarWrapper}>
-            <Avatar size={90} source={avatarUri} />
-            <TouchableOpacity 
-              style={styles.cameraBadgeBtn}
-              activeOpacity={0.85}
-              onPress={handlePickAvatar}
-            >
-              <MaterialIcons name="camera-alt" size={18} color={COLORS.white} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.avatarHint}>Chạm vào biểu tượng máy ảnh để đổi ảnh đại diện</Text>
-        </View>
-
-        {/* Profile Info Items Card */}
-        <View style={styles.settingCard}>
-          {/* Full Name */}
-          <TouchableOpacity 
-            style={styles.settingRow} 
-            activeOpacity={0.7}
-            onPress={() => setIsEditProfileModal(true)}
-          >
-            <View style={styles.iconBg}>
-              <MaterialIcons name="person-outline" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Họ và tên</Text>
-              <Text style={styles.settingValue}>{fullName}</Text>
-            </View>
-            <MaterialIcons name="edit" size={18} color={COLORS.onSurfaceVariant} />
-          </TouchableOpacity>
-
-          <View style={styles.rowDivider} />
-
-          {/* Phone */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialIcons name="phone-iphone" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Số điện thoại</Text>
-              <Text style={styles.settingValue}>{phone}</Text>
-            </View>
-            <View style={styles.verifiedBadge}>
-              <MaterialIcons name="verified" size={12} color={COLORS.primary} />
-              <Text style={styles.verifiedBadgeText}>Đã xác thực OTP</Text>
-            </View>
-          </View>
-
-          <View style={styles.rowDivider} />
-
-          {/* Email */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialIcons name="mail-outline" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Email</Text>
-              <Text style={styles.settingValue}>{email}</Text>
-            </View>
-            <View style={styles.verifiedBadge}>
-              <MaterialIcons name="check-circle" size={12} color={COLORS.primary} />
-              <Text style={styles.verifiedBadgeText}>Xác thực</Text>
-            </View>
-          </View>
-
-          <View style={styles.rowDivider} />
-
-          {/* DOB & Gender */}
-          <TouchableOpacity 
-            style={styles.settingRow} 
-            activeOpacity={0.7}
-            onPress={() => setIsEditProfileModal(true)}
-          >
-            <View style={styles.iconBg}>
-              <MaterialIcons name="cake" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Ngày sinh / Giới tính</Text>
-              <Text style={styles.settingValue}>{dob} • {gender}</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
-          </TouchableOpacity>
-
-          <View style={styles.rowDivider} />
-
-          {/* Default Location */}
-          <TouchableOpacity 
-            style={styles.settingRow} 
-            activeOpacity={0.7}
-            onPress={() => setIsEditProfileModal(true)}
-          >
-            <View style={styles.iconBg}>
-              <MaterialIcons name="place" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Vị trí / Địa chỉ mặc định</Text>
-              <Text style={styles.settingValue} numberOfLines={1}>{defaultAddress}</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
-          </TouchableOpacity>
-        </View>
-
-        {/* ─── GROUP 2: Bảo Mật & Đăng Nhập (Security & Account) ─── */}
-        <Text style={styles.sectionGroupTitle}>2. Bảo Mật & Đăng Nhập</Text>
-
-        <View style={styles.settingCard}>
-          {/* Đổi mật khẩu */}
-          <TouchableOpacity 
-            style={styles.settingRow} 
-            activeOpacity={0.7}
-            onPress={() => setIsChangePasswordModal(true)}
-          >
-            <View style={styles.iconBg}>
-              <MaterialIcons name="lock-outline" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Đổi mật khẩu</Text>
-              <Text style={styles.settingSubtext}>Cập nhật mật khẩu bảo vệ tài khoản</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
-          </TouchableOpacity>
-
-          <View style={styles.rowDivider} />
-
-          {/* Biometrics / FaceID */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialCommunityIcons name="fingerprint" size={22} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Xác thực 2 yếu tố / Sinh trắc học</Text>
-              <Text style={styles.settingSubtext}>Đăng nhập nhanh bằng Vân tay / FaceID</Text>
-            </View>
-            <Switch
-              value={enableBiometrics}
-              onValueChange={setEnableBiometrics}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={enableBiometrics ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-
-          <View style={styles.rowDivider} />
-
-          {/* Social Accounts Title Header */}
-          <View style={styles.innerHeaderRow}>
-            <MaterialIcons name="link" size={18} color={COLORS.primary} />
-            <Text style={styles.innerHeaderTitle}>Liên kết tài khoản mạng xã hội</Text>
-          </View>
-
-          {/* Google */}
-          <View style={styles.settingRowSub}>
-            <MaterialCommunityIcons name="google" size={20} color="#DB4437" />
-            <Text style={styles.socialLabel}>Google</Text>
-            <Switch
-              value={linkGoogle}
-              onValueChange={setLinkGoogle}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={linkGoogle ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-
-          {/* Facebook */}
-          <View style={styles.settingRowSub}>
-            <MaterialCommunityIcons name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialLabel}>Facebook</Text>
-            <Switch
-              value={linkFacebook}
-              onValueChange={setLinkFacebook}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={linkFacebook ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-
-          {/* Apple ID */}
-          <View style={styles.settingRowSub}>
-            <MaterialCommunityIcons name="apple" size={20} color="#000000" />
-            <Text style={styles.socialLabel}>Apple ID</Text>
-            <Switch
-              value={linkApple}
-              onValueChange={setLinkApple}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={linkApple ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-        </View>
-
-        {/* ─── GROUP 3: Cài Đặt Thông Báo (Notifications) ─── */}
-        <Text style={styles.sectionGroupTitle}>3. Cài Đặt Thông Báo</Text>
-
-        <View style={styles.settingCard}>
-          {/* Thông báo lịch đặt sân */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialIcons name="event-available" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Thông báo lịch đặt sân</Text>
-              <Text style={styles.settingSubtext}>Nhắc lịch sắp đá, cập nhật trạng thái đơn (Hủy, Đổi giờ...)</Text>
-            </View>
-            <Switch
-              value={notifBooking}
-              onValueChange={setNotifBooking}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={notifBooking ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-
-          <View style={styles.rowDivider} />
-
-          {/* Thông báo khuyến mãi */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialIcons name="card-giftcard" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Thông báo khuyến mãi</Text>
-              <Text style={styles.settingSubtext}>Nhận voucher mới và chương trình ưu đãi từ các chủ sân</Text>
-            </View>
-            <Switch
-              value={notifPromo}
-              onValueChange={setNotifPromo}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={notifPromo ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-
-          <View style={styles.rowDivider} />
-
-          {/* Thông báo ghép trận / CLB */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialIcons name="groups" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Thông báo ghép trận & CLB</Text>
-              <Text style={styles.settingSubtext}>Nhận thông báo khi có kèo giao hữu mới hoặc tin nhắn nhóm</Text>
-            </View>
-            <Switch
-              value={notifMatchmake}
-              onValueChange={setNotifMatchmake}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={notifMatchmake ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-        </View>
-
-        {/* ─── GROUP 4: Quyền Riêng Tư & Quản Lý Tài Khoản (Privacy & Danger Zone) ─── */}
-        <Text style={styles.sectionGroupTitle}>4. Quyền Riêng Tư & Quản Lý</Text>
-
-        <View style={styles.settingCard}>
-          {/* Chế độ riêng tư */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBg}>
-              <MaterialIcons name="security" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.settingLabel}>Chế độ riêng tư</Text>
-              <Text style={styles.settingSubtext}>Ẩn thông tin cá nhân và lịch sử đấu với thành viên khác trong CLB</Text>
-            </View>
-            <Switch
-              value={privateMode}
-              onValueChange={setPrivateMode}
-              trackColor={{ false: COLORS.surfaceContainerLow, true: COLORS.primaryOpacity30 }}
-              thumbColor={privateMode ? COLORS.primary : COLORS.outline}
-            />
-          </View>
-
-          <View style={styles.rowDivider} />
-
-          {/* Yêu cầu xóa tài khoản */}
-          <TouchableOpacity 
-            style={styles.dangerRow} 
-            activeOpacity={0.8}
-            onPress={() => setIsDeleteConfirmModal(true)}
-          >
-            <View style={styles.dangerIconBg}>
-              <MaterialIcons name="delete-forever" size={22} color={COLORS.error} />
-            </View>
-            <View style={styles.settingRowTextCol}>
-              <Text style={styles.dangerLabel}>Yêu cầu xóa tài khoản (Delete Account)</Text>
-              <Text style={styles.dangerSubtext}>Xóa vĩnh viễn dữ liệu tài khoản cá nhân khỏi hệ thống</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color={COLORS.error} />
-          </TouchableOpacity>
-        </View>
+        {/* Section 4: Privacy & Danger Zone Sub-component */}
+        <PrivacyDangerGroup
+          privateMode={privateMode}
+          onTogglePrivateMode={(val) => { setPrivateMode(val); handleToggleSetting('privateMode', val); }}
+          onOpenDeleteModal={() => setIsDeleteConfirmModal(true)}
+        />
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -445,8 +358,12 @@ export function AccountSettingsScreen() {
               <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
             </TouchableOpacity>
             <Text style={styles.modalHeaderTitle}>Sửa Thông Tin Cá Nhân</Text>
-            <TouchableOpacity onPress={handleSaveProfile}>
-              <Text style={styles.modalHeaderSave}>Lưu</Text>
+            <TouchableOpacity onPress={handleSaveProfile} disabled={saving}>
+              {saving ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Text style={styles.modalHeaderSave}>Lưu</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -468,49 +385,97 @@ export function AccountSettingsScreen() {
               placeholder="Nhập số điện thoại" 
             />
 
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>Email (Cố định tài khoản)</Text>
             <TextInput 
-              style={styles.textInput} 
+              style={[styles.textInput, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurfaceVariant }]} 
               value={email} 
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              placeholder="Nhập email" 
-            />
-
-            <Text style={styles.inputLabel}>Ngày sinh</Text>
-            <TextInput 
-              style={styles.textInput} 
-              value={dob} 
-              onChangeText={setDob}
-              placeholder="DD/MM/YYYY" 
+              editable={false}
+              placeholder="Email" 
             />
 
             <Text style={styles.inputLabel}>Giới tính</Text>
-            <TextInput 
-              style={styles.textInput} 
-              value={gender} 
-              onChangeText={setGender}
-              placeholder="Nam / Nữ / Khác" 
-            />
+            <View style={styles.genderOptionsRow}>
+              {[
+                { key: 'MALE', label: '♂ Nam' },
+                { key: 'FEMALE', label: '♀ Nữ' },
+                { key: 'OTHER', label: '⚧ Khác' }
+              ].map(item => {
+                const isSelected = gender === item.key || (gender === 'Nam' && item.key === 'MALE') || (gender === 'Nữ' && item.key === 'FEMALE');
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[styles.genderChip, isSelected && styles.genderChipSelected]}
+                    activeOpacity={0.8}
+                    onPress={() => setGender(item.key)}
+                  >
+                    <Text style={[styles.genderChipText, isSelected && styles.genderChipTextSelected]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-            <Text style={styles.inputLabel}>Địa chỉ mặc định</Text>
-            <TextInput 
-              style={[styles.textInput, { height: 80 }]} 
-              value={defaultAddress} 
-              onChangeText={setDefaultAddress}
-              multiline
-              placeholder="Nhập địa chỉ mặc định" 
-            />
+            <Text style={styles.inputLabel}>Ngày sinh</Text>
+            <TouchableOpacity 
+              style={styles.datePickerTrigger}
+              activeOpacity={0.8}
+              onPress={() => setIsCalendarOpen(true)}
+            >
+              <MaterialIcons name="event" size={20} color={COLORS.primary} />
+              <Text style={styles.datePickerTriggerText}>
+                {dob ? formatDisplayDob(dob) : 'Chọn ngày sinh...'}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color={COLORS.onSurfaceVariant} />
+            </TouchableOpacity>
+
+            <Text style={styles.inputLabel}>Vị trí / Tỉnh Thành</Text>
+            <TouchableOpacity 
+              style={styles.datePickerTrigger}
+              activeOpacity={0.8}
+              onPress={() => setIsProvinceModalVisible(true)}
+            >
+              <MaterialIcons name="location-on" size={20} color={COLORS.primary} />
+              <Text style={styles.datePickerTriggerText} numberOfLines={1}>
+                {defaultAddress || 'Chọn tỉnh thành / khu vực...'}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color={COLORS.onSurfaceVariant} />
+            </TouchableOpacity>
 
             <Button
-              title="Lưu thay đổi"
+              title={saving ? "Đang lưu..." : "Lưu thay đổi"}
               variant="primary"
-              style={{ marginTop: SPACING.lg }}
+              disabled={saving}
+              style={{ marginTop: SPACING.xl }}
               onPress={handleSaveProfile}
             />
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Calendar Picker Component Reused */}
+      <CalendarPicker
+        visible={isCalendarOpen}
+        selectedDate={dob ? new Date(dob) : new Date(1995, 7, 15)}
+        onConfirm={(date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          setDob(`${year}-${month}-${day}`);
+        }}
+        onClose={() => setIsCalendarOpen(false)}
+      />
+
+      {/* Province Picker Modal Component Reused */}
+      <ProvincePickerModal
+        visible={isProvinceModalVisible}
+        onClose={() => setIsProvinceModalVisible(false)}
+        provinces={provinces}
+        loading={loadingProvinces}
+        onSelectProvince={(name) => {
+          setDefaultAddress(name);
+        }}
+      />
 
       {/* Change Password Modal */}
       <Modal
@@ -566,18 +531,29 @@ export function AccountSettingsScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Delete Account App Modal */}
+      {/* Confirm Modal Reused */}
       <ConfirmModal
         visible={isDeleteConfirmModal}
         title="Yêu cầu xóa tài khoản?"
-        message="Hành động này sẽ gửi yêu cầu xóa vĩnh viễn tài khoản cá nhân, toàn bộ lịch sử đặt sân và dữ liệu của bạn khỏi hệ thống Sporta. Bạn có chắc chắn muốn tiếp tục không?"
+        message="Hành động này sẽ gửi yêu cầu xóa vĩnh viễn tài khoản cá nhân khỏi hệ thống. Bạn có chắc chắn muốn tiếp tục không?"
         confirmText="Xóa tài khoản"
         cancelText="Giữ tài khoản"
         confirmVariant="primary"
         icon="delete-forever"
         iconColor={COLORS.error}
-        onConfirm={handleDeleteAccount}
+        onConfirm={() => setIsDeleteConfirmModal(false)}
         onCancel={() => setIsDeleteConfirmModal(false)}
+      />
+
+      <ConfirmModal
+        visible={warningModal.visible}
+        title={warningModal.title}
+        message={warningModal.message}
+        confirmText={warningModal.confirmText || 'Đóng'}
+        confirmVariant="primary"
+        icon={warningModal.icon}
+        iconColor={warningModal.iconColor}
+        onConfirm={() => setWarningModal((prev) => ({ ...prev, visible: false }))}
       />
     </View>
   );
@@ -587,6 +563,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  centerState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  loadingText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
   },
   headerSafeArea: {
     backgroundColor: COLORS.surface,
@@ -612,166 +598,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
   },
-  headerPlaceholder: {
-    width: 40,
-  },
   scrollContent: {
     padding: SPACING.marginMobile,
     gap: SPACING.md,
-  },
-  sectionGroupTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.primary,
-    marginTop: SPACING.xs,
-    marginLeft: 4,
-  },
-  avatarCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity12,
-  },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  cameraBadgeBtn: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.surface,
-  },
-  avatarHint: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    marginTop: SPACING.xs,
-  },
-  settingCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity12,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs + 2,
-    gap: SPACING.md,
-  },
-  settingRowSub: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.xs + 2,
-    paddingLeft: SPACING.md + 24,
-  },
-  socialLabel: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 14,
-    color: COLORS.onSurface,
-    flex: 1,
-    marginLeft: SPACING.xs,
-  },
-  iconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primaryOpacity12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  settingRowTextCol: {
-    flex: 1,
-  },
-  settingLabel: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  settingValue: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
-  },
-  settingSubtext: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: SPACING.xs + 2,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
-    gap: 3,
-  },
-  verifiedBadgeText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 10,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: COLORS.surfaceContainerLow,
-    marginVertical: SPACING.xs,
-  },
-  innerHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.xs,
-  },
-  innerHeaderTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs + 2,
-    gap: SPACING.md,
-  },
-  dangerIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.errorContainer,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dangerLabel: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.error,
-  },
-  dangerSubtext: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.error,
-    opacity: 0.8,
-    marginTop: 2,
   },
   modalContainer: {
     flex: 1,
@@ -801,6 +630,7 @@ const styles = StyleSheet.create({
   },
   modalScroll: {
     padding: SPACING.marginMobile,
+    paddingBottom: SPACING.xl * 2,
   },
   inputLabel: {
     ...TYPOGRAPHY.labelMd,
@@ -819,5 +649,51 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     fontSize: 14,
     color: COLORS.onSurface,
+  },
+  genderOptionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  genderChip: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  genderChipSelected: {
+    backgroundColor: COLORS.primaryContainer,
+    borderColor: COLORS.primaryContainer,
+  },
+  genderChipText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  genderChipTextSelected: {
+    color: COLORS.white,
+    fontWeight: '800',
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    height: 48,
+    gap: SPACING.xs,
+  },
+  datePickerTriggerText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.onSurface,
+    fontWeight: '600',
   },
 });
