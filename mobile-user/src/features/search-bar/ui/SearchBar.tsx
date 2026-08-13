@@ -9,6 +9,8 @@ interface SearchBarProps {
   onFilterPress?: () => void;
   onPress?: () => void; // Nếu có onPress, nó sẽ tự hiểu là nút bấm
   autoFocus?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export function SearchBar({
@@ -16,12 +18,24 @@ export function SearchBar({
   onChangeText,
   onFilterPress,
   onPress,
-  autoFocus = false
+  autoFocus = false,
+  onFocus,
+  onBlur
 }: SearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   const borderStyle = {
     borderColor: isFocused ? COLORS.primary : 'transparent',
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    if (onFocus) onFocus();
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    if (onBlur) onBlur();
   };
 
   return (
@@ -46,8 +60,8 @@ export function SearchBar({
               onChangeText={onChangeText}
               autoFocus={autoFocus}
               editable={!onPress} // Khóa không cho nhập nếu đây là nút bấm (ở Home)
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
             />
           </View>
         </TouchableOpacity>

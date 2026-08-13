@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchActiveFacilities } from '../api/facilityApi';
+import { fetchActiveFacilities, searchVenues, VenueSearchCriteriaDTO } from '../api/facilityApi';
 import { VenueResponse } from './facility.types';
 import { Facility } from '../ui/FacilityCard';
 import * as Location from 'expo-location';
@@ -20,11 +20,13 @@ export const useFacilities = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadFacilities = async () => {
-      try {
-        setLoading(true);
-        const data: VenueResponse[] = await fetchActiveFacilities();
+  const loadFacilities = async (criteria?: VenueSearchCriteriaDTO) => {
+    try {
+      setLoading(true);
+      
+      const data: VenueResponse[] = criteria && Object.keys(criteria).length > 0
+        ? await searchVenues(criteria)
+        : await fetchActiveFacilities();
         
         let userLat: number | null = null;
         let userLng: number | null = null;
@@ -83,8 +85,9 @@ export const useFacilities = () => {
       }
     };
 
+  useEffect(() => {
     loadFacilities();
   }, []);
 
-  return { facilities, loading, error };
+  return { facilities, loading, error, refetch: loadFacilities };
 };
