@@ -1,17 +1,24 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Dimensions, Animated, PanResponder } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
-import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
+import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
 import { useDebounce } from '../../../shared/lib/useDebounce';
 import { SearchBar } from '../../../features/search-bar';
 import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
-import { FilterModal, FilterState } from './FilterModal';
+import { FilterModal } from './FilterModal';
+import { FilterState } from './FilterModal';
 import { MapViewComponent } from './MapViewComponent';
 import { Button } from '../../../shared/ui';
+import { SearchHistoryDropdown } from './SearchHistoryDropdown';
+import { MapDisplayOptions, MapDisplayMode } from './MapDisplayOptions';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.85;
 
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371; // Bán kính trái đất (km)
@@ -24,24 +31,74 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
   return R * c;
 };
 
-const DEFAULT_FILTERS: FilterState = {
+const getToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const getDefaultFilters = (): FilterState => ({
+  date: getToday(),
   time: '',
   sport: '',
   area: '',
   priceRange: '',
   rating: 0,
+});
+
+const AnimatedPopupCard = ({ facility, onClose, router }: { facility: Facility, onClose: () => void, router: any }) => {
+  const translateY = useRef(new Animated.Value(300)).current;
+
+  useEffect(() => {
+    Animated.spring(translateY, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [facility.id]);
+
+  const closeCard = () => {
+    Animated.timing(translateY, {
+      toValue: 300,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  };
+
+  return (
+    <Animated.View style={[styles.selectedCardContainer, { transform: [{ translateY }] }]} pointerEvents="box-none">
+      <View style={styles.selectedCardWrapper}>
+        <FacilityCard
+          facility={facility}
+          style={{ width: '100%' }}
+          onPress={() => router.push(`/booking/${facility.id}`)}
+          onBookPress={() => router.push(`/booking/${facility.id}`)}
+        />
+        <TouchableOpacity style={styles.closeCardBtn} onPress={closeCard}>
+          <MaterialIcons name="close" size={20} color={COLORS.onSurfaceVariant} />
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
 };
 
 export function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ openFilter?: string }>();
 
-  const { facilities, loading, error } = useFacilities();
+  const { facilities, loading, error, refetch } = useFacilities();
 
   const [searchText, setSearchText] = useState('');
   const debouncedSearchText = useDebounce(searchText, 300);
   const [isFilterVisible, setFilterVisible] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Map Display Mode
+  const [pinDisplayMode, setPinDisplayMode] = useState<MapDisplayMode>('sport');
 
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -50,6 +107,39 @@ export function SearchScreen() {
 
   // View Mode
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
+  const mapRef = useRef<any>(null);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null);
+
+  const handleMyLocationPress = async () => {
+    if (location?.coords) {
+      mapRef.current?.animateToRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 1000);
+    } else {
+      setLocationLoading(true);
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          let loc = await Location.getCurrentPositionAsync({});
+          setLocation(loc);
+          mapRef.current?.animateToRegion({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }, 1000);
+        }
+      } catch (e) {
+        console.error('Failed to get location', e);
+      } finally {
+        setLocationLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -109,8 +199,8 @@ export function SearchScreen() {
       saveSearchToHistory(debouncedSearchText);
     }
   }, [debouncedSearchText]);
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<FilterState>(getDefaultFilters());
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(getDefaultFilters());
 
   // Mở modal nếu Home yêu cầu
   useEffect(() => {
@@ -121,6 +211,7 @@ export function SearchScreen() {
       return () => clearTimeout(timer);
     }
   }, [params.openFilter]); // Lắng nghe sự thay đổi của params
+
   // AND filtering logic
   const filteredFacilities = useMemo(() => {
     const baseFiltered = facilities.filter(facility => {
@@ -158,22 +249,46 @@ export function SearchScreen() {
     return baseFiltered;
   }, [debouncedSearchText, appliedFilters, facilities, activeRadius, location]);
 
+  const applyBackendFilters = (currentFilters: FilterState) => {
+    let criteria: any = {};
+    if (currentFilters.date && currentFilters.time) {
+      const d = currentFilters.date;
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      criteria.bookingDate = dateStr;
+      
+      const timeStr = currentFilters.time; // "12:00"
+      criteria.startTime = `${timeStr}:00`;
+      
+      const hour = parseInt(timeStr.split(':')[0], 10);
+      const nextHour = hour + 1;
+      criteria.endTime = `${String(nextHour).padStart(2, '0')}:00:00`;
+    }
+    if (refetch) {
+      refetch(criteria);
+    }
+  };
+
   const handleApplyFilter = () => {
     setAppliedFilters(filters);
     setFilterVisible(false);
+    applyBackendFilters(filters);
   };
 
   const handleResetFilter = () => {
-    setFilters(DEFAULT_FILTERS);
-    setAppliedFilters(DEFAULT_FILTERS);
+    const defaultF = getDefaultFilters();
+    setFilters(defaultF);
+    setAppliedFilters(defaultF);
     setFilterVisible(false);
+    applyBackendFilters(defaultF);
   };
 
   const handleClearFilters = () => {
     setSearchText('');
-    setFilters(DEFAULT_FILTERS);
-    setAppliedFilters(DEFAULT_FILTERS);
+    const defaultF = getDefaultFilters();
+    setFilters(defaultF);
+    setAppliedFilters(defaultF);
     setActiveRadius(null);
+    applyBackendFilters(defaultF);
   };
 
   const handleNearMePress = async (radius: number) => {
@@ -201,33 +316,133 @@ export function SearchScreen() {
     }
   };
 
-  const activeFilterCount = Object.values(appliedFilters).filter(v => v !== '' && v !== 0 && v !== 'Tất cả').length + (activeRadius ? 1 : 0);
+  const activeFilterCount = Object.entries(appliedFilters).filter(([k, v]) => {
+    if (v === '' || v === 0 || v === 'Tất cả' || v === undefined) return false;
+    if (k === 'date' && v instanceof Date) {
+      const today = new Date();
+      return v.getDate() !== today.getDate() || v.getMonth() !== today.getMonth() || v.getFullYear() !== today.getFullYear();
+    }
+    return true;
+  }).length + (activeRadius ? 1 : 0);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
-            </TouchableOpacity>
+    <View style={styles.container}>
+      {viewMode === 'map' && (
+        <View style={StyleSheet.absoluteFill}>
+          {!loading && !error && (
+            <MapViewComponent
+              facilities={filteredFacilities}
+              userLocation={location?.coords}
+              onMarkerPress={(facility) => {
+                setSelectedFacilityId(facility.id);
+                if (facility.latitude && facility.longitude) {
+                  mapRef.current?.animateToRegion({
+                    latitude: facility.latitude,
+                    longitude: facility.longitude,
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }, 500);
+                }
+              }}
+              onMapPress={() => {
+                setSelectedFacilityId(null);
+                Keyboard.dismiss();
+              }}
+              displayMode={pinDisplayMode}
+              distances={
+                location?.coords ? Object.fromEntries(
+                  filteredFacilities.map(f => {
+                    if (!f.latitude || !f.longitude) return [f.id, 0];
+                    return [f.id, getDistance(location.coords.latitude, location.coords.longitude, f.latitude, f.longitude)];
+                  })
+                ) : {}
+              }
+              isFullScreen={true}
+              mapRef={mapRef}
+              selectedFacilityId={selectedFacilityId}
+            />
+          )}
 
-            <View style={styles.searchWrapper}>
+          {/* Map Selected Facility Card */}
+          {selectedFacilityId && (
+            (() => {
+              const facility = filteredFacilities.find(f => f.id === selectedFacilityId);
+              if (!facility) return null;
+              return (
+                <AnimatedPopupCard
+                  facility={facility}
+                  onClose={() => setSelectedFacilityId(null)}
+                  router={router}
+                />
+              );
+            })()
+          )}
+        </View>
+      )}
+
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']} pointerEvents={viewMode === 'map' ? 'box-none' : 'auto'}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          pointerEvents={viewMode === 'map' ? 'box-none' : 'auto'}
+        >
+          {/* Header Section */}
+          <View style={[styles.header, viewMode === 'map' && styles.headerMapMode]} pointerEvents={viewMode === 'map' ? 'box-none' : 'auto'}>
+            <View style={styles.headerTop} pointerEvents={viewMode === 'map' ? 'box-none' : 'auto'}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
+              </TouchableOpacity>
+
+              <View style={styles.searchWrapper} pointerEvents={viewMode === 'map' ? 'box-none' : 'auto'}>
               <SearchBar
                 autoFocus={false}
                 value={searchText}
                 onChangeText={setSearchText}
                 onFilterPress={() => setFilterVisible(true)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => {
+                  // Delay blurring slightly to allow clicking on dropdown items
+                  setTimeout(() => setIsSearchFocused(false), 200);
+                }}
               />
               {activeFilterCount > 0 && (
                 <View style={styles.filterBadge}>
                   <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
                 </View>
               )}
+              <SearchHistoryDropdown
+                query={searchText}
+                history={searchHistory}
+                suggestions={filteredFacilities.slice(0, 5)}
+                visible={isSearchFocused && (searchHistory.length > 0 || searchText.length > 0)}
+                onSelectHistory={(item) => {
+                  setSearchText(item);
+                  setIsSearchFocused(false);
+                  Keyboard.dismiss();
+                }}
+                onSelectSuggestion={(facility) => {
+                  setSearchText(facility.name);
+                  setIsSearchFocused(false);
+                  Keyboard.dismiss();
+                  if (viewMode === 'map') {
+                    setSelectedFacilityId(facility.id);
+                    if (facility.latitude && facility.longitude) {
+                      mapRef.current?.animateToRegion({
+                        latitude: facility.latitude,
+                        longitude: facility.longitude,
+                        latitudeDelta: 0.02,
+                        longitudeDelta: 0.02,
+                      }, 500);
+                    }
+                  }
+                }}
+                onRemoveHistory={removeHistoryItem}
+                onClearHistory={clearHistory}
+                onClose={() => {
+                  setIsSearchFocused(false);
+                  Keyboard.dismiss();
+                }}
+              />
             </View>
 
             <TouchableOpacity
@@ -254,77 +469,84 @@ export function SearchScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.quickChip, activeRadius === 5 && styles.quickChipActive]}
-              onPress={() => handleNearMePress(5)}
-            >
-              <Text style={[styles.quickChipText, activeRadius === 5 && styles.quickChipTextActive]}>&lt; 5km</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity 
-              style={[styles.quickChip, appliedFilters.sport === 'Bóng đá' && styles.quickChipActive]} 
+              style={[
+                styles.quickChip, 
+                appliedFilters.sport === 'Bóng đá' && styles.quickChipActive,
+                { paddingVertical: 6, paddingLeft: 6, paddingRight: 16 }
+              ]} 
               onPress={() => {
                 const isSelected = appliedFilters.sport === 'Bóng đá';
                 setAppliedFilters({...appliedFilters, sport: isSelected ? '' : 'Bóng đá'});
                 setFilters({...filters, sport: isSelected ? '' : 'Bóng đá'});
               }}
             >
+              <View style={[styles.chipIconContainer, { backgroundColor: `${COLORS.primary}15` }]}>
+                <MaterialIcons name="sports-soccer" size={16} color={COLORS.primary} />
+              </View>
               <Text style={[styles.quickChipText, appliedFilters.sport === 'Bóng đá' && styles.quickChipTextActive]}>Bóng đá</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.quickChip, appliedFilters.sport === 'Pickleball' && styles.quickChipActive]} 
+              style={[
+                styles.quickChip, 
+                appliedFilters.sport === 'Pickleball' && styles.quickChipActive,
+                { paddingVertical: 6, paddingLeft: 6, paddingRight: 16 }
+              ]} 
               onPress={() => {
                 const isSelected = appliedFilters.sport === 'Pickleball';
                 setAppliedFilters({...appliedFilters, sport: isSelected ? '' : 'Pickleball'});
                 setFilters({...filters, sport: isSelected ? '' : 'Pickleball'});
               }}
             >
+              <View style={[styles.chipIconContainer, { backgroundColor: `${COLORS.secondary}15` }]}>
+                <MaterialIcons name="sports-tennis" size={16} color={COLORS.secondary} />
+              </View>
               <Text style={[styles.quickChipText, appliedFilters.sport === 'Pickleball' && styles.quickChipTextActive]}>Pickleball</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity 
-              style={[styles.quickChip, appliedFilters.sport === 'Cầu lông' && styles.quickChipActive]} 
+              style={[
+                styles.quickChip, 
+                appliedFilters.sport === 'Cầu lông' && styles.quickChipActive,
+                { paddingVertical: 6, paddingLeft: 6, paddingRight: 16 }
+              ]} 
               onPress={() => {
                 const isSelected = appliedFilters.sport === 'Cầu lông';
                 setAppliedFilters({...appliedFilters, sport: isSelected ? '' : 'Cầu lông'});
                 setFilters({...filters, sport: isSelected ? '' : 'Cầu lông'});
               }}
             >
+              <View style={[styles.chipIconContainer, { backgroundColor: `#1565C015` }]}>
+                <MaterialCommunityIcons name="badminton" size={16} color="#1565C0" />
+              </View>
               <Text style={[styles.quickChipText, appliedFilters.sport === 'Cầu lông' && styles.quickChipTextActive]}>Cầu lông</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                styles.quickChip, 
+                appliedFilters.sport === 'Bóng rổ' && styles.quickChipActive,
+                { paddingVertical: 6, paddingLeft: 6, paddingRight: 16 }
+              ]} 
+              onPress={() => {
+                const isSelected = appliedFilters.sport === 'Bóng rổ';
+                setAppliedFilters({...appliedFilters, sport: isSelected ? '' : 'Bóng rổ'});
+                setFilters({...filters, sport: isSelected ? '' : 'Bóng rổ'});
+              }}
+            >
+              <View style={[styles.chipIconContainer, { backgroundColor: `#E6510015` }]}>
+                <MaterialIcons name="sports-basketball" size={16} color="#E65100" />
+              </View>
+              <Text style={[styles.quickChipText, appliedFilters.sport === 'Bóng rổ' && styles.quickChipTextActive]}>Bóng rổ</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
+
+
         {/* Results Section */}
-        {searchText.length === 0 && searchHistory.length > 0 ? (
-          <View style={styles.historyContainer}>
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>Tìm kiếm gần đây</Text>
-              <TouchableOpacity onPress={clearHistory}>
-                <Text style={styles.clearHistoryText}>Xóa tất cả</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={searchHistory}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <View style={styles.historyItemRow}>
-                  <TouchableOpacity
-                    style={styles.historyItemContent}
-                    onPress={() => setSearchText(item)}
-                  >
-                    <MaterialIcons name="history" size={20} color={COLORS.outlineVariant} />
-                    <Text style={styles.historyItemText}>{item}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => removeHistoryItem(item)} style={styles.historyRemoveBtn}>
-                    <MaterialIcons name="close" size={18} color={COLORS.outlineVariant} />
-                  </TouchableOpacity>
-                </View>
-              )}
-            />
-          </View>
-        ) : loading ? (
+        {loading ? (
           <View style={styles.listContainer}>
             {/* Skeleton Loading simulation */}
             {[1, 2, 3].map(i => (
@@ -354,11 +576,22 @@ export function SearchScreen() {
               )}
             />
           ) : (
-            <MapViewComponent
-              facilities={filteredFacilities}
-              userLocation={location?.coords}
-              onMarkerPress={(facility) => router.push(`/booking/${facility.id}`)}
-            />
+            <View style={{ flex: 1 }} pointerEvents="box-none">
+              <MapDisplayOptions 
+                mode={pinDisplayMode} 
+                onChange={setPinDisplayMode} 
+              />
+              <TouchableOpacity
+                style={styles.myLocationFloatingBtn}
+                onPress={handleMyLocationPress}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <MaterialIcons name="my-location" size={24} color={location ? COLORS.primary : COLORS.onSurfaceVariant} />
+                )}
+              </TouchableOpacity>
+            </View>
           )
         ) : (
           <View style={styles.emptyState}>
@@ -383,7 +616,8 @@ export function SearchScreen() {
           onReset={handleResetFilter}
         />
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -392,6 +626,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  safeArea: {
+    flex: 1,
+  },
   header: {
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
@@ -399,10 +636,44 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
     paddingTop: Platform.OS === 'android' ? SPACING.md : 0,
   },
+  selectedCardContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    paddingHorizontal: SPACING.marginMobile,
+    zIndex: 10,
+  },
+  selectedCardWrapper: {
+    width: '100%',
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  closeCardBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 4,
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  headerMapMode: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+  },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.marginMobile,
+    zIndex: 999,
   },
   quickChipsWrapper: {
     marginTop: SPACING.sm,
@@ -427,6 +698,13 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primaryOpacity10,
   },
+  chipIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   quickChipText: {
     ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurfaceVariant,
@@ -446,6 +724,7 @@ const styles = StyleSheet.create({
   searchWrapper: {
     flex: 1,
     position: 'relative',
+    zIndex: 999,
   },
   filterBadge: {
     position: 'absolute',
@@ -506,47 +785,23 @@ const styles = StyleSheet.create({
   clearBtn: {
     minWidth: 120,
   },
-  historyContainer: {
-    flex: 1,
+  myLocationFloatingBtn: {
+    position: 'absolute',
+    right: SPACING.marginMobile,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: COLORS.surface,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceDim,
-  },
-  historyTitle: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.onSurface,
-  },
-  clearHistoryText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
-  },
-  historyItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceDim,
-  },
-  historyItemContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  historyItemText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-  },
-  historyRemoveBtn: {
-    padding: SPACING.xs,
-  },
+    justifyContent: 'center',
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceDim,
+    zIndex: 10,
+  }
 });

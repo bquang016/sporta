@@ -12,7 +12,7 @@ import { ClusterMarker } from '../model/useFacilitySearch';
 type MaterialIconName = React.ComponentProps<typeof MaterialIcons>['name'];
 type CommunityIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const SPORT_ICON_MAP: Record<
+export const SPORT_ICON_MAP: Record<
   string,
   { type: 'material' | 'community'; name: string }
 > = {
@@ -29,7 +29,8 @@ const SPORT_ICON_MAP: Record<
   'volleyball': { type: 'material', name: 'sports-volleyball' },
 };
 
-const getSportIcon = (sport: string) => {
+export const getSportIcon = (sport?: string | null) => {
+  if (!sport) return { type: 'material', name: 'sports' };
   const key = sport.toLowerCase();
   return SPORT_ICON_MAP[key] ?? { type: 'material', name: 'sports' };
 };

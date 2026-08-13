@@ -3,18 +3,16 @@ import { View, Text, Modal, StyleSheet, ScrollView, TouchableOpacity } from 'rea
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform } from 'react-native';
+import { CalendarPicker } from './filter-modal/CalendarPicker';
+import { TimeScrollPicker } from './filter-modal/TimeScrollPicker';
 
 export interface FilterState {
-  time: string;
   sport: string;
   area: string;
   priceRange: string;
   rating: number;
   date?: Date;
-  startTime?: Date;
-  endTime?: Date;
+  time?: string;
 }
 
 interface FilterModalProps {
@@ -32,22 +30,18 @@ const PRICES = ['Tất cả', 'Dưới 300k', '300k - 500k', 'Trên 500k'];
 const RATINGS = [0, 1, 2, 3, 4, 5]; // 0 means all
 
 export function FilterModal({ visible, onClose, filters, onFilterChange, onApply, onReset }: FilterModalProps) {
-  const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [showStartPicker, setShowStartPicker] = React.useState(false);
-  const [showEndPicker, setShowEndPicker] = React.useState(false);
-
   const updateFilter = (key: keyof FilterState, value: any) => {
     onFilterChange({ ...filters, [key]: value });
   };
 
-  const formatDate = (date?: Date) => {
-    if (!date) return 'Chọn ngày';
-    return date.toLocaleDateString('vi-VN');
-  };
-
-  const formatTime = (date?: Date) => {
-    if (!date) return 'Chọn giờ';
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const isTodaySelected = () => {
+    if (!filters.date) return true; // Default to today
+    const today = new Date();
+    return (
+      filters.date.getDate() === today.getDate() &&
+      filters.date.getMonth() === today.getMonth() &&
+      filters.date.getFullYear() === today.getFullYear()
+    );
   };
 
   const renderChips = (title: string, options: any[], selected: any, key: keyof FilterState) => (
@@ -62,7 +56,13 @@ export function FilterModal({ visible, onClose, filters, onFilterChange, onApply
             <TouchableOpacity 
               key={option} 
               style={[styles.chip, isSelected && styles.chipActive]}
-              onPress={() => updateFilter(key, option === 'Tất cả' || option === 0 ? (typeof option === 'number' ? 0 : '') : option)}
+              onPress={() => {
+                if (isSelected) {
+                  updateFilter(key, typeof option === 'number' ? 0 : '');
+                } else {
+                  updateFilter(key, option === 'Tất cả' || option === 0 ? (typeof option === 'number' ? 0 : '') : option);
+                }
+              }}
             >
               <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
                 {label}
@@ -90,64 +90,25 @@ export function FilterModal({ visible, onClose, filters, onFilterChange, onApply
             </TouchableOpacity>
           </View>
           
-          <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-            {/* Timeslot Selector */}
+          <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            
+            {/* Lịch trống */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Lịch trống</Text>
-              <View style={styles.datePickerContainer}>
-                <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
-                  <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
-                  <Text style={styles.dateBtnText}>{formatDate(filters.date)}</Text>
-                </TouchableOpacity>
-
-                <View style={styles.timeRow}>
-                  <TouchableOpacity style={[styles.dateBtn, { flex: 1 }]} onPress={() => setShowStartPicker(true)}>
-                    <MaterialIcons name="access-time" size={20} color={COLORS.primary} />
-                    <Text style={styles.dateBtnText}>{formatTime(filters.startTime)}</Text>
-                  </TouchableOpacity>
-                  <Text style={{ marginHorizontal: 8 }}>-</Text>
-                  <TouchableOpacity style={[styles.dateBtn, { flex: 1 }]} onPress={() => setShowEndPicker(true)}>
-                    <MaterialIcons name="access-time" size={20} color={COLORS.primary} />
-                    <Text style={styles.dateBtnText}>{formatTime(filters.endTime)}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <Text style={styles.sectionTitle}>Ngày</Text>
+              <CalendarPicker 
+                selectedDate={filters.date} 
+                onSelectDate={(date) => updateFilter('date', date)} 
+              />
             </View>
 
-            {/* Date/Time Pickers (Android needs separate modal/logic, iOS uses inline but we use default for simplicity) */}
-            {showDatePicker && (
-              <DateTimePicker
-                value={filters.date || new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) updateFilter('date', selectedDate);
-                }}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Giờ</Text>
+              <TimeScrollPicker 
+                selectedTime={filters.time}
+                onSelectTime={(time) => updateFilter('time', time)}
+                isToday={isTodaySelected()}
               />
-            )}
-            {showStartPicker && (
-              <DateTimePicker
-                value={filters.startTime || new Date()}
-                mode="time"
-                display="default"
-                onChange={(event, selectedTime) => {
-                  setShowStartPicker(Platform.OS === 'ios');
-                  if (selectedTime) updateFilter('startTime', selectedTime);
-                }}
-              />
-            )}
-            {showEndPicker && (
-              <DateTimePicker
-                value={filters.endTime || new Date()}
-                mode="time"
-                display="default"
-                onChange={(event, selectedTime) => {
-                  setShowEndPicker(Platform.OS === 'ios');
-                  if (selectedTime) updateFilter('endTime', selectedTime);
-                }}
-              />
-            )}
+            </View>
 
             {renderChips('Môn thể thao', SPORTS, filters.sport, 'sport')}
             {renderChips('Khu vực', AREAS, filters.area, 'area')}
@@ -185,7 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '80%',
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -247,26 +208,5 @@ const styles = StyleSheet.create({
   },
   footerBtn: {
     flex: 1,
-  },
-  datePickerContainer: {
-    gap: SPACING.md,
-  },
-  dateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.sm,
-  },
-  dateBtnText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurface,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
 });
