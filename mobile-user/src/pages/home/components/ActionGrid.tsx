@@ -24,11 +24,11 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
         >
           <View style={[styles.mainCtaCard, { backgroundColor: COLORS.primary }]}>
             <View style={styles.iconWrapper}>
-              <MaterialIcons name="event-seat" size={32} color={COLORS.white} />
+              <MaterialIcons name="event-seat" size={30} color={COLORS.white} />
             </View>
             <View style={styles.ctaTextContainer}>
               <Text style={styles.mainCtaTitle}>Đặt sân ngay</Text>
-              <Text style={styles.mainCtaSub}>Đặt chỗ nhanh trong 30 giây</Text>
+              <Text style={styles.mainCtaSub} numberOfLines={1}>Đặt chỗ nhanh trong 30 giây</Text>
             </View>
             <View style={styles.arrowIcon}>
               <MaterialIcons name="arrow-forward" size={16} color={COLORS.primary} />
@@ -38,7 +38,7 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
 
         {/* Cột bên phải chứa 2 nút nhỏ hơn */}
         <View style={styles.subGridColumn}>
-          {/* Nút 2: Ghép kèo nhanh (Màu Nền tối giản nhẹ nhàng) */}
+          {/* Nút 2: Ghép kèo nhanh (Cố định không lòi chữ) */}
           <TouchableOpacity
             onPress={() => router.push('/matchmaking' as any)}
             style={styles.subCtaContainer}
@@ -46,16 +46,18 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
           >
             <View style={[styles.subCtaCard, { backgroundColor: COLORS.surfaceContainerLow }]}>
               <View style={styles.subCardHeader}>
-                <MaterialIcons name="groups" size={24} color={COLORS.primary} />
-                <Text style={[styles.subCtaTitle, { color: COLORS.onSurface }]}>Ghép kèo nhanh</Text>
+                <MaterialIcons name="groups" size={22} color={COLORS.primary} />
+                <Text style={[styles.subCtaTitle, { color: COLORS.onSurface }]} numberOfLines={1}>
+                  Ghép kèo nhanh
+                </Text>
               </View>
               <Text style={[styles.subCtaSub, { color: COLORS.onSurfaceVariant }]} numberOfLines={1}>
-                Tìm đối thủ phù hợp chỉ trong 30 giây
+                Tìm đối thủ phù hợp chỉ trong 30s
               </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Nút 3: Sân chơi xé vé (Màu Nền tối giản nhẹ nhàng) */}
+          {/* Nút 3: Sân chơi xé vé */}
           <TouchableOpacity
             style={styles.subCtaContainer}
             onPress={() => router.push('/ticket-sessions' as any)}
@@ -63,8 +65,10 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
           >
             <View style={[styles.subCtaCard, { backgroundColor: COLORS.surfaceContainerLow }]}>
               <View style={styles.subCardHeader}>
-                <MaterialIcons name="confirmation-number" size={24} color={COLORS.primary} />
-                <Text style={[styles.subCtaTitle, { color: COLORS.onSurface }]}>Tìm sân xé vé</Text>
+                <MaterialIcons name="confirmation-number" size={22} color={COLORS.primary} />
+                <Text style={[styles.subCtaTitle, { color: COLORS.onSurface }]} numberOfLines={1}>
+                  Tìm sân xé vé
+                </Text>
               </View>
               <Text style={[styles.subCtaSub, { color: COLORS.onSurfaceVariant }]} numberOfLines={1}>
                 Tham gia kèo lẻ có sẵn
@@ -104,8 +108,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   iconWrapper: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
@@ -118,7 +122,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.titleMd,
     color: COLORS.white,
     fontWeight: '800',
-    fontSize: 18,
+    fontSize: 17,
   },
   mainCtaSub: {
     ...TYPOGRAPHY.bodyMd,
@@ -129,15 +133,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: SPACING.md,
     top: SPACING.md,
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
   subGridColumn: {
-    flex: 1,
+    flex: 1.1,
     gap: SPACING.sm,
   },
   subCtaContainer: {
@@ -153,12 +157,14 @@ const styles = StyleSheet.create({
   subCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 6,
   },
   subCtaTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
+    flex: 1,
+    flexShrink: 1,
   },
   subCtaSub: {
     ...TYPOGRAPHY.bodyMd,

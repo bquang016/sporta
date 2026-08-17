@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
@@ -39,7 +40,6 @@ export function ScoreInputScreen() {
     try {
       await submitScore(hostScore, guestScore, details);
       await confirmScore();
-      // Chuyển thẳng tới màn hình kết quả & thưởng CRP
       router.replace(`/matchmaking/${room.id}/result` as any);
     } catch (e: any) {
       Alert.alert('Lỗi', e.message || 'Không thể gửi tỷ số');
@@ -51,7 +51,6 @@ export function ScoreInputScreen() {
     setSubmitting(true);
     try {
       await confirmScore();
-      // Chuyển thẳng tới màn hình kết quả & thưởng CRP
       router.replace(`/matchmaking/${room.id}/result` as any);
     } catch (e: any) {
       Alert.alert('Lỗi', e.message || 'Không thể xác nhận kết quả');
@@ -71,104 +70,115 @@ export function ScoreInputScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bảng Điểm & Tỷ Số</Text>
+        <Text style={styles.headerTitle}>Bảng Điểm Trận Đấu</Text>
         <TouchableOpacity onPress={() => setIsOverdue(!isOverdue)} style={styles.overdueToggle}>
-          <Text style={styles.overdueToggleText}>{isOverdue ? 'Thường' : 'Mô phỏng Quá hạn'}</Text>
+          <Text style={styles.overdueToggleText}>{isOverdue ? 'Thường' : 'Quá hạn'}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Stadium Header Info Card */}
-        <View style={styles.stadiumCard}>
-          <View style={styles.stadiumBadgeRow}>
-            <View style={styles.liveTag}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveTagText}>CẬP NHẬT TỶ SỐ</Text>
+        <View style={styles.responsiveContainer}>
+          {/* Stadium Header Info Card - Strict Theme Tokens */}
+          <View style={styles.stadiumCard}>
+            <View style={styles.stadiumBadgeRow}>
+              <View style={styles.liveTag}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveTagText}>CẬP NHẬT TỶ SỐ SÂN BÃI</Text>
+              </View>
+              <Text style={styles.stadiumSport}>{room.booking.sportName} • {room.booking.format}</Text>
             </View>
-            <Text style={styles.stadiumSport}>{room.booking.sportName} • {room.booking.format}</Text>
-          </View>
 
-          <Text style={styles.stadiumName}>{room.booking.facilityName}</Text>
-          <Text style={styles.stadiumTime}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
+            <Text style={styles.stadiumName} numberOfLines={1}>{room.booking.facilityName}</Text>
+            <Text style={styles.stadiumTime}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
 
-          <View style={styles.teamVsRow}>
-            <Text style={styles.teamVsName}>{room.hostClub.name}</Text>
-            <View style={styles.vsBadge}><Text style={styles.vsText}>VS</Text></View>
-            <Text style={styles.teamVsName}>{room.guestClub?.name || 'Đội bạn'}</Text>
-          </View>
-        </View>
-
-        {/* OVERDUE State Box */}
-        {isOverdue && (
-          <View style={styles.overdueCard}>
-            <View style={styles.overdueHeader}>
-              <MaterialIcons name="error-outline" size={24} color="#DC2626" />
-              <Text style={styles.overdueTitle}>Trận đấu quá hạn xác nhận (+1h)</Text>
-            </View>
-            <Text style={styles.overdueDesc}>
-              Đã quá 1 giờ từ khi trận đấu kết thúc mà hai đội chưa chốt tỷ số. Hệ thống không tự động ghi nhận kết quả để đảm bảo tính chính xác.
-            </Text>
-
-            <View style={styles.overdueActions}>
-              <TouchableOpacity activeOpacity={0.8} onPress={() => Alert.alert('Báo cáo', 'Báo cáo sự cố đã được gửi tới quản trị viên.')} style={styles.reportBtn}>
-                <MaterialIcons name="report" size={16} color="#DC2626" />
-                <Text style={styles.reportBtnText}>Báo cáo vấn đề</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity activeOpacity={0.8} onPress={handleProposeDraw} style={styles.drawBtn}>
-                <MaterialIcons name="handshake" size={16} color={COLORS.primary} />
-                <Text style={styles.drawBtnText}>Đề xuất hòa</Text>
-              </TouchableOpacity>
+            <View style={styles.teamVsRow}>
+              <Text style={styles.teamVsName} numberOfLines={1}>{room.hostClub.name}</Text>
+              <View style={styles.vsBadge}><Text style={styles.vsText}>VS</Text></View>
+              <Text style={styles.teamVsName} numberOfLines={1}>{room.guestClub?.name || 'Đội bạn'}</Text>
             </View>
           </View>
-        )}
 
-        {/* Form Nhập tỷ số */}
-        {room.status === 'MATCHED' && !submission && (
-          <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} />
-        )}
+          {/* OVERDUE State Box */}
+          {isOverdue && (
+            <View style={styles.overdueCard}>
+              <View style={styles.overdueHeader}>
+                <Ionicons name="alert-circle-outline" size={24} color={COLORS.errorText} />
+                <Text style={styles.overdueTitle}>Trận đấu quá hạn xác nhận (+1h)</Text>
+              </View>
+              <Text style={styles.overdueDesc}>
+                Đã quá 1 giờ từ khi trận đấu kết thúc mà hai đội chưa chốt tỷ số. Hệ thống không tự động ghi nhận kết quả để đảm bảo tính chính xác.
+              </Text>
 
-        {/* View Xác nhận Tỷ số */}
-        {(room.status === 'SCORE_CONFIRMING' || submission) && (
-          <View style={styles.confirmCard}>
-            <View style={styles.confirmHeader}>
-              <MaterialIcons name="sports-score" size={28} color={COLORS.primary} />
-              <Text style={styles.confirmTitle}>Xác Nhận Kết Quả Trận Đấu</Text>
+              <View style={styles.overdueActions}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => Alert.alert('Báo cáo', 'Báo cáo sự cố đã được gửi tới quản trị viên.')} style={styles.reportBtn}>
+                  <Ionicons name="flag-outline" size={16} color={COLORS.errorText} />
+                  <Text style={styles.reportBtnText}>Báo cáo vấn đề</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity activeOpacity={0.8} onPress={handleProposeDraw} style={styles.drawBtn}>
+                  <Ionicons name="hand-left-outline" size={16} color={COLORS.white} />
+                  <Text style={styles.drawBtnText}>Đề xuất hòa</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={styles.confirmSub}>Đại diện {room.hostClub.name} đã cập nhật tỷ số:</Text>
+          )}
 
-            <View style={styles.scoreboardBox}>
-              <Text style={styles.scoreboardText}>{submission?.hostScore ?? 3} - {submission?.guestScore ?? 2}</Text>
-              {submission?.rawScoreDetails && (
-                <Text style={styles.scoreboardDetails}>{submission.rawScoreDetails}</Text>
-              )}
-            </View>
+          {/* Form Nhập tỷ số */}
+          {room.status === 'MATCHED' && !submission && (
+            <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} />
+          )}
 
-            <Text style={styles.confirmQuestion}>Bấm nút bên dưới để chốt kết quả và nhận thưởng điểm CRP:</Text>
+          {/* View Xác nhận Tỷ số - Strict Theme Tokens */}
+          {(room.status === 'SCORE_CONFIRMING' || submission) && (
+            <View style={styles.confirmCard}>
+              <View style={styles.confirmHeader}>
+                <Ionicons name="trophy" size={24} color={COLORS.primary} />
+                <Text style={styles.confirmTitle}>XÁC NHẬN KẾT QUẢ TRẬN ĐẤU</Text>
+              </View>
+              <Text style={styles.confirmSub}>
+                Đại diện <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.hostClub.name}</Text> đã gửi tỷ số:
+              </Text>
 
-            <View style={styles.confirmBtnRow}>
-              <TouchableOpacity
-                disabled={submitting}
-                onPress={handleConfirmScore}
-                style={styles.confirmScoreBtn}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={COLORS.white} />
-                ) : (
-                  <>
-                    <MaterialIcons name="emoji-events" size={20} color={COLORS.white} />
-                    <Text style={styles.confirmScoreText}>🏆 XÁC NHẬN KẾT QUẢ & XEM ĐIỂM CRP (+/-)</Text>
-                  </>
+              {/* Score Display Box */}
+              <View style={styles.scoreboardBox}>
+                <Text style={styles.scoreboardText}>
+                  {submission?.hostScore ?? 3} — {submission?.guestScore ?? 2}
+                </Text>
+                {submission?.rawScoreDetails && (
+                  <Text style={styles.scoreboardDetails}>{submission.rawScoreDetails}</Text>
                 )}
-              </TouchableOpacity>
+              </View>
+
+              <Text style={styles.confirmQuestion}>Bấm nút bên dưới để chốt kết quả và tính thưởng điểm CRP:</Text>
+
+              <View style={styles.confirmBtnRow}>
+                <TouchableOpacity
+                  disabled={submitting}
+                  onPress={handleConfirmScore}
+                  style={styles.confirmScoreBtn}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={COLORS.white} />
+                  ) : (
+                    <>
+                      <View style={styles.trophyIconBg}>
+                        <Ionicons name="trophy" size={18} color={COLORS.secondary} />
+                      </View>
+                      <Text style={styles.confirmScoreText}>XÁC NHẬN KẾT QUẢ & XEM ĐIỂM CRP (+/-)</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -184,31 +194,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.sm,
+    paddingVertical: 10,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.outlineVariant,
   },
-  iconBtn: {
-    padding: 6,
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primaryOpacity06,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 18,
+    fontSize: 17,
   },
   overdueToggle: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.secondaryOpacity15,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.full,
   },
   overdueToggleText: {
     ...TYPOGRAPHY.labelSm,
-    color: '#92400E',
+    color: COLORS.amber,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   centerContainer: {
     flex: 1,
@@ -222,13 +237,18 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.marginMobile,
-    gap: SPACING.md,
     paddingBottom: 40,
+  },
+  responsiveContainer: {
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
+    gap: SPACING.md,
   },
   stadiumCard: {
     backgroundColor: COLORS.primary,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     gap: 8,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -245,51 +265,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
+    backgroundColor: COLORS.whiteOpacity30,
+    paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.full,
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.successText,
   },
   liveTagText: {
     ...TYPOGRAPHY.labelSm,
     color: COLORS.white,
-    fontWeight: '800',
+    fontWeight: '900',
     fontSize: 10,
   },
   stadiumSport: {
     ...TYPOGRAPHY.labelSm,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: COLORS.whiteOpacity70,
     fontSize: 11,
+    fontWeight: '700',
   },
   stadiumName: {
     ...TYPOGRAPHY.headlineMd,
-    fontWeight: '800',
+    fontWeight: '900',
     color: COLORS.white,
-    fontSize: 18,
+    fontSize: 19,
   },
   stadiumTime: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: COLORS.whiteOpacity70,
   },
   teamVsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: COLORS.whiteOpacity10,
     padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.lg,
     marginTop: 4,
   },
   teamVsName: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.white,
     fontSize: 13,
     flex: 1,
@@ -304,15 +325,15 @@ const styles = StyleSheet.create({
   },
   vsText: {
     ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurface,
-    fontWeight: '800',
+    color: COLORS.onSecondary,
+    fontWeight: '900',
     fontSize: 10,
   },
   overdueCard: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: COLORS.errorOpacity08,
     borderWidth: 1.5,
-    borderColor: '#FECACA',
-    borderRadius: BORDER_RADIUS.lg,
+    borderColor: COLORS.errorContainer,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.md,
     gap: SPACING.sm,
   },
@@ -324,13 +345,13 @@ const styles = StyleSheet.create({
   overdueTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
-    color: '#991B1B',
+    color: COLORS.errorText,
     fontSize: 15,
   },
   overdueDesc: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
-    color: '#7F1D1D',
+    color: COLORS.errorText,
     lineHeight: 18,
   },
   overdueActions: {
@@ -344,16 +365,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.default,
+    borderColor: COLORS.errorContainer,
+    paddingVertical: 9,
+    borderRadius: BORDER_RADIUS.full,
   },
   reportBtnText: {
     ...TYPOGRAPHY.labelMd,
-    color: '#DC2626',
-    fontWeight: '700',
+    color: COLORS.errorText,
+    fontWeight: '800',
     fontSize: 12,
   },
   drawBtn: {
@@ -363,28 +384,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     backgroundColor: COLORS.primary,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.default,
+    paddingVertical: 9,
+    borderRadius: BORDER_RADIUS.full,
   },
   drawBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 12,
   },
   confirmCard: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: COLORS.primaryOpacity08,
     gap: SPACING.sm,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   confirmHeader: {
     flexDirection: 'row',
@@ -393,9 +414,9 @@ const styles = StyleSheet.create({
   },
   confirmTitle: {
     ...TYPOGRAPHY.titleMd,
-    fontWeight: '800',
+    fontWeight: '900',
     color: COLORS.onSurface,
-    fontSize: 18,
+    fontSize: 16,
   },
   confirmSub: {
     ...TYPOGRAPHY.bodyMd,
@@ -404,10 +425,10 @@ const styles = StyleSheet.create({
   },
   scoreboardBox: {
     backgroundColor: COLORS.background,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: COLORS.primary,
     alignItems: 'center',
     marginVertical: 8,
@@ -417,20 +438,22 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.headlineXl,
     fontWeight: '900',
     color: COLORS.primary,
-    fontSize: 42,
+    fontSize: 40,
+    lineHeight: 48,
     letterSpacing: 2,
   },
   scoreboardDetails: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurfaceVariant,
     marginTop: 4,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 12,
   },
   confirmQuestion: {
     ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
-    fontSize: 13,
+    fontSize: 12.5,
   },
   confirmBtnRow: {
     width: '100%',
@@ -440,20 +463,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.default,
+    gap: 10,
     backgroundColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: BORDER_RADIUS.full,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
+  },
+  trophyIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(254, 208, 27, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   confirmScoreText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
-    fontWeight: '800',
-    fontSize: 14,
+    fontWeight: '900',
+    fontSize: 13.5,
+    letterSpacing: 0.4,
   },
 });

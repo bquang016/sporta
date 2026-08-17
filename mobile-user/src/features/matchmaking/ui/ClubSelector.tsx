@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { ClubSummaryVM } from '../../../entities/match/model/match.types';
 
 interface ClubSelectorProps {
@@ -15,7 +15,7 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Chọn CLB đại diện</Text>
       <Text style={styles.subtext}>
-        CLB cần có tối thiểu <Text style={{ fontWeight: '700' }}>8 thành viên ACTIVE</Text> để tìm đối thủ hoặc gửi yêu cầu ghép trận.
+        CLB cần có tối thiểu <Text style={{ fontWeight: '800', color: COLORS.primary }}>8 thành viên ACTIVE</Text> để tìm đối thủ hoặc gửi yêu cầu ghép trận.
       </Text>
 
       <View style={styles.clubList}>
@@ -27,7 +27,7 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
             <TouchableOpacity
               key={club.id}
               disabled={!isEligible}
-              activeOpacity={0.8}
+              activeOpacity={0.88}
               onPress={() => isEligible && onSelectClub(club)}
               style={[
                 styles.clubCard,
@@ -41,27 +41,27 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
                 </View>
 
                 <View style={styles.clubInfo}>
-                  <Text style={styles.clubName}>{club.name}</Text>
-                  <Text style={styles.clubMeta}>
+                  <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+                  <Text style={styles.clubMeta} numberOfLines={1}>
                     {club.sportName} • {club.activeMemberCount} thành viên ACTIVE • {club.clubElo} Elo
                   </Text>
                 </View>
 
                 {isSelected && (
-                  <MaterialIcons name="check-circle" size={22} color={COLORS.primary} />
+                  <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
                 )}
               </View>
 
               {!isEligible ? (
                 <View style={styles.warningBox}>
-                  <MaterialIcons name="warning" size={16} color="#D97706" />
+                  <Ionicons name="alert-circle" size={16} color="#D97706" />
                   <Text style={styles.warningText}>
                     {club.activeMemberCount}/8 thành viên — Cần thêm {8 - club.activeMemberCount} thành viên nữa để ghép trận.
                   </Text>
                 </View>
               ) : (
                 <View style={styles.eligibleBox}>
-                  <MaterialIcons name="verified" size={14} color={COLORS.primary} />
+                  <Ionicons name="checkmark-done" size={15} color={COLORS.primary} />
                   <Text style={styles.eligibleText}>Đủ điều kiện đại diện ghép trận</Text>
                 </View>
               )}
@@ -77,15 +77,21 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: 'rgba(6, 78, 59, 0.08)',
     gap: SPACING.sm,
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
+    fontSize: 16,
   },
   subtext: {
     ...TYPOGRAPHY.bodyMd,
@@ -94,21 +100,27 @@ const styles = StyleSheet.create({
   },
   clubList: {
     gap: SPACING.sm,
+    marginTop: 4,
   },
   clubCard: {
     backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.default,
-    padding: SPACING.sm,
+    borderRadius: 20,
+    padding: SPACING.md,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: COLORS.outlineVariant,
     gap: 8,
   },
   clubCardSelected: {
     borderColor: COLORS.primary,
-    backgroundColor: 'rgba(6, 78, 59, 0.04)',
+    backgroundColor: 'rgba(6, 78, 59, 0.05)',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
   clubCardDisabled: {
-    opacity: 0.7,
+    opacity: 0.65,
   },
   clubHeader: {
     flexDirection: 'row',
@@ -116,9 +128,9 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: BORDER_RADIUS.full,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.outline,
     justifyContent: 'center',
     alignItems: 'center',
@@ -129,14 +141,14 @@ const styles = StyleSheet.create({
   avatarText: {
     ...TYPOGRAPHY.titleMd,
     color: COLORS.white,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   clubInfo: {
     flex: 1,
   },
   clubName: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
     fontSize: 14,
   },
@@ -150,13 +162,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#FEF3C7',
-    padding: 8,
-    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
   },
   warningText: {
     ...TYPOGRAPHY.labelSm,
     color: '#92400E',
     fontSize: 11,
+    fontWeight: '700',
     flex: 1,
   },
   eligibleBox: {
@@ -168,6 +182,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelSm,
     color: COLORS.primary,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

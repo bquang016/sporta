@@ -9,7 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
@@ -68,99 +68,115 @@ export function MatchResultScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Top Trophy Hero Banner */}
-        <View style={styles.heroCard}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="trophy" size={42} color="#D97706" />
-          </View>
-
-          <Text style={styles.outcomeTitle}>KẾT QUẢ ĐÃ ĐƯỢC XÁC NHẬN</Text>
-          <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
-            <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-              {isRanked ? '🏆 Trận Xếp hạng (Tích lũy CRP)' : '🤝 Trận Giao hữu'}
-            </Text>
-          </View>
-
-          {/* Big Final Score */}
-          <View style={styles.scoreBox}>
-            <Text style={styles.teamHostName}>{room.hostClub.name}</Text>
-            <Text style={styles.finalScoreNum}>{result.finalScoreText}</Text>
-            <Text style={styles.teamGuestName}>{room.guestClub?.name || 'Đội bạn'}</Text>
-          </View>
-        </View>
-
-        {/* CRP Reward Section (For Ranked Match) */}
-        {isRanked ? (
-          <View style={styles.crpCard}>
-            <Text style={styles.crpCardTitle}>Cập Nhật Thành Tích CRP CLB</Text>
-
-            <View style={styles.crpMainRow}>
-              <View style={styles.crpCol}>
-                <Text style={styles.crpClubLabel}>{room.hostClub.name}</Text>
-                <Text style={styles.crpDeltaPlus}>+{result.hostCrpDelta} CRP</Text>
-                <Text style={styles.crpBeforeAfter}>
-                  {result.hostCrpBefore} → <Text style={{ fontWeight: '900' }}>{result.hostCrpAfter}</Text>
-                </Text>
-              </View>
-
-              <View style={styles.crpDivider} />
-
-              <View style={styles.crpCol}>
-                <Text style={styles.crpClubLabel}>{room.guestClub?.name || 'Đội bạn'}</Text>
-                <Text style={styles.crpDeltaMinus}>{result.guestCrpDelta} CRP</Text>
-                <Text style={styles.crpBeforeAfter}>
-                  {result.guestCrpBefore} → <Text style={{ fontWeight: '900' }}>{result.guestCrpAfter}</Text>
-                </Text>
-              </View>
+        <View style={styles.responsiveContainer}>
+          {/* Top Trophy Hero Banner */}
+          <View style={styles.heroCard}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="trophy" size={40} color="#D97706" />
             </View>
 
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setShowExplanation(true)}
-              style={styles.whyBtn}
-            >
-              <Ionicons name="help-circle-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.whyBtnText}>Vì sao nhận được số điểm này?</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.friendlyNoteCard}>
-            <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.friendlyNoteText}>
-              Trận Giao hữu ghi nhận tỷ số giao lưu, không làm thay đổi điểm CRP xếp hạng của hai CLB.
-            </Text>
-          </View>
-        )}
+            <Text style={styles.outcomeTitle}>KẾT QUẢ ĐÃ ĐƯỢC XÁC NHẬN</Text>
+            <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+              <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
+                {isRanked ? '🏆 Trận Xếp hạng (Tích lũy CRP)' : '🤝 Trận Giao hữu'}
+              </Text>
+            </View>
 
-        {/* Match Details Summary */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Thông Tin Sân & Chi Phí</Text>
+            {/* Big Final Score Display (Redesigned with zero overlap) */}
+            <View style={styles.scoreBoardCard}>
+              <View style={styles.teamScoreCol}>
+                <Text style={styles.teamHostName} numberOfLines={1}>
+                  {room.hostClub.name}
+                </Text>
+                <Text style={styles.winnerBadgeText}>Chủ Sân</Text>
+              </View>
 
-          <View style={styles.infoLine}>
-            <Ionicons name="location-outline" size={16} color={COLORS.onSurfaceVariant} />
-            <Text style={styles.infoText}>{room.booking.facilityName} ({room.booking.courtName})</Text>
-          </View>
+              <View style={styles.finalScoreBadge}>
+                <Text style={styles.finalScoreNum}>{result.finalScoreText}</Text>
+              </View>
 
-          <View style={styles.infoLine}>
-            <Ionicons name="calendar-outline" size={16} color={COLORS.onSurfaceVariant} />
-            <Text style={styles.infoText}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
+              <View style={styles.teamScoreCol}>
+                <Text style={styles.teamGuestName} numberOfLines={1}>
+                  {room.guestClub?.name || 'Đội bạn'}
+                </Text>
+                <Text style={styles.guestBadgeText}>Đối Thủ</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.infoLine}>
-            <Ionicons name="cash-outline" size={16} color={COLORS.onSurfaceVariant} />
-            <Text style={styles.infoText}>
-              Tỉ lệ chia: Chủ sân {room.hostSharePercent}% — Đối thủ {room.guestSharePercent}% (~{room.guestShareAmount.toLocaleString('vi-VN')}đ)
-            </Text>
+          {/* CRP Reward Section (For Ranked Match) */}
+          {isRanked ? (
+            <View style={styles.crpCard}>
+              <Text style={styles.crpCardTitle}>Cập Nhật Thành Tích CRP CLB</Text>
+
+              <View style={styles.crpMainRow}>
+                <View style={styles.crpCol}>
+                  <Text style={styles.crpClubLabel} numberOfLines={1}>{room.hostClub.name}</Text>
+                  <Text style={styles.crpDeltaPlus}>+{result.hostCrpDelta} CRP</Text>
+                  <Text style={styles.crpBeforeAfter}>
+                    {result.hostCrpBefore} → <Text style={{ fontWeight: '900' }}>{result.hostCrpAfter}</Text>
+                  </Text>
+                </View>
+
+                <View style={styles.crpDivider} />
+
+                <View style={styles.crpCol}>
+                  <Text style={styles.crpClubLabel} numberOfLines={1}>{room.guestClub?.name || 'Đội bạn'}</Text>
+                  <Text style={styles.crpDeltaMinus}>{result.guestCrpDelta} CRP</Text>
+                  <Text style={styles.crpBeforeAfter}>
+                    {result.guestCrpBefore} → <Text style={{ fontWeight: '900' }}>{result.guestCrpAfter}</Text>
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowExplanation(true)}
+                style={styles.whyBtn}
+              >
+                <Ionicons name="help-circle-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.whyBtnText}>Vì sao nhận được số điểm này?</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.friendlyNoteCard}>
+              <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.friendlyNoteText}>
+                Trận Giao hữu ghi nhận tỷ số giao lưu, không làm thay đổi điểm CRP xếp hạng của hai CLB.
+              </Text>
+            </View>
+          )}
+
+          {/* Match Details Summary */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Thông Tin Sân & Chi Phí</Text>
+
+            <View style={styles.infoLine}>
+              <Ionicons name="location-outline" size={16} color={COLORS.onSurfaceVariant} />
+              <Text style={styles.infoText} numberOfLines={1}>{room.booking.facilityName} ({room.booking.courtName})</Text>
+            </View>
+
+            <View style={styles.infoLine}>
+              <Ionicons name="calendar-outline" size={16} color={COLORS.onSurfaceVariant} />
+              <Text style={styles.infoText}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
+            </View>
+
+            <View style={styles.infoLine}>
+              <Ionicons name="cash-outline" size={16} color={COLORS.onSurfaceVariant} />
+              <Text style={styles.infoText}>
+                Tỉ lệ chia: Chủ sân {room.hostSharePercent}% — Đối thủ {room.guestSharePercent}% (~{room.guestShareAmount.toLocaleString('vi-VN')}đ)
+              </Text>
+            </View>
           </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={() => router.push('/matchmaking' as any)}
+            style={styles.backListBtn}
+          >
+            <Text style={styles.backListBtnText}>Quay về Danh sách Matchmaking</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={() => router.push('/matchmaking' as any)}
-          style={styles.backListBtn}
-        >
-          <Text style={styles.backListBtnText}>Quay về Danh sách Matchmaking</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* CRP Explanation Sheet Modal */}
@@ -214,8 +230,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.marginMobile,
-    gap: SPACING.md,
     paddingBottom: 40,
+  },
+  responsiveContainer: {
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
+    gap: SPACING.md,
   },
   heroCard: {
     backgroundColor: COLORS.surface,
@@ -224,7 +245,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(6, 78, 59, 0.08)',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
@@ -232,15 +253,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   iconCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#FFFBEB',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FCD34D',
-    marginBottom: 4,
   },
   outcomeTitle: {
     ...TYPOGRAPHY.labelMd,
@@ -271,27 +291,67 @@ const styles = StyleSheet.create({
   friendlyText: {
     color: '#075985',
   },
-  scoreBox: {
+  scoreBoardCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
-    gap: 4,
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.background,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    width: '100%',
+    marginTop: 6,
+    gap: 8,
+  },
+  teamScoreCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
   },
   teamHostName: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  winnerBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10,
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  finalScoreBadge: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.lg,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   finalScoreNum: {
     ...TYPOGRAPHY.headlineXl,
     fontWeight: '900',
-    color: COLORS.primary,
-    fontSize: 48,
-    letterSpacing: 2,
+    color: COLORS.white,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: 1,
   },
   teamGuestName: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '700',
     color: COLORS.onSurfaceVariant,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  guestBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
   crpCard: {
     backgroundColor: '#FFFBEB',
@@ -329,13 +389,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.headlineMd,
     fontWeight: '900',
     color: '#15803D',
-    fontSize: 24,
+    fontSize: 22,
   },
   crpDeltaMinus: {
     ...TYPOGRAPHY.headlineMd,
     fontWeight: '900',
     color: '#B91C1C',
-    fontSize: 24,
+    fontSize: 22,
   },
   crpBeforeAfter: {
     ...TYPOGRAPHY.bodyMd,

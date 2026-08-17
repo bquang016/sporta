@@ -99,11 +99,13 @@ export function CreateMatchScreen() {
 
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tạo Bài Ghép Kèo Nhanh</Text>
-        <View style={{ width: 36 }} />
+        <View style={styles.headerInner}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+            <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Tạo Bài Ghép Kèo Nhanh</Text>
+          <View style={{ width: 36 }} />
+        </View>
       </View>
 
       {loading ? (
@@ -113,121 +115,123 @@ export function CreateMatchScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Section 1: Choose Club */}
-          <ClubSelector
-            clubs={clubs}
-            selectedClubId={selectedClub?.id}
-            onSelectClub={setSelectedClub}
-          />
-
-          {/* Section 2: Choose Booking */}
-          <PaidBookingPicker
-            bookings={bookings}
-            selectedBookingId={selectedBooking?.id}
-            onSelectBooking={setSelectedBooking}
-          />
-
-          {/* Section 3: Match Type Selector */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Loại trận đấu</Text>
-
-            <View style={styles.typeRow}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setMatchType('RANKED')}
-                style={[styles.typeBtn, matchType === 'RANKED' && styles.typeBtnRanked]}
-              >
-                <Text style={[styles.typeBtnTitle, matchType === 'RANKED' && styles.typeTextRanked]}>
-                  🏆 Xếp hạng
-                </Text>
-                <Text style={styles.typeBtnDesc}>
-                  Thi đấu tích lũy điểm CRP thành tích CLB.
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setMatchType('FRIENDLY')}
-                style={[styles.typeBtn, matchType === 'FRIENDLY' && styles.typeBtnFriendly]}
-              >
-                <Text style={[styles.typeBtnTitle, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
-                  🤝 Giao hữu
-                </Text>
-                <Text style={styles.typeBtnDesc}>
-                  Giao lưu học hỏi, không tích lũy điểm CRP.
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Section 4: Fee Split Selector */}
-          {selectedBooking && (
-            <FeeSplitSelector
-              totalPrice={selectedBooking.totalPrice}
-              hostPercent={hostSharePercent}
-              onChangeHostPercent={setHostSharePercent}
+          <View style={styles.responsiveContainer}>
+            {/* Section 1: Choose Club */}
+            <ClubSelector
+              clubs={clubs}
+              selectedClubId={selectedClub?.id}
+              onSelectClub={setSelectedClub}
             />
-          )}
 
-          {/* Section 5: Opponent Level Target */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Trình độ đối thủ mong muốn</Text>
-            <Text style={styles.subtext}>
-              Gợi ý các CLB có Elo tương đồng để đảm bảo trận đấu diễn ra kịch tính.
-            </Text>
-
-            <View style={styles.levelRow}>
-              {levelOptions.map((lvl) => {
-                const isSelected = desiredLevel === lvl;
-                return (
-                  <TouchableOpacity
-                    key={lvl}
-                    onPress={() => setDesiredLevel(lvl)}
-                    style={[styles.levelChip, isSelected && styles.levelChipActive]}
-                  >
-                    <Text style={[styles.levelChipText, isSelected && styles.levelChipTextActive]}>
-                      {lvl}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Section 6: Note */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Lời nhắn gửi tới đối thủ (Tùy chọn)</Text>
-
-            <TextInput
-              style={styles.noteInput}
-              multiline
-              numberOfLines={3}
-              placeholder="VD: Đội mình thi đấu giao lưu đúng giờ, fair-play, cần tìm đối thủ vừa miếng..."
-              placeholderTextColor={COLORS.outline}
-              value={note}
-              onChangeText={setNote}
+            {/* Section 2: Choose Booking */}
+            <PaidBookingPicker
+              bookings={bookings}
+              selectedBookingId={selectedBooking?.id}
+              onSelectBooking={setSelectedBooking}
             />
-          </View>
 
-          {/* Bottom Submit CTA */}
-          <TouchableOpacity
-            disabled={submitting || !selectedClub?.isEligibleForMatchmaking}
-            activeOpacity={0.88}
-            onPress={handleCreate}
-            style={[
-              styles.submitBtn,
-              (!selectedClub?.isEligibleForMatchmaking || submitting) && styles.submitBtnDisabled,
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <Text style={styles.submitBtnText}>Đăng bài tìm đối thủ ngay</Text>
-                <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
-              </>
+            {/* Section 3: Match Type Selector */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Loại trận đấu</Text>
+
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setMatchType('RANKED')}
+                  style={[styles.typeBtn, matchType === 'RANKED' && styles.typeBtnRanked]}
+                >
+                  <Text style={[styles.typeBtnTitle, matchType === 'RANKED' && styles.typeTextRanked]}>
+                    🏆 Xếp hạng
+                  </Text>
+                  <Text style={styles.typeBtnDesc}>
+                    Thi đấu tích lũy điểm CRP thành tích CLB.
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setMatchType('FRIENDLY')}
+                  style={[styles.typeBtn, matchType === 'FRIENDLY' && styles.typeBtnFriendly]}
+                >
+                  <Text style={[styles.typeBtnTitle, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
+                    🤝 Giao hữu
+                  </Text>
+                  <Text style={styles.typeBtnDesc}>
+                    Giao lưu học hỏi, không tích lũy điểm CRP.
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Section 4: Fee Split Selector */}
+            {selectedBooking && (
+              <FeeSplitSelector
+                totalPrice={selectedBooking.totalPrice}
+                hostPercent={hostSharePercent}
+                onChangeHostPercent={setHostSharePercent}
+              />
             )}
-          </TouchableOpacity>
+
+            {/* Section 5: Opponent Level Target */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Trình độ đối thủ mong muốn</Text>
+              <Text style={styles.subtext}>
+                Gợi ý các CLB có Elo tương đồng để đảm bảo trận đấu diễn ra kịch tính.
+              </Text>
+
+              <View style={styles.levelRow}>
+                {levelOptions.map((lvl) => {
+                  const isSelected = desiredLevel === lvl;
+                  return (
+                    <TouchableOpacity
+                      key={lvl}
+                      onPress={() => setDesiredLevel(lvl)}
+                      style={[styles.levelChip, isSelected && styles.levelChipActive]}
+                    >
+                      <Text style={[styles.levelChipText, isSelected && styles.levelChipTextActive]}>
+                        {lvl}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Section 6: Note */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Lời nhắn gửi tới đối thủ (Tùy chọn)</Text>
+
+              <TextInput
+                style={styles.noteInput}
+                multiline
+                numberOfLines={3}
+                placeholder="VD: Đội mình thi đấu giao lưu đúng giờ, fair-play, cần tìm đối thủ vừa miếng..."
+                placeholderTextColor={COLORS.outline}
+                value={note}
+                onChangeText={setNote}
+              />
+            </View>
+
+            {/* Bottom Submit CTA */}
+            <TouchableOpacity
+              disabled={submitting || !selectedClub?.isEligibleForMatchmaking}
+              activeOpacity={0.88}
+              onPress={handleCreate}
+              style={[
+                styles.submitBtn,
+                (!selectedClub?.isEligibleForMatchmaking || submitting) && styles.submitBtnDisabled,
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <>
+                  <Text style={styles.submitBtnText}>Đăng bài tìm đối thủ ngay</Text>
+                  <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -240,14 +244,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  headerInner: {
+    maxWidth: 760,
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: 10,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
   },
   headerIconBtn: {
     width: 36,
@@ -275,8 +284,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.marginMobile,
-    gap: SPACING.md,
     paddingBottom: 40,
+  },
+  responsiveContainer: {
+    maxWidth: 760,
+    width: '100%',
+    alignSelf: 'center',
+    gap: SPACING.md,
   },
   sectionCard: {
     backgroundColor: COLORS.surface,

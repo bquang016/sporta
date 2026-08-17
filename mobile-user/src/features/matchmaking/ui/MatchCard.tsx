@@ -14,84 +14,85 @@ export function MatchCard({ room, onPress }: MatchCardProps) {
   const host = room.hostClub;
   const booking = room.booking;
 
+  // Fee split calculation: Performance Incentive (Winning team pays less)
+  const getFeeSplitLabel = () => {
+    if (room.hostSharePercent === 50) return 'Chia đôi 50/50';
+    if (room.hostSharePercent === 70 || room.guestSharePercent === 30) return '🔥 Đội Thắng chỉ trả 30%';
+    if (room.hostSharePercent === 100 || room.guestSharePercent === 0) return '🏆 Đội Thắng MIỄN 100% tiền sân';
+    return `Thắng trả ${room.guestSharePercent}%`;
+  };
+
   return (
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.card}>
-      {/* Header Row: Host Info & Badges */}
-      <View style={styles.cardHeader}>
-        <View style={styles.hostRow}>
-          <View style={styles.avatarContainer}>
-            {host.avatarUrl ? (
-              <Image source={{ uri: host.avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarText}>{host.name.charAt(0).toUpperCase()}</Text>
-              </View>
-            )}
-            <View style={styles.activeDot} />
-          </View>
-
-          <View style={styles.hostInfo}>
-            <View style={styles.hostNameRow}>
-              <Text style={styles.hostName} numberOfLines={1}>
-                {host.name}
-              </Text>
-              <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={14} color={COLORS.primary} />
-              </View>
-            </View>
-
-            <View style={styles.eloPillRow}>
-              <View style={styles.levelTag}>
-                <Text style={styles.levelTagText}>{host.levelLabel}</Text>
-              </View>
-              <Text style={styles.eloText}>{host.clubElo} Elo</Text>
-              <Text style={styles.crpText}>• {host.crp} CRP</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Match Type Badge */}
+      {/* Top Badge Bar (No text overlap) */}
+      <View style={styles.topBadgeBar}>
         <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
           <Text style={[styles.typeBadgeText, isRanked ? styles.rankedBadgeText : styles.friendlyBadgeText]}>
             {isRanked ? '🏆 Xếp hạng' : '🤝 Giao hữu'}
           </Text>
         </View>
-      </View>
-
-      {/* Sport & Format Bar */}
-      <View style={styles.sportBar}>
-        <View style={styles.sportChip}>
-          <Ionicons name="football-outline" size={14} color={COLORS.primary} />
-          <Text style={styles.sportChipText}>
-            {booking.sportName} • {booking.format}
-          </Text>
-        </View>
 
         {room.balanceLabel && (
           <View style={styles.balanceChip}>
-            <MaterialIcons name="bolt" size={14} color="#D97706" />
+            <MaterialIcons name="bolt" size={13} color="#D97706" />
             <Text style={styles.balanceChipText}>{room.balanceLabel}</Text>
           </View>
         )}
+
+        <View style={styles.incentiveChip}>
+          <Ionicons name="flame" size={13} color={COLORS.primary} />
+          <Text style={styles.incentiveChipText}>{getFeeSplitLabel()}</Text>
+        </View>
+      </View>
+
+      {/* Host Club Row */}
+      <View style={styles.hostRow}>
+        <View style={styles.avatarContainer}>
+          {host.avatarUrl ? (
+            <Image source={{ uri: host.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarText}>{host.name.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          <View style={styles.activeDot} />
+        </View>
+
+        <View style={styles.hostInfo}>
+          <View style={styles.hostNameRow}>
+            <Text style={styles.hostName} numberOfLines={1}>
+              {host.name}
+            </Text>
+            <MaterialIcons name="verified" size={14} color={COLORS.primary} />
+          </View>
+
+          <View style={styles.eloPillRow}>
+            <View style={styles.levelTag}>
+              <Text style={styles.levelTagText}>{host.levelLabel}</Text>
+            </View>
+            <Text style={styles.eloText}>{host.clubElo} Elo</Text>
+            <Text style={styles.crpText}>• {host.crp} CRP</Text>
+          </View>
+        </View>
       </View>
 
       {/* Venue Location & Time */}
       <View style={styles.detailsContainer}>
         <View style={styles.detailItem}>
           <View style={styles.iconCircle}>
-            <MaterialIcons name="location-on" size={14} color={COLORS.primary} />
+            <Ionicons name="football-outline" size={14} color={COLORS.primary} />
           </View>
           <Text style={styles.detailText} numberOfLines={1}>
-            {booking.facilityName} ({booking.courtName})
+            {booking.sportName} • {booking.format} ({booking.facilityName})
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <View style={styles.iconCircle}>
-            <MaterialIcons name="schedule" size={14} color={COLORS.primary} />
+            <Ionicons name="time-outline" size={14} color={COLORS.primary} />
           </View>
-          <Text style={styles.detailText}>
-            {booking.date} • <Text style={{ fontWeight: '700', color: COLORS.onSurface }}>{booking.startTime} - {booking.endTime}</Text>
+          <Text style={styles.detailText} numberOfLines={1}>
+            {booking.date} • <Text style={{ fontWeight: '800', color: COLORS.onSurface }}>{booking.startTime} - {booking.endTime}</Text>
           </Text>
         </View>
       </View>
@@ -99,11 +100,11 @@ export function MatchCard({ room, onPress }: MatchCardProps) {
       {/* Fee Split & Action Footer */}
       <View style={styles.cardFooter}>
         <View style={styles.feeBox}>
-          <Text style={styles.feeLabel}>Đối thủ trả ({room.guestSharePercent}%):</Text>
-          <Text style={styles.feeValue}>~{room.guestShareAmount.toLocaleString('vi-VN')}đ</Text>
+          <Text style={styles.feeLabel}>Giá tiền sân:</Text>
+          <Text style={styles.feeValue}>{booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
         </View>
 
-        <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.actionBtn}>
+        <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.actionBtn}>
           <Text style={styles.actionBtnText}>Ghép Kèo</Text>
           <MaterialIcons name="arrow-forward" size={16} color={COLORS.white} />
         </TouchableOpacity>
@@ -125,18 +126,76 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 3,
-    gap: 12,
+    gap: 10,
   },
-  cardHeader: {
+  topBadgeBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  typeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  rankedBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  friendlyBadge: {
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  typeBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  rankedBadgeText: {
+    color: '#92400E',
+  },
+  friendlyBadgeText: {
+    color: '#075985',
+  },
+  balanceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  balanceChipText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  incentiveChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  incentiveChipText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   hostRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1,
   },
   avatarContainer: {
     position: 'relative',
@@ -186,9 +245,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: COLORS.onSurface,
-  },
-  verifiedBadge: {
-    marginLeft: 2,
+    flexShrink: 1,
   },
   eloPillRow: {
     flexDirection: 'row',
@@ -205,7 +262,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelSm,
     color: COLORS.primary,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   eloText: {
     ...TYPOGRAPHY.bodyMd,
@@ -217,71 +274,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMd,
     fontSize: 11,
     fontWeight: '600',
-    color: '#B45309',
-  },
-  typeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  rankedBadge: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-  },
-  friendlyBadge: {
-    backgroundColor: '#E0F2FE',
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  typeBadgeText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  rankedBadgeText: {
-    color: '#92400E',
-  },
-  friendlyBadgeText: {
-    color: '#075985',
-  },
-  sportBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sportChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-  sportChipText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  balanceChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-  },
-  balanceChipText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    fontWeight: '700',
     color: '#B45309',
   },
   detailsContainer: {
@@ -345,7 +337,7 @@ const styles = StyleSheet.create({
   actionBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
-    fontWeight: '800',
+    fontWeight: '900',
     fontSize: 13,
   },
 });

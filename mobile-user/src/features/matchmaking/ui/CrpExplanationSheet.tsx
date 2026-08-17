@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { RankingCalculationPreview } from '../../../entities/match/model/match.types';
 
 interface CrpExplanationSheetProps {
@@ -20,11 +20,11 @@ export function CrpExplanationSheet({ visible, onClose, preview }: CrpExplanatio
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
-              <MaterialIcons name="emoji-events" size={24} color={COLORS.secondary} />
+              <Ionicons name="trophy-outline" size={24} color="#D97706" />
               <Text style={styles.title}>Cách Tính Điểm CRP</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <MaterialIcons name="close" size={20} color={COLORS.onSurfaceVariant} />
+              <Ionicons name="close" size={20} color={COLORS.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
@@ -35,7 +35,7 @@ export function CrpExplanationSheet({ visible, onClose, preview }: CrpExplanatio
               <View style={styles.deltaRow}>
                 <Text style={styles.clubNameText}>CLB Host:</Text>
                 <Text style={styles.crpDeltaText}>
-                  {preview.hostCrpBefore} → <Text style={{ fontWeight: '800' }}>{preview.hostCrpAfter}</Text> (
+                  {preview.hostCrpBefore} → <Text style={{ fontWeight: '900' }}>{preview.hostCrpAfter}</Text> (
                   {preview.hostCrpDelta >= 0 ? `+${preview.hostCrpDelta}` : preview.hostCrpDelta} CRP)
                 </Text>
               </View>
@@ -45,7 +45,7 @@ export function CrpExplanationSheet({ visible, onClose, preview }: CrpExplanatio
             <Text style={styles.sectionHeader}>Yếu tố ảnh hưởng:</Text>
             {preview.explanation.map((item, idx) => (
               <View key={idx} style={styles.bulletRow}>
-                <MaterialIcons name="check-circle" size={16} color={COLORS.primary} />
+                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
                 <Text style={styles.bulletText}>{item}</Text>
               </View>
             ))}
@@ -53,18 +53,18 @@ export function CrpExplanationSheet({ visible, onClose, preview }: CrpExplanatio
             <View style={styles.rulesBox}>
               <Text style={styles.ruleTitle}>📌 Nguyên tắc xếp hạng Sporta CRP:</Text>
               <Text style={styles.ruleItem}>
-                • <Text style={{ fontWeight: '700' }}>Positive-sum & Zero-floor:</Text> Trận Xếp hạng giúp tăng điểm phong độ tổng thể, CRP không bị âm.
+                • <Text style={{ fontWeight: '800' }}>Positive-sum & Zero-floor:</Text> Trận Xếp hạng giúp tăng điểm phong độ tổng thể, CRP không bị âm.
               </Text>
               <Text style={styles.ruleItem}>
-                • <Text style={{ fontWeight: '700' }}>Anti-farming:</Text> Đánh với đội chênh lệch Elo quá xa sẽ nhận ít điểm thưởng để tránh cày điểm.
+                • <Text style={{ fontWeight: '800' }}>Anti-farming:</Text> Đánh với đội chênh lệch Elo quá xa sẽ nhận ít điểm thưởng để tránh cày điểm.
               </Text>
               <Text style={styles.ruleItem}>
-                • <Text style={{ fontWeight: '700' }}>Không thay đổi Elo cá nhân:</Text> Matchmaking chỉ dùng Elo snapshot của CLB để cân kèo.
+                • <Text style={{ fontWeight: '800' }}>Không thay đổi Elo cá nhân:</Text> Matchmaking chỉ dùng Elo snapshot của CLB để cân kèo.
               </Text>
             </View>
           </ScrollView>
 
-          <TouchableOpacity activeOpacity={0.8} onPress={onClose} style={styles.doneBtn}>
+          <TouchableOpacity activeOpacity={0.88} onPress={onClose} style={styles.doneBtn}>
             <Text style={styles.doneBtnText}>Đã hiểu</Text>
           </TouchableOpacity>
         </View>
@@ -89,6 +89,9 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     maxHeight: '80%',
     gap: SPACING.md,
+    maxWidth: 600,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -107,22 +110,27 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   closeBtn: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(6, 78, 59, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     gap: SPACING.sm,
   },
   summaryCard: {
     backgroundColor: '#FFFBEB',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#FCD34D',
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     gap: 6,
   },
   summaryTitle: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#92400E',
   },
   deltaRow: {
@@ -141,7 +149,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     ...TYPOGRAPHY.titleMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
     marginTop: 6,
   },
@@ -151,7 +159,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: COLORS.background,
     padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.lg,
   },
   bulletText: {
     ...TYPOGRAPHY.bodyMd,
@@ -162,13 +170,13 @@ const styles = StyleSheet.create({
   rulesBox: {
     backgroundColor: COLORS.background,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.lg,
     gap: 6,
     marginTop: 8,
   },
   ruleTitle: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
   },
   ruleItem: {
@@ -179,14 +187,20 @@ const styles = StyleSheet.create({
   },
   doneBtn: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.default,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.full,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   doneBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
-    fontWeight: '700',
+    fontWeight: '900',
+    fontSize: 14,
   },
 });

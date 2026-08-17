@@ -92,283 +92,292 @@ export function MatchDetailScreen() {
     }
   };
 
+  const minSharePercent = Math.min(room.hostSharePercent, room.guestSharePercent);
+  const maxSharePercent = Math.max(room.hostSharePercent, room.guestSharePercent);
+  const minAmount = Math.round((booking.totalPrice * minSharePercent) / 100);
+  const maxAmount = booking.totalPrice - minAmount;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>
-        <TouchableOpacity onPress={() => {}} style={styles.headerIconBtn}>
-          <Ionicons name="share-social-outline" size={20} color={COLORS.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.headerInner}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+            <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>
+          <TouchableOpacity onPress={() => {}} style={styles.headerIconBtn}>
+            <Ionicons name="share-social-outline" size={20} color={COLORS.onSurface} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* DEMO TEST SIMULATOR CARD */}
-        <View style={styles.simCard}>
-          <View style={styles.simHeader}>
-            <Ionicons name="construct-outline" size={18} color="#92400E" />
-            <Text style={styles.simTitle}>Thử Nghiệm Ghép Trận & Chốt Điểm CRP</Text>
-          </View>
-          <Text style={styles.simDesc}>
-            Dành cho bạn test thử luồng tạo trận từ tài khoản khác & chốt ngay kết quả xem thưởng CRP (+/-):
-          </Text>
-
-          <View style={styles.simBtnGrid}>
-            <TouchableOpacity
-              disabled={simulating}
-              style={styles.simBtnPrimary}
-              onPress={async () => {
-                setSimulating(true);
-                try {
-                  await requestJoin('club-beta', 'CLB Beta United xin ghép trận!');
-                  Alert.alert('Đã gửi yêu cầu ghép trận từ CLB Beta United thành công! ⚽');
-                } finally {
-                  setSimulating(false);
-                }
-              }}
-            >
-              <Text style={styles.simBtnText}>1. Gửi request ghép trận từ CLB Beta</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              disabled={simulating}
-              style={styles.simBtnSecondary}
-              onPress={async () => {
-                setSimulating(true);
-                try {
-                  let reqId = room.applicants[0]?.id;
-                  if (!reqId) {
-                    const newReq = await requestJoin('club-beta', 'Tự động ghép trận');
-                    reqId = newReq?.id;
-                  }
-                  if (reqId) await acceptRequest(reqId);
-                  router.push(`/matchmaking/${room.id}/score` as any);
-                } finally {
-                  setSimulating(false);
-                }
-              }}
-            >
-              <Text style={styles.simBtnText}>2. Chốt đối thủ & Mở form Nhập tỷ số</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              disabled={simulating}
-              style={styles.simBtnGold}
-              onPress={handleQuickFinishMatch}
-            >
-              {simulating ? (
-                <ActivityIndicator color="#78350F" />
-              ) : (
-                <Text style={styles.simBtnGoldText}>🏁 3. KẾT THÚC TRẬN ĐẤU & XEM ĐIỂM CRP (+/-) NGAY</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Stadium Hero Banner Card */}
-        <View style={styles.heroCard}>
-          <View style={styles.badgeRow}>
-            <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
-              <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-                {isRanked ? '🏆 Trận Xếp hạng (Tích CRP)' : '🤝 Trận Giao hữu'}
-              </Text>
+        <View style={styles.responsiveContainer}>
+          {/* DEMO TEST SIMULATOR CARD */}
+          <View style={styles.simCard}>
+            <View style={styles.simHeader}>
+              <Ionicons name="construct-outline" size={18} color="#92400E" />
+              <Text style={styles.simTitle}>Thử Nghiệm Ghép Trận & Chốt Điểm CRP</Text>
             </View>
-            {room.balanceLabel && (
-              <View style={styles.balanceBadge}>
-                <Ionicons name="flash" size={12} color={COLORS.primary} />
-                <Text style={styles.balanceText}>{room.balanceLabel}</Text>
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.venueTitle}>{booking.facilityName}</Text>
-          <Text style={styles.courtSubtitle}>
-            {booking.courtName} • {booking.sportName} ({booking.format})
-          </Text>
-
-          <View style={styles.timeBox}>
-            <Ionicons name="time-outline" size={16} color={COLORS.white} />
-            <Text style={styles.timeBoxText}>
-              {booking.date} • {booking.startTime} - {booking.endTime}
+            <Text style={styles.simDesc}>
+              Dành cho bạn test thử luồng tạo trận từ tài khoản khác & chốt ngay kết quả xem thưởng CRP (+/-):
             </Text>
-          </View>
-        </View>
 
-        {/* Versus Battle Card */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Đối Đầu & Trình Độ CLB</Text>
+            <View style={styles.simBtnGrid}>
+              <TouchableOpacity
+                disabled={simulating}
+                style={styles.simBtnPrimary}
+                onPress={async () => {
+                  setSimulating(true);
+                  try {
+                    await requestJoin('club-beta', 'CLB Beta United xin ghép trận!');
+                    Alert.alert('Đã gửi yêu cầu ghép trận từ CLB Beta United thành công! ⚽');
+                  } finally {
+                    setSimulating(false);
+                  }
+                }}
+              >
+                <Text style={styles.simBtnText}>1. Gửi request ghép trận từ CLB Beta</Text>
+              </TouchableOpacity>
 
-          <View style={styles.vsRow}>
-            {/* Host Club */}
-            <View style={styles.vsClubCol}>
-              <View style={styles.clubAvatarHost}>
-                <Text style={styles.clubAvatarText}>{host.name.charAt(4) || 'A'}</Text>
-              </View>
-              <Text style={styles.vsClubName} numberOfLines={1}>{host.name}</Text>
-              <View style={styles.vsLevelTag}>
-                <Text style={styles.vsLevelText}>{host.levelLabel}</Text>
-              </View>
-              <Text style={styles.vsEloText}>{host.clubElo} Elo</Text>
-              <Text style={styles.vsCrpText}>• {host.crp} CRP</Text>
-            </View>
+              <TouchableOpacity
+                disabled={simulating}
+                style={styles.simBtnSecondary}
+                onPress={async () => {
+                  setSimulating(true);
+                  try {
+                    let reqId = room.applicants[0]?.id;
+                    if (!reqId) {
+                      const newReq = await requestJoin('club-beta', 'Tự động ghép trận');
+                      reqId = newReq?.id;
+                    }
+                    if (reqId) await acceptRequest(reqId);
+                    router.push(`/matchmaking/${room.id}/score` as any);
+                  } finally {
+                    setSimulating(false);
+                  }
+                }}
+              >
+                <Text style={styles.simBtnText}>2. Chốt đối thủ & Mở form Nhập tỷ số</Text>
+              </TouchableOpacity>
 
-            <View style={styles.vsBadgeCircle}>
-              <Text style={styles.vsText}>VS</Text>
-            </View>
-
-            {/* Guest Club */}
-            {guest ? (
-              <View style={styles.vsClubCol}>
-                <View style={styles.clubAvatarGuest}>
-                  <Text style={styles.clubAvatarText}>{guest.name.charAt(4) || 'B'}</Text>
-                </View>
-                <Text style={styles.vsClubName} numberOfLines={1}>{guest.name}</Text>
-                <View style={styles.vsLevelTag}>
-                  <Text style={styles.vsLevelText}>{guest.levelLabel}</Text>
-                </View>
-                <Text style={styles.vsEloText}>{guest.clubElo} Elo</Text>
-                <Text style={styles.vsCrpText}>• {guest.crp} CRP</Text>
-              </View>
-            ) : (
-              <View style={styles.vsClubCol}>
-                <View style={styles.emptyGuestAvatar}>
-                  <Ionicons name="person-add-outline" size={22} color={COLORS.outline} />
-                </View>
-                <Text style={styles.emptyGuestName}>Đang tìm đối thủ...</Text>
-                <Text style={styles.emptyGuestSub}>Trình độ: {room.desiredLevels.join(', ')}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Fee Split Card */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Chi Phí Sân & Tỉ Lệ Chia</Text>
-          <Text style={styles.subtext}>Tổng giá trị tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
-
-          <View style={styles.feeSplitBox}>
-            <View style={styles.feeSplitRow}>
-              <Text style={styles.feeSplitLabel}>Chủ sân ({host.name}):</Text>
-              <Text style={styles.feeSplitValue}>{room.hostSharePercent}%</Text>
-            </View>
-
-            <View style={styles.feeSplitRow}>
-              <Text style={styles.feeSplitLabel}>Đối thủ cần trả trực tiếp:</Text>
-              <Text style={styles.feeSplitValueHighlight}>
-                {room.guestSharePercent}% (~{room.guestShareAmount.toLocaleString('vi-VN')}đ)
-              </Text>
-            </View>
-
-            <View style={styles.paymentNoteBox}>
-              <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.paymentNoteText}>
-                Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> cho Chủ sân khi gặp nhau thi đấu.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Host Note */}
-        {room.note && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Lời Nhắn Từ Chủ Room</Text>
-            <Text style={styles.noteText}>"{room.note}"</Text>
-          </View>
-        )}
-
-        {/* Applicants List */}
-        {room.status === 'OPEN' && room.applicants.length > 0 && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Danh Sách Yêu Cầu Ghép Trận ({room.applicants.length})</Text>
-
-            {room.applicants.map((req) => (
-              <View key={req.id} style={styles.applicantCard}>
-                <View style={styles.applicantHeader}>
-                  <View style={styles.applicantAvatar}>
-                    <Text style={styles.applicantAvatarText}>{req.applicantClub.name.charAt(4)}</Text>
-                  </View>
-
-                  <View style={styles.applicantInfo}>
-                    <Text style={styles.applicantName}>{req.applicantClub.name}</Text>
-                    <Text style={styles.applicantMeta}>
-                      {req.applicantClub.levelLabel} • {req.applicantClub.clubElo} Elo • {req.applicantClub.activeMemberCount} thành viên
-                    </Text>
-                  </View>
-                </View>
-
-                {req.note && <Text style={styles.applicantNote}>"{req.note}"</Text>}
-
-                {req.status === 'PENDING' && (
-                  <View style={styles.applicantActionRow}>
-                    <TouchableOpacity
-                      onPress={() => Alert.alert('Đã từ chối')}
-                      style={styles.rejectBtn}
-                    >
-                      <Text style={styles.rejectBtnText}>Từ chối</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => handleAcceptApplicant(req.id, req.applicantClub.name)}
-                      style={styles.acceptBtn}
-                    >
-                      <Text style={styles.acceptBtnText}>Chấp nhận</Text>
-                    </TouchableOpacity>
-                  </View>
+              <TouchableOpacity
+                disabled={simulating}
+                style={styles.simBtnGold}
+                onPress={handleQuickFinishMatch}
+              >
+                {simulating ? (
+                  <ActivityIndicator color="#78350F" />
+                ) : (
+                  <Text style={styles.simBtnGoldText}>🏁 3. KẾT THÚC TRẬN ĐẤU & XEM ĐIỂM CRP (+/-) NGAY</Text>
                 )}
-              </View>
-            ))}
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+
+          {/* Stadium Hero Banner Card */}
+          <View style={styles.heroCard}>
+            <View style={styles.badgeRow}>
+              <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+                <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
+                  {isRanked ? '🏆 Trận Xếp hạng (Tích CRP)' : '🤝 Trận Giao hữu'}
+                </Text>
+              </View>
+              {room.balanceLabel && (
+                <View style={styles.balanceBadge}>
+                  <Ionicons name="flash" size={12} color={COLORS.white} />
+                  <Text style={styles.balanceText}>{room.balanceLabel}</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.venueTitle} numberOfLines={1}>{booking.facilityName}</Text>
+            <Text style={styles.courtSubtitle}>
+              {booking.courtName} • {booking.sportName} ({booking.format})
+            </Text>
+
+            <View style={styles.timeBox}>
+              <Ionicons name="time-outline" size={16} color={COLORS.white} />
+              <Text style={styles.timeBoxText}>
+                {booking.date} • {booking.startTime} - {booking.endTime}
+              </Text>
+            </View>
+          </View>
+
+          {/* Versus Battle Card */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Đối Đầu & Trình Độ CLB</Text>
+
+            <View style={styles.vsRow}>
+              {/* Host Club */}
+              <View style={styles.vsClubCol}>
+                <View style={styles.clubAvatarHost}>
+                  <Text style={styles.clubAvatarText}>{host.name.charAt(4) || 'A'}</Text>
+                </View>
+                <Text style={styles.vsClubName} numberOfLines={1}>{host.name}</Text>
+                <View style={styles.vsLevelTag}>
+                  <Text style={styles.vsLevelText}>{host.levelLabel}</Text>
+                </View>
+                <Text style={styles.vsEloText}>{host.clubElo} Elo</Text>
+                <Text style={styles.vsCrpText}>• {host.crp} CRP</Text>
+              </View>
+
+              <View style={styles.vsBadgeCircle}>
+                <Text style={styles.vsText}>VS</Text>
+              </View>
+
+              {/* Guest Club */}
+              {guest ? (
+                <View style={styles.vsClubCol}>
+                  <View style={styles.clubAvatarGuest}>
+                    <Text style={styles.clubAvatarText}>{guest.name.charAt(4) || 'B'}</Text>
+                  </View>
+                  <Text style={styles.vsClubName} numberOfLines={1}>{guest.name}</Text>
+                  <View style={styles.vsLevelTag}>
+                    <Text style={styles.vsLevelText}>{guest.levelLabel}</Text>
+                  </View>
+                  <Text style={styles.vsEloText}>{guest.clubElo} Elo</Text>
+                  <Text style={styles.vsCrpText}>• {guest.crp} CRP</Text>
+                </View>
+              ) : (
+                <View style={styles.vsClubCol}>
+                  <View style={styles.emptyGuestAvatar}>
+                    <Ionicons name="person-add-outline" size={22} color={COLORS.outline} />
+                  </View>
+                  <Text style={styles.emptyGuestName}>Đang tìm đối thủ...</Text>
+                  <Text style={styles.emptyGuestSub}>Trình độ: {room.desiredLevels.join(', ')}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Fee Split Card */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Chi Phí Sân & Quy Tắc Thắng Trả Ít Hơn</Text>
+            <Text style={styles.subtext}>Tổng giá trị tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+
+            <View style={styles.feeSplitBox}>
+              <View style={styles.feeSplitRow}>
+                <Text style={styles.feeSplitLabel}>🏆 Đội Thắng chỉ trả ({minSharePercent}%):</Text>
+                <Text style={styles.feeSplitValueHighlight}>~{minAmount.toLocaleString('vi-VN')}đ</Text>
+              </View>
+
+              <View style={styles.feeSplitRow}>
+                <Text style={styles.feeSplitLabel}>❌ Đội Thua trả phần còn lại ({maxSharePercent}%):</Text>
+                <Text style={styles.feeSplitValue}>~{maxAmount.toLocaleString('vi-VN')}đ</Text>
+              </View>
+
+              <View style={styles.paymentNoteBox}>
+                <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.paymentNoteText}>
+                  Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> khoản tiền sân ngoài đời cho Chủ sân theo kết quả trận đấu.
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Host Note */}
+          {room.note && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Lời Nhắn Từ Chủ Room</Text>
+              <Text style={styles.noteText}>"{room.note}"</Text>
+            </View>
+          )}
+
+          {/* Applicants List */}
+          {room.status === 'OPEN' && room.applicants.length > 0 && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Danh Sách Yêu Cầu Ghép Trận ({room.applicants.length})</Text>
+
+              {room.applicants.map((req) => (
+                <View key={req.id} style={styles.applicantCard}>
+                  <View style={styles.applicantHeader}>
+                    <View style={styles.applicantAvatar}>
+                      <Text style={styles.applicantAvatarText}>{req.applicantClub.name.charAt(4)}</Text>
+                    </View>
+
+                    <View style={styles.applicantInfo}>
+                      <Text style={styles.applicantName}>{req.applicantClub.name}</Text>
+                      <Text style={styles.applicantMeta}>
+                        {req.applicantClub.levelLabel} • {req.applicantClub.clubElo} Elo • {req.applicantClub.activeMemberCount} thành viên
+                      </Text>
+                    </View>
+                  </View>
+
+                  {req.note && <Text style={styles.applicantNote}>"{req.note}"</Text>}
+
+                  {req.status === 'PENDING' && (
+                    <View style={styles.applicantActionRow}>
+                      <TouchableOpacity
+                        onPress={() => Alert.alert('Đã từ chối')}
+                        style={styles.rejectBtn}
+                      >
+                        <Text style={styles.rejectBtnText}>Từ chối</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => handleAcceptApplicant(req.id, req.applicantClub.name)}
+                        style={styles.acceptBtn}
+                      >
+                        <Text style={styles.acceptBtnText}>Chấp nhận</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Role-Based Bottom Bar */}
       <View style={styles.bottomBar}>
-        {room.status === 'OPEN' && (
-          <TouchableOpacity
-            disabled={requesting}
-            activeOpacity={0.88}
-            onPress={handleSendRequest}
-            style={styles.actionBtn}
-          >
-            {requesting ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <Text style={styles.actionBtnText}>Gửi yêu cầu ghép trận ngay</Text>
-                <Ionicons name="paper-plane-outline" size={18} color={COLORS.white} />
-              </>
-            )}
-          </TouchableOpacity>
-        )}
+        <View style={styles.bottomBarInner}>
+          {room.status === 'OPEN' && (
+            <TouchableOpacity
+              disabled={requesting}
+              activeOpacity={0.88}
+              onPress={handleSendRequest}
+              style={styles.actionBtn}
+            >
+              {requesting ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <>
+                  <Text style={styles.actionBtnText}>Gửi yêu cầu ghép trận ngay</Text>
+                  <Ionicons name="paper-plane-outline" size={18} color={COLORS.white} />
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
-        {(room.status === 'MATCHED' || room.status === 'SCORE_PENDING' || room.status === 'SCORE_CONFIRMING') && (
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
-            style={styles.scoreBtn}
-          >
-            <Ionicons name="trophy-outline" size={20} color={COLORS.white} />
-            <Text style={styles.actionBtnText}>
-              {room.status === 'MATCHED' ? 'Nhập tỷ số trận đấu' : 'Xem & Xác nhận tỷ số'}
-            </Text>
-          </TouchableOpacity>
-        )}
+          {(room.status === 'MATCHED' || room.status === 'SCORE_PENDING' || room.status === 'SCORE_CONFIRMING') && (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
+              style={styles.scoreBtn}
+            >
+              <Ionicons name="trophy-outline" size={20} color={COLORS.white} />
+              <Text style={styles.actionBtnText}>
+                {room.status === 'MATCHED' ? 'Nhập tỷ số trận đấu' : 'Xem & Xác nhận tỷ số'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
-        {room.status === 'RESULT_FINAL' && (
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() => router.push(`/matchmaking/${room.id}/result` as any)}
-            style={styles.resultBtn}
-          >
-            <Ionicons name="ribbon-outline" size={20} color={COLORS.white} />
-            <Text style={styles.actionBtnText}>Xem Kết Quả & Thưởng CRP</Text>
-          </TouchableOpacity>
-        )}
+          {room.status === 'RESULT_FINAL' && (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => router.push(`/matchmaking/${room.id}/result` as any)}
+              style={styles.resultBtn}
+            >
+              <Ionicons name="ribbon-outline" size={20} color={COLORS.white} />
+              <Text style={styles.actionBtnText}>Xem Kết Quả & Thưởng CRP</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -380,14 +389,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  headerInner: {
+    maxWidth: 760,
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.marginMobile,
     paddingVertical: 10,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
   },
   headerIconBtn: {
     width: 36,
@@ -415,8 +429,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.marginMobile,
-    gap: SPACING.md,
     paddingBottom: 110,
+  },
+  responsiveContainer: {
+    maxWidth: 760,
+    width: '100%',
+    alignSelf: 'center',
+    gap: SPACING.md,
   },
   simCard: {
     backgroundColor: '#FFFBEB',
@@ -700,8 +719,8 @@ const styles = StyleSheet.create({
   },
   feeSplitBox: {
     backgroundColor: COLORS.background,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
     gap: 6,
   },
   feeSplitRow: {
@@ -716,13 +735,13 @@ const styles = StyleSheet.create({
   },
   feeSplitValue: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
-    color: COLORS.onSurface,
+    fontWeight: '800',
+    color: '#B91C1C',
   },
   feeSplitValueHighlight: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '900',
-    color: COLORS.primary,
+    color: '#15803D',
     fontSize: 15,
   },
   paymentNoteBox: {
@@ -827,10 +846,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.outlineVariant,
+  },
+  bottomBarInner: {
+    maxWidth: 760,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: SPACING.marginMobile,
+    paddingVertical: SPACING.md,
   },
   actionBtn: {
     flexDirection: 'row',

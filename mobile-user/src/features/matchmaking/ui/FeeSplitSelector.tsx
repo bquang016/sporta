@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 interface FeeSplitSelectorProps {
   totalPrice: number;
@@ -24,9 +24,9 @@ export function FeeSplitSelector({
   const hostAmount = totalPrice - guestAmount;
 
   const presets = [
-    { label: '50/50', host: 50 },
-    { label: '70/30 (A chịu 70%)', host: 70 },
-    { label: '100/0 (A bao hết)', host: 100 },
+    { label: '50/50 (Chia đôi)', host: 50 },
+    { label: '70/30 (Thắng trả 30%)', host: 70 },
+    { label: '100/0 (Thua bao sân)', host: 100 },
   ];
 
   const handleSelectPreset = (pHost: number) => {
@@ -46,17 +46,17 @@ export function FeeSplitSelector({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Chia chi phí sân</Text>
+        <Text style={styles.sectionTitle}>Tỉ lệ chia tiền sân (Cơ chế Đội Thắng trả ít hơn)</Text>
         {isLocked && (
           <View style={styles.lockedBadge}>
-            <MaterialIcons name="lock" size={14} color={COLORS.error} />
+            <Ionicons name="lock-closed" size={12} color={COLORS.error} />
             <Text style={styles.lockedText}>Đã khóa</Text>
           </View>
         )}
       </View>
 
       <Text style={styles.subtext}>
-        Tổng tiền sân: <Text style={styles.totalHighlight}>{totalPrice.toLocaleString('vi-VN')}đ</Text>
+        Tổng giá trị tiền sân: <Text style={styles.totalHighlight}>{totalPrice.toLocaleString('vi-VN')}đ</Text>
       </Text>
 
       {/* Presets */}
@@ -67,7 +67,7 @@ export function FeeSplitSelector({
             <TouchableOpacity
               key={p.host}
               disabled={isLocked}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={() => handleSelectPreset(p.host)}
               style={[
                 styles.presetBtn,
@@ -84,7 +84,7 @@ export function FeeSplitSelector({
 
         <TouchableOpacity
           disabled={isLocked}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => {
             if (isLocked) return;
             setIsCustom(true);
@@ -110,26 +110,32 @@ export function FeeSplitSelector({
             value={customInput}
             onChangeText={handleCustomChange}
           />
-          <Text style={styles.customCalc}>
+          <Text style={styles.customCalc} numberOfLines={1}>
             → Đối thủ chịu {guestPercent}% (~{guestAmount.toLocaleString('vi-VN')}đ)
           </Text>
         </View>
       )}
 
-      {/* Summary Box */}
+      {/* Incentive Explanation Summary Box */}
       <View style={styles.summaryBox}>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Chủ sân (Bạn) chịu {hostPercent}%:</Text>
-          <Text style={styles.summaryHostValue}>{hostAmount.toLocaleString('vi-VN')}đ</Text>
+        <View style={styles.summaryHeader}>
+          <Ionicons name="trophy-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.summaryHeaderTitle}>Quy tắc thanh toán theo kết quả:</Text>
         </View>
+
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Đối thủ cần trả {guestPercent}%:</Text>
-          <Text style={styles.summaryGuestValue}>{guestAmount.toLocaleString('vi-VN')}đ</Text>
+          <Text style={styles.summaryLabel}>🏆 Nếu Đội Thắng:</Text>
+          <Text style={styles.summaryHostValue}>Được giảm/miễn trả chỉ còn {Math.min(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.min(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)</Text>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>❌ Nếu Đội Thua:</Text>
+          <Text style={styles.summaryGuestValue}>Thanh toán phần còn lại {Math.max(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.max(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)</Text>
         </View>
       </View>
 
       <Text style={styles.noteCopy}>
-        💡 Đối thủ sẽ <Text style={{ fontWeight: '700' }}>thanh toán trực tiếp</Text> cho bạn khi gặp nhau thi đấu tại sân.
+        💡 Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> khoản tiền sân ngoài đời cho Chủ sân theo kết quả trận đấu.
       </Text>
     </View>
   );
@@ -139,10 +145,15 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: 'rgba(6, 78, 59, 0.08)',
     gap: SPACING.sm,
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -151,8 +162,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
+    fontSize: 15.5,
+    flex: 1,
   },
   lockedBadge: {
     flexDirection: 'row',
@@ -161,17 +174,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.full,
   },
   lockedText: {
     ...TYPOGRAPHY.labelSm,
     color: COLORS.error,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 10,
   },
   subtext: {
     ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
-    fontSize: 13,
+    fontSize: 12.5,
   },
   totalHighlight: {
     fontWeight: '800',
@@ -181,11 +195,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 4,
   },
   presetBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.default,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
@@ -204,7 +219,7 @@ const styles = StyleSheet.create({
   },
   presetTextActive: {
     color: COLORS.white,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   customRow: {
     flexDirection: 'row',
@@ -212,7 +227,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: COLORS.background,
     padding: 10,
-    borderRadius: BORDER_RADIUS.default,
+    borderRadius: BORDER_RADIUS.lg,
   },
   customLabel: {
     ...TYPOGRAPHY.labelMd,
@@ -222,50 +237,68 @@ const styles = StyleSheet.create({
   customInput: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.outline,
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: 10,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     width: 60,
     textAlign: 'center',
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
   },
   customCalc: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 11,
+    fontSize: 11.5,
     color: COLORS.primary,
+    fontWeight: '700',
     flex: 1,
   },
   summaryBox: {
     backgroundColor: COLORS.background,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
-    gap: 4,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    gap: 6,
+    marginTop: 4,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  summaryHeaderTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '800',
+    color: COLORS.primary,
+    fontSize: 12.5,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
   summaryLabel: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
+    fontSize: 12.5,
+    color: COLORS.onSurface,
+    fontWeight: '700',
   },
   summaryHostValue: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
-    color: COLORS.onSurface,
+    fontWeight: '800',
+    color: '#15803D',
+    fontSize: 12,
   },
   summaryGuestValue: {
-    ...TYPOGRAPHY.titleMd,
+    ...TYPOGRAPHY.labelMd,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: '#B91C1C',
+    fontSize: 12,
   },
   noteCopy: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 11,
+    fontSize: 11.5,
     color: COLORS.onSurfaceVariant,
     lineHeight: 16,
   },

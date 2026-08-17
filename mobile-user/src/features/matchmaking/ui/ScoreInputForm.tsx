@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { MatchRoomVM, NormalizedOutcome } from '../../../entities/match/model/match.types';
 
@@ -43,7 +43,7 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
       return { text: 'Kết quả Hòa', outcome: 'DRAW' };
     } else {
       if (hostScoreNum > guestScoreNum) return { text: `Thắng: ${room.hostClub.name}`, outcome: 'WIN_A' };
-      if (guestScoreNum > hostScoreNum) return { text: `Thắng: ${room.guestClub?.name || 'Đội bạn'}`, outcome: 'WIN_B' };
+      if (guestScoreNum > guestScoreNum) return { text: `Thắng: ${room.guestClub?.name || 'Đội bạn'}`, outcome: 'WIN_B' };
       return { text: 'Kết quả Hòa', outcome: 'DRAW' };
     }
   };
@@ -62,23 +62,31 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Nhập tỷ số trận đấu</Text>
-      <Text style={styles.subtitle}>
-        Môn thi đấu: <Text style={{ fontWeight: '700' }}>{room.booking.sportName}</Text> ({room.booking.format})
-      </Text>
+      {/* Header Bar */}
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Cập Nhật Tỷ Số Trận Đấu</Text>
+        <Text style={styles.sportBadgeText}>{room.booking.sportName} • {room.booking.format}</Text>
+      </View>
 
       {!isSetSport ? (
-        /* Football / Basketball numeric input with quick +/- buttons */
-        <View style={styles.scoreRow}>
+        /* Consolidated Scoreboard Card (Horizontal Host vs Guest Layout) */
+        <View style={styles.scoreboardCard}>
           {/* Host Club Counter */}
           <View style={styles.teamCol}>
-            <Text style={styles.teamName} numberOfLines={1}>{room.hostClub.name}</Text>
+            <View style={styles.avatarHost}>
+              <Text style={styles.avatarText}>{room.hostClub.name.charAt(4) || 'A'}</Text>
+            </View>
+            <Text style={styles.teamName} numberOfLines={1}>
+              {room.hostClub.name}
+            </Text>
+
             <View style={styles.counterRow}>
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => setHostScoreNum(Math.max(0, hostScoreNum - 1))}
                 style={styles.stepBtn}
               >
-                <MaterialIcons name="remove" size={20} color={COLORS.onSurface} />
+                <Ionicons name="remove" size={18} color={COLORS.primary} />
               </TouchableOpacity>
 
               <View style={styles.scoreNumBox}>
@@ -86,25 +94,36 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
               </View>
 
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => setHostScoreNum(hostScoreNum + 1)}
                 style={styles.stepBtn}
               >
-                <MaterialIcons name="add" size={20} color={COLORS.onSurface} />
+                <Ionicons name="add" size={18} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
           </View>
 
-          <Text style={styles.versusText}>VS</Text>
+          {/* Versus Center Badge */}
+          <View style={styles.vsBadge}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
 
           {/* Guest Club Counter */}
           <View style={styles.teamCol}>
-            <Text style={styles.teamName} numberOfLines={1}>{room.guestClub?.name || 'Đội bạn'}</Text>
+            <View style={styles.avatarGuest}>
+              <Text style={styles.avatarText}>{room.guestClub?.name?.charAt(4) || 'B'}</Text>
+            </View>
+            <Text style={styles.teamName} numberOfLines={1}>
+              {room.guestClub?.name || 'Đội bạn'}
+            </Text>
+
             <View style={styles.counterRow}>
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => setGuestScoreNum(Math.max(0, guestScoreNum - 1))}
                 style={styles.stepBtn}
               >
-                <MaterialIcons name="remove" size={20} color={COLORS.onSurface} />
+                <Ionicons name="remove" size={18} color={COLORS.primary} />
               </TouchableOpacity>
 
               <View style={styles.scoreNumBox}>
@@ -112,10 +131,11 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
               </View>
 
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => setGuestScoreNum(guestScoreNum + 1)}
                 style={styles.stepBtn}
               >
-                <MaterialIcons name="add" size={20} color={COLORS.onSurface} />
+                <Ionicons name="add" size={18} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -123,46 +143,56 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
       ) : (
         /* Badminton / Tennis set inputs */
         <View style={styles.setContainer}>
+          <Text style={styles.setTitle}>Tỷ số từng Set (Cầu lông/Pickleball):</Text>
           {sets.map((set, idx) => (
             <View key={idx} style={styles.setRow}>
-              <Text style={styles.setLabel}>Set {idx + 1}:</Text>
-              <TextInput
-                style={styles.setInput}
-                keyboardType="number-pad"
-                maxLength={2}
-                value={set.host}
-                onChangeText={(val) => {
-                  const newSets = [...sets];
-                  newSets[idx].host = val;
-                  setSets(newSets);
-                }}
-              />
-              <Text style={styles.setDash}>-</Text>
-              <TextInput
-                style={styles.setInput}
-                keyboardType="number-pad"
-                maxLength={2}
-                value={set.guest}
-                onChangeText={(val) => {
-                  const newSets = [...sets];
-                  newSets[idx].guest = val;
-                  setSets(newSets);
-                }}
-              />
+              <View style={styles.setTag}>
+                <Text style={styles.setTagText}>SET {idx + 1}</Text>
+              </View>
+
+              <View style={styles.setInputGroup}>
+                <TextInput
+                  style={styles.setInput}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  value={set.host}
+                  onChangeText={(val) => {
+                    const newSets = [...sets];
+                    newSets[idx].host = val;
+                    setSets(newSets);
+                  }}
+                />
+                <Text style={styles.setDash}>-</Text>
+                <TextInput
+                  style={styles.setInput}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  value={set.guest}
+                  onChangeText={(val) => {
+                    const newSets = [...sets];
+                    newSets[idx].guest = val;
+                    setSets(newSets);
+                  }}
+                />
+              </View>
             </View>
           ))}
         </View>
       )}
 
-      {/* Live Preview Result Badge */}
-      <View style={styles.previewBox}>
+      {/* Outcome Preview Card */}
+      <View style={styles.previewCard}>
+        <Ionicons name="trophy-outline" size={18} color={COLORS.primary} />
         <Text style={styles.previewLabel}>Dự kiến kết quả:</Text>
-        <Text style={styles.previewText}>{winnerPreview.text}</Text>
+        <Text style={styles.previewValue} numberOfLines={1}>{winnerPreview.text}</Text>
       </View>
 
-      <TouchableOpacity activeOpacity={0.85} onPress={handleSubmit} style={styles.submitBtn}>
-        <MaterialIcons name="emoji-events" size={22} color={COLORS.white} />
-        <Text style={styles.submitBtnText}>🏆 CHỐT KẾT QUẢ & XEM ĐIỂM CRP (+/-) NGAY</Text>
+      {/* Super Handsome Action Submit Button */}
+      <TouchableOpacity activeOpacity={0.88} onPress={handleSubmit} style={styles.submitBtn}>
+        <View style={styles.trophyIconBg}>
+          <Ionicons name="trophy" size={18} color={COLORS.secondary} />
+        </View>
+        <Text style={styles.submitBtnText}>XÁC NHẬN KẾT QUẢ & XEM ĐIỂM CRP (+/-)</Text>
       </TouchableOpacity>
     </View>
   );
@@ -172,58 +202,89 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: COLORS.primaryOpacity08,
     gap: SPACING.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 18,
+    fontSize: 16,
   },
-  subtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
+  sportBadgeText: {
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    fontWeight: '600',
   },
-  scoreRow: {
+  scoreboardCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.default,
+    justifyContent: 'space-between',
   },
   teamCol: {
-    alignItems: 'center',
-    gap: 8,
     flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  avatarHost: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarGuest: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surfaceTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    ...TYPOGRAPHY.titleMd,
+    color: COLORS.white,
+    fontWeight: '800',
   },
   teamName: {
     ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
+    fontSize: 13,
     textAlign: 'center',
   },
   counterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: 4,
   },
   stepBtn: {
     width: 32,
     height: 32,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: 16,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.outline,
+    borderColor: COLORS.outlineVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -232,89 +293,143 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.default,
-    width: 52,
-    height: 48,
+    width: 50,
+    height: 46,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   scoreNumText: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '900',
     color: COLORS.primary,
   },
-  versusText: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.outline,
-    fontWeight: '800',
+  vsBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.outlineVariant,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: 4,
+  },
+  vsText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '900',
+    fontSize: 10,
   },
   setContainer: {
     gap: 8,
     backgroundColor: COLORS.background,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  setTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '800',
+    color: COLORS.onSurface,
   },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  setLabel: {
-    ...TYPOGRAPHY.labelMd,
-    width: 50,
-    color: COLORS.onSurfaceVariant,
-  },
-  setInput: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.outline,
-    borderRadius: BORDER_RADIUS.sm,
-    width: 44,
-    height: 40,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-  setDash: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  previewBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(6, 78, 59, 0.06)',
+    backgroundColor: COLORS.surface,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.default,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  setTag: {
+    backgroundColor: COLORS.primaryOpacity08,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  setTagText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontWeight: '800',
+    fontSize: 10,
+  },
+  setInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  setInput: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.default,
+    width: 44,
+    height: 38,
+    textAlign: 'center',
+    fontWeight: '800',
+    color: COLORS.primary,
+    fontSize: 16,
+  },
+  setDash: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.onSurfaceVariant,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.primaryOpacity08,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.full,
   },
   previewLabel: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
+    fontSize: 12.5,
     color: COLORS.onSurfaceVariant,
   },
-  previewText: {
-    ...TYPOGRAPHY.titleMd,
+  previewValue: {
+    ...TYPOGRAPHY.labelMd,
     fontWeight: '800',
     color: COLORS.primary,
+    flex: 1,
   },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
     paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.default,
+    paddingHorizontal: 16,
+    borderRadius: BORDER_RADIUS.full,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
+  },
+  trophyIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(254, 208, 27, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   submitBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
-    fontWeight: '800',
-    fontSize: 13,
+    fontWeight: '900',
+    fontSize: 13.5,
+    letterSpacing: 0.4,
   },
 });
