@@ -14,6 +14,7 @@ import { SetupPage } from './features/registration/pages/SetupPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { useIsMobile } from './hooks/useIsMobile'
+import { WalletPage } from './features/wallet'
 
 function App() {
   const isMobile = useIsMobile();
@@ -37,6 +38,7 @@ function App() {
             <OperationsPage />
           </OperationsProvider>
         } />
+        <Route path="/wallet" element={<WalletPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

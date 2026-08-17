@@ -59,9 +59,14 @@ public class Booking {
     @Column(name = "booking_code", nullable = false, unique = true, length = 20)
     private String bookingCode;
 
-    /** Phương thức thanh toán: momo | vnpay | card | bank */
+    /** Phương thức thanh toán: WALLET | PAYOS | CASH */
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
+
+    /** Số tiền được giảm khi thanh toán bằng ví (VNĐ) */
+    @Column(name = "wallet_discount_amount")
+    @Builder.Default
+    private Long walletDiscountAmount = 0L;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

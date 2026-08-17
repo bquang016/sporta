@@ -38,6 +38,10 @@ export interface BookingResponse {
 
   playerName: string;
   playerEmail: string;
+  
+  checkoutUrl?: string;
+  orderCode?: number;
+  
   createdAt: string;
 }
 
