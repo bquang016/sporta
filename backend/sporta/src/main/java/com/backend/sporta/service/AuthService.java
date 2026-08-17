@@ -69,6 +69,9 @@ public class AuthService {
     private CourtPricingRepository courtPricingRepository;
 
     @Autowired
+    private com.backend.sporta.repository.CourtPriceRuleRepository courtPriceRuleRepository;
+
+    @Autowired
     private RolePermissionRepository rolePermissionRepository;
 
     @Autowired
@@ -249,7 +252,14 @@ public class AuthService {
             String province,
             String district,
             String ward,
-            String sportTypes,
+            String addressDetail,
+            Long sportId,
+            java.time.LocalTime openingTime,
+            java.time.LocalTime closingTime,
+            Integer shiftDurationMinutes,
+            Boolean hasSurcharge,
+            Double surchargeAmount,
+            String surchargeDescription,
             Double latitude,
             Double longitude,
             int subCourtCount,
@@ -257,7 +267,8 @@ public class AuthService {
             String courtsJson,
             org.springframework.web.multipart.MultipartFile idFrontImage,
             org.springframework.web.multipart.MultipartFile idBackImage,
-            org.springframework.web.multipart.MultipartFile[] images) {
+            String coverImage,
+            String registrationImages) {
 
         // 1. Validate registration token
         if (!jwtTokenProvider.validateToken(registrationToken)) {
@@ -286,26 +297,6 @@ public class AuthService {
             idBackUrl = fileStorageService.uploadFile(idBackImage, "cccd");
         }
 
-        // 5. Upload venue images
-        java.util.List<String> imageUrls = new java.util.ArrayList<>();
-        if (images != null && images.length > 0) {
-            for (org.springframework.web.multipart.MultipartFile file : images) {
-                if (!file.isEmpty()) {
-                    String url = fileStorageService.uploadFile(file, "owner_registration");
-                    imageUrls.add(url);
-                }
-            }
-        }
-
-        // Convert URLs list to JSON string
-        String imagesJson = "[]";
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            imagesJson = mapper.writeValueAsString(imageUrls);
-        } catch (Exception e) {
-            throw new CustomException("Lỗi khi xử lý hình ảnh đăng ký.", 500);
-        }
-
         // 6. Save to staging table (owner_registrations) — NOT creating User/Owner/Venue
         OwnerRegistration registration = OwnerRegistration.builder()
                 .email(email)
@@ -317,12 +308,20 @@ public class AuthService {
                 .province(province)
                 .district(district)
                 .ward(ward)
-                .sportTypes(sportTypes)
+                .addressDetail(addressDetail)
+                .sportId(sportId)
+                .openingTime(openingTime)
+                .closingTime(closingTime)
+                .shiftDurationMinutes(shiftDurationMinutes)
+                .hasSurcharge(hasSurcharge)
+                .surchargeAmount(surchargeAmount)
+                .surchargeDescription(surchargeDescription)
                 .latitude(latitude)
                 .longitude(longitude)
                 .subCourtCount(subCourtCount)
                 .description(description)
-                .registrationImages(imagesJson)
+                .coverImage(coverImage)
+                .registrationImages(registrationImages)
                 .courtsJson(courtsJson)
                 .status(RegistrationStatus.PENDING)
                 .build();
@@ -377,8 +376,8 @@ public class AuthService {
                 .build();
         owner = ownerRepository.save(owner);
 
-        // Parse registrationImages to set coverImage and VenueImage list
-        String coverImage = null;
+        // Parse registrationImages to set VenueImage list
+        String coverImage = reg.getCoverImage();
         java.util.List<VenueImage> venueImagesList = new java.util.ArrayList<>();
         if (reg.getRegistrationImages() != null && !reg.getRegistrationImages().trim().isEmpty()) {
             try {
@@ -386,7 +385,6 @@ public class AuthService {
                 java.util.List<String> imageUrls = mapper.readValue(reg.getRegistrationImages(),
                         mapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class));
                 if (!imageUrls.isEmpty()) {
-                    coverImage = imageUrls.get(0);
                     // Add all to VenueImage
                     for (String url : imageUrls) {
                         venueImagesList.add(VenueImage.builder().imageUrl(url).build());
@@ -397,15 +395,21 @@ public class AuthService {
             }
         }
 
+        Sport sport = null;
+        if (reg.getSportId() != null) {
+            sport = sportRepository.findById(reg.getSportId()).orElse(null);
+        }
+
         // 4. Create Venue
         Venue venue = Venue.builder()
                 .owner(owner)
                 .name(reg.getVenueName())
-                .location(reg.getWard() + ", " + reg.getDistrict() + ", " + reg.getProvince())
+                .location((reg.getAddressDetail() != null && !reg.getAddressDetail().isEmpty() ? reg.getAddressDetail() + ", " : "") + reg.getWard() + ", " + reg.getDistrict() + ", " + reg.getProvince())
                 .province(reg.getProvince())
                 .district(reg.getDistrict())
                 .ward(reg.getWard())
-                .sportTypes(reg.getSportTypes())
+                .addressDetail(reg.getAddressDetail())
+                .sport(sport)
                 .subCourtCount(reg.getSubCourtCount())
                 .registrationImages(reg.getRegistrationImages())
                 .coverImage(coverImage)
@@ -414,8 +418,12 @@ public class AuthService {
                 .approvalStatus(com.backend.sporta.enums.ApprovalStatus.APPROVED)
                 .latitude(reg.getLatitude() != null ? reg.getLatitude() : 10.762622)
                 .longitude(reg.getLongitude() != null ? reg.getLongitude() : 106.660172)
-                .openingTime(java.time.LocalTime.of(5, 0))
-                .closingTime(java.time.LocalTime.of(22, 0))
+                .openingTime(reg.getOpeningTime() != null ? reg.getOpeningTime() : java.time.LocalTime.of(5, 0))
+                .closingTime(reg.getClosingTime() != null ? reg.getClosingTime() : java.time.LocalTime.of(22, 0))
+                .shiftDurationMinutes(reg.getShiftDurationMinutes() != null ? reg.getShiftDurationMinutes() : 60)
+                .hasSurcharge(reg.getHasSurcharge() != null ? reg.getHasSurcharge() : false)
+                .surchargeAmount(reg.getSurchargeAmount())
+                .surchargeDescription(reg.getSurchargeDescription())
                 .build();
         
         // Associate venue images with venue
@@ -427,7 +435,7 @@ public class AuthService {
         venue = venueRepository.save(venue);
 
 
-        // 6. Create Courts and CourtPricing
+        // 6. Create Courts and CourtPriceRules
         if (reg.getCourtsJson() != null && !reg.getCourtsJson().trim().isEmpty()) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
@@ -436,49 +444,68 @@ public class AuthService {
                 
                 for (java.util.Map<String, Object> courtData : courtsList) {
                     String courtName = (String) courtData.getOrDefault("name", "Sân " + (courtsList.indexOf(courtData) + 1));
-                    String courtSportType = (String) courtData.getOrDefault("sportType", "");
-
-                    // Find Sport entity
-                    Sport sport = sportRepository.findAll().stream()
-                            .filter(s -> s.getName().equalsIgnoreCase(courtSportType))
-                            .findFirst()
-                            .orElse(sportRepository.findAll().isEmpty() ? null : sportRepository.findAll().get(0));
-
-                    if (sport == null) {
-                        continue; // Skip if no sport found
-                    }
+                    Double courtPrice = courtData.get("price") != null ? ((Number) courtData.get("price")).doubleValue() : 0.0;
 
                     Court court = Court.builder()
                             .venue(venue)
                             .name(courtName)
-                            .price(0.0)
+                            .price(courtPrice)
                             .status(com.backend.sporta.enums.CourtStatus.ACTIVE)
                             .build();
                     court = courtRepository.save(court);
 
-                    // Create pricing slots
+                    // Create CourtPriceRule entries from priceRules array
                     @SuppressWarnings("unchecked")
-                    java.util.List<java.util.Map<String, Object>> pricingSlots = 
-                            (java.util.List<java.util.Map<String, Object>>) courtData.getOrDefault("pricingSlots", java.util.Collections.emptyList());
+                    java.util.List<java.util.Map<String, Object>> priceRules = 
+                            (java.util.List<java.util.Map<String, Object>>) courtData.getOrDefault("priceRules", java.util.Collections.emptyList());
                     
-                    if (pricingSlots != null) {
-                        for (java.util.Map<String, Object> slot : pricingSlots) {
-                            CourtPricing pricing = CourtPricing.builder()
+                    if (priceRules != null && !priceRules.isEmpty()) {
+                        for (java.util.Map<String, Object> ruleData : priceRules) {
+                            String ruleTypeStr = (String) ruleData.getOrDefault("ruleType", "SHIFT");
+                            com.backend.sporta.enums.PriceRuleType ruleType = com.backend.sporta.enums.PriceRuleType.valueOf(ruleTypeStr);
+
+                            java.time.LocalTime startTime = null;
+                            java.time.LocalTime endTime = null;
+                            if (ruleData.get("startTime") != null) {
+                                startTime = java.time.LocalTime.parse((String) ruleData.get("startTime"));
+                            }
+                            if (ruleData.get("endTime") != null) {
+                                endTime = java.time.LocalTime.parse((String) ruleData.get("endTime"));
+                            }
+
+                            Double customPrice = ruleData.get("customPrice") != null ? ((Number) ruleData.get("customPrice")).doubleValue() : null;
+                            Integer dayOfWeek = ruleData.get("dayOfWeek") != null ? ((Number) ruleData.get("dayOfWeek")).intValue() : null;
+                            Double percentageModifier = ruleData.get("percentageModifier") != null ? ((Number) ruleData.get("percentageModifier")).doubleValue() : null;
+                            Double fixedModifier = ruleData.get("fixedModifier") != null ? ((Number) ruleData.get("fixedModifier")).doubleValue() : null;
+
+                            com.backend.sporta.entity.CourtPriceRule priceRule = com.backend.sporta.entity.CourtPriceRule.builder()
                                     .court(court)
-                                    .slotLabel((String) slot.getOrDefault("label", ""))
-                                    .startTime((String) slot.getOrDefault("startTime", ""))
-                                    .endTime((String) slot.getOrDefault("endTime", ""))
-                                    .price(((Number) slot.getOrDefault("price", 0)).doubleValue())
+                                    .ruleType(ruleType)
+                                    .startTime(startTime)
+                                    .endTime(endTime)
+                                    .customPrice(customPrice)
+                                    .dayOfWeek(dayOfWeek)
+                                    .percentageModifier(percentageModifier)
+                                    .fixedModifier(fixedModifier)
                                     .build();
-                            courtPricingRepository.save(pricing);
+                            courtPriceRuleRepository.save(priceRule);
                         }
                     }
                 }
             } catch (Exception e) {
-                // Ignore if courts JSON is invalid or null
                 System.err.println("Failed to parse courtsJson: " + e.getMessage());
+                e.printStackTrace();
             }
         }
+
+        // Update price range and sub_court_count
+        Double minPrice = courtRepository.findMinPriceByVenueIdAndStatusActive(venue.getId());
+        Double maxPrice = courtRepository.findMaxPriceByVenueIdAndStatusActive(venue.getId());
+        int courtCount = courtRepository.findByVenueId(venue.getId()).size();
+        venue.setMinPrice(minPrice != null ? minPrice : 0.0);
+        venue.setMaxPrice(maxPrice != null ? maxPrice : 0.0);
+        venue.setSubCourtCount(courtCount);
+        venueRepository.save(venue);
 
         // 7. Update registration status
         reg.setStatus(RegistrationStatus.APPROVED);

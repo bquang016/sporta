@@ -27,8 +27,8 @@ export interface VenueInfo {
   closingTime: string;
   shiftDurationMinutes: number;
   sportId: string;
-  coverImage: File | null;
-  detailImages: File[];
+  coverImage: string | null;
+  detailImages: string[];
   hasSurcharge: boolean;
   surchargeAmount?: number;
   surchargeDescription: string;
