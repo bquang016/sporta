@@ -24,4 +24,5 @@ public class WithdrawalResponse {
     private String adminNote;
     private LocalDateTime processedAt;
     private LocalDateTime createdAt;
+    private String transferProofUrl;
 }

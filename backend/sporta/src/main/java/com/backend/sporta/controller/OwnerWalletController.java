@@ -93,4 +93,11 @@ public class OwnerWalletController {
         ownerWalletService.deleteBankAccount(email, id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/bank-accounts/{id}/default")
+    public ResponseEntity<Void> setDefaultBankAccount(@PathVariable java.util.UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        ownerWalletService.setDefaultBankAccount(email, id);
+        return ResponseEntity.noContent().build();
+    }
 }

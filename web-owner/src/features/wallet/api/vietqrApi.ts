@@ -1,4 +1,4 @@
-import { VietQRBank } from '../model/wallet.types';
+import type { VietQRBank } from '../model/wallet.types';
 
 export const fetchVietQRBanks = async (): Promise<VietQRBank[]> => {
   try {

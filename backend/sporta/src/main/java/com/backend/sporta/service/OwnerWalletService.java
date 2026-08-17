@@ -42,7 +42,7 @@ public interface OwnerWalletService {
     /**
      * Admin duyệt yêu cầu rút tiền → status = COMPLETED.
      */
-    WithdrawalResponse approveWithdrawal(UUID withdrawalId, String adminEmail, String note);
+    WithdrawalResponse approveWithdrawal(UUID withdrawalId, String adminEmail, String note, String transferProofUrl);
 
     /**
      * Admin từ chối yêu cầu rút tiền → hoàn lại balance cho Owner.
@@ -61,4 +61,5 @@ public interface OwnerWalletService {
     List<BankAccountResponse> getBankAccounts(String ownerEmail);
     BankAccountResponse addBankAccount(String ownerEmail, CreateBankAccountRequest request);
     void deleteBankAccount(String ownerEmail, UUID bankAccountId);
+    void setDefaultBankAccount(String ownerEmail, UUID bankAccountId);
 }

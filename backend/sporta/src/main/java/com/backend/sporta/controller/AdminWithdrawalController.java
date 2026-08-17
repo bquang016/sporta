@@ -51,7 +51,8 @@ public class AdminWithdrawalController {
             @RequestBody(required = false) AdminWithdrawalActionRequest request) {
         String adminEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         String note = request != null ? request.getNote() : null;
-        WithdrawalResponse response = ownerWalletService.approveWithdrawal(id, adminEmail, note);
+        String proofUrl = request != null ? request.getTransferProofUrl() : null;
+        WithdrawalResponse response = ownerWalletService.approveWithdrawal(id, adminEmail, note, proofUrl);
         return ResponseEntity.ok(response);
     }
 

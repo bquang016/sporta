@@ -1,26 +1,33 @@
 import React from 'react';
-import { BankAccountResponse } from '../model/wallet.types';
+import type { BankAccountResponse } from '../model/wallet.types';
 import { Button } from '../../../common/ui/buttons/Button';
-import { Plus, Trash2, CheckCircle, CreditCard } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, CreditCard, Landmark } from 'lucide-react';
 
 interface Props {
   bankAccounts: BankAccountResponse[];
   loading: boolean;
   onAddAccount: () => void;
   onDeleteAccount: (id: string) => void;
+  onSetDefaultAccount: (id: string) => void;
 }
 
-export const BankAccountsTab: React.FC<Props> = ({ bankAccounts, loading, onAddAccount, onDeleteAccount }) => {
+export const BankAccountsTab: React.FC<Props> = ({ bankAccounts, loading, onAddAccount, onDeleteAccount, onSetDefaultAccount }) => {
   if (loading) {
-    return <div className="animate-pulse h-64 bg-surface-container rounded-xl"></div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2].map(i => (
+          <div key={i} className="h-32 bg-slate-200/50 animate-pulse rounded-2xl border border-slate-200/50" />
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-on-surface">Tài khoản nhận tiền</h2>
-          <p className="text-sm text-on-surface-variant">Quản lý các tài khoản ngân hàng để rút tiền doanh thu.</p>
+          <h2 className="text-lg font-black tracking-tight text-slate-800">Tài khoản ngân hàng</h2>
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">Quản lý các tài khoản để nhận tiền rút từ ví</p>
         </div>
         <Button onClick={onAddAccount} prefixIcon={<Plus size={18} />}>
           Thêm tài khoản
@@ -28,70 +35,70 @@ export const BankAccountsTab: React.FC<Props> = ({ bankAccounts, loading, onAddA
       </div>
 
       {bankAccounts.length === 0 ? (
-        <div className="text-center py-16 bg-surface-container-low rounded-2xl border border-outline-variant/30 flex flex-col items-center justify-center">
-          <div className="bg-surface-container p-4 rounded-full mb-4 text-on-surface-variant">
-            <CreditCard size={48} />
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
+          <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+            <Landmark size={32} />
           </div>
-          <h3 className="text-lg font-bold text-on-surface mb-2">Chưa có tài khoản nào</h3>
-          <p className="text-on-surface-variant mb-6 max-w-md">
-            Thêm tài khoản ngân hàng của bạn để có thể thực hiện rút tiền từ ví doanh thu một cách nhanh chóng.
-          </p>
-          <Button onClick={onAddAccount} variant="outline">
-            Thêm tài khoản ngay
-          </Button>
+          <p className="text-sm font-black text-slate-700">Chưa có tài khoản nào</p>
+          <p className="text-xs font-semibold text-slate-500 mt-2 max-w-sm mx-auto mb-6">Bạn cần thêm ít nhất một tài khoản ngân hàng để có thể rút tiền doanh thu.</p>
+          <Button onClick={onAddAccount} prefixIcon={<Plus size={18} />}>Thêm ngay</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {bankAccounts.map((account) => (
-            <div 
-              key={account.id} 
-              className={`relative p-5 rounded-xl border transition-all ${
-                account.isDefault 
-                  ? 'border-brand-emerald bg-brand-emerald/5 shadow-sm' 
-                  : 'border-outline-variant/30 bg-surface hover:border-outline-variant/60'
-              }`}
-            >
+          {bankAccounts.map(account => (
+            <div key={account.id} className={`bg-white p-6 rounded-2xl border transition-all relative group shadow-sm flex flex-col h-full ${
+              account.isDefault ? 'border-brand-emerald bg-brand-emerald/5' : 'border-slate-200 hover:border-slate-300'
+            }`}>
               {account.isDefault && (
-                <div className="absolute top-4 right-4 text-brand-emerald flex items-center gap-1 text-xs font-bold">
-                  <CheckCircle size={14} />
+                <div className="absolute top-0 right-0 bg-brand-emerald text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-bl-xl rounded-tr-2xl">
                   MẶC ĐỊNH
                 </div>
               )}
               
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-white rounded-lg border border-outline-variant/30 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
+              <div className="flex items-start gap-4 mb-4 mt-2 flex-1">
+                <div className="w-16 h-16 bg-white rounded-xl border border-slate-200/50 flex items-center justify-center overflow-hidden flex-shrink-0 p-2 shadow-xxs">
                   {account.bankLogo ? (
                     <img src={account.bankLogo} alt={account.bankCode} className="w-full h-full object-contain" />
                   ) : (
-                    <span className="font-bold text-on-surface-variant">{account.bankCode}</span>
+                    <span className="font-black text-lg text-slate-400">{account.bankCode}</span>
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-on-surface line-clamp-1" title={account.bankName}>{account.bankName}</h3>
-                  <p className="text-sm font-medium text-on-surface-variant">{account.bankCode}</p>
+                  <h3 className="text-sm font-black text-slate-800">{account.bankName}</h3>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">{account.bankCode}</p>
                 </div>
               </div>
               
-              <div className="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/20 mb-4">
-                <p className="text-xs text-on-surface-variant mb-1">Số tài khoản</p>
-                <p className="font-mono font-bold text-lg text-on-surface tracking-wider">{account.accountNumber}</p>
-                <p className="text-sm font-medium text-on-surface mt-1 uppercase">{account.accountName}</p>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  prefixIcon={<Trash2 size={16} />}
-                  onClick={() => {
-                    if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản này không?')) {
-                      onDeleteAccount(account.id);
-                    }
-                  }}
-                >
-                  Xóa tài khoản
-                </Button>
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/50 flex flex-col gap-3">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">SỐ TÀI KHOẢN</p>
+                  <p className="text-base font-mono text-slate-800 font-bold tracking-wider">{account.accountNumber}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 mt-1 uppercase">{account.accountName}</p>
+                </div>
+                
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                  {!account.isDefault ? (
+                    <button
+                      onClick={() => onSetDefaultAccount(account.id)}
+                      className="text-[11px] font-bold text-brand-emerald hover:text-emerald-700 uppercase tracking-wider transition-colors flex items-center gap-1"
+                    >
+                      <CheckCircle size={14} /> Đặt làm mặc định
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Bạn có chắc chắn muốn xóa tài khoản này không?')) {
+                        onDeleteAccount(account.id);
+                      }
+                    }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    title="Xóa tài khoản"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

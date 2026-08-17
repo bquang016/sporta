@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/matrix': 'Quản lý lịch',
   '/scan': 'Quét mã QR',
   '/operations': 'Quản lý vận hành',
+  '/wallet': 'Ví của tôi',
   '/profile': 'Hồ sơ tài khoản',
   '/settings': 'Cài đặt hệ thống',
 };

@@ -1,4 +1,4 @@
-import { 
+import type { 
   OwnerWalletResponse, 
   WalletTransactionResponse, 
   WithdrawalResponse, 
@@ -89,5 +89,16 @@ export const deleteBankAccount = async (id: string): Promise<void> => {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: null }));
     throw new Error(err.message || 'Lỗi khi xóa tài khoản ngân hàng');
+  }
+};
+
+export const setDefaultBankAccount = async (id: string): Promise<void> => {
+  const res = await fetch(`${BASE_URL}/owner/wallet/bank-accounts/${id}/default`, {
+    method: 'PUT',
+    headers: getHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: null }));
+    throw new Error(err.message || 'Lỗi khi thiết lập tài khoản mặc định');
   }
 };

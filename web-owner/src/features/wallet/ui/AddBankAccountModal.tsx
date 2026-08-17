@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { CreateBankAccountRequest, VietQRBank } from '../model/wallet.types';
-import { Button } from '../../../common/ui/buttons/Button';
-import { X, Search } from 'lucide-react';
+import type { CreateBankAccountRequest, VietQRBank } from '../model/wallet.types';
+import { Button, Modal, Input, FormField } from '../../../common/ui';
+import { Search } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -69,120 +69,109 @@ export const AddBankAccountModal: React.FC<Props> = ({ isOpen, onClose, onSubmit
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm">
-      <div className="bg-surface w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-5 border-b border-outline-variant/30 bg-surface-container-low">
-          <h2 className="text-xl font-bold text-on-surface">Thêm tài khoản nhận tiền</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-outline-variant/20 text-on-surface-variant transition-colors">
-            <X size={20} />
-          </button>
-        </div>
+  const footer = (
+    <>
+      <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Hủy bỏ</Button>
+      <Button type="submit" form="add-bank-form" variant="primary" loading={isSubmitting}>Lưu tài khoản</Button>
+    </>
+  );
 
-        <div className="p-5 overflow-y-auto flex-1">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
-              {error}
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Thêm tài khoản nhận tiền"
+      maxWidth="md"
+      footer={footer}
+    >
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+
+      <form id="add-bank-form" onSubmit={handleSubmit} className="space-y-5">
+        {/* Chọn ngân hàng */}
+        <FormField label="Ngân hàng">
+          {!selectedBank ? (
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 focus-within:border-brand-emerald focus-within:ring-1 focus-within:ring-brand-emerald transition-all">
+              <div className="flex items-center px-3 py-2 border-b border-slate-200">
+                <Search size={18} className="text-slate-400 mr-2" />
+                <input 
+                  type="text" 
+                  placeholder="Tìm kiếm ngân hàng..."
+                  className="w-full bg-transparent border-none outline-none text-sm p-1 placeholder:text-slate-400 text-slate-700"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {loadingBanks ? (
+                  <div className="p-4 text-center text-sm text-slate-500">Đang tải danh sách ngân hàng...</div>
+                ) : filteredBanks.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-slate-500">Không tìm thấy ngân hàng phù hợp</div>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {filteredBanks.map(bank => (
+                      <li 
+                        key={bank.id}
+                        className="p-3 hover:bg-slate-100 cursor-pointer flex items-center gap-3 transition-colors"
+                        onClick={() => setSelectedBank(bank)}
+                      >
+                        <img src={bank.logo} alt={bank.code} className="w-8 h-8 object-contain bg-white rounded border border-slate-200 p-0.5" />
+                        <div>
+                          <p className="font-semibold text-sm text-slate-700">{bank.shortName}</p>
+                          <p className="text-xs text-slate-500 line-clamp-1">{bank.name}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 border border-brand-emerald bg-brand-emerald/5 rounded-xl">
+              <div className="flex items-center gap-3">
+                <img src={selectedBank.logo} alt={selectedBank.code} className="w-10 h-10 object-contain bg-white rounded-lg border border-slate-200 p-1" />
+                <div>
+                  <p className="font-bold text-slate-800">{selectedBank.shortName}</p>
+                  <p className="text-xs text-slate-500 line-clamp-1">{selectedBank.name}</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setSelectedBank(null)}
+                className="text-xs font-semibold text-brand-emerald hover:underline p-2"
+              >
+                Thay đổi
+              </button>
             </div>
           )}
+        </FormField>
 
-          <form id="add-bank-form" onSubmit={handleSubmit} className="space-y-5">
-            {/* Chọn ngân hàng */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface">Ngân hàng</label>
-              
-              {!selectedBank ? (
-                <div className="border border-outline-variant rounded-xl overflow-hidden bg-surface-container-lowest focus-within:border-brand-emerald focus-within:ring-1 focus-within:ring-brand-emerald transition-all">
-                  <div className="flex items-center px-3 py-2 border-b border-outline-variant/30">
-                    <Search size={18} className="text-on-surface-variant mr-2" />
-                    <input 
-                      type="text" 
-                      placeholder="Tìm kiếm ngân hàng..."
-                      className="w-full bg-transparent border-none outline-none text-sm p-1"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {loadingBanks ? (
-                      <div className="p-4 text-center text-sm text-on-surface-variant">Đang tải danh sách ngân hàng...</div>
-                    ) : filteredBanks.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-on-surface-variant">Không tìm thấy ngân hàng phù hợp</div>
-                    ) : (
-                      <ul className="divide-y divide-outline-variant/10">
-                        {filteredBanks.map(bank => (
-                          <li 
-                            key={bank.id}
-                            className="p-3 hover:bg-surface-container-low cursor-pointer flex items-center gap-3 transition-colors"
-                            onClick={() => setSelectedBank(bank)}
-                          >
-                            <img src={bank.logo} alt={bank.code} className="w-8 h-8 object-contain bg-white rounded border border-outline-variant/20 p-0.5" />
-                            <div>
-                              <p className="font-semibold text-sm text-on-surface">{bank.shortName}</p>
-                              <p className="text-xs text-on-surface-variant line-clamp-1">{bank.name}</p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-3 border border-brand-emerald bg-brand-emerald/5 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <img src={selectedBank.logo} alt={selectedBank.code} className="w-10 h-10 object-contain bg-white rounded-lg border border-outline-variant/20 p-1" />
-                    <div>
-                      <p className="font-bold text-on-surface">{selectedBank.shortName}</p>
-                      <p className="text-xs text-on-surface-variant line-clamp-1">{selectedBank.name}</p>
-                    </div>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setSelectedBank(null)}
-                    className="text-xs font-semibold text-brand-emerald hover:underline p-2"
-                  >
-                    Thay đổi
-                  </button>
-                </div>
-              )}
-            </div>
+        {/* Số tài khoản */}
+        <Input 
+          label="Số tài khoản"
+          placeholder="Ví dụ: 1903456789"
+          value={accountNumber}
+          onChange={e => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+          maxLength={20}
+          inputClassName="font-mono"
+        />
 
-            {/* Số tài khoản */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface">Số tài khoản</label>
-              <input 
-                type="text" 
-                className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald outline-none transition-all font-mono"
-                placeholder="Ví dụ: 1903456789"
-                value={accountNumber}
-                onChange={e => setAccountNumber(e.target.value.replace(/\D/g, ''))} // Chỉ cho nhập số
-                maxLength={20}
-              />
-            </div>
-
-            {/* Tên chủ tài khoản */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface">Tên chủ tài khoản</label>
-              <input 
-                type="text" 
-                className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald outline-none transition-all uppercase"
-                placeholder="Ví dụ: NGUYEN VAN A"
-                value={accountName}
-                onChange={e => setAccountName(e.target.value.toUpperCase())}
-              />
-              <p className="text-xs text-on-surface-variant flex items-start gap-1 mt-1">
-                <span className="text-brand-yellow font-bold text-lg leading-3">*</span>
-                Vui lòng nhập chính xác tên chủ tài khoản viết hoa không dấu để đảm bảo giao dịch không bị gián đoạn.
-              </p>
-            </div>
-          </form>
-        </div>
-
-        <div className="p-5 border-t border-outline-variant/30 bg-surface-container-lowest flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Hủy bỏ</Button>
-          <Button type="submit" form="add-bank-form" variant="primary" loading={isSubmitting}>Lưu tài khoản</Button>
-        </div>
-      </div>
-    </div>
+        {/* Tên chủ tài khoản */}
+        <Input 
+          label="Tên chủ tài khoản"
+          placeholder="Ví dụ: NGUYEN VAN A"
+          value={accountName}
+          onChange={e => setAccountName(e.target.value.toUpperCase())}
+          inputClassName="uppercase"
+          helperText={<span className="flex items-start gap-1">
+            <span className="text-brand-yellow font-bold text-lg leading-3">*</span>
+            Vui lòng nhập chính xác tên chủ tài khoản viết hoa không dấu để đảm bảo giao dịch không bị gián đoạn.
+          </span>}
+        />
+      </form>
+    </Modal>
   );
 };

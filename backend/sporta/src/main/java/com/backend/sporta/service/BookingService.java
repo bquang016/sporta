@@ -122,6 +122,17 @@ public class BookingService {
 
         BookingResponse response = mapToResponse(booking);
 
+        // Publish event if payment is auto success (e.g. DEV method)
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            eventPublisher.publishEvent(new com.backend.sporta.event.BookingPaidEvent(
+                    this,
+                    booking.getId(),
+                    Math.round(totalPrice),
+                    booking.getVenue().getId(),
+                    booking.getVenue().getOwner().getId()
+            ));
+        }
+
         // Generate PayOS link if needed
         if ("payos".equals(request.getPaymentMethod())) {
             com.backend.sporta.dto.CreatePaymentResponse paymentResponse = paymentService.createPaymentLink(

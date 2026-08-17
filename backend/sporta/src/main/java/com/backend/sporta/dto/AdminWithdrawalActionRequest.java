@@ -10,4 +10,7 @@ public class AdminWithdrawalActionRequest {
 
     /** Ghi chú của Admin (bắt buộc khi reject, optional khi approve) */
     private String note;
+
+    /** Ảnh biên lai chuyển khoản (bắt buộc khi approve) */
+    private String transferProofUrl;
 }

@@ -131,6 +131,16 @@ public class OwnerWalletServiceImpl implements OwnerWalletService {
                     400);
         }
 
+        // Kiểm tra chặn 7 ngày (Chỉ áp dụng với những yêu cầu hợp lệ: PENDING hoặc COMPLETED)
+        List<WithdrawalRequest> latestWithdrawals = withdrawalRequestRepository
+                .findByOwnerIdAndStatusNotOrderByCreatedAtDesc(owner.getId(), WithdrawalStatus.REJECTED, PageRequest.of(0, 1)).getContent();
+        if (!latestWithdrawals.isEmpty()) {
+            WithdrawalRequest last = latestWithdrawals.get(0);
+            if (last.getCreatedAt().plusDays(7).isAfter(LocalDateTime.now())) {
+                throw new CustomException("Bạn chỉ có thể tạo yêu cầu rút tiền mới sau 7 ngày kể từ lần rút gần nhất.", 400);
+            }
+        }
+
         // Đóng băng tiền: trừ balance ngay khi tạo request
         long balanceBefore = wallet.getBalance();
         wallet.setBalance(balanceBefore - request.getAmount());
@@ -194,7 +204,7 @@ public class OwnerWalletServiceImpl implements OwnerWalletService {
 
     @Override
     @Transactional
-    public WithdrawalResponse approveWithdrawal(UUID withdrawalId, String adminEmail, String note) {
+    public WithdrawalResponse approveWithdrawal(UUID withdrawalId, String adminEmail, String note, String transferProofUrl) {
         User admin = userRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy admin", 404));
 
@@ -208,6 +218,7 @@ public class OwnerWalletServiceImpl implements OwnerWalletService {
         withdrawal.setStatus(WithdrawalStatus.COMPLETED);
         withdrawal.setAdminUserId(admin.getId());
         withdrawal.setAdminNote(note);
+        withdrawal.setTransferProofUrl(transferProofUrl);
         withdrawal.setProcessedAt(LocalDateTime.now());
         withdrawalRequestRepository.save(withdrawal);
 
@@ -318,6 +329,7 @@ public class OwnerWalletServiceImpl implements OwnerWalletService {
                 .bankAccountName(w.getBankAccountName())
                 .status(w.getStatus())
                 .adminNote(w.getAdminNote())
+                .transferProofUrl(w.getTransferProofUrl())
                 .processedAt(w.getProcessedAt())
                 .createdAt(w.getCreatedAt())
                 .build();
@@ -408,5 +420,23 @@ public class OwnerWalletServiceImpl implements OwnerWalletService {
                 .isDefault(account.getIsDefault())
                 .createdAt(account.getCreatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void setDefaultBankAccount(String ownerEmail, UUID bankAccountId) {
+        Owner owner = findOwnerByEmail(ownerEmail);
+        OwnerBankAccount account = ownerBankAccountRepository.findById(bankAccountId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản ngân hàng", 404));
+
+        if (!account.getOwner().getId().equals(owner.getId())) {
+            throw new CustomException("Bạn không có quyền chỉnh sửa tài khoản này", 403);
+        }
+
+        List<OwnerBankAccount> allAccounts = ownerBankAccountRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId());
+        for (OwnerBankAccount acc : allAccounts) {
+            acc.setIsDefault(acc.getId().equals(bankAccountId));
+            ownerBankAccountRepository.save(acc);
+        }
     }
 }

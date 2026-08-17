@@ -13,6 +13,8 @@ public interface WithdrawalRequestRepository extends JpaRepository<WithdrawalReq
 
     Page<WithdrawalRequest> findByOwnerIdOrderByCreatedAtDesc(UUID ownerId, Pageable pageable);
 
+    Page<WithdrawalRequest> findByOwnerIdAndStatusNotOrderByCreatedAtDesc(UUID ownerId, WithdrawalStatus status, Pageable pageable);
+
     Page<WithdrawalRequest> findByStatusOrderByCreatedAtAsc(WithdrawalStatus status, Pageable pageable);
 
     Page<WithdrawalRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);

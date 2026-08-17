@@ -57,6 +57,10 @@ public class WithdrawalRequest {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    /** Ảnh biên lai chuyển khoản (bắt buộc khi duyệt) */
+    @Column(name = "transfer_proof_url", length = 1000)
+    private String transferProofUrl;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

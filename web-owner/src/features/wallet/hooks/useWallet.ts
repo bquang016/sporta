@@ -6,10 +6,11 @@ import {
   getMyWithdrawals,
   getBankAccounts,
   addBankAccount,
-  deleteBankAccount
+  deleteBankAccount,
+  setDefaultBankAccount
 } from '../api/walletApi';
 import { fetchVietQRBanks } from '../api/vietqrApi';
-import { 
+import type { 
   OwnerWalletResponse, 
   WalletTransactionResponse, 
   WithdrawalResponse, 
@@ -48,25 +49,37 @@ export const useOwnerTransactions = () => {
   const [transactions, setTransactions] = useState<WalletTransactionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const size = 6;
 
-  const fetchTransactions = useCallback(async (page = 0, size = 20) => {
+  const fetchTransactions = useCallback(async (p = page) => {
     try {
       setLoading(true);
-      const data = await getOwnerTransactions(page, size);
+      const data = await getOwnerTransactions(p, size);
       setTransactions(data);
+      setHasMore(data.length === size);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Lỗi khi tải lịch sử giao dịch');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, size]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    fetchTransactions(page);
+  }, [page, fetchTransactions]);
 
-  return { transactions, loading, error, refetch: fetchTransactions };
+  const nextPage = () => {
+    if (hasMore) setPage(p => p + 1);
+  };
+
+  const prevPage = () => {
+    if (page > 0) setPage(p => p - 1);
+  };
+
+  return { transactions, loading, error, refetch: fetchTransactions, page, nextPage, prevPage, hasMore };
 };
 
 export const useWithdrawalHistory = () => {
