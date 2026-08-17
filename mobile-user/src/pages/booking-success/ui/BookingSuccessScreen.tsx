@@ -4,12 +4,14 @@ import {
   Text, 
   StyleSheet, 
   ScrollView, 
-  SafeAreaView, 
   ActivityIndicator, 
   Modal, 
   TouchableOpacity, 
-  Linking 
+  Linking,
+  Platform,
+  StatusBar
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
@@ -24,6 +26,8 @@ export function BookingSuccessScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { showAlert } = useAlert();
+  const insets = useSafeAreaInsets();
+  const modalTopPadding = Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 47) : insets.top;
   
   const isFromHistory = params.fromHistory === 'true';
   const [booking, setBooking] = useState<BookingResponse | null>(null);
@@ -402,7 +406,8 @@ export function BookingSuccessScreen() {
           }
         }}
       >
-        <SafeAreaView style={styles.detailModalContainer}>
+        <View style={[styles.detailModalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
+          <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
           {/* Modal Header */}
           <View style={styles.detailModalHeader}>
             <TouchableOpacity 
@@ -413,12 +418,16 @@ export function BookingSuccessScreen() {
                 }
               }} 
               style={styles.backButton}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
             </TouchableOpacity>
             <Text style={styles.detailModalHeaderTitle}>Chi Tiết Đơn Đặt Sân</Text>
             <View style={styles.headerPlaceholder} />
           </View>
+        </View>
+
+        <SafeAreaView style={styles.detailModalContainer} edges={['bottom', 'left', 'right']}>
 
           <ScrollView 
             contentContainerStyle={styles.detailModalScroll}
@@ -708,6 +717,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  detailModalHeaderSafeArea: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
   detailModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -715,8 +729,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.marginMobile,
     height: 56,
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
   },
   backButton: {
     width: 40,

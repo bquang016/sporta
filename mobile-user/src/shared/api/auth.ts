@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { getBaseUrl } from './config';
 
 export const loginApi = async (email: string, password: string) => {
@@ -81,6 +82,40 @@ export const googleLoginApi = async (idToken: string) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Xác thực Google thất bại');
+  }
+
+  return response.json();
+};
+
+const getToken = async (): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem('accessToken');
+    }
+    return await SecureStore.getItemAsync('accessToken');
+  } catch {
+    return null;
+  }
+};
+
+export const changePasswordApi = async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+  const token = await getToken();
+  const response = await fetch(`${getBaseUrl()}/auth/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Đổi mật khẩu thất bại');
   }
 
   return response.json();

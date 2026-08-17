@@ -23,7 +23,7 @@ export interface BookingItem {
   courtType?: string;
   totalPrice: number;
   finalPrice: number;
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED';
   paymentStatus?: 'PAID' | 'UNPAID';
   paymentMethod: string;
   createdAt?: string;

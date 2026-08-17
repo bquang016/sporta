@@ -8,9 +8,10 @@ import {
   TextInput, 
   Modal, 
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,6 +31,8 @@ import { PrivacyDangerGroup } from './components/settings/PrivacyDangerGroup';
 export function AccountSettingsScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
+  const insets = useSafeAreaInsets();
+  const modalTopPadding = Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 47) : insets.top;
 
   // Loading & Saving state
   const [loading, setLoading] = useState(true);
@@ -90,6 +93,38 @@ export function AccountSettingsScreen() {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Password Strength & Criteria Calculation
+  const hasMinLength = newPassword.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
+
+  const criteriaMetCount = [hasMinLength, hasUpperCase, hasNumber, hasSpecialChar].filter(Boolean).length;
+
+  const getPasswordStrength = () => {
+    if (!newPassword) return { label: '', color: COLORS.outlineVariant, percent: 0 };
+    if (criteriaMetCount === 1) return { label: 'Yếu', color: '#EF4444', percent: 0.25 };
+    if (criteriaMetCount === 2) return { label: 'Trung bình', color: '#F59E0B', percent: 0.5 };
+    if (criteriaMetCount === 3) return { label: 'Khá', color: '#10B981', percent: 0.75 };
+    if (criteriaMetCount === 4) return { label: 'Rất mạnh', color: COLORS.primary, percent: 1.0 };
+    return { label: 'Yếu', color: '#EF4444', percent: 0.15 };
+  };
+
+  const strength = getPasswordStrength();
+
+  const closeChangePasswordModal = () => {
+    setIsChangePasswordModal(false);
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowOldPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+  };
 
   // Fetch Real User Profile from Database
   const fetchProfile = async () => {
@@ -243,6 +278,11 @@ export function AccountSettingsScreen() {
       return;
     }
 
+    if (newPassword.length < 8) {
+      showFriendlyModal('Mật khẩu chưa đủ dài', 'Mật khẩu mới phải có tối thiểu 8 ký tự theo quy định bảo mật.', 'warning', '#F59E0B', 'Nhập lại');
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       showFriendlyModal('Mật khẩu không khớp', 'Xác nhận mật khẩu mới không trùng khớp với mật khẩu mới đã nhập. Vui lòng kiểm tra và nhập lại chính xác!', 'warning', '#F59E0B', 'Thử lại');
       return;
@@ -251,10 +291,7 @@ export function AccountSettingsScreen() {
     setSaving(true);
     try {
       await changePasswordApi(oldPassword, newPassword, confirmPassword);
-      setIsChangePasswordModal(false);
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      closeChangePasswordModal();
       showFriendlyModal('Thành công', 'Mật khẩu của bạn đã được thay đổi và cập nhật trong CSDL thành công!', 'check-circle', COLORS.primary, 'Hoàn tất');
     } catch (err: any) {
       const errMsg = err.message || '';
@@ -352,13 +389,18 @@ export function AccountSettingsScreen() {
         transparent={false}
         onRequestClose={() => setIsEditProfileModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <View style={[styles.modalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
+          <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsEditProfileModal(false)}>
+            <TouchableOpacity 
+              onPress={() => setIsEditProfileModal(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.modalHeaderIconBtn}
+            >
               <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
             </TouchableOpacity>
             <Text style={styles.modalHeaderTitle}>Sửa Thông Tin Cá Nhân</Text>
-            <TouchableOpacity onPress={handleSaveProfile} disabled={saving}>
+            <TouchableOpacity onPress={handleSaveProfile} disabled={saving} style={styles.modalHeaderIconBtn}>
               {saving ? (
                 <ActivityIndicator size="small" color={COLORS.primary} />
               ) : (
@@ -366,7 +408,9 @@ export function AccountSettingsScreen() {
               )}
             </TouchableOpacity>
           </View>
+        </View>
 
+        <SafeAreaView style={styles.modalContainer} edges={['bottom', 'left', 'right']}>
           <ScrollView contentContainerStyle={styles.modalScroll}>
             <Text style={styles.inputLabel}>Họ và tên</Text>
             <TextInput 
@@ -482,48 +526,173 @@ export function AccountSettingsScreen() {
         visible={isChangePasswordModal}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setIsChangePasswordModal(false)}
+        onRequestClose={closeChangePasswordModal}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <View style={[styles.modalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
+          <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsChangePasswordModal(false)}>
+            <TouchableOpacity 
+              onPress={closeChangePasswordModal}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.modalHeaderIconBtn}
+            >
               <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
             </TouchableOpacity>
             <Text style={styles.modalHeaderTitle}>Đổi Mật Khẩu</Text>
             <View style={{ width: 40 }} />
           </View>
+        </View>
 
-          <ScrollView contentContainerStyle={styles.modalScroll}>
-            <Text style={styles.inputLabel}>Mật khẩu hiện tại</Text>
-            <TextInput 
-              style={styles.textInput} 
-              secureTextEntry
-              value={oldPassword} 
-              onChangeText={setOldPassword}
-              placeholder="Nhập mật khẩu hiện tại" 
-            />
+        <SafeAreaView style={styles.modalContainer} edges={['bottom', 'left', 'right']}>
+          <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+            {/* 1. Mật khẩu hiện tại */}
+            <Text style={styles.inputLabel}>Mật khẩu hiện tại (*)</Text>
+            <View style={styles.passwordInputContainer}>
+              <TextInput 
+                style={styles.passwordTextInput} 
+                secureTextEntry={!showOldPassword}
+                value={oldPassword} 
+                onChangeText={setOldPassword}
+                placeholder="Nhập mật khẩu hiện tại" 
+                placeholderTextColor={COLORS.onSurfaceVariant}
+              />
+              <TouchableOpacity
+                style={styles.eyeIconBtn}
+                onPress={() => setShowOldPassword(!showOldPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons 
+                  name={showOldPassword ? 'visibility' : 'visibility-off'} 
+                  size={22} 
+                  color={COLORS.onSurfaceVariant} 
+                />
+              </TouchableOpacity>
+            </View>
 
-            <Text style={styles.inputLabel}>Mật khẩu mới</Text>
-            <TextInput 
-              style={styles.textInput} 
-              secureTextEntry
-              value={newPassword} 
-              onChangeText={setNewPassword}
-              placeholder="Nhập mật khẩu mới" 
-            />
+            {/* 2. Mật khẩu mới */}
+            <Text style={styles.inputLabel}>Mật khẩu mới (*)</Text>
+            <View style={styles.passwordInputContainer}>
+              <TextInput 
+                style={styles.passwordTextInput} 
+                secureTextEntry={!showNewPassword}
+                value={newPassword} 
+                onChangeText={setNewPassword}
+                placeholder="Nhập mật khẩu mới" 
+                placeholderTextColor={COLORS.onSurfaceVariant}
+              />
+              <TouchableOpacity
+                style={styles.eyeIconBtn}
+                onPress={() => setShowNewPassword(!showNewPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons 
+                  name={showNewPassword ? 'visibility' : 'visibility-off'} 
+                  size={22} 
+                  color={COLORS.onSurfaceVariant} 
+                />
+              </TouchableOpacity>
+            </View>
 
-            <Text style={styles.inputLabel}>Xác nhận mật khẩu mới</Text>
-            <TextInput 
-              style={styles.textInput} 
-              secureTextEntry
-              value={confirmPassword} 
-              onChangeText={setConfirmPassword}
-              placeholder="Nhập lại mật khẩu mới" 
-            />
+            {/* 3. Thanh đo độ mạnh mật khẩu (Password Strength Bar) */}
+            {newPassword.length > 0 && (
+              <View style={styles.strengthContainer}>
+                <View style={styles.strengthHeaderRow}>
+                  <Text style={styles.strengthTextLabel}>Độ mạnh mật khẩu:</Text>
+                  <Text style={[styles.strengthTextValue, { color: strength.color }]}>
+                    {strength.label}
+                  </Text>
+                </View>
+                <View style={styles.strengthTrack}>
+                  <View 
+                    style={[
+                      styles.strengthFill, 
+                      { 
+                        width: `${strength.percent * 100}%`, 
+                        backgroundColor: strength.color 
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* 4. Danh sách gợi ý điều kiện mật khẩu */}
+            <View style={styles.criteriaContainer}>
+              <Text style={styles.criteriaTitle}>Gợi ý điều kiện mật khẩu an toàn:</Text>
+
+              <View style={styles.criteriaItem}>
+                <MaterialIcons 
+                  name={hasMinLength ? 'check-circle' : 'radio-button-unchecked'} 
+                  size={18} 
+                  color={hasMinLength ? '#10B981' : COLORS.onSurfaceVariant} 
+                />
+                <Text style={[styles.criteriaText, hasMinLength && styles.criteriaTextMet]}>
+                  Tối thiểu 8 ký tự
+                </Text>
+              </View>
+
+              <View style={styles.criteriaItem}>
+                <MaterialIcons 
+                  name={hasUpperCase ? 'check-circle' : 'radio-button-unchecked'} 
+                  size={18} 
+                  color={hasUpperCase ? '#10B981' : COLORS.onSurfaceVariant} 
+                />
+                <Text style={[styles.criteriaText, hasUpperCase && styles.criteriaTextMet]}>
+                  Có ít nhất 1 chữ cái viết hoa (A-Z)
+                </Text>
+              </View>
+
+              <View style={styles.criteriaItem}>
+                <MaterialIcons 
+                  name={hasNumber ? 'check-circle' : 'radio-button-unchecked'} 
+                  size={18} 
+                  color={hasNumber ? '#10B981' : COLORS.onSurfaceVariant} 
+                />
+                <Text style={[styles.criteriaText, hasNumber && styles.criteriaTextMet]}>
+                  Có ít nhất 1 chữ số (0-9)
+                </Text>
+              </View>
+
+              <View style={styles.criteriaItem}>
+                <MaterialIcons 
+                  name={hasSpecialChar ? 'check-circle' : 'radio-button-unchecked'} 
+                  size={18} 
+                  color={hasSpecialChar ? '#10B981' : COLORS.onSurfaceVariant} 
+                />
+                <Text style={[styles.criteriaText, hasSpecialChar && styles.criteriaTextMet]}>
+                  Có ít nhất 1 ký tự đặc biệt (!@#$%...)
+                </Text>
+              </View>
+            </View>
+
+            {/* 5. Xác nhận mật khẩu mới */}
+            <Text style={styles.inputLabel}>Xác nhận mật khẩu mới (*)</Text>
+            <View style={styles.passwordInputContainer}>
+              <TextInput 
+                style={styles.passwordTextInput} 
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword} 
+                onChangeText={setConfirmPassword}
+                placeholder="Nhập lại mật khẩu mới" 
+                placeholderTextColor={COLORS.onSurfaceVariant}
+              />
+              <TouchableOpacity
+                style={styles.eyeIconBtn}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons 
+                  name={showConfirmPassword ? 'visibility' : 'visibility-off'} 
+                  size={22} 
+                  color={COLORS.onSurfaceVariant} 
+                />
+              </TouchableOpacity>
+            </View>
 
             <Button
-              title="Xác nhận đổi mật khẩu"
+              title={saving ? "Đang xử lý..." : "Xác nhận đổi mật khẩu"}
               variant="primary"
+              disabled={saving}
               style={{ marginTop: SPACING.xl }}
               onPress={handleChangePassword}
             />
@@ -606,6 +775,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  modalHeaderSafeArea: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  modalHeaderIconBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -613,8 +793,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.marginMobile,
     height: 56,
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
   },
   modalHeaderTitle: {
     ...TYPOGRAPHY.headlineMd,
@@ -695,5 +873,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.onSurface,
     fontWeight: '600',
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+  },
+  passwordTextInput: {
+    flex: 1,
+    paddingVertical: SPACING.sm + 2,
+    fontSize: 14,
+    color: COLORS.onSurface,
+  },
+  eyeIconBtn: {
+    padding: SPACING.xs,
+  },
+  strengthContainer: {
+    marginTop: SPACING.xs + 2,
+    marginBottom: SPACING.xs,
+  },
+  strengthHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  strengthTextLabel: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  strengthTextValue: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  strengthTrack: {
+    height: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: BORDER_RADIUS.full,
+    overflow: 'hidden',
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: BORDER_RADIUS.full,
+  },
+  criteriaContainer: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    gap: SPACING.xs + 2,
+  },
+  criteriaTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  criteriaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
+  },
+  criteriaText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  criteriaTextMet: {
+    color: COLORS.onSurface,
+    fontWeight: '700',
   },
 });

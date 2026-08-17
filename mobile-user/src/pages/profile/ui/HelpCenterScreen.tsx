@@ -8,9 +8,10 @@ import {
   TextInput, 
   Modal, 
   StatusBar,
-  Image
+  Image,
+  Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,6 +28,8 @@ export type HelpTab = 'faq' | 'contact' | 'tickets';
 export function HelpCenterScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
+  const insets = useSafeAreaInsets();
+  const modalTopPadding = Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 47) : insets.top;
 
   const [activeTab, setActiveTab] = useState<HelpTab>('faq');
   const [searchQuery, setSearchQuery] = useState('');
@@ -176,17 +179,25 @@ export function HelpCenterScreen() {
         transparent={false}
         onRequestClose={() => setIsCreateTicketModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <View style={[styles.modalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
+          <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsCreateTicketModal(false)}>
+            <TouchableOpacity 
+              onPress={() => setIsCreateTicketModal(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.modalHeaderIconBtn}
+            >
               <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
             </TouchableOpacity>
             <Text style={styles.modalHeaderTitle}>Gửi Yêu Cầu Hỗ Trợ</Text>
 
-            <TouchableOpacity onPress={handleSubmitTicket}>
+            <TouchableOpacity onPress={handleSubmitTicket} style={styles.modalHeaderIconBtn}>
               <Text style={styles.modalHeaderSubmit}>Gửi</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <SafeAreaView style={styles.modalContainer} edges={['bottom', 'left', 'right']}>
 
           <ScrollView contentContainerStyle={styles.modalScroll}>
             {/* Loại vấn đề */}
@@ -333,6 +344,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  modalHeaderSafeArea: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+  modalHeaderIconBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -340,8 +362,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.marginMobile,
     height: 56,
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
   },
   modalHeaderTitle: {
     ...TYPOGRAPHY.headlineMd,
