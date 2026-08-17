@@ -60,7 +60,14 @@ public class AuthController {
             @RequestParam("province") String province,
             @RequestParam("district") String district,
             @RequestParam("ward") String ward,
-            @RequestParam("sportTypes") String sportTypes,
+            @RequestParam(value = "addressDetail", required = false, defaultValue = "") String addressDetail,
+            @RequestParam("sportId") Long sportId,
+            @RequestParam(value = "openingTime", required = false) String openingTimeStr,
+            @RequestParam(value = "closingTime", required = false) String closingTimeStr,
+            @RequestParam(value = "shiftDurationMinutes", required = false, defaultValue = "60") Integer shiftDurationMinutes,
+            @RequestParam(value = "hasSurcharge", required = false, defaultValue = "false") Boolean hasSurcharge,
+            @RequestParam(value = "surchargeAmount", required = false) Double surchargeAmount,
+            @RequestParam(value = "surchargeDescription", required = false) String surchargeDescription,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam("subCourtCount") int subCourtCount,
@@ -68,12 +75,16 @@ public class AuthController {
             @RequestParam(value = "courts", required = false, defaultValue = "[]") String courts,
             @RequestParam(value = "idFrontImage", required = false) org.springframework.web.multipart.MultipartFile idFrontImage,
             @RequestParam(value = "idBackImage", required = false) org.springframework.web.multipart.MultipartFile idBackImage,
-            @RequestParam(value = "images", required = false) org.springframework.web.multipart.MultipartFile[] images) {
+            @RequestParam(value = "coverImage", required = false) String coverImage,
+            @RequestParam(value = "registrationImages", required = false) String registrationImages) {
         
+        java.time.LocalTime openingTime = openingTimeStr != null && !openingTimeStr.isEmpty() ? java.time.LocalTime.parse(openingTimeStr) : java.time.LocalTime.of(5, 0);
+        java.time.LocalTime closingTime = closingTimeStr != null && !closingTimeStr.isEmpty() ? java.time.LocalTime.parse(closingTimeStr) : java.time.LocalTime.of(22, 0);
+
         RegisterOwnerResponse response = authService.registerOwner(
                 registrationToken, fullName, idNumber, venueName, province, 
-                district, ward, sportTypes, latitude, longitude, subCourtCount, description,
-                courts, idFrontImage, idBackImage, images);
+                district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge, surchargeAmount, surchargeDescription, latitude, longitude, subCourtCount, description,
+                courts, idFrontImage, idBackImage, coverImage, registrationImages);
         return ResponseEntity.ok(response);
     }
 
