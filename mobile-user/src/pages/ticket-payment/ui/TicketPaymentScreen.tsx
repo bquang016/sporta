@@ -18,17 +18,16 @@ export function TicketPaymentScreen() {
   const [session, setSession] = useState<TicketSession | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState('momo');
+  const [selectedMethod, setSelectedMethod] = useState('vnpay');
   
   const [conflictModalVisible, setConflictModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const paymentMethods = [
-    { id: 'momo', label: 'Ví điện tử MoMo', icon: 'account-balance-wallet' },
-    { id: 'vnpay', label: 'VNPay QR', icon: 'qr-code' },
-    { id: 'card', label: 'Thẻ tín dụng / Ghi nợ', icon: 'credit-card' },
-    { id: 'bank', label: 'Chuyển khoản ngân hàng', icon: 'account-balance' },
+    { id: 'vnpay', label: 'Mã QR Ngân Hàng (PayOS)', icon: 'qr-code', enabled: true },
+    { id: 'momo', label: 'Ví điện tử MoMo', icon: 'account-balance-wallet', enabled: false },
+    { id: 'card', label: 'Thẻ tín dụng / Ghi nợ', icon: 'credit-card', enabled: false },
   ];
 
   useEffect(() => {
@@ -176,16 +175,23 @@ export function TicketPaymentScreen() {
               style={[
                 styles.methodItem, 
                 index !== paymentMethods.length - 1 && styles.methodDivider,
-                selectedMethod === method.id && styles.methodItemSelected
+                selectedMethod === method.id && styles.methodItemSelected,
+                !method.enabled && { opacity: 0.5 }
               ]}
-              onPress={() => setSelectedMethod(method.id)}
+              onPress={() => method.enabled && setSelectedMethod(method.id)}
               activeOpacity={0.8}
+              disabled={!method.enabled}
             >
               <View style={styles.radioOuter}>
                 {selectedMethod === method.id && <View style={styles.radioInner} />}
               </View>
               <MaterialIcons name={method.icon as any} size={24} color={COLORS.primary} style={styles.methodIcon} />
-              <Text style={styles.methodLabel}>{method.label}</Text>
+              <View>
+                <Text style={styles.methodLabel}>{method.label}</Text>
+                {!method.enabled && (
+                  <Text style={{ fontSize: 12, color: COLORS.error, marginTop: 2 }}>Tạm bảo trì</Text>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </Card>

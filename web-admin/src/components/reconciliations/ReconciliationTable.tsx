@@ -2,37 +2,18 @@ import React from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
-
-export interface ReconciliationRecord {
-  id: string;
-  ownerName: string;
-  ownerEmail: string;
-  facilityCluster: string;
-  bankName: string;
-  bankAccountNo: string;
-  bankAccountName: string;
-  cycle: string;
-  grossAmount: number;
-  commissionRate: number; // e.g. 0.10 for 10%
-  commissionAmount: number;
-  netPayoutAmount: number;
-  status: 'PENDING' | 'PAID_OUT';
-  reconciledAt?: string;
-  reconciledBy?: string;
-}
+import type { WithdrawalResponse } from '@/api/adminWithdrawalApi';
 
 interface ReconciliationTableProps {
-  records: ReconciliationRecord[];
-  onViewDetails: (record: ReconciliationRecord) => void;
-  onConfirmReconcile: (record: ReconciliationRecord) => void;
-  formatCurrency: (val: number) => string;
+  records: WithdrawalResponse[];
+  onViewDetails: (record: WithdrawalResponse) => void;
+  onConfirmReconcile: (record: WithdrawalResponse) => void;
 }
 
 export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
   records,
   onViewDetails,
-  onConfirmReconcile,
-  formatCurrency
+  onConfirmReconcile
 }) => {
   const { showToast } = useToast();
 
@@ -41,15 +22,24 @@ export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
     showToast('success', `Đã sao chép ${type} vào clipboard!`);
   };
 
-  const getStatusBadge = (status: 'PENDING' | 'PAID_OUT') => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
         return <Badge variant="warning">Chưa đối soát</Badge>;
-      case 'PAID_OUT':
+      case 'COMPLETED':
         return <Badge variant="success">Đã thanh toán</Badge>;
+      case 'REJECTED':
+        return <Badge variant="error">Đã từ chối</Badge>;
       default:
         return <Badge variant="default">{status}</Badge>;
     }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
   };
 
   return (
@@ -57,12 +47,10 @@ export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
       <table className="w-full text-left text-sm whitespace-nowrap">
         <thead className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/50 sticky top-0 backdrop-blur-sm z-10 select-none">
           <tr>
-            <th className="px-6 py-3.5">Cụm sân & Chủ sân</th>
+            <th className="px-6 py-3.5">Chủ sân</th>
             <th className="px-6 py-3.5">Tài khoản Ngân hàng</th>
-            <th className="px-6 py-3.5">Chu kỳ đối soát</th>
-            <th className="px-6 py-3.5 text-right">Doanh thu Online</th>
-            <th className="px-6 py-3.5 text-right">Hoa hồng (Sporta)</th>
-            <th className="px-6 py-3.5 text-right font-black">Số dư thực nhận</th>
+            <th className="px-6 py-3.5">Ngày yêu cầu</th>
+            <th className="px-6 py-3.5 text-right font-black">Số tiền rút</th>
             <th className="px-6 py-3.5 text-center">Trạng thái</th>
             <th className="px-6 py-3.5 text-center w-40">Thao tác</th>
           </tr>
@@ -71,11 +59,10 @@ export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
           {records.map((rec) => (
             <tr key={rec.id} className="hover:bg-slate-50/40 transition-colors">
               
-              {/* Cụm sân & Chủ sân */}
+              {/* Chủ sân */}
               <td className="px-6 py-4">
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-bold text-slate-800">{rec.facilityCluster}</span>
-                  <span className="text-xs text-slate-400 font-medium">{rec.ownerName} ({rec.ownerEmail})</span>
+                  <span className="font-bold text-slate-800">{rec.ownerName}</span>
                 </div>
               </td>
 
@@ -83,13 +70,13 @@ export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
               <td className="px-6 py-4">
                 <div className="flex items-center gap-2 group">
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-bold text-slate-800 font-mono">{rec.bankAccountNo}</span>
+                    <span className="font-bold text-slate-800 font-mono">{rec.bankAccountNumber}</span>
                     <span className="text-xs text-slate-400 font-medium">
-                      {rec.bankName} - <span className="uppercase">{rec.bankAccountName}</span>
+                      {rec.bankCode} - <span className="uppercase">{rec.bankAccountName}</span>
                     </span>
                   </div>
                   <button
-                    onClick={() => handleCopy(rec.bankAccountNo, 'số tài khoản')}
+                    onClick={() => handleCopy(rec.bankAccountNumber, 'số tài khoản')}
                     className="p-1 rounded bg-slate-50 hover:bg-slate-150 text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none"
                     title="Sao chép số tài khoản"
                   >
@@ -100,25 +87,14 @@ export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
                 </div>
               </td>
 
-              {/* Chu kỳ đối soát */}
-              <td className="px-6 py-4 font-bold text-slate-600">
-                {rec.cycle}
-              </td>
-
-              {/* Doanh thu Online */}
-              <td className="px-6 py-4 text-right text-slate-600 font-medium">
-                {formatCurrency(rec.grossAmount)}
-              </td>
-
-              {/* Hoa hồng hệ thống */}
-              <td className="px-6 py-4 text-right text-red-500 font-medium">
-                -{formatCurrency(rec.commissionAmount)}
-                <span className="text-xs text-slate-400 font-bold block">({(rec.commissionRate * 100).toFixed(0)}%)</span>
+              {/* Ngày yêu cầu */}
+              <td className="px-6 py-4 text-slate-600 font-medium">
+                {formatDate(rec.createdAt)}
               </td>
 
               {/* Số dư thực nhận */}
               <td className="px-6 py-4 text-right font-black text-brand-emerald">
-                {formatCurrency(rec.netPayoutAmount)}
+                {rec.formattedAmount}
               </td>
 
               {/* Trạng thái */}
@@ -138,19 +114,15 @@ export const ReconciliationTable: React.FC<ReconciliationTableProps> = ({
                     Chi tiết
                   </Button>
                   
-                  {rec.status === 'PENDING' ? (
+                  {rec.status === 'PENDING' && (
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => onConfirmReconcile(rec)}
                       className="bg-brand-emerald hover:bg-emerald-800 text-white font-bold py-1.5 px-3 rounded-lg shadow-sm text-xs"
                     >
-                      Thanh toán
+                      Xử lý
                     </Button>
-                  ) : (
-                    <div className="px-3 py-1.5 text-xs font-bold text-slate-400 bg-slate-50 border border-slate-100 rounded-lg cursor-not-allowed select-none">
-                      Đã xong
-                    </div>
                   )}
                 </div>
               </td>

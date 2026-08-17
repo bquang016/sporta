@@ -11,6 +11,10 @@ import { AlertModal } from '../../../shared/ui';
 import { useCreateBooking } from '../../../entities/booking/model/useBooking';
 import type { SlotInfo } from '../../../entities/facility/model/facility.types';
 import { useAlert } from '../../../shared/contexts/AlertContext';
+import { useQuery } from '@tanstack/react-query';
+import { getWalletBalance, checkPaymentStatus } from '../../../features/wallet/api/walletApi';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 export function PaymentScreen() {
   const router = useRouter();
@@ -19,16 +23,22 @@ export function PaymentScreen() {
   const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
 
-  const [selectedMethod, setSelectedMethod] = useState('momo');
+  const [selectedMethod, setSelectedMethod] = useState('wallet');
   const [conflictModalVisible, setConflictModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const { data: balanceData } = useQuery({
+    queryKey: ['wallet_balance'],
+    queryFn: getWalletBalance,
+  });
+
   const paymentMethods = [
-    { id: 'momo', label: 'Ví điện tử Momo', icon: 'account-balance-wallet' },
-    { id: 'vnpay', label: 'VNPay QR', icon: 'qr-code' },
-    { id: 'card', label: 'Thẻ tín dụng / Ghi nợ', icon: 'credit-card' },
-    { id: 'bank', label: 'Chuyển khoản ngân hàng', icon: 'account-balance' },
+    { id: 'wallet', label: 'Ví Sporta', icon: 'account-balance-wallet', enabled: true },
+    { id: 'dev', label: 'Thanh toán DEV (Auto Success)', icon: 'bug-report', enabled: true },
+    { id: 'payos', label: 'Mã QR Ngân Hàng (PayOS)', icon: 'qr-code', enabled: true },
+    { id: 'momo', label: 'Ví điện tử MoMo', icon: 'account-balance-wallet', enabled: false },
+    { id: 'card', label: 'Thẻ tín dụng / Ghi nợ', icon: 'credit-card', enabled: false },
   ];
 
   // Parse params
@@ -72,6 +82,10 @@ export function PaymentScreen() {
     return `${d}/${m}/${y}`;
   };
 
+  const hasEnoughBalance = (balanceData?.balance || 0) >= rawTotalPrice;
+  const isWalletSelected = selectedMethod === 'wallet';
+  const disablePaymentBtn = loading || (isWalletSelected && !hasEnoughBalance);
+
   const handlePayment = async () => {
     if (selectedSlots.length === 0) return;
     
@@ -92,22 +106,39 @@ export function PaymentScreen() {
       const firstSlot = displaySlots[0];
       const lastSlot = displaySlots[displaySlots.length - 1];
       
-      router.push({
-        pathname: '/booking/success' as any,
-        params: {
-          bookingId: result?.id || `b-${Date.now()}`,
-          bookingCode: result?.bookingCode || `#SP${Math.floor(100000 + Math.random() * 900000)}`,
-          venueName: venueName || 'Sân bóng Sporta',
-          venueLocation: venueLocation || 'Hà Nội',
-          courtName: firstSlot?.courtName || 'Sân 7 người',
-          bookingDate: formatDateString(bookingDate),
-          startTime: firstSlot?.time || '18:00',
-          endTime: lastSlot?.endTime || '19:30',
-          finalPrice: String(rawTotalPrice),
-          paymentMethod: methodLabel,
-          status: 'CONFIRMED'
+      if (selectedMethod === 'payos' && result.checkoutUrl) {
+        // Open PayOS browser
+        const returnUrl = Linking.createURL('/payment/success');
+        const browserResult = await WebBrowser.openAuthSessionAsync(result.checkoutUrl, returnUrl);
+        
+        // After browser closes, sync status
+        if (browserResult.type === 'success' || browserResult.type === 'cancel' || browserResult.type === 'dismiss') {
+          try {
+            if (result.orderCode) {
+              const statusRes = await checkPaymentStatus(result.orderCode);
+              if (statusRes.status === 'PAID' || statusRes.status === 'COMPLETED') {
+                router.push({
+                  pathname: '/booking/success' as any,
+                  params: { bookingId: result.id }
+                });
+                return;
+              } else {
+                setErrorMessage("Thanh toán chưa hoàn tất hoặc đã bị hủy.");
+                setErrorModalVisible(true);
+                return;
+              }
+            }
+          } catch (e) {
+            console.log("Failed to sync payment status", e);
+          }
         }
-      });
+      } else {
+        // DEV auto success or Wallet success
+        router.push({
+          pathname: '/booking/success' as any,
+          params: { bookingId: result.id }
+        });
+      }
       
     } catch (error: any) {
       if (error.status === 409) {
@@ -180,15 +211,27 @@ export function PaymentScreen() {
               style={[
                 styles.methodItem, 
                 index !== paymentMethods.length - 1 && styles.methodDivider,
-                selectedMethod === method.id && styles.methodItemSelected
+                selectedMethod === method.id && styles.methodItemSelected,
+                !method.enabled && { opacity: 0.5 }
               ]}
-              onPress={() => setSelectedMethod(method.id)}
+              onPress={() => method.enabled && setSelectedMethod(method.id)}
+              disabled={!method.enabled}
             >
               <View style={styles.radioOuter}>
                 {selectedMethod === method.id && <View style={styles.radioInner} />}
               </View>
               <MaterialIcons name={method.icon as any} size={24} color={COLORS.primary} style={styles.methodIcon} />
-              <Text style={styles.methodLabel}>{method.label}</Text>
+              <View>
+                <Text style={styles.methodLabel}>{method.label}</Text>
+                {method.id === 'wallet' && (
+                  <Text style={styles.walletBalanceText}>
+                    Số dư: {balanceData?.formattedBalance || '0 VNĐ'}
+                  </Text>
+                )}
+                {!method.enabled && (
+                  <Text style={styles.disabledText}>Tạm bảo trì</Text>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </Card>
@@ -229,11 +272,19 @@ export function PaymentScreen() {
       {/* Floating Bottom Button */}
       <View style={[styles.bottomBarWrapper, { bottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
         <BlurView intensity={90} tint="light" style={styles.bottomBar}>
+          {isWalletSelected && !hasEnoughBalance && (
+            <View style={styles.insufficientBalanceWarning}>
+              <MaterialIcons name="error-outline" size={16} color={COLORS.error} style={{ marginRight: 4 }} />
+              <Text style={styles.insufficientBalanceText}>
+                Số dư không đủ. Vui lòng nạp thêm tiền vào ví!
+              </Text>
+            </View>
+          )}
           <Button 
             title={`Thanh toán ${rawTotalPrice.toLocaleString('vi-VN')}đ & Xác nhận`} 
             onPress={handlePayment}
             style={{ width: '100%' }}
-            disabled={loading}
+            disabled={disablePaymentBtn}
             icon={loading ? <ActivityIndicator size="small" color={COLORS.onPrimary} /> : undefined}
           />
         </BlurView>
@@ -510,4 +561,24 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     backgroundColor: 'rgba(255,255,255,0.6)',
   },
+  walletBalanceText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    marginTop: 2,
+  },
+  disabledText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.error,
+    marginTop: 2,
+  },
+  insufficientBalanceWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  insufficientBalanceText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.error,
+  }
 });

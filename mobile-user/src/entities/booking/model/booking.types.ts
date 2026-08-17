@@ -38,8 +38,12 @@ export interface BookingResponse {
   paymentStatus?: string;
   status: BookingStatus;
 
-  playerName?: string;
-  playerEmail?: string;
+  playerName: string;
+  playerEmail: string;
+  
+  checkoutUrl?: string;
+  orderCode?: number;
+  
   createdAt: string;
 }
 
