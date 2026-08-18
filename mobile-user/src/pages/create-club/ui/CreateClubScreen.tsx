@@ -591,7 +591,11 @@ export function CreateClubScreen() {
         onRequestClose={() => {
           setIsAlertVisible(false);
           if (alertType === 'success') {
-            router.replace('/my-clubs');
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/my-clubs');
+            }
           }
         }}
       >
@@ -612,7 +616,11 @@ export function CreateClubScreen() {
               onPress={() => {
                 setIsAlertVisible(false);
                 if (alertType === 'success') {
-                  router.replace('/my-clubs');
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace('/my-clubs');
+                  }
                 }
               }}
             />
