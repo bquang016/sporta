@@ -249,6 +249,7 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired
     private ClubMemberRepository clubMemberRepository;
 
+    @Transactional
     public void seedClubMembers() {
         // 1. Ensure sample clubs exist for testing
         Sport football = sportRepository.findByName("Bóng đá").orElse(null);
@@ -302,68 +303,67 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Đã khởi tạo 2 CLB mẫu mặc định cho người dùng.");
         }
 
-        // 2. Direct SQL INSERT into PostgreSQL for ALL existing clubs in DB
+        // 2. Pure JPA Seeding for ALL existing clubs (Works on PostgreSQL, H2, MySQL, Fresh DB)
         try {
-            List<Long> clubIds = jdbcTemplate.queryForList("SELECT id FROM clubs", Long.class);
-            System.out.println("Data Seeder (SQL Direct): Tìm thấy " + clubIds.size() + " CLB trong Database PostgreSQL.");
+            List<Club> allClubs = clubRepository.findAll();
+            System.out.println("Data Seeder (JPA Clean): Tìm thấy " + allClubs.size() + " CLB trong Database.");
 
-            for (Long clubId : clubIds) {
-                // Ensure club creator is ADMIN and APPROVED in club_members table
-                jdbcTemplate.execute(
-                    "INSERT INTO club_members (club_id, user_id, role, status, joined_at) " +
-                    "SELECT c.id, c.creator_id, 'ADMIN', 'APPROVED', CURRENT_TIMESTAMP " +
-                    "FROM clubs c WHERE c.id = " + clubId + " AND c.creator_id IS NOT NULL " +
-                    "AND NOT EXISTS (SELECT 1 FROM club_members cm WHERE cm.club_id = c.id AND cm.user_id = c.creator_id)"
-                );
+            for (Club club : allClubs) {
+                // Ensure club creator is ADMIN member if not present
+                if (club.getCreator() != null) {
+                    boolean hasAdmin = clubMemberRepository.findByClubIdAndUserId(club.getId(), club.getCreator().getId()).isPresent();
+                    if (!hasAdmin) {
+                        ClubMember adminMember = ClubMember.builder()
+                                .club(club)
+                                .user(club.getCreator())
+                                .role(ClubMemberRole.ADMIN)
+                                .status(ClubMemberStatus.APPROVED)
+                                .build();
+                        clubMemberRepository.save(adminMember);
+                    }
+                }
 
-                Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM club_members WHERE club_id = ? AND status = 'APPROVED'",
-                    Integer.class,
-                    clubId
-                );
-                int existing = count != null ? count : 0;
-                if (existing < 10) {
-                    int needed = 10 - existing;
+                long existingCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
+                if (existingCount < 10) {
+                    int needed = (int) (10 - existingCount);
                     for (int i = 1; i <= needed; i++) {
                         String uniqueId = UUID.randomUUID().toString().substring(0, 8);
-                        String email = "member_c" + clubId + "_" + uniqueId + "@sporta.vn";
-                        String encodedPass = passwordEncoder.encode("member123");
+                        String email = "member_c" + club.getId() + "_" + uniqueId + "@sporta.vn";
 
-                        // Direct INSERT INTO users
-                        jdbcTemplate.update(
-                            "INSERT INTO users (email, password, full_name, role, status, is_deleted, created_at, updated_at) " +
-                            "VALUES (?, ?, ?, 'PLAYER', 'ACTIVE', false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                            email, encodedPass, "Thành Viên " + i + " (CLB " + clubId + ")"
-                        );
+                        User memberUser = User.builder()
+                                .email(email)
+                                .password(passwordEncoder.encode("member123"))
+                                .fullName("Thành Viên " + i + " (" + club.getName() + ")")
+                                .role(Role.PLAYER)
+                                .status(UserStatus.ACTIVE)
+                                .isDeleted(false)
+                                .build();
+                        memberUser = userRepository.save(memberUser);
 
-                        Long newUserId = jdbcTemplate.queryForObject(
-                            "SELECT id FROM users WHERE email = ?",
-                            Long.class,
-                            email
-                        );
-
-                        // Direct INSERT INTO club_members
-                        if (newUserId != null) {
-                            jdbcTemplate.update(
-                                "INSERT INTO club_members (club_id, user_id, role, status, joined_at) " +
-                                "VALUES (?, ?, 'MEMBER', 'APPROVED', CURRENT_TIMESTAMP)",
-                                clubId, newUserId
-                            );
-                        }
+                        ClubMember memberRecord = ClubMember.builder()
+                                .club(club)
+                                .user(memberUser)
+                                .role(ClubMemberRole.MEMBER)
+                                .status(ClubMemberStatus.APPROVED)
+                                .build();
+                        clubMemberRepository.save(memberRecord);
                     }
-                    Integer finalCount = jdbcTemplate.queryForObject(
-                        "SELECT COUNT(*) FROM club_members WHERE club_id = ? AND status = 'APPROVED'",
-                        Integer.class,
-                        clubId
-                    );
-                    System.out.println("Data Seeder (SQL Direct): Đã chèn trực tiếp SQL thành công cho CLB ID=" + clubId + " -> Tổng thành viên APPROVED: " + finalCount);
+                    long finalCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
+                    System.out.println("Data Seeder (JPA Clean): Đã thêm thành viên cho CLB ID=" + club.getId() + " ('" + club.getName() + "') -> Tổng thành viên APPROVED: " + finalCount);
                 } else {
-                    System.out.println("Data Seeder (SQL Direct): CLB ID=" + clubId + " đã có đủ " + existing + " thành viên APPROVED.");
+                    System.out.println("Data Seeder (JPA Clean): CLB ID=" + club.getId() + " ('" + club.getName() + "') đã có đủ " + existingCount + " thành viên APPROVED.");
                 }
             }
+
+            userRepository.flush();
+            clubMemberRepository.flush();
+
+            // Safely synchronize PostgreSQL sequence if running on PostgreSQL
+            try {
+                jdbcTemplate.execute("SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users))");
+            } catch (Exception ignored) {}
         } catch (Exception e) {
-            System.out.println("Data Seeder (SQL Direct Error): " + e.getMessage());
-            e.printStackTrace();
+            System.out.println("Data Seeder Error: " + e.getMessage());
         }
     }
 
