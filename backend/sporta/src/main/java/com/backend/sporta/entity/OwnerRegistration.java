@@ -45,8 +45,14 @@ public class OwnerRegistration {
     @Column(name = "district")
     private String district;
 
+    @Column(name = "address_detail")
+    private String addressDetail;
+
     @Column(name = "ward")
     private String ward;
+
+    @Column(name = "cover_image", columnDefinition = "TEXT")
+    private String coverImage;
 
     @Column(name = "latitude")
     private Double latitude;
@@ -54,8 +60,27 @@ public class OwnerRegistration {
     @Column(name = "longitude")
     private Double longitude;
 
-    @Column(name = "sport_types", columnDefinition = "TEXT")
-    private String sportTypes;
+    @Column(name = "sport_id")
+    private Long sportId;
+
+    @Column(name = "opening_time")
+    private java.time.LocalTime openingTime;
+
+    @Column(name = "closing_time")
+    private java.time.LocalTime closingTime;
+
+    @Column(name = "shift_duration_minutes")
+    private Integer shiftDurationMinutes;
+
+    @Column(name = "has_surcharge")
+    @Builder.Default
+    private Boolean hasSurcharge = false;
+
+    @Column(name = "surcharge_amount")
+    private Double surchargeAmount;
+
+    @Column(name = "surcharge_description", columnDefinition = "TEXT")
+    private String surchargeDescription;
 
     @Column(name = "sub_court_count")
     private int subCourtCount;

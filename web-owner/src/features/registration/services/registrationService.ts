@@ -92,28 +92,32 @@ export async function registerOwner(
   formData.append('province', venueInfo.province);
   formData.append('district', venueInfo.district);
   formData.append('ward', venueInfo.ward);
-  formData.append('description', venueInfo.description);
+  formData.append('description', venueInfo.description || '');
   
   if (venueInfo.latitude) formData.append('latitude', String(venueInfo.latitude));
   if (venueInfo.longitude) formData.append('longitude', String(venueInfo.longitude));
 
-  formData.append('sportTypes', venueInfo.sportId);
+  formData.append('sportId', venueInfo.sportId);
   formData.append('subCourtCount', String(courts.length));
 
-  // Additional new fields for owner registration payload so backend can save them
-  // We can pass them in description or we should ensure backend doesn't crash.
-  // The backend just saves whatever is in courtsJson to the DB as string.
+  if (venueInfo.openingTime) formData.append('openingTime', venueInfo.openingTime);
+  if (venueInfo.closingTime) formData.append('closingTime', venueInfo.closingTime);
+  if (venueInfo.shiftDurationMinutes) formData.append('shiftDurationMinutes', String(venueInfo.shiftDurationMinutes));
+  
+  formData.append('hasSurcharge', String(venueInfo.hasSurcharge));
+  if (venueInfo.surchargeAmount !== undefined) formData.append('surchargeAmount', String(venueInfo.surchargeAmount));
+  if (venueInfo.surchargeDescription) formData.append('surchargeDescription', venueInfo.surchargeDescription);
   // Courts with pricing rules
   formData.append('courts', JSON.stringify(courts));
 
-  // Attach venue image files
+  if (venueInfo.addressDetail) formData.append('addressDetail', venueInfo.addressDetail);
+
+  // Send images as strings (URLs) because they are already uploaded to Cloud
   if (venueInfo.coverImage) {
-    formData.append('images', venueInfo.coverImage);
+    formData.append('coverImage', String(venueInfo.coverImage));
   }
   if (venueInfo.detailImages && venueInfo.detailImages.length > 0) {
-    venueInfo.detailImages.forEach((file) => {
-      formData.append('images', file);
-    });
+    formData.append('registrationImages', JSON.stringify(venueInfo.detailImages));
   }
 
   const res = await fetch(`${API_BASE}/register-owner`, {

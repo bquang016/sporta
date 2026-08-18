@@ -388,6 +388,11 @@ public class VenueService {
             }
             venueImageRepository.saveAll(detailImages);
             venue.setImages(detailImages);
+            
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
+            } catch (Exception e) {}
         }
 
         return mapToResponse(venue, false);
@@ -511,6 +516,11 @@ public class VenueService {
             }
             venueImageRepository.saveAll(detailImages);
             venue.getImages().addAll(detailImages);
+            
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
+            } catch (Exception e) {}
         }
 
         Venue updatedVenue = venueRepository.save(venue);
@@ -545,8 +555,11 @@ public class VenueService {
         Double minPrice = courtRepository.findMinPriceByVenueIdAndStatusActive(venueId);
         Double maxPrice = courtRepository.findMaxPriceByVenueIdAndStatusActive(venueId);
 
+        int courtCount = courtRepository.findByVenueId(venueId).size();
+
         venue.setMinPrice(minPrice != null ? minPrice : 0.0);
         venue.setMaxPrice(maxPrice != null ? maxPrice : 0.0);
+        venue.setSubCourtCount(courtCount);
         venueRepository.save(venue);
     }
 
@@ -595,6 +608,7 @@ public class VenueService {
                 .surchargeDescription(request.getSurchargeDescription())
                 .status(VenueStatus.PENDING_APPROVAL)
                 .approvalStatus(ApprovalStatus.DRAFT)
+                .subCourtCount(request.getCourts() != null ? request.getCourts().size() : 0)
                 .build();
 
         venue = venueRepository.save(venue);
@@ -609,6 +623,11 @@ public class VenueService {
             }
             venueImageRepository.saveAll(detailImages);
             venue.setImages(detailImages);
+
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
+            } catch (Exception e) {}
         }
 
         syncCourts(venue, request.getCourts(), email);
@@ -662,6 +681,7 @@ public class VenueService {
         venue.setHasSurcharge(request.getHasSurcharge() != null ? request.getHasSurcharge() : false);
         venue.setSurchargeAmount(request.getSurchargeAmount());
         venue.setSurchargeDescription(request.getSurchargeDescription());
+        venue.setSubCourtCount(request.getCourts() != null ? request.getCourts().size() : venue.getSubCourtCount());
 
         venue.getImages().clear();
         venueRepository.saveAndFlush(venue);
@@ -676,6 +696,11 @@ public class VenueService {
             }
             venueImageRepository.saveAll(detailImages);
             venue.getImages().addAll(detailImages);
+
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
+            } catch (Exception e) {}
         }
 
         syncCourts(venue, request.getCourts(), email);
