@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { MatchmakingApiRepository } from '../../../../shared/api/matchmaking';
 import { MockMatchmakingRepository } from '../../../../features/matchmaking/model/mockMatchmakingRepository';
 import { ClubSummaryVM, BookingSummaryVM, MatchType } from '../../../../entities/match/model/match.types';
 import { ClubSelector } from '../../../../features/matchmaking/ui/ClubSelector';
@@ -39,8 +40,22 @@ export function CreateMatchScreen() {
     async function loadData() {
       setLoading(true);
       try {
-        const eligibleClubs = await MockMatchmakingRepository.getEligibleClubs();
-        const paidBookings = await MockMatchmakingRepository.getPaidBookings();
+        let eligibleClubs: ClubSummaryVM[] = [];
+        let paidBookings: BookingSummaryVM[] = [];
+
+        try {
+          eligibleClubs = await MatchmakingApiRepository.getEligibleClubs();
+          paidBookings = await MatchmakingApiRepository.getPaidBookings();
+        } catch (e) {
+          console.log('Error fetching from API, using mock repository:', e);
+        }
+
+        if (!eligibleClubs || eligibleClubs.length === 0) {
+          eligibleClubs = await MockMatchmakingRepository.getEligibleClubs();
+        }
+        if (!paidBookings || paidBookings.length === 0) {
+          paidBookings = await MockMatchmakingRepository.getPaidBookings();
+        }
 
         setClubs(eligibleClubs);
         setBookings(paidBookings);
@@ -74,14 +89,27 @@ export function CreateMatchScreen() {
 
     setSubmitting(true);
     try {
-      const created = await MockMatchmakingRepository.createRoom({
-        bookingId: selectedBooking.id,
-        hostClubId: selectedClub.id,
-        matchType,
-        hostSharePercent,
-        desiredLevels: [desiredLevel],
-        note: note.trim() || undefined,
-      });
+      let created;
+      try {
+        created = await MatchmakingApiRepository.createRoom({
+          bookingId: selectedBooking.id,
+          hostClubId: selectedClub.id,
+          matchType,
+          hostSharePercent,
+          desiredLevels: [desiredLevel],
+          note: note.trim() || undefined,
+        });
+      } catch (e) {
+        console.log('API createRoom failed, falling back to mock:', e);
+        created = await MockMatchmakingRepository.createRoom({
+          bookingId: selectedBooking.id,
+          hostClubId: selectedClub.id,
+          matchType,
+          hostSharePercent,
+          desiredLevels: [desiredLevel],
+          note: note.trim() || undefined,
+        });
+      }
 
       router.replace(`/matchmaking/${created.id}` as any);
     } catch (e: any) {

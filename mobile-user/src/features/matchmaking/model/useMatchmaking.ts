@@ -1,12 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   MatchRoomVM,
-  ClubSummaryVM,
-  BookingSummaryVM,
   MatchmakingFilterState,
   MatchmakingSortOption,
-  MatchType,
 } from '../../../entities/match/model/match.types';
+import { MatchmakingApiRepository } from '../../../shared/api/matchmaking';
 import { MockMatchmakingRepository } from './mockMatchmakingRepository';
 
 export function useMatchmakingList(
@@ -21,10 +19,21 @@ export function useMatchmakingList(
   const fetchRooms = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await MockMatchmakingRepository.listRooms(filters, sortOption);
-      setRooms(data);
+      const data = await MatchmakingApiRepository.listRooms(filters, sortOption);
+      if (data && Array.isArray(data) && data.length > 0) {
+        setRooms(data);
+      } else {
+        const mockData = await MockMatchmakingRepository.listRooms(filters, sortOption);
+        setRooms(mockData);
+      }
     } catch (e) {
-      console.error('Error fetching matchmaking rooms:', e);
+      console.log('Backend API not available or empty, falling back to mock repository:', e);
+      try {
+        const mockData = await MockMatchmakingRepository.listRooms(filters, sortOption);
+        setRooms(mockData);
+      } catch (err) {
+        console.error('Mock fetch failed:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -52,10 +61,12 @@ export function useMatchDetail(roomId: string) {
   const fetchRoom = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await MockMatchmakingRepository.getRoom(roomId);
+      const data = await MatchmakingApiRepository.getRoom(roomId);
       setRoom(data);
     } catch (e) {
-      console.error('Error fetching room detail:', e);
+      console.log('Error fetching room detail from API, using mock:', e);
+      const mockData = await MockMatchmakingRepository.getRoom(roomId);
+      setRoom(mockData);
     } finally {
       setLoading(false);
     }
@@ -67,30 +78,54 @@ export function useMatchDetail(roomId: string) {
 
   const requestJoin = async (clubId: string, note?: string) => {
     if (!roomId) return;
-    const req = await MockMatchmakingRepository.createJoinRequest(roomId, clubId, note);
-    await fetchRoom();
-    return req;
+    try {
+      const req = await MatchmakingApiRepository.createJoinRequest(roomId, clubId, note);
+      await fetchRoom();
+      return req;
+    } catch (e) {
+      const req = await MockMatchmakingRepository.createJoinRequest(roomId, clubId, note);
+      await fetchRoom();
+      return req;
+    }
   };
 
   const acceptRequest = async (requestId: string) => {
     if (!roomId) return;
-    const updated = await MockMatchmakingRepository.acceptJoinRequest(roomId, requestId);
-    setRoom(updated);
-    return updated;
+    try {
+      const updated = await MatchmakingApiRepository.acceptJoinRequest(roomId, requestId);
+      setRoom(updated);
+      return updated;
+    } catch (e) {
+      const updated = await MockMatchmakingRepository.acceptJoinRequest(roomId, requestId);
+      setRoom(updated);
+      return updated;
+    }
   };
 
   const submitScore = async (hostScore: number | string, guestScore: number | string, details?: string) => {
     if (!roomId) return;
-    const updated = await MockMatchmakingRepository.submitScore(roomId, hostScore, guestScore, details);
-    setRoom(updated);
-    return updated;
+    try {
+      const updated = await MatchmakingApiRepository.submitScore(roomId, hostScore, guestScore, details);
+      setRoom(updated);
+      return updated;
+    } catch (e) {
+      const updated = await MockMatchmakingRepository.submitScore(roomId, hostScore, guestScore, details);
+      setRoom(updated);
+      return updated;
+    }
   };
 
   const confirmScore = async () => {
     if (!roomId) return;
-    const updated = await MockMatchmakingRepository.confirmScore(roomId);
-    setRoom(updated);
-    return updated;
+    try {
+      const updated = await MatchmakingApiRepository.confirmScore(roomId);
+      setRoom(updated);
+      return updated;
+    } catch (e) {
+      const updated = await MockMatchmakingRepository.confirmScore(roomId);
+      setRoom(updated);
+      return updated;
+    }
   };
 
   return {

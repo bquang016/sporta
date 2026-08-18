@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
+import { MatchmakingApiRepository } from '../../../../shared/api/matchmaking';
 import { MockMatchmakingRepository } from '../../../../features/matchmaking/model/mockMatchmakingRepository';
 import { CrpExplanationSheet } from '../../../../features/matchmaking/ui/CrpExplanationSheet';
 
