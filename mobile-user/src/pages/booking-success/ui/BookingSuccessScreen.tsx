@@ -144,6 +144,31 @@ export function BookingSuccessScreen() {
     return (amount || 0).toLocaleString('vi-VN') + ' VNĐ';
   };
 
+  const formatPaymentTime = (dateString?: string) => {
+    if (!dateString) {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      return `${hours}:${minutes} - ${day}/${month}/${year}`;
+    }
+
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${hours}:${minutes} - ${day}/${month}/${year}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   // Render Direct Detail Screen synchronously when coming from Booking History (no delay/flash)
   if (isFromHistory) {
     return (
@@ -241,7 +266,7 @@ export function BookingSuccessScreen() {
             </View>
             <View style={styles.modalDetailRow}>
               <Text style={styles.modalDetailLabel}>Thời gian thanh toán:</Text>
-              <Text style={styles.modalDetailValue}>Vừa xong</Text>
+              <Text style={styles.modalDetailValue}>{formatPaymentTime(activeBooking.createdAt)}</Text>
             </View>
           </View>
 
@@ -533,7 +558,7 @@ export function BookingSuccessScreen() {
               </View>
               <View style={styles.modalDetailRow}>
                 <Text style={styles.modalDetailLabel}>Thời gian thanh toán:</Text>
-                <Text style={styles.modalDetailValue}>Vừa xong</Text>
+                <Text style={styles.modalDetailValue}>{formatPaymentTime(activeBooking.createdAt)}</Text>
               </View>
             </View>
 

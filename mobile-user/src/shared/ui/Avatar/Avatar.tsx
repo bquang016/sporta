@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -30,6 +30,12 @@ export function Avatar({
   style,
   textStyle,
 }: AvatarProps) {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [source]);
+
   // Determine dimensions
   let dim = 40;
   if (size === 'sm') dim = 32;
@@ -51,15 +57,19 @@ export function Avatar({
     style,
   ] as ViewStyle[];
 
+  const uriStr = typeof source === 'string' ? source : (source as any)?.uri;
+  const isBlobUri = typeof uriStr === 'string' && uriStr.startsWith('blob:');
+
   const renderContent = () => {
-    // 1. If image source exists
-    if (source) {
+    // 1. If image source exists, is not blob URL, and hasn't errored
+    if (source && !isBlobUri && !imageError) {
       const imgSource = typeof source === 'string' ? { uri: source } : source;
       return (
         <Image 
           source={imgSource} 
           style={[styles.image, { borderRadius: dim / 2 }]} 
           resizeMode="cover" 
+          onError={() => setImageError(true)}
         />
       );
     }
