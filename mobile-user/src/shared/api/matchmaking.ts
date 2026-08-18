@@ -10,38 +10,47 @@ import {
   MatchType,
 } from '../../entities/match/model/match.types';
 
-function isBookingCutoffValid(bookingDateStr: string, startTimeStr: string, cutoffMinutes: number = 60): boolean {
-  if (!bookingDateStr || !startTimeStr) return true;
+function parseFlexibleDate(dateStr: string, timeStr: string): Date | null {
+  if (!dateStr || !timeStr) return null;
   try {
-    const now = new Date();
-    const timeParts = startTimeStr.split(':');
-    const hours = parseInt(timeParts[0], 10);
-    const minutes = parseInt(timeParts[1], 10);
+    const timeParts = timeStr.split(':');
+    const hours = parseInt(timeParts[0], 10) || 0;
+    const minutes = parseInt(timeParts[1], 10) || 0;
 
-    let year = now.getFullYear();
-    let month = now.getMonth();
-    let day = now.getDate();
+    const numbers = dateStr.match(/\d+/g);
+    if (!numbers || numbers.length < 3) return null;
 
-    if (bookingDateStr.includes('-')) {
-      const parts = bookingDateStr.split('-');
-      year = parseInt(parts[0], 10);
-      month = parseInt(parts[1], 10) - 1;
-      day = parseInt(parts[2], 10);
-    } else if (bookingDateStr.includes('/')) {
-      const match = bookingDateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      if (match) {
-        day = parseInt(match[1], 10);
-        month = parseInt(match[2], 10) - 1;
-        year = parseInt(match[3], 10);
-      }
+    let year = 0;
+    let month = 0;
+    let day = 0;
+
+    if (numbers[0].length === 4) {
+      // YYYY-MM-DD or YYYY/MM/DD
+      year = parseInt(numbers[0], 10);
+      month = parseInt(numbers[1], 10) - 1;
+      day = parseInt(numbers[2], 10);
+    } else if (numbers[2].length === 4) {
+      // DD-MM-YYYY or DD/MM/YYYY
+      day = parseInt(numbers[0], 10);
+      month = parseInt(numbers[1], 10) - 1;
+      year = parseInt(numbers[2], 10);
+    } else {
+      return null;
     }
 
-    const bookingStart = new Date(year, month, day, hours, minutes);
-    const cutoffThreshold = new Date(now.getTime() + cutoffMinutes * 60 * 1000);
-    return bookingStart.getTime() >= cutoffThreshold.getTime();
+    return new Date(year, month, day, hours, minutes, 0, 0);
   } catch {
-    return true;
+    return null;
   }
+}
+
+function isBookingCutoffValid(bookingDateStr: string, startTimeStr: string, cutoffMinutes: number = 60): boolean {
+  const bookingStart = parseFlexibleDate(bookingDateStr, startTimeStr);
+  if (!bookingStart) return true;
+
+  const now = new Date();
+  const cutoffThreshold = new Date(now.getTime() + cutoffMinutes * 60 * 1000);
+  return bookingStart.getTime() >= cutoffThreshold.getTime();
 }
 
 export class MatchmakingApiRepository {
@@ -84,19 +93,22 @@ export class MatchmakingApiRepository {
   static async getEligibleClubs(sportId?: string): Promise<ClubSummaryVM[]> {
     const params = sportId ? `?sportId=${sportId}` : '';
     const clubs = await apiFetch<any[]>(`/clubs/my${params}`, { method: 'GET' }, true);
-    return (clubs || []).map((c) => ({
-      id: String(c.id),
-      name: c.name,
-      sportId: c.sport ? String(c.sport.id) : '1',
-      sportName: c.sport ? c.sport.name : 'Bóng đá',
-      logoUrl: c.avatarImage,
-      activeMemberCount: c.activeMemberCount || c.memberCount || 10,
-      isEligibleForMatchmaking: (c.activeMemberCount || c.memberCount || 10) >= 8,
-      clubElo: c.elo || 1000,
-      levelLabel: c.levelLabel || 'TB',
-      crp: c.crp || 0,
-      rankingPosition: c.rankingPosition,
-    }));
+    return (clubs || []).map((c) => {
+      const count = c.members ?? c.activeMemberCount ?? c.memberCount ?? 1;
+      return {
+        id: String(c.id),
+        name: c.name,
+        sportId: c.sport ? String(c.sport.id) : '1',
+        sportName: c.sport ? c.sport.name : 'Bóng đá',
+        logoUrl: c.avatarImage,
+        activeMemberCount: count,
+        isEligibleForMatchmaking: count >= 1,
+        clubElo: c.elo || 1000,
+        levelLabel: c.levelLabel || 'TB',
+        crp: c.crp || 0,
+        rankingPosition: c.rankingPosition,
+      };
+    });
   }
 
   /**
@@ -104,24 +116,47 @@ export class MatchmakingApiRepository {
    */
   static async getPaidBookings(sportId?: string): Promise<BookingSummaryVM[]> {
     const bookings = await apiFetch<any[]>(`/bookings/my`, { method: 'GET' }, true);
+    
+    let usedBookingIds = new Set<string>();
+    try {
+      const myMatches = await this.getMyMatches();
+      (myMatches || []).forEach((m) => {
+        if (m.booking && m.booking.id) {
+          usedBookingIds.add(String(m.booking.id));
+        }
+      });
+    } catch {
+      // Ignore error
+    }
+
     return (bookings || [])
       .filter((b) => {
         if (b.status !== 'CONFIRMED') return false;
-        const detail = b.details && b.details.length > 0 ? b.details[0] : null;
-        if (!detail) return false;
-        return isBookingCutoffValid(String(detail.bookingDate), String(detail.startTime), 60);
+        if (usedBookingIds.has(String(b.id))) return false;
+        const details = b.details;
+        if (!details || details.length === 0) return false;
+        const sortedStartTimes = details.map((d: any) => String(d.startTime)).sort();
+        const minStartTime = sortedStartTimes[0];
+        return isBookingCutoffValid(String(details[0].bookingDate), minStartTime, 60);
       })
       .map((b) => {
-        const detail = b.details && b.details.length > 0 ? b.details[0] : null;
+        const details = b.details || [];
+        const sortedStartTimes = details.map((d: any) => String(d.startTime)).sort();
+        const sortedEndTimes = details.map((d: any) => String(d.endTime)).sort();
+
+        const minStartTime = sortedStartTimes.length > 0 ? sortedStartTimes[0].substring(0, 5) : '08:00';
+        const maxEndTime = sortedEndTimes.length > 0 ? sortedEndTimes[sortedEndTimes.length - 1].substring(0, 5) : '10:00';
+        const firstDetail = details[0] || {};
+
         return {
           id: String(b.id),
           facilityName: b.venueName || (b.venue ? b.venue.name : 'Sân thể thao'),
-          courtName: detail && detail.courtName ? detail.courtName : (detail && detail.court ? detail.court.name : 'Sân đấu'),
+          courtName: firstDetail.courtName || (firstDetail.court ? firstDetail.court.name : 'Sân đấu'),
           sportId: b.sportId ? String(b.sportId) : '1',
           sportName: b.sportName || 'Thể thao',
-          date: detail ? String(detail.bookingDate) : '',
-          startTime: detail ? String(detail.startTime) : '',
-          endTime: detail ? String(detail.endTime) : '',
+          date: firstDetail.bookingDate ? String(firstDetail.bookingDate) : '',
+          startTime: minStartTime,
+          endTime: maxEndTime,
           totalPrice: b.finalPrice || b.totalPrice || 0,
           isPaid: b.status === 'CONFIRMED',
           format: 'Sân tiêu chuẩn',

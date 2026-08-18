@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -84,17 +85,35 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     }
 
     private LocalDateTime getBookingStartTime(Booking booking) {
-        if (booking.getDetails() != null && !booking.getDetails().isEmpty()) {
-            BookingDetail detail = booking.getDetails().get(0);
-            return LocalDateTime.of(detail.getBookingDate(), detail.getStartTime());
+        if (booking != null && booking.getDetails() != null && !booking.getDetails().isEmpty()) {
+            LocalTime minStartTime = booking.getDetails().stream()
+                    .map(BookingDetail::getStartTime)
+                    .filter(Objects::nonNull)
+                    .min(LocalTime::compareTo)
+                    .orElse(LocalTime.of(18, 0));
+            LocalDate bookingDate = booking.getDetails().stream()
+                    .map(BookingDetail::getBookingDate)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(LocalDate.now().plusDays(1));
+            return LocalDateTime.of(bookingDate, minStartTime);
         }
-        return booking.getCreatedAt().plusDays(1);
+        return (booking != null && booking.getCreatedAt() != null) ? booking.getCreatedAt().plusDays(1) : LocalDateTime.now().plusDays(1);
     }
 
     private LocalDateTime getBookingEndTime(Booking booking) {
-        if (booking.getDetails() != null && !booking.getDetails().isEmpty()) {
-            BookingDetail detail = booking.getDetails().get(0);
-            return LocalDateTime.of(detail.getBookingDate(), detail.getEndTime());
+        if (booking != null && booking.getDetails() != null && !booking.getDetails().isEmpty()) {
+            LocalTime maxEndTime = booking.getDetails().stream()
+                    .map(BookingDetail::getEndTime)
+                    .filter(Objects::nonNull)
+                    .max(LocalTime::compareTo)
+                    .orElse(LocalTime.of(20, 0));
+            LocalDate bookingDate = booking.getDetails().stream()
+                    .map(BookingDetail::getBookingDate)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(LocalDate.now().plusDays(1));
+            return LocalDateTime.of(bookingDate, maxEndTime);
         }
         return getBookingStartTime(booking).plusHours(2);
     }
@@ -770,15 +789,18 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                     (booking.getVenue().getLocation() != null ? booking.getVenue().getLocation() : "");
         }
 
+        LocalDateTime startDateTime = getBookingStartTime(booking);
+        LocalDateTime endDateTime = getBookingEndTime(booking);
+
         BookingSummaryResponse bookingVM = BookingSummaryResponse.builder()
                 .id(booking.getId().toString())
                 .facilityName(booking.getVenue() != null ? booking.getVenue().getName() : "")
                 .courtName(booking.getDetails() != null && !booking.getDetails().isEmpty() && booking.getDetails().get(0).getCourt() != null ? booking.getDetails().get(0).getCourt().getName() : "Sân đấu")
                 .sportId(room.getHostClub().getSport() != null ? room.getHostClub().getSport().getId().toString() : "1")
                 .sportName(room.getHostClub().getSport() != null ? room.getHostClub().getSport().getName() : "Bóng đá")
-                .date(booking.getDetails() != null && !booking.getDetails().isEmpty() ? booking.getDetails().get(0).getBookingDate().toString() : LocalDate.now().toString())
-                .startTime(booking.getDetails() != null && !booking.getDetails().isEmpty() ? booking.getDetails().get(0).getStartTime().toString() : "18:00")
-                .endTime(booking.getDetails() != null && !booking.getDetails().isEmpty() ? booking.getDetails().get(0).getEndTime().toString() : "20:00")
+                .date(startDateTime != null ? startDateTime.toLocalDate().toString() : LocalDate.now().toString())
+                .startTime(startDateTime != null ? startDateTime.toLocalTime().toString() : "18:00")
+                .endTime(endDateTime != null ? endDateTime.toLocalTime().toString() : "20:00")
                 .totalPrice(booking.getFinalPrice())
                 .isPaid(booking.getStatus() == BookingStatus.CONFIRMED)
                 .format("Sân tiêu chuẩn")
