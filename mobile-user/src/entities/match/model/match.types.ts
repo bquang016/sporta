@@ -93,6 +93,7 @@ export interface MatchResultVM {
 
 export interface MatchRoomVM {
   id: string;
+  matchId?: string;
   booking: BookingSummaryVM;
   hostClub: ClubSummaryVM;
   guestClub?: ClubSummaryVM;

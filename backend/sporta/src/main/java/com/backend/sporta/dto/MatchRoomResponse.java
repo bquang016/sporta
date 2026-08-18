@@ -32,4 +32,5 @@ public class MatchRoomResponse {
     private Double distanceKm;
     private ScoreSubmissionResponse scoreSubmission;
     private MatchResultResponse result;
+    private String matchId;
 }

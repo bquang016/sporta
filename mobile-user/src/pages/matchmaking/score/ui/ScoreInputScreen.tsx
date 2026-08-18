@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,10 +40,28 @@ export function ScoreInputScreen() {
     setSubmitting(true);
     try {
       await submitScore(hostScore, guestScore, details);
-      await confirmScore();
-      router.replace(`/matchmaking/${room.id}/result` as any);
+      if (Platform.OS === 'web') {
+        window.alert('Đã gửi tỷ số trận đấu thành công! ⚽ Tỷ số đã được chuyển cho Bên B phê duyệt.');
+        router.replace(`/matchmaking/${room.id}` as any);
+      } else {
+        Alert.alert(
+          'Đã gửi tỷ số trận đấu! ⚽',
+          'Tỷ số đã được gửi tới đối thủ (Bên B). Trận đấu sẽ chính thức hoàn tất sau khi Bên B phê duyệt và xác nhận.',
+          [
+            {
+              text: 'Hiểu rồi',
+              onPress: () => router.replace(`/matchmaking/${room.id}` as any),
+            },
+          ]
+        );
+      }
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể gửi tỷ số');
+      if (Platform.OS === 'web') {
+        window.alert('Không thể gửi tỷ số: ' + (e.message || 'Lỗi hệ thống'));
+      } else {
+        Alert.alert('Lỗi', e.message || 'Không thể gửi tỷ số');
+      }
+    } finally {
       setSubmitting(false);
     }
   };
@@ -51,9 +70,20 @@ export function ScoreInputScreen() {
     setSubmitting(true);
     try {
       await confirmScore();
-      router.replace(`/matchmaking/${room.id}/result` as any);
+      if (Platform.OS === 'web') {
+        window.alert('Hoàn tất trận đấu thành công! 🎉 Điểm CRP đã được cập nhật.');
+        router.replace(`/matchmaking/${room.id}/result` as any);
+      } else {
+        Alert.alert('Hoàn tất trận đấu! 🎉', 'Kết quả đã được xác nhận và cập nhật điểm CRP.');
+        router.replace(`/matchmaking/${room.id}/result` as any);
+      }
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể xác nhận kết quả');
+      if (Platform.OS === 'web') {
+        window.alert('Không thể xác nhận: ' + (e.message || 'Lỗi hệ thống'));
+      } else {
+        Alert.alert('Lỗi', e.message || 'Không thể xác nhận kết quả');
+      }
+    } finally {
       setSubmitting(false);
     }
   };
@@ -130,12 +160,22 @@ export function ScoreInputScreen() {
             </View>
           )}
 
-          {/* Form Nhập tỷ số */}
+          {/* Form Nhập tỷ số - CHỈ CHỦ ROOM (BÊN A) ĐƯỢC NHẬP */}
           {room.status === 'MATCHED' && !submission && (
-            <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} />
+            room.permissions?.canEnterScore ? (
+              <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} />
+            ) : (
+              <View style={styles.confirmCard}>
+                <Ionicons name="time-outline" size={36} color={COLORS.primary} />
+                <Text style={styles.confirmTitle}>ĐANG CHỜ CHỦ ROOM NHẬP TỶ SỐ</Text>
+                <Text style={styles.confirmSub}>
+                  Chủ room đại diện <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.hostClub.name}</Text> chịu trách nhiệm nhập và gửi tỷ số trận đấu. Sau khi Chủ room gửi, bạn (Bên B) sẽ thực hiện phê duyệt.
+                </Text>
+              </View>
+            )
           )}
 
-          {/* View Xác nhận Tỷ số - Strict Theme Tokens */}
+          {/* View Phê Duyệt / Xác nhận Tỷ số */}
           {(room.status === 'SCORE_CONFIRMING' || submission) && (
             <View style={styles.confirmCard}>
               <View style={styles.confirmHeader}>
@@ -143,7 +183,7 @@ export function ScoreInputScreen() {
                 <Text style={styles.confirmTitle}>XÁC NHẬN KẾT QUẢ TRẬN ĐẤU</Text>
               </View>
               <Text style={styles.confirmSub}>
-                Đại diện <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.hostClub.name}</Text> đã gửi tỷ số:
+                Đại diện Chủ room <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.hostClub.name}</Text> đã đề xuất tỷ số:
               </Text>
 
               {/* Score Display Box */}
@@ -156,26 +196,36 @@ export function ScoreInputScreen() {
                 )}
               </View>
 
-              <Text style={styles.confirmQuestion}>Bấm nút bên dưới để chốt kết quả và tính thưởng điểm CRP:</Text>
-
-              <View style={styles.confirmBtnRow}>
-                <TouchableOpacity
-                  disabled={submitting}
-                  onPress={handleConfirmScore}
-                  style={styles.confirmScoreBtn}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={COLORS.white} />
-                  ) : (
-                    <>
-                      <View style={styles.trophyIconBg}>
-                        <Ionicons name="trophy" size={18} color={COLORS.secondary} />
-                      </View>
-                      <Text style={styles.confirmScoreText}>XÁC NHẬN KẾT QUẢ & XEM ĐIỂM CRP (+/-)</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
+              {room.permissions?.canConfirmScore ? (
+                <>
+                  <Text style={styles.confirmQuestion}>Bạn là đại diện Bên B ({room.guestClub?.name}). Bấm nút bên dưới để duyệt kết quả và tính điểm CRP:</Text>
+                  <View style={styles.confirmBtnRow}>
+                    <TouchableOpacity
+                      disabled={submitting}
+                      onPress={handleConfirmScore}
+                      style={styles.confirmScoreBtn}
+                    >
+                      {submitting ? (
+                        <ActivityIndicator color={COLORS.white} />
+                      ) : (
+                        <>
+                          <View style={styles.trophyIconBg}>
+                            <Ionicons name="trophy" size={18} color={COLORS.secondary} />
+                          </View>
+                          <Text style={styles.confirmScoreText}>DUYỆT & XÁC NHẬN TỶ SỐ TRẬN ĐẤU</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.waitingGuestBox}>
+                  <Ionicons name="time" size={20} color="#92400E" />
+                  <Text style={styles.waitingGuestText}>
+                    Tỷ số đã được gửi thành công! Đang chờ đối thủ Bên B ({room.guestClub?.name || 'Đối thủ'}) phê duyệt & xác nhận.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -490,5 +540,24 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 13.5,
     letterSpacing: 0.4,
+  },
+  waitingGuestBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#FCD34D',
+    padding: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    marginTop: 8,
+    width: '100%',
+  },
+  waitingGuestText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12.5,
+    color: '#78350F',
+    flex: 1,
+    lineHeight: 18,
   },
 });

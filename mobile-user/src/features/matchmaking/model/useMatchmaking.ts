@@ -111,7 +111,7 @@ export function useMatchDetail(roomId: string) {
   const acceptRequest = async (requestId: string) => {
     if (!roomId) return;
     const updated = await MatchmakingApiRepository.acceptJoinRequest(roomId, requestId);
-    setRoom(updated);
+    await fetchRoom();
     return updated;
   };
 
@@ -129,12 +129,19 @@ export function useMatchDetail(roomId: string) {
     return updated;
   };
 
+  const rejectRequest = async (requestId: string, reason?: string) => {
+    if (!roomId) return;
+    await MatchmakingApiRepository.rejectJoinRequest(requestId, reason);
+    await fetchRoom();
+  };
+
   return {
     room,
     loading,
     refetch: fetchRoom,
     requestJoin,
     acceptRequest,
+    rejectRequest,
     submitScore,
     confirmScore,
   };

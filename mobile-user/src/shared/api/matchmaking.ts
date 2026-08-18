@@ -222,6 +222,20 @@ export class MatchmakingApiRepository {
   }
 
   /**
+   * Từ chối đối thủ
+   */
+  static async rejectJoinRequest(requestId: string, reason?: string): Promise<void> {
+    return apiFetch<void>(
+      `/matchmaking/join-requests/${requestId}/reject`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      },
+      true
+    );
+  }
+
+  /**
    * Nhập tỷ số (Host A)
    */
   static async submitScore(

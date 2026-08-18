@@ -483,6 +483,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     public MatchRoomResponse submitScore(UUID matchId, SubmitScoreRequest request, String userEmail) {
         User user = getUserByEmail(userEmail);
         Match match = matchRepository.findById(matchId)
+                .or(() -> matchRepository.findByRoomId(matchId))
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin trận đấu", 404));
 
         if (!isClubAdmin(match.getHostClub().getId(), user.getId())) {
@@ -536,6 +537,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     public MatchRoomResponse confirmScore(UUID matchId, String userEmail) {
         User user = getUserByEmail(userEmail);
         Match match = matchRepository.findById(matchId)
+                .or(() -> matchRepository.findByRoomId(matchId))
                 .orElseThrow(() -> new CustomException("Không tìm thấy trận đấu", 404));
 
         if (!isClubAdmin(match.getGuestClub().getId(), user.getId())) {
@@ -897,6 +899,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .balanceLabel(balanceLabel)
                 .scoreSubmission(submissionVM)
                 .result(resultVM)
+                .matchId(match != null ? match.getId().toString() : null)
                 .build();
     }
 
