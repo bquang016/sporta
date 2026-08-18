@@ -3,6 +3,9 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Image
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { PromoEvent } from '../types';
+import { useQuery } from '@tanstack/react-query';
+import { voucherApi } from '../../../features/voucher/api';
+import { VoucherBanner } from '../../../features/voucher/ui/VoucherBanner';
 
 const PROMO_EVENTS: PromoEvent[] = [
   {
@@ -41,10 +44,18 @@ export function PromoCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  const { data: systemVouchers = [] } = useQuery({
+    queryKey: ['systemVouchers'],
+    queryFn: () => voucherApi.getSystemVouchers(),
+  });
+
+  const displayItems = [...systemVouchers, ...PROMO_EVENTS];
+
   // Tự động chuyển banner sau mỗi 4 giây
   useEffect(() => {
     const timer = setInterval(() => {
-      const nextIndex = (activeIndex + 1) % PROMO_EVENTS.length;
+      if (displayItems.length === 0) return;
+      const nextIndex = (activeIndex + 1) % displayItems.length;
       scrollViewRef.current?.scrollTo({
         x: nextIndex * CARD_WIDTH,
         animated: true,
@@ -58,7 +69,7 @@ export function PromoCarousel() {
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offset = event.nativeEvent.contentOffset.x;
     const index = Math.round(offset / CARD_WIDTH);
-    if (index !== activeIndex && index >= 0 && index < PROMO_EVENTS.length) {
+    if (index !== activeIndex && index >= 0 && index < displayItems.length) {
       setActiveIndex(index);
     }
   };
@@ -75,37 +86,45 @@ export function PromoCarousel() {
         onMomentumScrollEnd={handleScroll}
         scrollEventThrottle={16}
       >
-        {PROMO_EVENTS.map((event) => (
-          <TouchableOpacity key={event.id} activeOpacity={0.9} style={styles.cardContainer}>
-            <ImageBackground
-              source={{ uri: event.imageUrl }}
-              style={styles.imageCard}
-              imageStyle={{ borderRadius: BORDER_RADIUS.lg }}
-            >
-              <View style={styles.overlay}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.badgeContainer}>
-                    <Text style={styles.badgeText}>{event.badge}</Text>
+        {displayItems.map((item, index) => {
+          if ('discountType' in item) {
+            // It's a Voucher
+            return <VoucherBanner key={`v-${item.id}`} voucher={item} width={CARD_WIDTH} />;
+          }
+          // It's a PromoEvent
+          const event = item as PromoEvent;
+          return (
+            <TouchableOpacity key={`p-${event.id}`} activeOpacity={0.9} style={styles.cardContainer}>
+              <ImageBackground
+                source={{ uri: event.imageUrl }}
+                style={styles.imageCard}
+                imageStyle={{ borderRadius: BORDER_RADIUS.lg }}
+              >
+                <View style={styles.overlay}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>{event.badge}</Text>
+                    </View>
+                    <MaterialIcons name={event.icon as any} size={24} color="rgba(255, 255, 255, 0.9)" />
                   </View>
-                  <MaterialIcons name={event.icon as any} size={24} color="rgba(255, 255, 255, 0.9)" />
+                  <View style={styles.cardBody}>
+                    <Text style={styles.title} numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                    <Text style={styles.subtitle} numberOfLines={2}>
+                      {event.subtitle}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.title} numberOfLines={1}>
-                    {event.title}
-                  </Text>
-                  <Text style={styles.subtitle} numberOfLines={2}>
-                    {event.subtitle}
-                  </Text>
-                </View>
-              </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        ))}
+              </ImageBackground>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* Dấu chấm chuyển trang (Pagination Dots) sang trọng */}
       <View style={styles.pagination}>
-        {PROMO_EVENTS.map((_, index) => (
+        {displayItems.map((_, index) => (
           <View
             key={index}
             style={[

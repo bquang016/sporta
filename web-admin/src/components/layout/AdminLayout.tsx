@@ -10,6 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
   'facilities': 'Kiểm Duyệt Sân',
   'owners': 'Quản Lý Chủ Sân',
   'users': 'Quản Lý Người Dùng',
+  'vouchers': 'Quản Lý Mã Khuyến Mãi',
   'transactions': 'Quản Lý Đặt Sân & Giao Dịch',
   'reconciliations': 'Quản Lý Đối Soát',
   'settings': 'Cài Đặt Hệ Thống',
@@ -100,6 +101,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           )}
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_USERS')) && (
             <NavItem id="users" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="users" label="Quản lý người dùng" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_VOUCHERS') || permissions.includes('MANAGE_SYSTEM') || permissions.length === 0) && (
+            <NavItem id="vouchers" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="voucher" label="Mã khuyến mãi" isCollapsed={isSidebarCollapsed} />
           )}
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_TRANSACTIONS')) && (
             <NavItem id="transactions" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="transaction" label="Quản lý giao dịch" isCollapsed={isSidebarCollapsed} />
@@ -395,6 +399,12 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    case 'voucher':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
         </svg>
       );
     default:

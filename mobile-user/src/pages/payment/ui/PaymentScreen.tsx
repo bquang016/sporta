@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { getWalletBalance, checkPaymentStatus } from '../../../features/wallet/api/walletApi';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { VoucherBottomSheet } from '../../../features/voucher/ui/VoucherBottomSheet';
+import { UserVoucher, DiscountType } from '../../../features/voucher/types';
 
 export function PaymentScreen() {
   const router = useRouter();
@@ -27,6 +29,9 @@ export function PaymentScreen() {
   const [conflictModalVisible, setConflictModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  const [voucherSheetVisible, setVoucherSheetVisible] = useState(false);
+  const [selectedVouchers, setSelectedVouchers] = useState<UserVoucher[]>([]);
 
   const { data: balanceData } = useQuery({
     queryKey: ['wallet_balance'],
@@ -47,6 +52,28 @@ export function PaymentScreen() {
   const venueLocation = params.venueLocation as string;
   const bookingDate = params.bookingDate as string; // YYYY-MM-DD
   const rawTotalPrice = Number(params.totalPrice) || 0;
+
+  const totalDiscount = useMemo(() => {
+    let sum = 0;
+    selectedVouchers.forEach(uv => {
+      const v = uv.voucher;
+      let discount = 0;
+      if (v.discountType === DiscountType.FIXED_AMOUNT) {
+        discount = v.discountValue;
+      } else {
+        discount = (rawTotalPrice * v.discountValue) / 100;
+        if (v.maxDiscountAmount && discount > v.maxDiscountAmount) {
+          discount = v.maxDiscountAmount;
+        }
+      }
+      sum += discount;
+    });
+    // Cap at 80% total
+    const maxAllowed = rawTotalPrice * 0.8;
+    return sum > maxAllowed ? maxAllowed : sum;
+  }, [selectedVouchers, rawTotalPrice]);
+
+  const finalPrice = Math.max(0, rawTotalPrice - totalDiscount);
 
   const selectedSlots: SlotInfo[] = useMemo(() => {
     try {
@@ -82,7 +109,7 @@ export function PaymentScreen() {
     return `${d}/${m}/${y}`;
   };
 
-  const hasEnoughBalance = (balanceData?.balance || 0) >= rawTotalPrice;
+  const hasEnoughBalance = (balanceData?.balance || 0) >= finalPrice;
   const isWalletSelected = selectedMethod === 'wallet';
   const disablePaymentBtn = loading || (isWalletSelected && !hasEnoughBalance);
 
@@ -98,6 +125,7 @@ export function PaymentScreen() {
           endTime: `${slot.endTime}:00`,
         })),
         paymentMethod: selectedMethod,
+        voucherIds: selectedVouchers.map(v => v.voucherId),
       };
 
       const result = await createBooking(requestPayload);
@@ -234,16 +262,23 @@ export function PaymentScreen() {
 
         {/* Summary & Promo */}
         <Card style={styles.summaryCard}>
-          <View style={styles.promoRow}>
-            <TextInput 
-              style={styles.promoInput} 
-              placeholder="Nhập mã khuyến mãi"
-              placeholderTextColor={COLORS.outline}
-            />
-            <TouchableOpacity style={styles.promoApplyBtn}>
-              <Text style={styles.promoApplyText}>Áp dụng</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg }}
+            onPress={() => setVoucherSheetVisible(true)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name="local-activity" size={24} color={COLORS.primary} style={{ marginRight: SPACING.sm }} />
+              <Text style={{ ...TYPOGRAPHY.labelMd, color: COLORS.onSurface }}>Chọn mã khuyến mãi</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {selectedVouchers.length > 0 && (
+                <View style={{ backgroundColor: COLORS.primary, borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2, marginRight: 8 }}>
+                  <Text style={{ color: COLORS.white, fontSize: 12, fontWeight: 'bold' }}>{selectedVouchers.length} mã</Text>
+                </View>
+              )}
+              <MaterialIcons name="chevron-right" size={24} color={COLORS.outline} />
+            </View>
+          </TouchableOpacity>
           
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tạm tính ({displaySlots.length} khung giờ)</Text>
@@ -251,14 +286,14 @@ export function PaymentScreen() {
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Khuyến mãi</Text>
-            <Text style={styles.summaryValue}>-0đ</Text>
+            <Text style={[styles.summaryValue, { color: COLORS.primary }]}>-{totalDiscount.toLocaleString('vi-VN')}đ</Text>
           </View>
           
           <View style={styles.divider} />
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Tổng cộng</Text>
-            <Text style={styles.totalValue}>{rawTotalPrice.toLocaleString('vi-VN')}đ</Text>
+            <Text style={styles.totalValue}>{finalPrice.toLocaleString('vi-VN')}đ</Text>
           </View>
         </Card>
         
@@ -277,7 +312,7 @@ export function PaymentScreen() {
             </View>
           )}
           <Button 
-            title={`Thanh toán ${rawTotalPrice.toLocaleString('vi-VN')}đ & Xác nhận`} 
+            title={`Thanh toán ${finalPrice.toLocaleString('vi-VN')}đ & Xác nhận`} 
             onPress={handlePayment}
             style={{ width: '100%' }}
             disabled={disablePaymentBtn}
@@ -304,6 +339,15 @@ export function PaymentScreen() {
         message={errorMessage}
         buttonText="Đóng"
         onConfirm={() => setErrorModalVisible(false)}
+      />
+
+      <VoucherBottomSheet
+        visible={voucherSheetVisible}
+        onClose={() => setVoucherSheetVisible(false)}
+        orderTotal={rawTotalPrice}
+        venueId={venueId}
+        selectedVouchers={selectedVouchers}
+        onApply={(vouchers) => setSelectedVouchers(vouchers)}
       />
     </SafeAreaView>
   );

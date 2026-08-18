@@ -4,6 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Post, ClubInfoData } from '../model/post.types';
 import { MatchCardAttachment } from './MatchCardAttachment';
 import { VenuePromoAttachment } from './VenuePromoAttachment';
+import { VoucherPostAttachment } from '../../../features/voucher/ui/VoucherPostAttachment';
 import { PostImageViewerModal } from './PostImageViewerModal';
 import { REACTION_MAP } from '../index';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
@@ -157,6 +158,13 @@ export const PostCard = React.memo(({
       {/* 3.2 Venue Promo Attachment */}
       {post.venuePromoAttachment ? (
         <VenuePromoAttachment data={post.venuePromoAttachment} />
+      ) : null}
+
+      {/* 3.3 Voucher Attachment */}
+      {post.voucher ? (
+        <View style={{ paddingHorizontal: 16 }}>
+          <VoucherPostAttachment voucher={post.voucher} />
+        </View>
       ) : null}
 
       {/* ── 4. Media Images ── */}

@@ -49,6 +49,9 @@ public class BookingService {
     @Autowired
     private ApplicationEventPublisher eventPublisher;
 
+    @Autowired
+    private VoucherService voucherService;
+
     // ─── Create Booking ────────────────────────────────────────────────────────
 
     @Transactional
@@ -116,9 +119,28 @@ public class BookingService {
 
         booking.setDetails(details);
         booking.setTotalPrice(totalPrice);
-        booking.setFinalPrice(totalPrice); // Chưa tính discount
+        booking.setFinalPrice(totalPrice); // Default final price before discount
+        booking.setDiscountAmount(0.0);
+        
+        booking = bookingRepository.save(booking); // Save first to get ID for booking_voucher
 
-        booking = bookingRepository.save(booking);
+        // Apply vouchers if provided
+        if ((request.getOwnerVoucherCode() != null && !request.getOwnerVoucherCode().isEmpty()) || 
+            (request.getSystemVoucherCode() != null && !request.getSystemVoucherCode().isEmpty())) {
+            
+            com.backend.sporta.dto.ApplyVoucherResponse voucherResp = voucherService.commitApplyVouchers(
+                request.getOwnerVoucherCode(), 
+                request.getSystemVoucherCode(), 
+                venue.getId(), 
+                totalPrice, 
+                booking, 
+                user.getId()
+            );
+            
+            booking.setFinalPrice(voucherResp.getFinalPrice());
+            booking.setDiscountAmount(voucherResp.getTotalDiscount());
+            booking = bookingRepository.save(booking);
+        }
 
         BookingResponse response = mapToResponse(booking);
 
@@ -273,5 +295,8 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
+        
+        // Restore voucher if eligible
+        voucherService.restoreVoucherOnCancel(booking);
     }
 }
