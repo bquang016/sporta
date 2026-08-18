@@ -189,16 +189,6 @@ export function BookingSuccessScreen() {
               <Text style={styles.modalDetailLabel}>Khung giờ:</Text>
               <Text style={styles.modalDetailValueBold}>{timesStr.replace(/\n/g, ', ')}</Text>
             </View>
-
-            <Text style={[styles.modalDetailLabel, { marginTop: 10, marginBottom: 6 }]}>Dịch vụ đi kèm:</Text>
-            <View style={styles.serviceItemRow}>
-              <Text style={styles.serviceText}>• Nước suối tinh khiết (x4 chai)</Text>
-              <Text style={styles.servicePrice}>40.000đ</Text>
-            </View>
-            <View style={styles.serviceItemRow}>
-              <Text style={styles.serviceText}>• Thuê bộ áo bib thi đấu (x1 bộ)</Text>
-              <Text style={styles.servicePrice}>30.000đ</Text>
-            </View>
           </View>
 
           {/* 3. Mã Check-in / QR Code */}
@@ -221,16 +211,20 @@ export function BookingSuccessScreen() {
             <View style={styles.modalDetailRow}>
               <Text style={styles.modalDetailLabel}>Giá tiền sân:</Text>
               <Text style={styles.modalDetailValue}>
-                {formatCurrency((activeBooking.finalPrice || activeBooking.totalPrice || 0) - 70000)}
+                {formatCurrency(activeBooking.finalPrice || activeBooking.totalPrice || 0)}
               </Text>
             </View>
             <View style={styles.modalDetailRow}>
-              <Text style={styles.modalDetailLabel}>Giá dịch vụ đi kèm:</Text>
-              <Text style={styles.modalDetailValue}>70.000 VNĐ</Text>
-            </View>
-            <View style={styles.modalDetailRow}>
               <Text style={styles.modalDetailLabel}>Voucher giảm giá:</Text>
-              <Text style={[styles.modalDetailValue, { color: COLORS.error }]}>-50.000 VNĐ (SP-SPORTA2026)</Text>
+              {activeBooking.discountAmount && activeBooking.discountAmount > 0 ? (
+                <Text style={[styles.modalDetailValue, { color: COLORS.error }]}>
+                  -{formatCurrency(activeBooking.discountAmount)}
+                </Text>
+              ) : (
+                <Text style={[styles.modalDetailValue, { color: COLORS.onSurfaceVariant }]}>
+                  Chưa áp dụng
+                </Text>
+              )}
             </View>
             <View style={styles.modalDetailDivider} />
             <View style={styles.modalDetailRow}>
@@ -487,16 +481,6 @@ export function BookingSuccessScreen() {
                 <Text style={styles.modalDetailLabel}>Khung giờ:</Text>
                 <Text style={styles.modalDetailValueBold}>{timesStr.replace(/\n/g, ', ')}</Text>
               </View>
-
-              <Text style={[styles.modalDetailLabel, { marginTop: 10, marginBottom: 6 }]}>Dịch vụ đi kèm:</Text>
-              <View style={styles.serviceItemRow}>
-                <Text style={styles.serviceText}>• Nước suối tinh khiết (x4 chai)</Text>
-                <Text style={styles.servicePrice}>40.000đ</Text>
-              </View>
-              <View style={styles.serviceItemRow}>
-                <Text style={styles.serviceText}>• Thuê bộ áo bib thi đấu (x1 bộ)</Text>
-                <Text style={styles.servicePrice}>30.000đ</Text>
-              </View>
             </View>
 
             {/* 3. Mã Check-in / QR Code */}
@@ -519,16 +503,20 @@ export function BookingSuccessScreen() {
               <View style={styles.modalDetailRow}>
                 <Text style={styles.modalDetailLabel}>Giá tiền sân:</Text>
                 <Text style={styles.modalDetailValue}>
-                  {formatCurrency((activeBooking.finalPrice || activeBooking.totalPrice || 0) - 70000)}
+                  {formatCurrency(activeBooking.finalPrice || activeBooking.totalPrice || 0)}
                 </Text>
               </View>
               <View style={styles.modalDetailRow}>
-                <Text style={styles.modalDetailLabel}>Giá dịch vụ đi kèm:</Text>
-                <Text style={styles.modalDetailValue}>70.000 VNĐ</Text>
-              </View>
-              <View style={styles.modalDetailRow}>
                 <Text style={styles.modalDetailLabel}>Voucher giảm giá:</Text>
-                <Text style={[styles.modalDetailValue, { color: COLORS.error }]}>-50.000 VNĐ (SP-SPORTA2026)</Text>
+                {activeBooking.discountAmount && activeBooking.discountAmount > 0 ? (
+                  <Text style={[styles.modalDetailValue, { color: COLORS.error }]}>
+                    -{formatCurrency(activeBooking.discountAmount)}
+                  </Text>
+                ) : (
+                  <Text style={[styles.modalDetailValue, { color: COLORS.onSurfaceVariant }]}>
+                    Chưa áp dụng
+                  </Text>
+                )}
               </View>
               <View style={styles.modalDetailDivider} />
               <View style={styles.modalDetailRow}>
