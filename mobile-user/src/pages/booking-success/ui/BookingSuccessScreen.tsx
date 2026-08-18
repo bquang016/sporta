@@ -292,22 +292,24 @@ export function BookingSuccessScreen() {
             </View>
           </View>
 
-          {/* 6. Chính sách hủy sân & Đóng Modal */}
-          <View style={styles.detailSectionCard}>
-            <Text style={styles.sectionHeaderTitle}>6. Chính sách hủy sân</Text>
-            <Text style={styles.policyText}>• Hủy trước 12h: Hoàn tiền 100% về ví/tài khoản.</Text>
-            <Text style={styles.policyText}>• Hủy từ 4h - 12h: Hoàn tiền 50% tổng giá trị đơn.</Text>
-            <Text style={styles.policyText}>• Hủy dưới 4h trước giờ đá: Không áp dụng hoàn tiền.</Text>
+          {/* 6. Chính sách hủy sân & Đóng Modal (Chỉ hiện với đơn chưa hủy/hoàn thành) */}
+          {activeBooking.status !== 'CANCELLED' && activeBooking.status !== 'COMPLETED' && (
+            <View style={styles.detailSectionCard}>
+              <Text style={styles.sectionHeaderTitle}>6. Chính sách hủy sân</Text>
+              <Text style={styles.policyText}>• Hủy trước 12h: Hoàn tiền 100% về ví/tài khoản.</Text>
+              <Text style={styles.policyText}>• Hủy từ 4h - 12h: Hoàn tiền 50% tổng giá trị đơn.</Text>
+              <Text style={styles.policyText}>• Hủy dưới 4h trước giờ đá: Không áp dụng hoàn tiền.</Text>
 
-            <TouchableOpacity 
-              style={styles.cancelBookingBigBtn}
-              activeOpacity={0.85}
-              onPress={() => setShowCancelConfirmModal(true)}
-            >
-              <MaterialIcons name="cancel" size={20} color={COLORS.white} />
-              <Text style={styles.cancelBookingBigBtnText}>Hủy Đặt Sân Này</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity 
+                style={styles.cancelBookingBigBtn}
+                activeOpacity={0.85}
+                onPress={() => setShowCancelConfirmModal(true)}
+              >
+                <MaterialIcons name="cancel" size={20} color={COLORS.white} />
+                <Text style={styles.cancelBookingBigBtnText}>Hủy Đặt Sân Này</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
 
         <ConfirmModal
@@ -588,25 +590,27 @@ export function BookingSuccessScreen() {
               </View>
             </View>
 
-            {/* 6. Chính sách hủy sân & Đóng Modal */}
-            <View style={styles.detailSectionCard}>
-              <Text style={styles.sectionHeaderTitle}>6. Chính sách hủy sân</Text>
-              <Text style={styles.policyText}>• Hủy trước 12h: Hoàn tiền 100% về ví/tài khoản.</Text>
-              <Text style={styles.policyText}>• Hủy từ 4h - 12h: Hoàn tiền 50% tổng giá trị đơn.</Text>
-              <Text style={styles.policyText}>• Hủy dưới 4h trước giờ đá: Không áp dụng hoàn tiền.</Text>
+            {/* 6. Chính sách hủy sân & Đóng Modal (Chỉ hiện với đơn chưa hủy/hoàn thành) */}
+            {activeBooking.status !== 'CANCELLED' && activeBooking.status !== 'COMPLETED' && (
+              <View style={styles.detailSectionCard}>
+                <Text style={styles.sectionHeaderTitle}>6. Chính sách hủy sân</Text>
+                <Text style={styles.policyText}>• Hủy trước 12h: Hoàn tiền 100% về ví/tài khoản.</Text>
+                <Text style={styles.policyText}>• Hủy từ 4h - 12h: Hoàn tiền 50% tổng giá trị đơn.</Text>
+                <Text style={styles.policyText}>• Hủy dưới 4h trước giờ đá: Không áp dụng hoàn tiền.</Text>
 
-              <TouchableOpacity 
-                style={styles.cancelBookingBigBtn}
-                activeOpacity={0.85}
-                onPress={() => {
-                  setShowDetailModal(false);
-                  setTimeout(() => setShowCancelConfirmModal(true), 350);
-                }}
-              >
-                <MaterialIcons name="cancel" size={20} color={COLORS.white} />
-                <Text style={styles.cancelBookingBigBtnText}>Hủy Đặt Sân Này</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity 
+                  style={styles.cancelBookingBigBtn}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setShowDetailModal(false);
+                    setTimeout(() => setShowCancelConfirmModal(true), 350);
+                  }}
+                >
+                  <MaterialIcons name="cancel" size={20} color={COLORS.white} />
+                  <Text style={styles.cancelBookingBigBtnText}>Hủy Đặt Sân Này</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
