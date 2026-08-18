@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { ScoreInputForm } from '../../../../features/matchmaking/ui/ScoreInputForm';
+import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 
 export function ScoreInputScreen() {
   const router = useRouter();
@@ -23,7 +24,42 @@ export function ScoreInputScreen() {
   const { room, loading, submitScore, confirmScore } = useMatchDetail(id as string);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [isOverdue, setIsOverdue] = useState<boolean>(false);
+
+  // Custom Modal Alert / Confirm State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type?: 'info' | 'warning' | 'danger' | 'success';
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: 'info' | 'warning' | 'danger' | 'success' = 'info',
+    onClose?: () => void
+  ) => {
+    setModalConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      confirmText: 'Đã hiểu',
+      onConfirm: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+        if (onClose) onClose();
+      },
+    });
+  };
 
   if (loading || !room) {
     return (
@@ -40,27 +76,14 @@ export function ScoreInputScreen() {
     setSubmitting(true);
     try {
       await submitScore(hostScore, guestScore, details);
-      if (Platform.OS === 'web') {
-        window.alert('Đã gửi tỷ số trận đấu thành công! ⚽ Tỷ số đã được chuyển cho Bên B phê duyệt.');
-        router.replace(`/matchmaking/${room.id}` as any);
-      } else {
-        Alert.alert(
-          'Đã gửi tỷ số trận đấu! ⚽',
-          'Tỷ số đã được gửi tới đối thủ (Bên B). Trận đấu sẽ chính thức hoàn tất sau khi Bên B phê duyệt và xác nhận.',
-          [
-            {
-              text: 'Hiểu rồi',
-              onPress: () => router.replace(`/matchmaking/${room.id}` as any),
-            },
-          ]
-        );
-      }
+      showAlert(
+        'Đã gửi tỷ số trận đấu! ⚽',
+        'Tỷ số đã được gửi tới đối thủ (Bên B). Trận đấu sẽ chính thức hoàn tất sau khi Bên B phê duyệt và xác nhận.',
+        'success',
+        () => router.replace(`/matchmaking/${room.id}` as any)
+      );
     } catch (e: any) {
-      if (Platform.OS === 'web') {
-        window.alert('Không thể gửi tỷ số: ' + (e.message || 'Lỗi hệ thống'));
-      } else {
-        Alert.alert('Lỗi', e.message || 'Không thể gửi tỷ số');
-      }
+      showAlert('Lỗi', e.message || 'Không thể gửi tỷ số', 'danger');
     } finally {
       setSubmitting(false);
     }
@@ -70,29 +93,24 @@ export function ScoreInputScreen() {
     setSubmitting(true);
     try {
       await confirmScore();
-      if (Platform.OS === 'web') {
-        window.alert('Hoàn tất trận đấu thành công! 🎉 Điểm CRP đã được cập nhật.');
-        router.replace(`/matchmaking/${room.id}/result` as any);
-      } else {
-        Alert.alert('Hoàn tất trận đấu! 🎉', 'Kết quả đã được xác nhận và cập nhật điểm CRP.');
-        router.replace(`/matchmaking/${room.id}/result` as any);
-      }
+      showAlert(
+        'Hoàn tất trận đấu! 🎉',
+        'Kết quả đã được xác nhận và cập nhật điểm CRP.',
+        'success',
+        () => router.replace(`/matchmaking/${room.id}/result` as any)
+      );
     } catch (e: any) {
-      if (Platform.OS === 'web') {
-        window.alert('Không thể xác nhận: ' + (e.message || 'Lỗi hệ thống'));
-      } else {
-        Alert.alert('Lỗi', e.message || 'Không thể xác nhận kết quả');
-      }
+      showAlert('Lỗi', e.message || 'Không thể xác nhận kết quả', 'danger');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleProposeDraw = () => {
-    Alert.alert(
+    showAlert(
       'Đề xuất hòa',
       'Đề xuất ghi nhận kết quả hòa đã được gửi cho đối thủ. Cả hai đội cần đồng ý để hoàn tất.',
-      [{ text: 'Đồng ý' }]
+      'info'
     );
   };
 
@@ -108,9 +126,7 @@ export function ScoreInputScreen() {
           <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bảng Điểm Trận Đấu</Text>
-        <TouchableOpacity onPress={() => setIsOverdue(!isOverdue)} style={styles.overdueToggle}>
-          <Text style={styles.overdueToggleText}>{isOverdue ? 'Thường' : 'Quá hạn'}</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -134,31 +150,6 @@ export function ScoreInputScreen() {
               <Text style={styles.teamVsName} numberOfLines={1}>{room.guestClub?.name || 'Đội bạn'}</Text>
             </View>
           </View>
-
-          {/* OVERDUE State Box */}
-          {isOverdue && (
-            <View style={styles.overdueCard}>
-              <View style={styles.overdueHeader}>
-                <Ionicons name="alert-circle-outline" size={24} color={COLORS.errorText} />
-                <Text style={styles.overdueTitle}>Trận đấu quá hạn xác nhận (+1h)</Text>
-              </View>
-              <Text style={styles.overdueDesc}>
-                Đã quá 1 giờ từ khi trận đấu kết thúc mà hai đội chưa chốt tỷ số. Hệ thống không tự động ghi nhận kết quả để đảm bảo tính chính xác.
-              </Text>
-
-              <View style={styles.overdueActions}>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => Alert.alert('Báo cáo', 'Báo cáo sự cố đã được gửi tới quản trị viên.')} style={styles.reportBtn}>
-                  <Ionicons name="flag-outline" size={16} color={COLORS.errorText} />
-                  <Text style={styles.reportBtnText}>Báo cáo vấn đề</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity activeOpacity={0.8} onPress={handleProposeDraw} style={styles.drawBtn}>
-                  <Ionicons name="hand-left-outline" size={16} color={COLORS.white} />
-                  <Text style={styles.drawBtnText}>Đề xuất hòa</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
 
           {/* Form Nhập tỷ số - CHỈ CHỦ ROOM (BÊN A) ĐƯỢC NHẬP */}
           {room.status === 'MATCHED' && !submission && (
@@ -197,27 +188,25 @@ export function ScoreInputScreen() {
               </View>
 
               {room.permissions?.canConfirmScore ? (
-                <>
+                <View style={styles.confirmBtnRow}>
                   <Text style={styles.confirmQuestion}>Bạn là đại diện Bên B ({room.guestClub?.name}). Bấm nút bên dưới để duyệt kết quả và tính điểm CRP:</Text>
-                  <View style={styles.confirmBtnRow}>
-                    <TouchableOpacity
-                      disabled={submitting}
-                      onPress={handleConfirmScore}
-                      style={styles.confirmScoreBtn}
-                    >
-                      {submitting ? (
-                        <ActivityIndicator color={COLORS.white} />
-                      ) : (
-                        <>
-                          <View style={styles.trophyIconBg}>
-                            <Ionicons name="trophy" size={18} color={COLORS.secondary} />
-                          </View>
-                          <Text style={styles.confirmScoreText}>DUYỆT & XÁC NHẬN TỶ SỐ TRẬN ĐẤU</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </>
+                  <TouchableOpacity
+                    disabled={submitting}
+                    onPress={handleConfirmScore}
+                    style={styles.confirmScoreBtn}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color={COLORS.white} />
+                    ) : (
+                      <>
+                        <View style={styles.trophyIconBg}>
+                          <Ionicons name="trophy" size={18} color={COLORS.secondary} />
+                        </View>
+                        <Text style={styles.confirmScoreText}>DUYỆT & XÁC NHẬN TỶ SỐ TRẬN ĐẤU</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <View style={styles.waitingGuestBox}>
                   <Ionicons name="time" size={20} color="#92400E" />
@@ -230,6 +219,9 @@ export function ScoreInputScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Project Custom Alert / Confirm Modal */}
+      <CustomConfirmModal {...modalConfig} />
     </SafeAreaView>
   );
 }

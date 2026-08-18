@@ -19,6 +19,8 @@ public interface MatchRoomRepository extends JpaRepository<MatchRoom, UUID> {
 
     boolean existsByBookingIdAndStatusIn(UUID bookingId, List<MatchStatus> statuses);
 
+    boolean existsByBookingIdAndStatusNot(UUID bookingId, MatchStatus status);
+
     List<MatchRoom> findByStatusAndJoinDeadlineBefore(MatchStatus status, LocalDateTime deadline);
 
     @Query("SELECT r FROM MatchRoom r WHERE (:sportId IS NULL OR r.hostClub.sport.id = :sportId) AND (:status IS NULL OR r.status = :status) ORDER BY r.createdAt DESC")

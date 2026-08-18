@@ -20,9 +20,44 @@ import { ClubSummaryVM, BookingSummaryVM, MatchType } from '../../../../entities
 import { ClubSelector } from '../../../../features/matchmaking/ui/ClubSelector';
 import { PaidBookingPicker } from '../../../../features/matchmaking/ui/PaidBookingPicker';
 import { FeeSplitSelector } from '../../../../features/matchmaking/ui/FeeSplitSelector';
+import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 
 export function CreateMatchScreen() {
   const router = useRouter();
+
+  // Custom Modal Alert State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type?: 'info' | 'warning' | 'danger' | 'success';
+    confirmText?: string;
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: 'info' | 'warning' | 'danger' | 'success' = 'info',
+    onClose?: () => void
+  ) => {
+    setModalConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      confirmText: 'Đã hiểu',
+      onConfirm: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+        if (onClose) onClose();
+      },
+    });
+  };
 
   const [clubs, setClubs] = useState<ClubSummaryVM[]>([]);
   const [bookings, setBookings] = useState<BookingSummaryVM[]>([]);
@@ -61,15 +96,15 @@ export function CreateMatchScreen() {
 
   const handleCreate = async () => {
     if (!selectedClub) {
-      Alert.alert('Chưa chọn CLB', 'Vui lòng chọn CLB đại diện.');
+      showAlert('Chưa chọn CLB', 'Vui lòng chọn CLB đại diện.', 'warning');
       return;
     }
     if (!selectedClub.isEligibleForMatchmaking) {
-      Alert.alert('Chưa đủ thành viên', 'CLB đại diện cần có ít nhất 8 thành viên ACTIVE.');
+      showAlert('Chưa đủ thành viên', 'CLB đại diện cần có ít nhất 8 thành viên ACTIVE.', 'warning');
       return;
     }
     if (!selectedBooking) {
-      Alert.alert('Chưa chọn sân', 'Vui lòng chọn lịch sân đã đặt (PAID).');
+      showAlert('Chưa chọn sân', 'Vui lòng chọn lịch sân đã đặt (PAID).', 'warning');
       return;
     }
 
@@ -86,7 +121,7 @@ export function CreateMatchScreen() {
 
       router.replace(`/matchmaking/${created.id}` as any);
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể tạo bài ghép trận');
+      showAlert('Lỗi tạo phòng', e.message || 'Không thể tạo bài ghép trận', 'danger');
     } finally {
       setSubmitting(false);
     }
@@ -235,6 +270,9 @@ export function CreateMatchScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Custom Alert Modal */}
+      <CustomConfirmModal {...modalConfig} />
     </SafeAreaView>
   );
 }

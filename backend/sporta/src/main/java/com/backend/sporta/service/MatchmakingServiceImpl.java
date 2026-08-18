@@ -191,12 +191,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             throw new CustomException("Booking chưa được thanh toán thành công", 400);
         }
 
-        List<MatchStatus> activeStatuses = Arrays.asList(
-                MatchStatus.DRAFT, MatchStatus.OPEN, MatchStatus.MATCHED, MatchStatus.UPCOMING,
-                MatchStatus.SCORE_PENDING, MatchStatus.SCORE_CONFIRMING, MatchStatus.RESULT_OVERDUE, MatchStatus.DRAW_PROPOSED
-        );
-        if (matchRoomRepository.existsByBookingIdAndStatusIn(booking.getId(), activeStatuses)) {
-            throw new CustomException("Booking này đã được sử dụng tạo bài đăng ghép trận khác", 400);
+        if (matchRoomRepository.existsByBookingIdAndStatusNot(booking.getId(), MatchStatus.CANCELLED)) {
+            throw new CustomException("Lịch đặt sân này (Mã đơn: " + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getId()) + ") đã được tạo phòng ghép trận rồi. Mỗi lần thanh toán đặt sân (dù đặt 1 hay nhiều ca) chỉ được tạo 1 phòng ghép trận duy nhất.", 400);
         }
 
         Club hostClub = clubRepository.findById(request.getHostClubId())

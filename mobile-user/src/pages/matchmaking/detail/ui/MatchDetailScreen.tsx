@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
+import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 
 export function MatchDetailScreen() {
   const router = useRouter();
@@ -25,7 +26,6 @@ export function MatchDetailScreen() {
   const { room, loading, requestJoin, acceptRequest, rejectRequest, submitScore, confirmScore } = useMatchDetail(id as string);
 
   const [requesting, setRequesting] = useState<boolean>(false);
-  const [simulating, setSimulating] = useState<boolean>(false);
 
   // Club selector modal states for Side B
   const [isJoinModalVisible, setIsJoinModalVisible] = useState<boolean>(false);
@@ -38,6 +38,67 @@ export function MatchDetailScreen() {
   const [isVoteModalVisible, setIsVoteModalVisible] = useState<boolean>(false);
   const [voteTargetClubId, setVoteTargetClubId] = useState<string | number | null>(null);
   const [voteSending, setVoteSending] = useState<boolean>(false);
+
+  // Custom Modal Alert / Confirm State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type?: 'info' | 'warning' | 'danger' | 'success';
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirmAction: () => void,
+    type: 'info' | 'warning' | 'danger' | 'success' = 'info',
+    confirmText = 'Xác nhận',
+    cancelText = 'Hủy'
+  ) => {
+    setModalConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      confirmText,
+      cancelText,
+      onConfirm: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+        onConfirmAction();
+      },
+      onCancel: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+      },
+    });
+  };
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: 'info' | 'warning' | 'danger' | 'success' = 'info',
+    onClose?: () => void
+  ) => {
+    setModalConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      confirmText: 'Đóng',
+      onConfirm: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+        if (onClose) onClose();
+      },
+    });
+  };
 
   React.useEffect(() => {
     let isMounted = true;
@@ -79,16 +140,13 @@ export function MatchDetailScreen() {
     try {
       const clubs = await getJoinedClubsApi();
       if (!clubs || clubs.length === 0) {
-        Alert.alert(
+        showConfirm(
           'Chưa có CLB nào',
           'Bạn cần tạo hoặc tham gia ít nhất 1 CLB để gửi yêu cầu ghép trận.',
-          [
-            { text: 'Đóng', style: 'cancel' },
-            {
-              text: 'Đến trang CLB',
-              onPress: () => router.push('/(tabs)/club' as any),
-            },
-          ]
+          () => router.push('/(tabs)/club' as any),
+          'info',
+          'Đến trang CLB',
+          'Đóng'
         );
         return;
       }
@@ -96,13 +154,13 @@ export function MatchDetailScreen() {
       // RULE 1: Cùng 1 CLB không thể ghép chung 1 trận được (Lọc bỏ CLB Host)
       const validClubs = clubs.filter((c: any) => String(c.id) !== String(host.id));
       if (validClubs.length === 0) {
-        Alert.alert(
-          'Không thể xin ghép trận với chính mình',
+        showConfirm(
+          'Không thể ghép trận với chính mình',
           `CLB duy nhất của bạn là "${host.name}" (Chủ room). Cùng 1 CLB không thể ghép chung 1 trận đấu được. Vui lòng tham gia thêm CLB khác để xin ghép.`,
-          [
-            { text: 'Đã hiểu', style: 'cancel' },
-            { text: 'Đến trang CLB', onPress: () => router.push('/(tabs)/club' as any) },
-          ]
+          () => router.push('/(tabs)/club' as any),
+          'warning',
+          'Đến trang CLB',
+          'Đã hiểu'
         );
         return;
       }
@@ -111,7 +169,7 @@ export function MatchDetailScreen() {
       setSelectedClubId(validClubs[0]?.id || null);
       setIsJoinModalVisible(true);
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể nạp danh sách CLB của bạn');
+      showAlert('Lỗi', e.message || 'Không thể nạp danh sách CLB của bạn', 'danger');
     } finally {
       setLoadingClubs(false);
     }
@@ -119,16 +177,16 @@ export function MatchDetailScreen() {
 
   const handleConfirmSendRequest = async () => {
     if (!selectedClubId) {
-      Alert.alert('Vui lòng chọn CLB', 'Bạn cần chọn CLB bạn đại diện để gửi yêu cầu.');
+      showAlert('Vui lòng chọn CLB', 'Bạn cần chọn CLB bạn đại diện để gửi yêu cầu.', 'warning');
       return;
     }
     setRequesting(true);
     try {
       await requestJoin(String(selectedClubId), requestNote || 'CLB của chúng tôi muốn xin ghép trận!');
       setIsJoinModalVisible(false);
-      Alert.alert('Đã gửi yêu cầu ghép trận! 🎉', 'Vui lòng chờ Chủ room (Bên A) phê duyệt.');
+      showAlert('Đã gửi yêu cầu ghép trận! 🎉', 'Vui lòng chờ Chủ room (Bên A) phê duyệt.', 'success');
     } catch (e: any) {
-      Alert.alert('Không thể gửi yêu cầu', e.message || 'Lỗi gửi yêu cầu');
+      showAlert('Không thể gửi yêu cầu', e.message || 'Lỗi gửi yêu cầu', 'danger');
     } finally {
       setRequesting(false);
     }
@@ -139,14 +197,14 @@ export function MatchDetailScreen() {
     try {
       const clubs = await getJoinedClubsApi();
       if (!clubs || clubs.length === 0) {
-        Alert.alert('Chưa gia nhập CLB', 'Bạn chưa tham gia CLB nào để chia sẻ bài ghép kèo biểu quyết.');
+        showAlert('Chưa gia nhập CLB', 'Bạn chưa tham gia CLB nào để chia sẻ bài ghép kèo biểu quyết.', 'warning');
         return;
       }
       setMyClubs(clubs);
       setVoteTargetClubId(clubs[0]?.id || null);
       setIsVoteModalVisible(true);
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể lấy danh sách CLB của bạn');
+      showAlert('Lỗi', e.message || 'Không thể lấy danh sách CLB của bạn', 'danger');
     } finally {
       setLoadingClubs(false);
     }
@@ -157,110 +215,48 @@ export function MatchDetailScreen() {
     setTimeout(() => {
       setVoteSending(false);
       setIsVoteModalVisible(false);
-      Alert.alert(
+      showAlert(
         'Đã gửi bài biểu quyết thành công! 🗳️',
-        `Bài ghép kèo trận đấu tại ${booking.facilityName} (${booking.startTime}) đã được chia sẻ vào nhóm thảo luận của CLB. Các thành viên có thể vào bỏ phiếu bình chọn ngay!`
+        `Bài ghép kèo trận đấu tại ${booking.facilityName} (${booking.startTime}) đã được chia sẻ vào nhóm thảo luận của CLB. Các thành viên có thể vào bỏ phiếu bình chọn ngay!`,
+        'success'
       );
     }, 600);
   };
 
-  const handleAcceptApplicant = async (reqId: string, clubName: string) => {
-    const doAccept = async () => {
-      try {
-        await acceptRequest(reqId);
-        if (Platform.OS === 'web') {
-          window.alert(`Chốt trận thành công với CLB ${clubName}! ⚽ Trận đấu đã chuyển sang trạng thái MATCHED.`);
-        } else {
-          Alert.alert('Chốt trận thành công! ⚽', 'Trận đấu đã chuyển sang trạng thái MATCHED.');
-        }
-      } catch (err: any) {
-        if (Platform.OS === 'web') {
-          window.alert('Không thể chấp nhận: ' + (err.message || 'Lỗi hệ thống'));
-        } else {
-          Alert.alert('Lỗi', err.message || 'Không thể chấp nhận yêu cầu');
-        }
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Bạn có chắc chắn muốn chọn CLB ${clubName} làm đối thủ thi đấu?`)) {
-        await doAccept();
-      }
-    } else {
-      Alert.alert(
-        'Xác nhận chốt trận',
-        `Bạn có chắc chắn muốn chọn CLB ${clubName} làm đối thủ thi đấu?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Chấp nhận',
-            onPress: doAccept,
-          },
-        ]
-      );
-    }
-  };
-
-  const handleRejectApplicant = async (reqId: string, clubName: string) => {
-    const doReject = async () => {
-      try {
-        await rejectRequest(reqId);
-        if (Platform.OS === 'web') {
-          window.alert(`Đã từ chối yêu cầu ghép trận từ CLB ${clubName}.`);
-        } else {
-          Alert.alert('Đã từ chối', `Đã từ chối yêu cầu từ CLB ${clubName}.`);
-        }
-      } catch (err: any) {
-        if (Platform.OS === 'web') {
-          window.alert('Không thể từ chối: ' + (err.message || 'Lỗi hệ thống'));
-        } else {
-          Alert.alert('Lỗi', err.message || 'Không thể từ chối yêu cầu');
-        }
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Bạn có chắc chắn muốn từ chối yêu cầu ghép trận từ CLB ${clubName}?`)) {
-        await doReject();
-      }
-    } else {
-      Alert.alert(
-        'Từ chối yêu cầu',
-        `Bạn có chắc chắn muốn từ chối yêu cầu ghép trận từ CLB ${clubName}?`,
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Từ chối',
-            style: 'destructive',
-            onPress: doReject,
-          },
-        ]
-      );
-    }
-  };
-
-  const handleQuickFinishMatch = async () => {
-    setSimulating(true);
-    try {
-      let reqId = room.applicants[0]?.id;
-      if (room.status === 'OPEN') {
-        if (!reqId) {
-          const newReq = await requestJoin('club-beta', 'Tự động ghép trận');
-          reqId = newReq?.id;
-        }
-        if (reqId) {
+  const handleAcceptApplicant = (reqId: string, clubName: string) => {
+    showConfirm(
+      'Xác nhận chốt trận ⚽',
+      `Bạn có chắc chắn muốn chọn CLB "${clubName}" làm đối thủ thi đấu chính thức cho trận đấu này?`,
+      async () => {
+        try {
           await acceptRequest(reqId);
+          showAlert('Chốt trận thành công! ⚽', 'Trận đấu đã chuyển sang trạng thái MATCHED.', 'success');
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Không thể chấp nhận yêu cầu', 'danger');
         }
-      }
+      },
+      'success',
+      'Chấp nhận ghép',
+      'Hủy'
+    );
+  };
 
-      await submitScore('3', '2');
-      await confirmScore();
-      router.push(`/matchmaking/${room.id}/result` as any);
-    } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể kết thúc trận đấu');
-    } finally {
-      setSimulating(false);
-    }
+  const handleRejectApplicant = (reqId: string, clubName: string) => {
+    showConfirm(
+      'Từ chối yêu cầu ghép',
+      `Bạn có chắc chắn muốn từ chối yêu cầu ghép trận từ CLB "${clubName}"?`,
+      async () => {
+        try {
+          await rejectRequest(reqId);
+          showAlert('Đã từ chối', `Đã từ chối yêu cầu ghép từ CLB "${clubName}".`, 'info');
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Không thể từ chối yêu cầu', 'danger');
+        }
+      },
+      'warning',
+      'Từ chối',
+      'Quay lại'
+    );
   };
 
   const minSharePercent = Math.min(room.hostSharePercent, room.guestSharePercent);
@@ -287,68 +283,6 @@ export function MatchDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.responsiveContainer}>
-          {/* DEMO TEST SIMULATOR CARD */}
-          <View style={styles.simCard}>
-            <View style={styles.simHeader}>
-              <Ionicons name="construct-outline" size={18} color="#92400E" />
-              <Text style={styles.simTitle}>Thử Nghiệm Ghép Trận & Chốt Điểm CRP</Text>
-            </View>
-            <Text style={styles.simDesc}>
-              Dành cho bạn test thử luồng tạo trận từ tài khoản khác & chốt ngay kết quả xem thưởng CRP (+/-):
-            </Text>
-
-            <View style={styles.simBtnGrid}>
-              <TouchableOpacity
-                disabled={simulating}
-                style={styles.simBtnPrimary}
-                onPress={async () => {
-                  setSimulating(true);
-                  try {
-                    await requestJoin('club-beta', 'CLB Beta United xin ghép trận!');
-                    Alert.alert('Đã gửi yêu cầu ghép trận từ CLB Beta United thành công! ⚽');
-                  } finally {
-                    setSimulating(false);
-                  }
-                }}
-              >
-                <Text style={styles.simBtnText}>1. Gửi request ghép trận từ CLB Beta</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                disabled={simulating}
-                style={styles.simBtnSecondary}
-                onPress={async () => {
-                  setSimulating(true);
-                  try {
-                    let reqId = room.applicants[0]?.id;
-                    if (!reqId) {
-                      const newReq = await requestJoin('club-beta', 'Tự động ghép trận');
-                      reqId = newReq?.id;
-                    }
-                    if (reqId) await acceptRequest(reqId);
-                    router.push(`/matchmaking/${room.id}/score` as any);
-                  } finally {
-                    setSimulating(false);
-                  }
-                }}
-              >
-                <Text style={styles.simBtnText}>2. Chốt đối thủ & Mở form Nhập tỷ số</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                disabled={simulating}
-                style={styles.simBtnGold}
-                onPress={handleQuickFinishMatch}
-              >
-                {simulating ? (
-                  <ActivityIndicator color="#78350F" />
-                ) : (
-                  <Text style={styles.simBtnGoldText}>🏁 3. KẾT THÚC TRẬN ĐẤU & XEM ĐIỂM CRP (+/-) NGAY</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Stadium Hero Banner Card */}
           <View style={styles.heroCard}>
             <View style={styles.badgeRow}>
@@ -461,48 +395,78 @@ export function MatchDetailScreen() {
           {/* Applicants List */}
           {room.status === 'OPEN' && room.applicants.length > 0 && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Danh Sách Yêu Cầu Ghép Trận ({room.applicants.length})</Text>
+              <View style={styles.applicantSectionHeader}>
+                <View style={styles.applicantHeaderTitleRow}>
+                  <Ionicons name="people-circle-outline" size={22} color={COLORS.primary} />
+                  <Text style={styles.sectionTitle}>Danh Sách Yêu Cầu Ghép Trận ({room.applicants.length})</Text>
+                </View>
+                <Text style={styles.applicantSubHint}>Chủ room chọn đối thủ phù hợp nhất để chốt trận</Text>
+              </View>
 
               {room.applicants.map((req) => {
                 const canManage = !!room.permissions?.canManageApplicants;
                 return (
-                  <View key={req.id} style={styles.applicantCard}>
-                    <View style={styles.applicantHeader}>
-                      <View style={styles.applicantAvatar}>
-                        <Text style={styles.applicantAvatarText}>{req.applicantClub.name?.charAt(0) || 'B'}</Text>
+                  <View key={req.id} style={styles.applicantCardNew}>
+                    <View style={styles.applicantHeaderNew}>
+                      {/* Club Avatar */}
+                      <View style={styles.applicantAvatarNew}>
+                        <Text style={styles.applicantAvatarTextNew}>{req.applicantClub.name?.charAt(0) || 'B'}</Text>
                       </View>
 
-                      <View style={styles.applicantInfo}>
-                        <Text style={styles.applicantName}>{req.applicantClub.name}</Text>
-                        <Text style={styles.applicantMeta}>
-                          {req.applicantClub.levelLabel} • {req.applicantClub.clubElo || 1200} Elo • {req.applicantClub.activeMemberCount || 10} thành viên
-                        </Text>
+                      <View style={styles.applicantInfoNew}>
+                        <View style={styles.applicantNameRow}>
+                          <Text style={styles.applicantNameNew} numberOfLines={1}>{req.applicantClub.name}</Text>
+                          <View style={styles.levelBadgeMini}>
+                            <Text style={styles.levelBadgeText}>{req.applicantClub.levelLabel || 'Cân bằng'}</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.applicantStatsRow}>
+                          <View style={styles.statTag}>
+                            <Ionicons name="trophy-outline" size={12} color="#D97706" />
+                            <Text style={styles.statTagText}>{req.applicantClub.clubElo || 1200} Elo</Text>
+                          </View>
+
+                          <View style={styles.statTag}>
+                            <Ionicons name="people-outline" size={12} color={COLORS.primary} />
+                            <Text style={styles.statTagText}>{req.applicantClub.activeMemberCount || 10} TV</Text>
+                          </View>
+                        </View>
                       </View>
                     </View>
 
-                    {req.note && <Text style={styles.applicantNote}>"{req.note}"</Text>}
+                    {req.note && (
+                      <View style={styles.applicantNoteBox}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.onSurfaceVariant} />
+                        <Text style={styles.applicantNoteText}>"{req.note}"</Text>
+                      </View>
+                    )}
 
                     {req.status === 'PENDING' && (
                       canManage ? (
-                        <View style={styles.applicantActionRow}>
+                        <View style={styles.applicantActionRowNew}>
                           <TouchableOpacity
+                            activeOpacity={0.8}
                             onPress={() => handleRejectApplicant(req.id, req.applicantClub.name)}
-                            style={styles.rejectBtn}
+                            style={styles.rejectBtnNew}
                           >
-                            <Text style={styles.rejectBtnText}>Từ chối</Text>
+                            <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                            <Text style={styles.rejectBtnTextNew}>Từ chối</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
+                            activeOpacity={0.85}
                             onPress={() => handleAcceptApplicant(req.id, req.applicantClub.name)}
-                            style={styles.acceptBtn}
+                            style={styles.acceptBtnNew}
                           >
-                            <Text style={styles.acceptBtnText}>Chấp nhận</Text>
+                            <Ionicons name="checkmark-circle" size={18} color={COLORS.white} />
+                            <Text style={styles.acceptBtnTextNew}>Chấp nhận ghép ⚽</Text>
                           </TouchableOpacity>
                         </View>
                       ) : (
-                        <View style={styles.pendingStatusBadge}>
-                          <Ionicons name="time-outline" size={14} color="#D97706" />
-                          <Text style={styles.pendingStatusText}>Đang chờ Chủ room (Bên A) phê duyệt ⏳</Text>
+                        <View style={styles.pendingStatusBadgeNew}>
+                          <Ionicons name="hourglass-outline" size={14} color="#D97706" />
+                          <Text style={styles.pendingStatusTextNew}>Đang chờ Chủ room (Bên A) phê duyệt ⏳</Text>
                         </View>
                       )
                     )}
@@ -821,6 +785,9 @@ export function MatchDetailScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Project Custom Confirm / Alert Modal */}
+      <CustomConfirmModal {...modalConfig} />
     </SafeAreaView>
   );
 }
@@ -1255,51 +1222,181 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  rejectBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.outline,
+  applicantSectionHeader: {
+    gap: 2,
+    marginBottom: 8,
+  },
+  applicantHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  applicantSubHint: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+  },
+  applicantCardNew: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(6, 78, 59, 0.12)',
+    padding: SPACING.md,
+    gap: 12,
+    marginTop: 8,
+  },
+  applicantHeaderNew: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  applicantAvatarNew: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: 'rgba(6, 78, 59, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  rejectBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
+  applicantAvatarTextNew: {
+    ...TYPOGRAPHY.headlineSmall,
+    color: COLORS.white,
+    fontWeight: '900',
+    fontSize: 18,
   },
-  acceptBtn: {
+  applicantInfoNew: {
     flex: 1,
+    gap: 4,
+  },
+  applicantNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  applicantNameNew: {
+    ...TYPOGRAPHY.titleSm,
+    fontWeight: '900',
+    color: COLORS.onSurface,
+    fontSize: 15,
+    flex: 1,
+  },
+  levelBadgeMini: {
+    backgroundColor: 'rgba(6, 78, 59, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  levelBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  applicantStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  statTagText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.onSurfaceVariant,
+  },
+  applicantNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 10,
     paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  applicantNoteText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: COLORS.onSurfaceVariant,
+    flex: 1,
+  },
+  applicantActionRowNew: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 2,
+  },
+  rejectBtnNew: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  rejectBtnTextNew: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#DC2626',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  acceptBtnNew: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.primary,
-    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  acceptBtnText: {
+  acceptBtnTextNew: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
-    fontWeight: '800',
-    fontSize: 12,
+    fontWeight: '900',
+    fontSize: 13,
   },
-  pendingStatusBadge: {
+  pendingStatusBadgeNew: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#FCD34D',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: BORDER_RADIUS.full,
-    marginTop: 4,
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
-  pendingStatusText: {
-    ...TYPOGRAPHY.labelSm,
+  pendingStatusTextNew: {
+    ...TYPOGRAPHY.labelMd,
     color: '#92400E',
     fontWeight: '800',
-    fontSize: 11.5,
+    fontSize: 12,
   },
   bottomBar: {
     position: 'absolute',
