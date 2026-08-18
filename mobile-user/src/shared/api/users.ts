@@ -21,6 +21,15 @@ export interface UserProfileDto {
     sportIcon: string;
     level: string;
   }[];
+  location?: string;
+  notifBooking?: boolean;
+  notifPromo?: boolean;
+  notifMatchmake?: boolean;
+  linkGoogle?: boolean;
+  linkFacebook?: boolean;
+  linkApple?: boolean;
+  enableBiometrics?: boolean;
+  privateMode?: boolean;
 }
 
 export interface UpdateUserProfileRequest {
@@ -30,6 +39,16 @@ export interface UpdateUserProfileRequest {
   dateOfBirth?: string;
   height?: number;
   weight?: number;
+  location?: string;
+  notifBooking?: boolean;
+  notifPromo?: boolean;
+  notifMatchmake?: boolean;
+  linkGoogle?: boolean;
+  linkFacebook?: boolean;
+  linkApple?: boolean;
+  enableBiometrics?: boolean;
+  privateMode?: boolean;
+  [key: string]: any;
 }
 
 const getToken = async (): Promise<string | null> => {
