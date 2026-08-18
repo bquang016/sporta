@@ -50,20 +50,20 @@ public class Match {
     @Builder.Default
     private MatchStatus status = MatchStatus.MATCHED;
 
-    @Column(name = "host_share_percent", nullable = false)
+    @Column(name = "host_share_percent")
     private Integer hostSharePercent;
 
-    @Column(name = "guest_share_percent", nullable = false)
+    @Column(name = "guest_share_percent")
     private Integer guestSharePercent;
 
-    @Column(name = "guest_share_amount", nullable = false)
+    @Column(name = "guest_share_amount")
     private Double guestShareAmount;
 
     // Rating Snapshot at match confirmation time
-    @Column(name = "host_club_elo_snapshot", nullable = false)
+    @Column(name = "host_club_elo_snapshot")
     private Integer hostClubEloSnapshot;
 
-    @Column(name = "guest_club_elo_snapshot", nullable = false)
+    @Column(name = "guest_club_elo_snapshot")
     private Integer guestClubEloSnapshot;
 
     @Column(name = "host_level_snapshot")
@@ -72,10 +72,10 @@ public class Match {
     @Column(name = "guest_level_snapshot")
     private String guestLevelSnapshot;
 
-    @Column(name = "host_crp_before_snapshot", nullable = false)
+    @Column(name = "host_crp_before_snapshot")
     private Integer hostCrpBeforeSnapshot;
 
-    @Column(name = "guest_crp_before_snapshot", nullable = false)
+    @Column(name = "guest_crp_before_snapshot")
     private Integer guestCrpBeforeSnapshot;
 
     @Column(name = "created_at")

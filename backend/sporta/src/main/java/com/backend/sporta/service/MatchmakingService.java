@@ -10,6 +10,8 @@ public interface MatchmakingService {
 
     List<MatchRoomResponse> getRooms(Long sportId, MatchType matchType, String timeFilter, String levelFilter, String sort, String userEmail);
 
+    List<MatchRoomResponse> getMyMatches(String userEmail);
+
     MatchRoomResponse createRoom(CreateMatchRoomRequest request, String userEmail);
 
     MatchRoomResponse getRoomDetail(UUID roomId, String userEmail);

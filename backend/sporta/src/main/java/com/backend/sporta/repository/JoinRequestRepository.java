@@ -20,5 +20,7 @@ public interface JoinRequestRepository extends JpaRepository<JoinRequest, UUID> 
 
     List<JoinRequest> findByApplicantClubIdAndStatus(Long applicantClubId, JoinRequestStatus status);
 
+    List<JoinRequest> findByApplicantClubIdIn(List<Long> applicantClubIds);
+
     boolean existsByRoomIdAndApplicantClubIdAndStatusIn(UUID roomId, Long applicantClubId, List<JoinRequestStatus> statuses);
 }

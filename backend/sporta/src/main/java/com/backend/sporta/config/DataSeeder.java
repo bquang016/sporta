@@ -135,6 +135,21 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Bỏ qua việc thêm cột address_detail (có thể đã tồn tại).");
         }
 
+        // Ensure columns exist on match_rooms if table was created previously
+        try {
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS host_club_id BIGINT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS guest_club_id BIGINT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS match_type VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS host_share_percent INT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS guest_share_percent INT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS guest_share_amount DOUBLE PRECISION");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS desired_levels VARCHAR(255)");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS join_deadline TIMESTAMP");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc thêm cột match_rooms.");
+        }
+
         // Migrate existing venues' locations
         try {
             migrateVenueLocations();

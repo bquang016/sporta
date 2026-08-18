@@ -35,6 +35,11 @@ public class MatchmakingController {
         return ResponseEntity.ok(matchmakingService.getRooms(sportId, matchType, timeFilter, levelFilter, sort, getCurrentUserEmail()));
     }
 
+    @GetMapping("/my-matches")
+    public ResponseEntity<List<MatchRoomResponse>> getMyMatches() {
+        return ResponseEntity.ok(matchmakingService.getMyMatches(getCurrentUserEmail()));
+    }
+
     @PostMapping("/rooms")
     public ResponseEntity<MatchRoomResponse> createRoom(@Valid @RequestBody CreateMatchRoomRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(matchmakingService.createRoom(request, getCurrentUserEmail()));

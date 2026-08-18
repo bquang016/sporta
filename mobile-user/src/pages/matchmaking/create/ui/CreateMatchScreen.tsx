@@ -40,30 +40,16 @@ export function CreateMatchScreen() {
     async function loadData() {
       setLoading(true);
       try {
-        let eligibleClubs: ClubSummaryVM[] = [];
-        let paidBookings: BookingSummaryVM[] = [];
+        const eligibleClubs = await MatchmakingApiRepository.getEligibleClubs();
+        const paidBookings = await MatchmakingApiRepository.getPaidBookings();
 
-        try {
-          eligibleClubs = await MatchmakingApiRepository.getEligibleClubs();
-          paidBookings = await MatchmakingApiRepository.getPaidBookings();
-        } catch (e) {
-          console.log('Error fetching from API, using mock repository:', e);
-        }
+        setClubs(eligibleClubs || []);
+        setBookings(paidBookings || []);
 
-        if (!eligibleClubs || eligibleClubs.length === 0) {
-          eligibleClubs = await MockMatchmakingRepository.getEligibleClubs();
-        }
-        if (!paidBookings || paidBookings.length === 0) {
-          paidBookings = await MockMatchmakingRepository.getPaidBookings();
-        }
-
-        setClubs(eligibleClubs);
-        setBookings(paidBookings);
-
-        const firstEligible = eligibleClubs.find((c) => c.isEligibleForMatchmaking);
+        const firstEligible = (eligibleClubs || []).find((c) => c.isEligibleForMatchmaking);
         if (firstEligible) setSelectedClub(firstEligible);
 
-        if (paidBookings.length > 0) setSelectedBooking(paidBookings[0]);
+        if (paidBookings && paidBookings.length > 0) setSelectedBooking(paidBookings[0]);
       } catch (e) {
         console.error('Error loading create match data:', e);
       } finally {
@@ -89,27 +75,14 @@ export function CreateMatchScreen() {
 
     setSubmitting(true);
     try {
-      let created;
-      try {
-        created = await MatchmakingApiRepository.createRoom({
-          bookingId: selectedBooking.id,
-          hostClubId: selectedClub.id,
-          matchType,
-          hostSharePercent,
-          desiredLevels: [desiredLevel],
-          note: note.trim() || undefined,
-        });
-      } catch (e) {
-        console.log('API createRoom failed, falling back to mock:', e);
-        created = await MockMatchmakingRepository.createRoom({
-          bookingId: selectedBooking.id,
-          hostClubId: selectedClub.id,
-          matchType,
-          hostSharePercent,
-          desiredLevels: [desiredLevel],
-          note: note.trim() || undefined,
-        });
-      }
+      const created = await MatchmakingApiRepository.createRoom({
+        bookingId: selectedBooking.id,
+        hostClubId: selectedClub.id,
+        matchType,
+        hostSharePercent,
+        desiredLevels: [desiredLevel],
+        note: note.trim() || undefined,
+      });
 
       router.replace(`/matchmaking/${created.id}` as any);
     } catch (e: any) {

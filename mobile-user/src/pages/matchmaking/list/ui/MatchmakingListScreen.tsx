@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { useMatchmakingList } from '../../../../features/matchmaking/model/useMatchmaking';
+import { useMatchmakingList, useMyMatches } from '../../../../features/matchmaking/model/useMatchmaking';
 import { MatchCard } from '../../../../features/matchmaking/ui/MatchCard';
 import { MatchmakingSortOption } from '../../../../entities/match/model/match.types';
 
 export function MatchmakingListScreen() {
   const router = useRouter();
-  const { rooms, loading, filters, setFilters, sortOption, setSortOption } = useMatchmakingList();
+
+  // Tab State: 'ALL_ROOMS' (Sàn Chợ tìm đối thủ) | 'MY_MATCHES' (Trận đấu của tôi)
+  const [activeTab, setActiveTab] = useState<'ALL_ROOMS' | 'MY_MATCHES'>('ALL_ROOMS');
+
+  // Hooks (100% Real Backend Data)
+  const {
+    rooms: publicRooms,
+    loading: publicLoading,
+    filters,
+    setFilters,
+    sortOption,
+    setSortOption,
+    refetch: refetchPublic,
+  } = useMatchmakingList();
+
+  const {
+    rooms: myRooms,
+    loading: myLoading,
+    refetch: refetchMyMatches,
+  } = useMyMatches();
+
+  const currentRooms = activeTab === 'ALL_ROOMS' ? publicRooms : myRooms;
+  const isLoading = activeTab === 'ALL_ROOMS' ? publicLoading : myLoading;
 
   const sports = [
     { id: undefined, name: 'Tất cả môn', icon: 'grid-outline' },
@@ -44,7 +66,7 @@ export function MatchmakingListScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* Top Header Bar (Cleaner design without top create button) */}
+      {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
@@ -52,95 +74,157 @@ export function MatchmakingListScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Ghép Kèo Tìm Đối Thủ</Text>
+            <Text style={styles.headerTitle}>Ghép Kèo Matchmaking</Text>
             <View style={styles.headerBadgeContainer}>
               <View style={styles.liveDot} />
-              <Text style={styles.headerBadgeText}>{rooms.length} trận đang mở</Text>
+              <Text style={styles.headerBadgeText}>
+                {activeTab === 'ALL_ROOMS' ? `${publicRooms.length} phòng đang tìm đối thủ` : `${myRooms.length} trận đấu của tôi`}
+              </Text>
             </View>
           </View>
 
-          <View style={{ width: 36 }} />
+          <TouchableOpacity
+            onPress={() => (activeTab === 'ALL_ROOMS' ? refetchPublic() : refetchMyMatches())}
+            style={styles.headerIconBtn}
+          >
+            <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Top Segmented Tab Switcher (Sàn Ghép Kèo vs Trận Đấu Của Tôi) */}
+        <View style={styles.tabBarContainer}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setActiveTab('ALL_ROOMS')}
+            style={[styles.tabBtn, activeTab === 'ALL_ROOMS' && styles.tabBtnActive]}
+          >
+            <Ionicons
+              name="planet-outline"
+              size={16}
+              color={activeTab === 'ALL_ROOMS' ? COLORS.primary : COLORS.onSurfaceVariant}
+            />
+            <Text style={[styles.tabBtnText, activeTab === 'ALL_ROOMS' && styles.tabBtnTextActive]}>
+              Sàn Tìm Đối Thủ
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              setActiveTab('MY_MATCHES');
+              refetchMyMatches();
+            }}
+            style={[styles.tabBtn, activeTab === 'MY_MATCHES' && styles.tabBtnActive]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={activeTab === 'MY_MATCHES' ? COLORS.primary : COLORS.onSurfaceVariant}
+            />
+            <Text style={[styles.tabBtnText, activeTab === 'MY_MATCHES' && styles.tabBtnTextActive]}>
+              Trận Đấu Của Tôi
+            </Text>
+            {myRooms.length > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeNum}>{myRooms.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Responsive Middle Wrapper */}
       <View style={styles.responsiveWrapper}>
-        {/* Sport Category Horizontal Pills */}
-        <View style={styles.sportBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sportScroll}>
-            {sports.map((sp) => {
-              const isSelected = filters.sportId === sp.id;
-              return (
-                <TouchableOpacity
-                  key={sp.id || 'all'}
-                  activeOpacity={0.8}
-                  onPress={() => setFilters({ ...filters, sportId: sp.id })}
-                  style={[styles.sportPill, isSelected && styles.sportPillActive]}
-                >
-                  <Ionicons
-                    name={sp.icon as any}
-                    size={15}
-                    color={isSelected ? COLORS.white : COLORS.onSurfaceVariant}
-                  />
-                  <Text style={[styles.sportPillText, isSelected && styles.sportPillTextActive]}>
-                    {sp.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        {activeTab === 'ALL_ROOMS' && (
+          <>
+            {/* Sport Category Horizontal Pills */}
+            <View style={styles.sportBar}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sportScroll}>
+                {sports.map((sp) => {
+                  const isSelected = filters.sportId === sp.id;
+                  return (
+                    <TouchableOpacity
+                      key={sp.id || 'all'}
+                      activeOpacity={0.8}
+                      onPress={() => setFilters({ ...filters, sportId: sp.id })}
+                      style={[styles.sportPill, isSelected && styles.sportPillActive]}
+                    >
+                      <Ionicons
+                        name={sp.icon as any}
+                        size={15}
+                        color={isSelected ? COLORS.white : COLORS.onSurfaceVariant}
+                      />
+                      <Text style={[styles.sportPillText, isSelected && styles.sportPillTextActive]}>
+                        {sp.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-        {/* Filter & Sort Bar */}
-        <View style={styles.filterBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {matchTypes.map((mt) => {
-              const isSelected = (filters.matchType || 'ALL') === mt.id;
-              return (
-                <TouchableOpacity
-                  key={mt.id}
-                  onPress={() => setFilters({ ...filters, matchType: mt.id as any })}
-                  style={[styles.filterChip, isSelected && styles.filterChipActive]}
-                >
-                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
-                    {mt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {/* Filter & Sort Bar */}
+            <View style={styles.filterBar}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                {matchTypes.map((mt) => {
+                  const isSelected = (filters.matchType || 'ALL') === mt.id;
+                  return (
+                    <TouchableOpacity
+                      key={mt.id}
+                      onPress={() => setFilters({ ...filters, matchType: mt.id as any })}
+                      style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                    >
+                      <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                        {mt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
 
-            <View style={styles.vDivider} />
+                <View style={styles.vDivider} />
 
-            {sortOptions.map((so) => {
-              const isSelected = sortOption === so.id;
-              return (
-                <TouchableOpacity
-                  key={so.id}
-                  onPress={() => setSortOption(so.id)}
-                  style={[styles.sortChip, isSelected && styles.sortChipActive]}
-                >
-                  <Text style={[styles.sortChipText, isSelected && styles.sortChipTextActive]}>
-                    {so.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+                {sortOptions.map((so) => {
+                  const isSelected = sortOption === so.id;
+                  return (
+                    <TouchableOpacity
+                      key={so.id}
+                      onPress={() => setSortOption(so.id)}
+                      style={[styles.sortChip, isSelected && styles.sortChipActive]}
+                    >
+                      <Text style={[styles.sortChipText, isSelected && styles.sortChipTextActive]}>
+                        {so.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </>
+        )}
 
         {/* Main Content List */}
-        {loading ? (
+        {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Đang cập nhật bài viết mới...</Text>
+            <Text style={styles.loadingText}>Đang tải dữ liệu từ máy chủ...</Text>
           </View>
-        ) : rooms.length === 0 ? (
+        ) : currentRooms.length === 0 ? (
           <View style={styles.centerContainer}>
             <View style={styles.emptyIconBg}>
-              <Ionicons name="people-outline" size={40} color={COLORS.primary} />
+              <Ionicons
+                name={activeTab === 'ALL_ROOMS' ? 'people-outline' : 'calendar-outline'}
+                size={40}
+                color={COLORS.primary}
+              />
             </View>
-            <Text style={styles.emptyTitle}>Chưa có bài tìm đối thủ phù hợp</Text>
-            <Text style={styles.emptySub}>Hãy là người đầu tiên tạo bài ghép kèo cho môn thể thao này!</Text>
+            <Text style={styles.emptyTitle}>
+              {activeTab === 'ALL_ROOMS' ? 'Chưa có bài tìm đối thủ phù hợp' : 'Bạn chưa có trận đấu nào'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {activeTab === 'ALL_ROOMS'
+                ? 'Hãy là người đầu tiên tạo bài ghép kèo cho môn thể thao này!'
+                : 'Tạo phòng hoặc gửi yêu cầu ghép trận để bắt đầu tham gia thi đấu!'}
+            </Text>
 
             <TouchableOpacity
               activeOpacity={0.85}
@@ -153,9 +237,11 @@ export function MatchmakingListScreen() {
           </View>
         ) : (
           <FlatList
-            data={rooms}
+            data={currentRooms}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
+            onRefresh={() => (activeTab === 'ALL_ROOMS' ? refetchPublic() : refetchMyMatches())}
+            refreshing={isLoading}
             renderItem={({ item }) => (
               <MatchCard
                 room={item}
@@ -237,6 +323,52 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
     fontSize: 10.5,
+  },
+  tabBarContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: 8,
+    gap: 8,
+    maxWidth: 800,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  tabBtnActive: {
+    backgroundColor: 'rgba(6, 78, 59, 0.09)',
+    borderColor: COLORS.primary,
+  },
+  tabBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+  },
+  tabBtnTextActive: {
+    color: COLORS.primary,
+    fontWeight: '900',
+  },
+  tabBadge: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  tabBadgeNum: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.white,
+    fontWeight: '900',
+    fontSize: 10,
   },
   responsiveWrapper: {
     flex: 1,

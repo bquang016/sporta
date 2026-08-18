@@ -18,61 +18,71 @@ export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking
         Chỉ những lịch đặt sân <Text style={{ fontWeight: '800', color: COLORS.primary }}>đã thanh toán thành công</Text> mới được chọn để đăng tìm đối thủ.
       </Text>
 
-      <View style={styles.bookingList}>
-        {bookings.map((booking) => {
-          const isSelected = selectedBookingId === booking.id;
+      {bookings.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="calendar-outline" size={32} color={COLORS.primary} />
+          <Text style={styles.emptyTitle}>Bạn chưa có đơn đặt sân (CONFIRMED) nào</Text>
+          <Text style={styles.emptySub}>
+            Để tạo bài đăng tìm đối thủ ghép trận, bạn cần tìm sân và hoàn tất thanh toán trước.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.bookingList}>
+          {bookings.map((booking) => {
+            const isSelected = selectedBookingId === booking.id;
 
-          return (
-            <TouchableOpacity
-              key={booking.id}
-              activeOpacity={0.88}
-              onPress={() => onSelectBooking(booking)}
-              style={[styles.bookingCard, isSelected && styles.bookingCardSelected]}
-            >
-              <View style={styles.bookingHeader}>
-                <View style={styles.badgePaid}>
-                  <Ionicons name="checkmark-circle" size={14} color={COLORS.white} />
-                  <Text style={styles.paidText}>ĐÃ THANH TOÁN</Text>
+            return (
+              <TouchableOpacity
+                key={booking.id}
+                activeOpacity={0.88}
+                onPress={() => onSelectBooking(booking)}
+                style={[styles.bookingCard, isSelected && styles.bookingCardSelected]}
+              >
+                <View style={styles.bookingHeader}>
+                  <View style={styles.badgePaid}>
+                    <Ionicons name="checkmark-circle" size={14} color={COLORS.white} />
+                    <Text style={styles.paidText}>ĐÃ THANH TOÁN</Text>
+                  </View>
+                  <Text style={styles.sportBadge}>{booking.sportName} • {booking.format}</Text>
                 </View>
-                <Text style={styles.sportBadge}>{booking.sportName} • {booking.format}</Text>
-              </View>
 
-              <Text style={styles.facilityName} numberOfLines={1}>
-                {booking.facilityName}
-              </Text>
-
-              <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={15} color={COLORS.onSurfaceVariant} />
-                <Text style={styles.infoText} numberOfLines={1}>
-                  {booking.date} • <Text style={{ fontWeight: '700', color: COLORS.onSurface }}>{booking.startTime} - {booking.endTime}</Text>
-                </Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={15} color={COLORS.onSurfaceVariant} />
-                <Text style={styles.infoText} numberOfLines={1}>{booking.courtName}</Text>
-              </View>
-
-              <View style={styles.footerRow}>
-                <Text style={styles.priceText}>
-                  Tiền sân: <Text style={{ fontWeight: '900', color: COLORS.primary, fontSize: 14 }}>{booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+                <Text style={styles.facilityName} numberOfLines={1}>
+                  {booking.facilityName}
                 </Text>
 
-                {isSelected ? (
-                  <View style={styles.selectedBtn}>
-                    <Ionicons name="checkmark" size={14} color={COLORS.white} />
-                    <Text style={styles.selectedBtnText}>Đã chọn</Text>
-                  </View>
-                ) : (
-                  <View style={styles.unselectedBtn}>
-                    <Text style={styles.selectText}>Chọn sân này</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+                <View style={styles.infoRow}>
+                  <Ionicons name="calendar-outline" size={15} color={COLORS.onSurfaceVariant} />
+                  <Text style={styles.infoText} numberOfLines={1}>
+                    {booking.date} • <Text style={{ fontWeight: '700', color: COLORS.onSurface }}>{booking.startTime} - {booking.endTime}</Text>
+                  </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={15} color={COLORS.onSurfaceVariant} />
+                  <Text style={styles.infoText} numberOfLines={1}>{booking.courtName}</Text>
+                </View>
+
+                <View style={styles.footerRow}>
+                  <Text style={styles.priceText}>
+                    Tiền sân: <Text style={{ fontWeight: '900', color: COLORS.primary, fontSize: 14 }}>{booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+                  </Text>
+
+                  {isSelected ? (
+                    <View style={styles.selectedBtn}>
+                      <Ionicons name="checkmark" size={14} color={COLORS.white} />
+                      <Text style={styles.selectedBtnText}>Đã chọn</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.unselectedBtn}>
+                      <Text style={styles.selectText}>Chọn sân này</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -208,5 +218,29 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '800',
     fontSize: 11.5,
+  },
+  emptyContainer: {
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderStyle: 'dashed',
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  emptySub: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
   },
 });

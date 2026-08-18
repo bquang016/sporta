@@ -5,8 +5,10 @@ import {
   MatchmakingSortOption,
 } from '../../../entities/match/model/match.types';
 import { MatchmakingApiRepository } from '../../../shared/api/matchmaking';
-import { MockMatchmakingRepository } from './mockMatchmakingRepository';
 
+/**
+ * Hook danh sách phòng ghép trận công khai (100% Backend API thật)
+ */
 export function useMatchmakingList(
   initialFilters?: MatchmakingFilterState,
   initialSort: MatchmakingSortOption = 'BALANCE_FIRST'
@@ -20,20 +22,10 @@ export function useMatchmakingList(
     setLoading(true);
     try {
       const data = await MatchmakingApiRepository.listRooms(filters, sortOption);
-      if (data && Array.isArray(data) && data.length > 0) {
-        setRooms(data);
-      } else {
-        const mockData = await MockMatchmakingRepository.listRooms(filters, sortOption);
-        setRooms(mockData);
-      }
+      setRooms(data || []);
     } catch (e) {
-      console.log('Backend API not available or empty, falling back to mock repository:', e);
-      try {
-        const mockData = await MockMatchmakingRepository.listRooms(filters, sortOption);
-        setRooms(mockData);
-      } catch (err) {
-        console.error('Mock fetch failed:', err);
-      }
+      console.error('Error fetching real matchmaking rooms:', e);
+      setRooms([]);
     } finally {
       setLoading(false);
     }
@@ -54,6 +46,40 @@ export function useMatchmakingList(
   };
 }
 
+/**
+ * Hook danh sách "Trận đấu của tôi" (Sắp đấu, Chờ cập nhật tỷ số, Đã hoàn thành) (100% Backend API thật)
+ */
+export function useMyMatches() {
+  const [rooms, setRooms] = useState<MatchRoomVM[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const fetchMyMatches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await MatchmakingApiRepository.listMyMatches();
+      setRooms(data || []);
+    } catch (e) {
+      console.error('Error fetching my matches:', e);
+      setRooms([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMyMatches();
+  }, [fetchMyMatches]);
+
+  return {
+    rooms,
+    loading,
+    refetch: fetchMyMatches,
+  };
+}
+
+/**
+ * Hook chi tiết 1 phòng ghép trận & thao tác (100% Backend API thật)
+ */
 export function useMatchDetail(roomId: string) {
   const [room, setRoom] = useState<MatchRoomVM | undefined>();
   const [loading, setLoading] = useState<boolean>(true);
@@ -64,9 +90,8 @@ export function useMatchDetail(roomId: string) {
       const data = await MatchmakingApiRepository.getRoom(roomId);
       setRoom(data);
     } catch (e) {
-      console.log('Error fetching room detail from API, using mock:', e);
-      const mockData = await MockMatchmakingRepository.getRoom(roomId);
-      setRoom(mockData);
+      console.error('Error fetching real room detail:', e);
+      setRoom(undefined);
     } finally {
       setLoading(false);
     }
@@ -78,54 +103,30 @@ export function useMatchDetail(roomId: string) {
 
   const requestJoin = async (clubId: string, note?: string) => {
     if (!roomId) return;
-    try {
-      const req = await MatchmakingApiRepository.createJoinRequest(roomId, clubId, note);
-      await fetchRoom();
-      return req;
-    } catch (e) {
-      const req = await MockMatchmakingRepository.createJoinRequest(roomId, clubId, note);
-      await fetchRoom();
-      return req;
-    }
+    const req = await MatchmakingApiRepository.createJoinRequest(roomId, clubId, note);
+    await fetchRoom();
+    return req;
   };
 
   const acceptRequest = async (requestId: string) => {
     if (!roomId) return;
-    try {
-      const updated = await MatchmakingApiRepository.acceptJoinRequest(roomId, requestId);
-      setRoom(updated);
-      return updated;
-    } catch (e) {
-      const updated = await MockMatchmakingRepository.acceptJoinRequest(roomId, requestId);
-      setRoom(updated);
-      return updated;
-    }
+    const updated = await MatchmakingApiRepository.acceptJoinRequest(roomId, requestId);
+    setRoom(updated);
+    return updated;
   };
 
   const submitScore = async (hostScore: number | string, guestScore: number | string, details?: string) => {
     if (!roomId) return;
-    try {
-      const updated = await MatchmakingApiRepository.submitScore(roomId, hostScore, guestScore, details);
-      setRoom(updated);
-      return updated;
-    } catch (e) {
-      const updated = await MockMatchmakingRepository.submitScore(roomId, hostScore, guestScore, details);
-      setRoom(updated);
-      return updated;
-    }
+    const updated = await MatchmakingApiRepository.submitScore(roomId, hostScore, guestScore, details);
+    setRoom(updated);
+    return updated;
   };
 
   const confirmScore = async () => {
     if (!roomId) return;
-    try {
-      const updated = await MatchmakingApiRepository.confirmScore(roomId);
-      setRoom(updated);
-      return updated;
-    } catch (e) {
-      const updated = await MockMatchmakingRepository.confirmScore(roomId);
-      setRoom(updated);
-      return updated;
-    }
+    const updated = await MatchmakingApiRepository.confirmScore(roomId);
+    setRoom(updated);
+    return updated;
   };
 
   return {

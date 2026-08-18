@@ -106,10 +106,54 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         List<MatchRoom> rooms = matchRoomRepository.findAllByFilters(sportId, null);
 
         List<MatchRoomResponse> result = new ArrayList<>();
+        LocalDateTime cutoffThreshold = LocalDateTime.now().plusMinutes(config.getJoinCutoffMinutes());
+
         for (MatchRoom room : rooms) {
+            if (room.getStatus() != MatchStatus.OPEN) {
+                continue;
+            }
             if (matchType != null && room.getMatchType() != matchType) {
                 continue;
             }
+            LocalDateTime matchStartTime = getBookingStartTime(room.getBooking());
+            if (matchStartTime != null && matchStartTime.isBefore(cutoffThreshold)) {
+                continue; // Bỏ qua bài đăng quá sát giờ thi đấu hoặc đã quá giờ
+            }
+            Match match = matchRepository.findByRoomId(room.getId()).orElse(null);
+            result.add(mapToRoomResponse(room, match, user));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchRoomResponse> getMyMatches(String userEmail) {
+        User user = getUserByEmail(userEmail);
+        List<ClubMember> memberships = clubMemberRepository.findByUserId(user.getId());
+        List<Long> clubIds = memberships.stream()
+                .filter(m -> m.getStatus() == ClubMemberStatus.APPROVED)
+                .map(m -> m.getClub().getId())
+                .collect(Collectors.toList());
+
+        if (clubIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<MatchRoom> hostOrGuestRooms = matchRoomRepository.findByHostClubIdInOrGuestClubIdInOrderByCreatedAtDesc(clubIds, clubIds);
+        List<JoinRequest> myRequests = joinRequestRepository.findByApplicantClubIdIn(clubIds);
+        Set<UUID> requestedRoomIds = myRequests.stream().map(jr -> jr.getRoom().getId()).collect(Collectors.toSet());
+
+        Set<MatchRoom> allMyRooms = new LinkedHashSet<>(hostOrGuestRooms);
+        if (!requestedRoomIds.isEmpty()) {
+            List<MatchRoom> requestedRooms = matchRoomRepository.findAllById(requestedRoomIds);
+            allMyRooms.addAll(requestedRooms);
+        }
+
+        List<MatchRoom> sortedRooms = new ArrayList<>(allMyRooms);
+        sortedRooms.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+        List<MatchRoomResponse> result = new ArrayList<>();
+        for (MatchRoom room : sortedRooms) {
             Match match = matchRepository.findByRoomId(room.getId()).orElse(null);
             result.add(mapToRoomResponse(room, match, user));
         }
@@ -149,6 +193,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         LocalDateTime startTime = getBookingStartTime(booking);
         LocalDateTime joinDeadline = startTime.minusMinutes(config.getJoinCutoffMinutes());
+
+        if (startTime == null || LocalDateTime.now().isAfter(joinDeadline)) {
+            throw new CustomException("Lịch đặt sân đã quá giờ hoặc quá sát giờ thi đấu (cần tạo bài trước giờ thi đấu ít nhất " + config.getJoinCutoffMinutes() + " phút)", 400);
+        }
 
         int hostPercent = request.getHostSharePercent() != null ? request.getHostSharePercent() : 50;
         int guestPercent = 100 - hostPercent;

@@ -10,6 +10,40 @@ import {
   MatchType,
 } from '../../entities/match/model/match.types';
 
+function isBookingCutoffValid(bookingDateStr: string, startTimeStr: string, cutoffMinutes: number = 60): boolean {
+  if (!bookingDateStr || !startTimeStr) return true;
+  try {
+    const now = new Date();
+    const timeParts = startTimeStr.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    let day = now.getDate();
+
+    if (bookingDateStr.includes('-')) {
+      const parts = bookingDateStr.split('-');
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    } else if (bookingDateStr.includes('/')) {
+      const match = bookingDateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (match) {
+        day = parseInt(match[1], 10);
+        month = parseInt(match[2], 10) - 1;
+        year = parseInt(match[3], 10);
+      }
+    }
+
+    const bookingStart = new Date(year, month, day, hours, minutes);
+    const cutoffThreshold = new Date(now.getTime() + cutoffMinutes * 60 * 1000);
+    return bookingStart.getTime() >= cutoffThreshold.getTime();
+  } catch {
+    return true;
+  }
+}
+
 export class MatchmakingApiRepository {
 
   /**
@@ -28,6 +62,13 @@ export class MatchmakingApiRepository {
 
     const queryString = params.toString() ? `?${params.toString()}` : '';
     return apiFetch<MatchRoomVM[]>(`/matchmaking/rooms${queryString}`, { method: 'GET' }, true);
+  }
+
+  /**
+   * Lấy danh sách các trận đấu của tôi (sắp đấu, chờ xác nhận tỷ số, đã hoàn thành)
+   */
+  static async listMyMatches(): Promise<MatchRoomVM[]> {
+    return apiFetch<MatchRoomVM[]>(`/matchmaking/my-matches`, { method: 'GET' }, true);
   }
 
   /**
@@ -64,22 +105,27 @@ export class MatchmakingApiRepository {
   static async getPaidBookings(sportId?: string): Promise<BookingSummaryVM[]> {
     const bookings = await apiFetch<any[]>(`/bookings/my`, { method: 'GET' }, true);
     return (bookings || [])
-      .filter((b) => b.status === 'CONFIRMED')
+      .filter((b) => {
+        if (b.status !== 'CONFIRMED') return false;
+        const detail = b.details && b.details.length > 0 ? b.details[0] : null;
+        if (!detail) return false;
+        return isBookingCutoffValid(String(detail.bookingDate), String(detail.startTime), 60);
+      })
       .map((b) => {
         const detail = b.details && b.details.length > 0 ? b.details[0] : null;
         return {
           id: String(b.id),
-          facilityName: b.venue ? b.venue.name : 'Sân thể thao',
-          courtName: detail && detail.court ? detail.court.name : 'Sân đấu',
-          sportId: b.venue && b.venue.sport ? String(b.venue.sport.id) : '1',
-          sportName: b.venue && b.venue.sport ? b.venue.sport.name : 'Bóng đá',
-          date: detail ? detail.bookingDate : '',
-          startTime: detail ? detail.startTime : '',
-          endTime: detail ? detail.endTime : '',
+          facilityName: b.venueName || (b.venue ? b.venue.name : 'Sân thể thao'),
+          courtName: detail && detail.courtName ? detail.courtName : (detail && detail.court ? detail.court.name : 'Sân đấu'),
+          sportId: b.sportId ? String(b.sportId) : '1',
+          sportName: b.sportName || 'Thể thao',
+          date: detail ? String(detail.bookingDate) : '',
+          startTime: detail ? String(detail.startTime) : '',
+          endTime: detail ? String(detail.endTime) : '',
           totalPrice: b.finalPrice || b.totalPrice || 0,
           isPaid: b.status === 'CONFIRMED',
           format: 'Sân tiêu chuẩn',
-          address: b.venue ? (b.venue.addressDetail || b.venue.location || '') : '',
+          address: b.venueLocation || (b.venue ? (b.venue.addressDetail || b.venue.location || '') : ''),
         };
       });
   }

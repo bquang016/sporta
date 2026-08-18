@@ -40,13 +40,13 @@ public class MatchRoom {
     @Column(name = "match_type", nullable = false)
     private MatchType matchType;
 
-    @Column(name = "host_share_percent", nullable = false)
+    @Column(name = "host_share_percent")
     private Integer hostSharePercent;
 
-    @Column(name = "guest_share_percent", nullable = false)
+    @Column(name = "guest_share_percent")
     private Integer guestSharePercent;
 
-    @Column(name = "guest_share_amount", nullable = false)
+    @Column(name = "guest_share_amount")
     private Double guestShareAmount;
 
     @Column(name = "desired_levels")
@@ -60,7 +60,7 @@ public class MatchRoom {
     @Builder.Default
     private MatchStatus status = MatchStatus.OPEN;
 
-    @Column(name = "join_deadline", nullable = false)
+    @Column(name = "join_deadline")
     private LocalDateTime joinDeadline;
 
     @Column(name = "created_at")
