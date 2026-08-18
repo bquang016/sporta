@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../../shared/config/theme';
 import { Button } from '../../../../../shared/ui';
-import { BookingItem } from '../../../../../shared/api/bookings';
+import { BookingItem, getEffectiveBookingStatus } from '../../../../../shared/api/bookings';
 
 interface BookingHistoryCardProps {
   booking: BookingItem;
@@ -19,8 +19,10 @@ export function BookingHistoryCard({
   onPressCancel,
 }: BookingHistoryCardProps) {
   const detail = booking.details?.[0];
-  const isConfirmed = booking.status === 'CONFIRMED';
-  const isCancelled = booking.status === 'CANCELLED';
+  const effectiveStatus = getEffectiveBookingStatus(booking);
+  const isConfirmed = effectiveStatus === 'CONFIRMED' || effectiveStatus === 'PENDING';
+  const isCancelled = effectiveStatus === 'CANCELLED';
+  const isCompleted = effectiveStatus === 'COMPLETED';
 
   const formatCurrency = (val: number) => {
     return val.toLocaleString('vi-VN') + ' đ';
@@ -49,19 +51,21 @@ export function BookingHistoryCard({
         <View style={[
           styles.statusBadge, 
           isConfirmed && styles.statusBadgeConfirmed,
-          isCancelled && styles.statusBadgeCancelled
+          isCancelled && styles.statusBadgeCancelled,
+          isCompleted && styles.statusBadgeCompleted
         ]}>
           <MaterialIcons 
-            name={isConfirmed ? 'check-circle' : isCancelled ? 'cancel' : 'history'} 
+            name={isConfirmed ? 'check-circle' : isCancelled ? 'cancel' : 'task-alt'} 
             size={12} 
-            color={isConfirmed ? COLORS.primary : isCancelled ? COLORS.error : COLORS.onSurfaceVariant} 
+            color={isConfirmed ? COLORS.primary : isCancelled ? COLORS.error : '#2E7D32'} 
           />
           <Text style={[
             styles.statusText, 
             isConfirmed && styles.statusTextConfirmed,
-            isCancelled && styles.statusTextCancelled
+            isCancelled && styles.statusTextCancelled,
+            isCompleted && styles.statusTextCompleted
           ]}>
-            {isConfirmed ? 'Sắp diễn ra' : isCancelled ? 'Đã hủy' : 'Hoàn thành'}
+            {isConfirmed ? 'Sắp diễn ra' : isCancelled ? 'Đã hủy' : 'Đã hoàn thành'}
           </Text>
         </View>
       </View>
@@ -124,6 +128,24 @@ export function BookingHistoryCard({
               </Text>
             </TouchableOpacity>
           </>
+        )}
+
+        {isCompleted && (
+          <TouchableOpacity 
+            style={[styles.btnSecondary, { flex: 1 }]}
+            activeOpacity={0.8}
+            onPress={() => onPressCard(booking)}
+          >
+            <MaterialIcons name="receipt-long" size={16} color={COLORS.primary} />
+            <Text 
+              style={[styles.btnSecondaryText, { color: COLORS.primary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              Xem chi tiết đơn
+            </Text>
+          </TouchableOpacity>
         )}
 
         {isCancelled && (
@@ -202,6 +224,9 @@ const styles = StyleSheet.create({
   statusBadgeCancelled: {
     backgroundColor: COLORS.errorContainer,
   },
+  statusBadgeCompleted: {
+    backgroundColor: '#E8F5E9',
+  },
   statusText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
@@ -213,6 +238,9 @@ const styles = StyleSheet.create({
   },
   statusTextCancelled: {
     color: COLORS.error,
+  },
+  statusTextCompleted: {
+    color: '#2E7D32',
   },
   divider: {
     height: 1,

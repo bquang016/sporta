@@ -89,13 +89,17 @@ export function AccountSettingsScreen() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [isProvinceModalVisible, setIsProvinceModalVisible] = useState(false);
 
-  // Form Inputs for Password Change
+  // Form Inputs & Error State for Password Change
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [oldPasswordError, setOldPasswordError] = useState<string | null>(null);
+  const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
 
   // Password Strength & Criteria Calculation
   const hasMinLength = newPassword.length >= 8;
@@ -118,12 +122,21 @@ export function AccountSettingsScreen() {
 
   const closeChangePasswordModal = () => {
     setIsChangePasswordModal(false);
+    setWarningModal((prev) => ({ ...prev, visible: false }));
     setOldPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setShowOldPassword(false);
     setShowNewPassword(false);
     setShowConfirmPassword(false);
+    setOldPasswordError(null);
+    setNewPasswordError(null);
+    setConfirmPasswordError(null);
+  };
+
+  const closeEditProfileModal = () => {
+    setIsEditProfileModal(false);
+    setWarningModal((prev) => ({ ...prev, visible: false }));
   };
 
   // Fetch Real User Profile from Database
@@ -262,8 +275,13 @@ export function AccountSettingsScreen() {
         if (updated.avatarUrl) setAvatarUri(updated.avatarUrl);
       }
 
-      setIsEditProfileModal(false);
-      showFriendlyModal('Thành công', 'Đã cập nhật và lưu toàn bộ thông tin cá nhân vào CSDL thành công!', 'check-circle', COLORS.primary, 'Tuyệt vời');
+      showFriendlyModal(
+        'Thành công',
+        'Đã cập nhật và lưu toàn bộ thông tin cá nhân vào CSDL thành công!',
+        'check-circle',
+        COLORS.primary,
+        'Tuyệt vời'
+      );
     } catch (err: any) {
       showFriendlyModal('Lưu thất bại', err.message || 'Cập nhật thông tin thất bại.', 'error-outline', COLORS.error, 'Thử lại');
     } finally {
@@ -273,17 +291,37 @@ export function AccountSettingsScreen() {
 
   // Real Password Change via Auth API
   const handleChangePassword = async () => {
-    if (!oldPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
-      showFriendlyModal('Thiếu thông tin', 'Vui lòng nhập đầy đủ mật khẩu hiện tại, mật khẩu mới và xác nhận mật khẩu mới.', 'info-outline', '#3B82F6', 'Nhập lại');
+    setOldPasswordError(null);
+    setNewPasswordError(null);
+    setConfirmPasswordError(null);
+
+    let hasEmpty = false;
+    if (!oldPassword.trim()) {
+      setOldPasswordError('Vui lòng nhập mật khẩu hiện tại');
+      hasEmpty = true;
+    }
+    if (!newPassword.trim()) {
+      setNewPasswordError('Vui lòng nhập mật khẩu mới');
+      hasEmpty = true;
+    }
+    if (!confirmPassword.trim()) {
+      setConfirmPasswordError('Vui lòng nhập lại mật khẩu mới để xác nhận');
+      hasEmpty = true;
+    }
+
+    if (hasEmpty) {
+      showFriendlyModal('Thiếu thông tin', 'Vui lòng nhập đầy đủ các ô mật khẩu còn thiếu (đã báo đỏ).', 'info-outline', '#3B82F6', 'Nhập lại');
       return;
     }
 
     if (newPassword.length < 8) {
+      setNewPasswordError('Mật khẩu mới phải có tối thiểu 8 ký tự');
       showFriendlyModal('Mật khẩu chưa đủ dài', 'Mật khẩu mới phải có tối thiểu 8 ký tự theo quy định bảo mật.', 'warning', '#F59E0B', 'Nhập lại');
       return;
     }
 
     if (newPassword !== confirmPassword) {
+      setConfirmPasswordError('Xác nhận mật khẩu mới không trùng khớp');
       showFriendlyModal('Mật khẩu không khớp', 'Xác nhận mật khẩu mới không trùng khớp với mật khẩu mới đã nhập. Vui lòng kiểm tra và nhập lại chính xác!', 'warning', '#F59E0B', 'Thử lại');
       return;
     }
@@ -291,11 +329,17 @@ export function AccountSettingsScreen() {
     setSaving(true);
     try {
       await changePasswordApi(oldPassword, newPassword, confirmPassword);
-      closeChangePasswordModal();
-      showFriendlyModal('Thành công', 'Mật khẩu của bạn đã được thay đổi và cập nhật trong CSDL thành công!', 'check-circle', COLORS.primary, 'Hoàn tất');
+      showFriendlyModal(
+        'Thành công',
+        'Mật khẩu của bạn đã được thay đổi và cập nhật trong CSDL thành công!',
+        'check-circle',
+        COLORS.primary,
+        'Hoàn tất'
+      );
     } catch (err: any) {
       const errMsg = err.message || '';
       if (errMsg.includes('hiện tại không chính xác') || errMsg.includes('mật khẩu hiện tại') || errMsg.includes('currentPassword')) {
+        setOldPasswordError('Mật khẩu hiện tại không chính xác');
         showFriendlyModal('Sai mật khẩu hiện tại', 'Mật khẩu hiện tại bạn nhập không chính xác. Vui lòng kiểm tra lại mật khẩu cũ của bạn!', 'lock-reset', COLORS.error, 'Nhập lại');
       } else {
         showFriendlyModal('Đổi mật khẩu thất bại', errMsg || 'Không thể thay đổi mật khẩu lúc này. Vui lòng thử lại sau.', 'error-outline', COLORS.error, 'Đóng');
@@ -387,13 +431,13 @@ export function AccountSettingsScreen() {
         visible={isEditProfileModal}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setIsEditProfileModal(false)}
+        onRequestClose={closeEditProfileModal}
       >
         <View style={[styles.modalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
           <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
           <View style={styles.modalHeader}>
             <TouchableOpacity 
-              onPress={() => setIsEditProfileModal(false)}
+              onPress={closeEditProfileModal}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={styles.modalHeaderIconBtn}
             >
@@ -494,6 +538,25 @@ export function AccountSettingsScreen() {
               onPress={handleSaveProfile}
             />
           </ScrollView>
+
+          {/* Alert Overlay inside Edit Profile Modal */}
+          <ConfirmModal
+            visible={warningModal.visible}
+            title={warningModal.title}
+            message={warningModal.message}
+            confirmText={warningModal.confirmText || 'Đóng'}
+            confirmVariant="primary"
+            icon={warningModal.icon}
+            iconColor={warningModal.iconColor}
+            useViewOverlay={true}
+            onConfirm={() => {
+              const isSuccess = warningModal.title === 'Thành công';
+              setWarningModal((prev) => ({ ...prev, visible: false }));
+              if (isSuccess) {
+                closeEditProfileModal();
+              }
+            }}
+          />
         </SafeAreaView>
       </Modal>
 
@@ -546,13 +609,18 @@ export function AccountSettingsScreen() {
         <SafeAreaView style={styles.modalContainer} edges={['bottom', 'left', 'right']}>
           <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
             {/* 1. Mật khẩu hiện tại */}
-            <Text style={styles.inputLabel}>Mật khẩu hiện tại (*)</Text>
-            <View style={styles.passwordInputContainer}>
+            <Text style={[styles.inputLabel, !!oldPasswordError && styles.inputLabelError]}>
+              Mật khẩu hiện tại (*)
+            </Text>
+            <View style={[styles.passwordInputContainer, !!oldPasswordError && styles.passwordInputContainerError]}>
               <TextInput 
                 style={styles.passwordTextInput} 
                 secureTextEntry={!showOldPassword}
                 value={oldPassword} 
-                onChangeText={setOldPassword}
+                onChangeText={(val) => {
+                  setOldPassword(val);
+                  if (oldPasswordError) setOldPasswordError(null);
+                }}
                 placeholder="Nhập mật khẩu hiện tại" 
                 placeholderTextColor={COLORS.onSurfaceVariant}
               />
@@ -564,19 +632,30 @@ export function AccountSettingsScreen() {
                 <MaterialIcons 
                   name={showOldPassword ? 'visibility' : 'visibility-off'} 
                   size={22} 
-                  color={COLORS.onSurfaceVariant} 
+                  color={oldPasswordError ? COLORS.error : COLORS.onSurfaceVariant} 
                 />
               </TouchableOpacity>
             </View>
+            {!!oldPasswordError && (
+              <View style={styles.errorTextRow}>
+                <MaterialIcons name="error-outline" size={14} color={COLORS.error} />
+                <Text style={styles.errorText}>{oldPasswordError}</Text>
+              </View>
+            )}
 
             {/* 2. Mật khẩu mới */}
-            <Text style={styles.inputLabel}>Mật khẩu mới (*)</Text>
-            <View style={styles.passwordInputContainer}>
+            <Text style={[styles.inputLabel, !!newPasswordError && styles.inputLabelError]}>
+              Mật khẩu mới (*)
+            </Text>
+            <View style={[styles.passwordInputContainer, !!newPasswordError && styles.passwordInputContainerError]}>
               <TextInput 
                 style={styles.passwordTextInput} 
                 secureTextEntry={!showNewPassword}
                 value={newPassword} 
-                onChangeText={setNewPassword}
+                onChangeText={(val) => {
+                  setNewPassword(val);
+                  if (newPasswordError) setNewPasswordError(null);
+                }}
                 placeholder="Nhập mật khẩu mới" 
                 placeholderTextColor={COLORS.onSurfaceVariant}
               />
@@ -588,10 +667,16 @@ export function AccountSettingsScreen() {
                 <MaterialIcons 
                   name={showNewPassword ? 'visibility' : 'visibility-off'} 
                   size={22} 
-                  color={COLORS.onSurfaceVariant} 
+                  color={newPasswordError ? COLORS.error : COLORS.onSurfaceVariant} 
                 />
               </TouchableOpacity>
             </View>
+            {!!newPasswordError && (
+              <View style={styles.errorTextRow}>
+                <MaterialIcons name="error-outline" size={14} color={COLORS.error} />
+                <Text style={styles.errorText}>{newPasswordError}</Text>
+              </View>
+            )}
 
             {/* 3. Thanh đo độ mạnh mật khẩu (Password Strength Bar) */}
             {newPassword.length > 0 && (
@@ -666,13 +751,18 @@ export function AccountSettingsScreen() {
             </View>
 
             {/* 5. Xác nhận mật khẩu mới */}
-            <Text style={styles.inputLabel}>Xác nhận mật khẩu mới (*)</Text>
-            <View style={styles.passwordInputContainer}>
+            <Text style={[styles.inputLabel, !!confirmPasswordError && styles.inputLabelError]}>
+              Xác nhận mật khẩu mới (*)
+            </Text>
+            <View style={[styles.passwordInputContainer, !!confirmPasswordError && styles.passwordInputContainerError]}>
               <TextInput 
                 style={styles.passwordTextInput} 
                 secureTextEntry={!showConfirmPassword}
                 value={confirmPassword} 
-                onChangeText={setConfirmPassword}
+                onChangeText={(val) => {
+                  setConfirmPassword(val);
+                  if (confirmPasswordError) setConfirmPasswordError(null);
+                }}
                 placeholder="Nhập lại mật khẩu mới" 
                 placeholderTextColor={COLORS.onSurfaceVariant}
               />
@@ -684,10 +774,16 @@ export function AccountSettingsScreen() {
                 <MaterialIcons 
                   name={showConfirmPassword ? 'visibility' : 'visibility-off'} 
                   size={22} 
-                  color={COLORS.onSurfaceVariant} 
+                  color={confirmPasswordError ? COLORS.error : COLORS.onSurfaceVariant} 
                 />
               </TouchableOpacity>
             </View>
+            {!!confirmPasswordError && (
+              <View style={styles.errorTextRow}>
+                <MaterialIcons name="error-outline" size={14} color={COLORS.error} />
+                <Text style={styles.errorText}>{confirmPasswordError}</Text>
+              </View>
+            )}
 
             <Button
               title={saving ? "Đang xử lý..." : "Xác nhận đổi mật khẩu"}
@@ -697,6 +793,25 @@ export function AccountSettingsScreen() {
               onPress={handleChangePassword}
             />
           </ScrollView>
+
+          {/* Alert Overlay inside Change Password Modal */}
+          <ConfirmModal
+            visible={warningModal.visible}
+            title={warningModal.title}
+            message={warningModal.message}
+            confirmText={warningModal.confirmText || 'Đóng'}
+            confirmVariant="primary"
+            icon={warningModal.icon}
+            iconColor={warningModal.iconColor}
+            useViewOverlay={true}
+            onConfirm={() => {
+              const isSuccess = warningModal.title === 'Thành công';
+              setWarningModal((prev) => ({ ...prev, visible: false }));
+              if (isSuccess) {
+                closeChangePasswordModal();
+              }
+            }}
+          />
         </SafeAreaView>
       </Modal>
 
@@ -710,6 +825,7 @@ export function AccountSettingsScreen() {
         confirmVariant="primary"
         icon="delete-forever"
         iconColor={COLORS.error}
+        useViewOverlay={true}
         onConfirm={() => setIsDeleteConfirmModal(false)}
         onCancel={() => setIsDeleteConfirmModal(false)}
       />
@@ -722,6 +838,7 @@ export function AccountSettingsScreen() {
         confirmVariant="primary"
         icon={warningModal.icon}
         iconColor={warningModal.iconColor}
+        useViewOverlay={true}
         onConfirm={() => setWarningModal((prev) => ({ ...prev, visible: false }))}
       />
     </View>
@@ -882,6 +999,28 @@ const styles = StyleSheet.create({
     borderColor: COLORS.outlineVariant,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
+  },
+  passwordInputContainerError: {
+    borderColor: COLORS.error,
+    borderWidth: 1.5,
+    backgroundColor: '#FEF2F2',
+  },
+  inputLabelError: {
+    color: COLORS.error,
+    fontWeight: '700',
+  },
+  errorTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  errorText: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: COLORS.error,
+    fontWeight: '600',
   },
   passwordTextInput: {
     flex: 1,

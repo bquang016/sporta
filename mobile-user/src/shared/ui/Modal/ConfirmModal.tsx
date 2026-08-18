@@ -23,6 +23,7 @@ export interface ConfirmModalProps {
   iconColor?: string;
   onConfirm: () => void;
   onCancel?: () => void;
+  useViewOverlay?: boolean;
 }
 
 export function ConfirmModal({
@@ -36,9 +37,67 @@ export function ConfirmModal({
   iconColor = COLORS.primary,
   onConfirm,
   onCancel,
+  useViewOverlay = false,
 }: ConfirmModalProps) {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 360;
+
+  const renderContent = () => (
+    <TouchableWithoutFeedback onPress={onCancel || onConfirm}>
+      <View style={[styles.overlay, { padding: isSmallScreen ? SPACING.md : SPACING.lg }]}>
+        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <View style={[styles.modalContainer, { maxWidth: Math.min(width * 0.9, 360) }]}>
+            {icon && (
+              <View style={styles.iconContainer}>
+                <MaterialIcons name={icon} size={isSmallScreen ? 28 : 32} color={iconColor} />
+              </View>
+            )}
+            
+            <Text 
+              style={[styles.title, isSmallScreen && { fontSize: 18 }]}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              numberOfLines={2}
+            >
+              {title}
+            </Text>
+            
+            <Text style={[styles.message, isSmallScreen && { fontSize: 13 }]}>
+              {message}
+            </Text>
+            
+            <View style={[styles.buttonGroup, isSmallScreen && { gap: SPACING.xs }]}>
+              {onCancel && (
+                <View style={styles.buttonWrapper}>
+                  <Button 
+                    title={cancelText}
+                    variant="ghost"
+                    onPress={onCancel}
+                  />
+                </View>
+              )}
+              <View style={styles.buttonWrapper}>
+                <Button 
+                  title={confirmText}
+                  variant={confirmVariant}
+                  onPress={onConfirm}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+
+  if (useViewOverlay) {
+    if (!visible) return null;
+    return (
+      <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999, elevation: 9999 }]}>
+        {renderContent()}
+      </View>
+    );
+  }
 
   return (
     <Modal
@@ -47,51 +106,7 @@ export function ConfirmModal({
       animationType="fade"
       onRequestClose={onCancel || onConfirm}
     >
-      <TouchableWithoutFeedback onPress={onCancel || onConfirm}>
-        <View style={[styles.overlay, { padding: isSmallScreen ? SPACING.md : SPACING.lg }]}>
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalContainer, { maxWidth: Math.min(width * 0.9, 360) }]}>
-              {icon && (
-                <View style={styles.iconContainer}>
-                  <MaterialIcons name={icon} size={isSmallScreen ? 28 : 32} color={iconColor} />
-                </View>
-              )}
-              
-              <Text 
-                style={[styles.title, isSmallScreen && { fontSize: 18 }]}
-                adjustsFontSizeToFit
-                minimumFontScale={0.85}
-                numberOfLines={2}
-              >
-                {title}
-              </Text>
-              
-              <Text style={[styles.message, isSmallScreen && { fontSize: 13 }]}>
-                {message}
-              </Text>
-              
-              <View style={[styles.buttonGroup, isSmallScreen && { gap: SPACING.xs }]}>
-                {onCancel && (
-                  <View style={styles.buttonWrapper}>
-                    <Button 
-                      title={cancelText}
-                      variant="ghost"
-                      onPress={onCancel}
-                    />
-                  </View>
-                )}
-                <View style={styles.buttonWrapper}>
-                  <Button 
-                    title={confirmText}
-                    variant={confirmVariant}
-                    onPress={onConfirm}
-                  />
-                </View>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+      {renderContent()}
     </Modal>
   );
 }

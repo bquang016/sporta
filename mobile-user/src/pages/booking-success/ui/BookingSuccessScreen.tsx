@@ -34,6 +34,7 @@ export function BookingSuccessScreen() {
   const [loading, setLoading] = useState(true);
   const [showDetailModal, setShowDetailModal] = useState(isFromHistory);
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
 
   useEffect(() => {
     if (isFromHistory) {
@@ -78,6 +79,8 @@ export function BookingSuccessScreen() {
     status: (params.status as any) || 'CONFIRMED',
     paymentStatus: 'PAID',
     paymentMethod: (params.paymentMethod as string) || 'VNPay QR',
+    playerName: (params.playerName as string) || '',
+    playerEmail: (params.playerEmail as string) || '',
     createdAt: new Date().toISOString(),
     details: [
       {
@@ -318,9 +321,27 @@ export function BookingSuccessScreen() {
           iconColor={COLORS.error}
           onConfirm={() => {
             setShowCancelConfirmModal(false);
-            showAlert('Đã hủy đơn thành công', 'Đơn đặt sân của bạn đã được cập nhật sang trạng thái Đã Hủy.');
+            if (booking) {
+              setBooking({ ...booking, status: 'CANCELLED' });
+            }
+            setShowCancelSuccessModal(true);
           }}
           onCancel={() => setShowCancelConfirmModal(false)}
+        />
+
+        {/* Friendly Cancellation Success App Modal */}
+        <ConfirmModal
+          visible={showCancelSuccessModal}
+          title="Hủy đặt sân thành công"
+          message={`Đơn đặt sân ${activeBooking.bookingCode} tại "${activeBooking.venueName}" đã được cập nhật sang trạng thái Đã Hủy.\n\nTiền sẽ được tự động hoàn lại ví/tài khoản của bạn.`}
+          confirmText="Đã hiểu"
+          confirmVariant="primary"
+          icon="check-circle"
+          iconColor={COLORS.primary}
+          onConfirm={() => {
+            setShowCancelSuccessModal(false);
+            router.back();
+          }}
         />
       </SafeAreaView>
     );
@@ -602,9 +623,24 @@ export function BookingSuccessScreen() {
         iconColor={COLORS.error}
         onConfirm={() => {
           setShowCancelConfirmModal(false);
-          showAlert('Đã hủy đơn thành công', 'Đơn đặt sân của bạn đã được cập nhật sang trạng thái Đã Hủy.');
+          if (booking) {
+            setBooking({ ...booking, status: 'CANCELLED' });
+          }
+          setShowCancelSuccessModal(true);
         }}
         onCancel={() => setShowCancelConfirmModal(false)}
+      />
+
+      {/* Cancellation Success App Modal */}
+      <ConfirmModal
+        visible={showCancelSuccessModal}
+        title="Hủy đặt sân thành công"
+        message={`Đơn đặt sân ${activeBooking.bookingCode} tại "${activeBooking.venueName}" đã được cập nhật sang trạng thái Đã Hủy.\n\nTiền sẽ được tự động hoàn lại ví/tài khoản của bạn.`}
+        confirmText="Đã hiểu"
+        confirmVariant="primary"
+        icon="check-circle"
+        iconColor={COLORS.primary}
+        onConfirm={() => setShowCancelSuccessModal(false)}
       />
     </SafeAreaView>
   );

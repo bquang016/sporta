@@ -13,7 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
-import { getMyBookingsApi, BookingItem } from '../../../shared/api/bookings';
+import { getMyBookingsApi, cancelBookingApi, getEffectiveBookingStatus, BookingItem } from '../../../shared/api/bookings';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 import { BookingTab, BookingFilterTabs } from './components/booking-history/BookingFilterTabs';
@@ -31,6 +31,7 @@ export function BookingHistoryScreen() {
   // Modals state
   const [selectedQRBooking, setSelectedQRBooking] = useState<BookingItem | null>(null);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState<BookingItem | null>(null);
+  const [cancelSuccessBooking, setCancelSuccessBooking] = useState<BookingItem | null>(null);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -54,30 +55,42 @@ export function BookingHistoryScreen() {
 
   // Filter Bookings by Tab
   const filteredBookings = bookings.filter((b) => {
-    if (activeTab === 'upcoming') return b.status === 'CONFIRMED' || b.status === 'PENDING';
-    if (activeTab === 'completed') return b.status === 'COMPLETED';
-    if (activeTab === 'cancelled') return b.status === 'CANCELLED';
+    const status = getEffectiveBookingStatus(b);
+    if (activeTab === 'upcoming') return status === 'CONFIRMED' || status === 'PENDING';
+    if (activeTab === 'completed') return status === 'COMPLETED';
+    if (activeTab === 'cancelled') return status === 'CANCELLED';
     return true;
   });
 
   // Calculate Tab Counts
   const counts: Record<BookingTab, number> = {
     all: bookings.length,
-    upcoming: bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'PENDING').length,
-    completed: bookings.filter((b) => b.status === 'COMPLETED').length,
-    cancelled: bookings.filter((b) => b.status === 'CANCELLED').length,
+    upcoming: bookings.filter((b) => {
+      const s = getEffectiveBookingStatus(b);
+      return s === 'CONFIRMED' || s === 'PENDING';
+    }).length,
+    completed: bookings.filter((b) => getEffectiveBookingStatus(b) === 'COMPLETED').length,
+    cancelled: bookings.filter((b) => getEffectiveBookingStatus(b) === 'CANCELLED').length,
   };
 
-  const handleCancelConfirm = () => {
+  const handleCancelConfirm = async () => {
     if (!selectedCancelBooking) return;
-    setBookings((prev) =>
-      prev.map((b) => (b.id === selectedCancelBooking.id ? { ...b, status: 'CANCELLED' } : b))
-    );
-    setSelectedCancelBooking(null);
-    showAlert('Thành công', 'Đơn đặt sân đã được hủy thành công.');
+    const cancelledItem = selectedCancelBooking;
+    try {
+      await cancelBookingApi(cancelledItem.id);
+      setBookings((prev) =>
+        prev.map((b) => (b.id === cancelledItem.id ? { ...b, status: 'CANCELLED' } : b))
+      );
+      setSelectedCancelBooking(null);
+      setCancelSuccessBooking(cancelledItem);
+    } catch (error: any) {
+      setSelectedCancelBooking(null);
+      showAlert('Lỗi', error?.message || 'Không thể hủy đơn đặt sân. Vui lòng thử lại sau.');
+    }
   };
 
   const handleCardPress = (booking: BookingItem) => {
+    const effectiveStatus = getEffectiveBookingStatus(booking);
     router.push({
       pathname: '/booking/success' as any,
       params: {
@@ -93,7 +106,7 @@ export function BookingHistoryScreen() {
         endTime: booking.details?.[0]?.endTime,
         finalPrice: booking.finalPrice,
         paymentMethod: booking.paymentMethod,
-        status: booking.status,
+        status: effectiveStatus,
       },
     });
   };
@@ -174,6 +187,18 @@ export function BookingHistoryScreen() {
         iconColor={COLORS.error}
         onConfirm={handleCancelConfirm}
         onCancel={() => setSelectedCancelBooking(null)}
+      />
+
+      {/* Cancellation Success App Modal */}
+      <ConfirmModal
+        visible={!!cancelSuccessBooking}
+        title="Hủy đặt sân thành công"
+        message={`Đơn đặt sân ${cancelSuccessBooking?.bookingCode} tại "${cancelSuccessBooking?.venueName}" đã được chuyển sang trạng thái Đã Hủy.\n\nTiền sẽ được tự động hoàn lại ví/tài khoản của bạn theo đúng chính sách hoàn hủy.`}
+        confirmText="Đã hiểu"
+        confirmVariant="primary"
+        icon="check-circle"
+        iconColor={COLORS.primary}
+        onConfirm={() => setCancelSuccessBooking(null)}
       />
     </View>
   );
