@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface UserSportRepository extends JpaRepository<UserSport, Long> {
     List<UserSport> findByUserId(Long userId);
+    java.util.Optional<UserSport> findByUserIdAndSportId(Long userId, Long sportId);
 }

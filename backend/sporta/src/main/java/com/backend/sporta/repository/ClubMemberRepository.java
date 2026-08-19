@@ -27,4 +27,6 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     long countByClubIdAndRoleAndStatus(Long clubId, com.backend.sporta.enums.ClubMemberRole role, ClubMemberStatus status);
 
     List<ClubMember> findByClubIdAndRoleAndStatus(Long clubId, com.backend.sporta.enums.ClubMemberRole role, ClubMemberStatus status);
+
+    List<ClubMember> findByUserId(Long userId);
 }

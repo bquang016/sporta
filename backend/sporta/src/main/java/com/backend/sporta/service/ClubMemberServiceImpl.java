@@ -102,15 +102,14 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        ClubMember caller = clubMemberRepository.findByClubIdAndUserId(clubId, user.getId())
-                .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
+        Optional<ClubMember> callerOpt = clubMemberRepository.findByClubIdAndUserId(clubId, user.getId());
 
         List<ClubMember> members;
         // If ADMIN (Trưởng câu lạc bộ), show all members (including PENDING requests to approve)
-        if (caller.getStatus() == ClubMemberStatus.APPROVED && caller.getRole() == ClubMemberRole.ADMIN) {
+        if (callerOpt.isPresent() && callerOpt.get().getStatus() == ClubMemberStatus.APPROVED && callerOpt.get().getRole() == ClubMemberRole.ADMIN) {
             members = clubMemberRepository.findByClubId(clubId);
         } else {
-            // Regular members only see APPROVED members
+            // Regular members and non-members can view all APPROVED members of this club
             members = clubMemberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
         }
 

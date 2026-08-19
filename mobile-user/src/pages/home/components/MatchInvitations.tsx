@@ -1,55 +1,23 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { MatchInvitation } from '../types';
-
-const MATCH_INVITATIONS: MatchInvitation[] = [
-  {
-    id: 'inv-1',
-    sport: 'Bóng đá',
-    title: 'Thiếu 3 người nè!!',
-    location: 'Sân Green Field',
-    time: '18:00 hôm nay',
-    slots: { current: 7, max: 10 },
-    gradient: ['#064E3B', '#0D9488'] as const,
-    emoji: '🔥',
-    imageUrl: 'https://images.unsplash.com/photo-1545151414-8a948e1ea54f?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-  },
-  {
-    id: 'inv-2',
-    sport: 'Bóng rổ',
-    title: 'Full court 5v5!',
-    location: 'Hoop Heaven Park',
-    time: '20:30 hôm nay',
-    slots: { current: 8, max: 10 },
-    gradient: ['#E65100', '#FB8C00'] as const,
-    emoji: '🏀',
-    imageUrl: 'https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=500&auto=format&fit=crop&q=60',
-  },
-  {
-    id: 'inv-3',
-    sport: 'Cầu lông',
-    title: 'Đôi nam !!',
-    location: 'Sân CMC Đại học',
-    time: '17:00 mai',
-    slots: { current: 3, max: 4 },
-    gradient: ['#1565C0', '#42A5F5'] as const,
-    emoji: '🎯',
-    imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=500&auto=format&fit=crop&q=60',
-  },
-];
+import { useMatchmakingList } from '../../../features/matchmaking/model/useMatchmaking';
 
 export function MatchInvitations() {
+  const router = useRouter();
+  const { rooms } = useMatchmakingList();
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Ghép kèo đá</Text>
+          <Text style={styles.sectionTitle}>Ghép kèo nhanh</Text>
           <View style={styles.liveDot} />
         </View>
         <TouchableOpacity
-          onPress={() => console.log('See all matches')}
+          onPress={() => router.push('/matchmaking' as any)}
           style={styles.seeMoreButton}
           activeOpacity={0.7}
         >
@@ -58,7 +26,9 @@ export function MatchInvitations() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionSubtitle}>🔥 {MATCH_INVITATIONS.length} trận đang chờ bạn!</Text>
+      <Text style={styles.sectionSubtitle}>
+        🔥 {rooms.length} trận đấu tìm đối thủ đang diễn ra!
+      </Text>
 
       <ScrollView
         horizontal
@@ -66,48 +36,72 @@ export function MatchInvitations() {
         contentContainerStyle={styles.invitationScroll}
         decelerationRate="fast"
       >
-        {/* Danh sách các kèo có sẵn */}
-        {MATCH_INVITATIONS.map((inv) => (
-          <TouchableOpacity
-            key={inv.id}
-            activeOpacity={0.85}
-            onPress={() => console.log('Join invitation:', inv.id)}
-            style={styles.cardContainer}
-          >
-            <ImageBackground
-              source={{ uri: inv.imageUrl }}
-              style={styles.invitationCardImage}
-              imageStyle={{ borderRadius: BORDER_RADIUS.lg }}
+        {rooms.map((room) => {
+          const isRanked = room.matchType === 'RANKED';
+          return (
+            <TouchableOpacity
+              key={room.id}
+              activeOpacity={0.88}
+              onPress={() => router.push(`/matchmaking/${room.id}` as any)}
+              style={styles.cardContainer}
             >
-              <View style={styles.invitationOverlay}>
-                <Text style={styles.invCardTitle} numberOfLines={1}>{inv.title}</Text>
-                
-                <View style={styles.infoSection}>
-                  <View style={styles.invCardInfo}>
-                    <MaterialIcons name="location-on" size={14} color="rgba(255,255,255,0.8)" />
-                    <Text style={styles.invCardInfoText} numberOfLines={1}>{inv.location}</Text>
+              <View style={styles.cardContent}>
+                {/* Header Badge */}
+                <View style={styles.cardHeader}>
+                  <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+                    <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
+                      {isRanked ? '🏆 Xếp hạng' : '🤝 Giao hữu'}
+                    </Text>
                   </View>
-                  <View style={styles.invCardInfo}>
-                    <MaterialIcons name="schedule" size={14} color="rgba(255,255,255,0.8)" />
-                    <Text style={styles.invCardInfoText} numberOfLines={1}>{inv.time}</Text>
+                  {room.balanceLabel && (
+                    <Text style={styles.balanceText}>{room.balanceLabel}</Text>
+                  )}
+                </View>
+
+                {/* Host Club & Elo */}
+                <View style={styles.clubInfo}>
+                  <Text style={styles.clubName} numberOfLines={1}>
+                    {room.hostClub.name}
+                  </Text>
+                  <View style={styles.eloRow}>
+                    <View style={styles.levelTag}>
+                      <Text style={styles.levelText}>{room.hostClub.levelLabel}</Text>
+                    </View>
+                    <Text style={styles.eloText}>{room.hostClub.clubElo} Elo</Text>
+                    <Text style={styles.crpText}>• {room.hostClub.crp} CRP</Text>
                   </View>
                 </View>
-                
-                <View style={styles.invCardSlots}>
-                  <View style={styles.invSlotsBar}>
-                    <View style={[styles.invSlotsFill, { width: `${(inv.slots.current / inv.slots.max) * 100}%` }]} />
-                  </View>
-                  <Text style={styles.invSlotsText}>{inv.slots.current}/{inv.slots.max}</Text>
+
+                {/* Time & Venue */}
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="location-on" size={13} color={COLORS.onSurfaceVariant} />
+                  <Text style={styles.detailText} numberOfLines={1}>
+                    {room.booking.facilityName}
+                  </Text>
                 </View>
-                
-                <View style={styles.invJoinBtn}>
-                  <Text style={styles.invJoinText}>Tham gia</Text>
-                  <MaterialIcons name="arrow-forward" size={14} color={COLORS.primary} />
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="schedule" size={13} color={COLORS.onSurfaceVariant} />
+                  <Text style={styles.detailText}>
+                    {room.booking.date} • {room.booking.startTime}
+                  </Text>
+                </View>
+
+                {/* Fee Split */}
+                <View style={styles.feeBox}>
+                  <Text style={styles.feeLabel}>B trả ({room.guestSharePercent}%):</Text>
+                  <Text style={styles.feeValue}>
+                    ~{room.guestShareAmount.toLocaleString('vi-VN')}đ
+                  </Text>
+                </View>
+
+                <View style={styles.joinBtn}>
+                  <Text style={styles.joinBtnText}>Xem & Ghép kèo</Text>
+                  <MaterialIcons name="arrow-forward" size={14} color={COLORS.white} />
                 </View>
               </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -152,78 +146,142 @@ const styles = StyleSheet.create({
   seeMoreText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
+    fontWeight: '700',
   },
   invitationScroll: {
     gap: SPACING.sm,
     paddingVertical: SPACING.xs,
   },
   cardContainer: {
-    width: 180,
-  },
-  invitationCardImage: {
-    width: 180,
-    height: 165,
+    width: 215,
+    backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    padding: SPACING.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  invitationOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)', // Translucent overlay to make white text highly visible
-    padding: SPACING.md,
+  cardContent: {
+    gap: 8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  invCardTitle: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.white,
-    fontWeight: '800',
-    fontSize: 14,
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.xl,
   },
-  infoSection: {
+  rankedBadge: {
+    backgroundColor: '#FEF3C7',
+  },
+  friendlyBadge: {
+    backgroundColor: '#E0F2FE',
+  },
+  typeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  rankedText: {
+    color: '#92400E',
+  },
+  friendlyText: {
+    color: '#075985',
+  },
+  balanceText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  clubInfo: {
     gap: 2,
   },
-  invCardInfo: {
+  clubName: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  eloRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  invCardInfoText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
+  levelTag: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
   },
-  invCardSlots: {
+  levelText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  eloText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  crpText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B45309',
+  },
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.base,
+    gap: 4,
   },
-  invSlotsBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: BORDER_RADIUS.full,
-    overflow: 'hidden',
-  },
-  invSlotsFill: {
-    height: '100%',
-    backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  invSlotsText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
+  detailText: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 11,
+    color: COLORS.onSurfaceVariant,
+    flex: 1,
   },
-  invJoinBtn: {
+  feeBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 6,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  feeLabel: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 10,
+    color: COLORS.onSurfaceVariant,
+  },
+  feeValue: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  joinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.default,
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
-  invJoinText: {
+  joinBtnText: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

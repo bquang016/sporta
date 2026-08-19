@@ -26,12 +26,21 @@ import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.backend.sporta.entity.Club;
+import com.backend.sporta.entity.ClubMember;
+import com.backend.sporta.enums.ClubMemberRole;
+import com.backend.sporta.enums.ClubMemberStatus;
+import com.backend.sporta.repository.ClubRepository;
+import com.backend.sporta.repository.ClubMemberRepository;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -135,6 +144,29 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Bỏ qua việc thêm cột address_detail (có thể đã tồn tại).");
         }
 
+        // Ensure columns exist on match_rooms if table was created previously
+        try {
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS host_club_id BIGINT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS guest_club_id BIGINT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS match_type VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS host_share_percent INT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS guest_share_percent INT");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS guest_share_amount DOUBLE PRECISION");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS desired_levels VARCHAR(255)");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS join_deadline TIMESTAMP");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc thêm cột match_rooms.");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE matches DROP CONSTRAINT IF EXISTS fk91a4fndwc8q6s6estfly09rru");
+            jdbcTemplate.execute("ALTER TABLE matches DROP COLUMN IF EXISTS room_id CASCADE");
+            jdbcTemplate.execute("ALTER TABLE matches ADD COLUMN IF NOT EXISTS room_id UUID");
+        } catch (Exception e) {
+            // Ignore
+        }
+
         // Migrate existing venues' locations
         try {
             migrateVenueLocations();
@@ -207,6 +239,133 @@ public class DataSeeder implements CommandLineRunner {
 
         // Seed sample Ticket Sessions for User testing
         seedTicketSessions();
+
+        // Seed active members for all clubs so every club is 100% eligible for matchmaking testing
+        seedClubMembers();
+    }
+
+    @Autowired
+    private ClubRepository clubRepository;
+
+    @Autowired
+    private ClubMemberRepository clubMemberRepository;
+
+    @Transactional
+    public void seedClubMembers() {
+        // 1. Ensure sample clubs exist for testing
+        Sport football = sportRepository.findByName("Bóng đá").orElse(null);
+        Sport badminton = sportRepository.findByName("Cầu lông").orElse(null);
+        User player = userRepository.findByEmail("player@sporta.vn").orElse(null);
+
+        if (clubRepository.count() == 0 && football != null && player != null) {
+            Club c1 = Club.builder()
+                    .name("CLB Bóng Đá FC Sporta Hà Nội")
+                    .description("Câu lạc bộ bóng đá phong trào phong độ cao.")
+                    .activityLevel("Hoạt động hàng tuần")
+                    .area("Cầu Giấy, Hà Nội")
+                    .maxMembers(50)
+                    .elo(1200)
+                    .sport(football)
+                    .creator(player)
+                    .build();
+            c1 = clubRepository.save(c1);
+
+            ClubMember m1 = ClubMember.builder()
+                    .club(c1)
+                    .user(player)
+                    .role(ClubMemberRole.ADMIN)
+                    .status(ClubMemberStatus.APPROVED)
+                    .build();
+            clubMemberRepository.save(m1);
+
+            if (badminton != null) {
+                Club c2 = Club.builder()
+                        .name("CLB Cầu Lông Smash Champions")
+                        .description("CLB cầu lông phong trào ghép giao hữu & xếp hạng.")
+                        .activityLevel("Hoạt động sôi nổi")
+                        .area("Thanh Xuân, Hà Nội")
+                        .maxMembers(50)
+                        .elo(1150)
+                        .sport(badminton)
+                        .creator(player)
+                        .build();
+                c2 = clubRepository.save(c2);
+
+                ClubMember m2 = ClubMember.builder()
+                        .club(c2)
+                        .user(player)
+                        .role(ClubMemberRole.ADMIN)
+                        .status(ClubMemberStatus.APPROVED)
+                        .build();
+                clubMemberRepository.save(m2);
+            }
+            clubRepository.flush();
+            clubMemberRepository.flush();
+            System.out.println("Data Seeder: Đã khởi tạo 2 CLB mẫu mặc định cho người dùng.");
+        }
+
+        // 2. Pure JPA Seeding for ALL existing clubs (Works on PostgreSQL, H2, MySQL, Fresh DB)
+        try {
+            List<Club> allClubs = clubRepository.findAll();
+            System.out.println("Data Seeder (JPA Clean): Tìm thấy " + allClubs.size() + " CLB trong Database.");
+
+            for (Club club : allClubs) {
+                // Ensure club creator is ADMIN member if not present
+                if (club.getCreator() != null) {
+                    boolean hasAdmin = clubMemberRepository.findByClubIdAndUserId(club.getId(), club.getCreator().getId()).isPresent();
+                    if (!hasAdmin) {
+                        ClubMember adminMember = ClubMember.builder()
+                                .club(club)
+                                .user(club.getCreator())
+                                .role(ClubMemberRole.ADMIN)
+                                .status(ClubMemberStatus.APPROVED)
+                                .build();
+                        clubMemberRepository.save(adminMember);
+                    }
+                }
+
+                long existingCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
+                if (existingCount < 10) {
+                    int needed = (int) (10 - existingCount);
+                    for (int i = 1; i <= needed; i++) {
+                        String uniqueId = UUID.randomUUID().toString().substring(0, 8);
+                        String email = "member_c" + club.getId() + "_" + uniqueId + "@sporta.vn";
+
+                        User memberUser = User.builder()
+                                .email(email)
+                                .password(passwordEncoder.encode("member123"))
+                                .fullName("Thành Viên " + i + " (" + club.getName() + ")")
+                                .role(Role.PLAYER)
+                                .status(UserStatus.ACTIVE)
+                                .isDeleted(false)
+                                .build();
+                        memberUser = userRepository.save(memberUser);
+
+                        ClubMember memberRecord = ClubMember.builder()
+                                .club(club)
+                                .user(memberUser)
+                                .role(ClubMemberRole.MEMBER)
+                                .status(ClubMemberStatus.APPROVED)
+                                .build();
+                        clubMemberRepository.save(memberRecord);
+                    }
+                    long finalCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
+                    System.out.println("Data Seeder (JPA Clean): Đã thêm thành viên cho CLB ID=" + club.getId() + " ('" + club.getName() + "') -> Tổng thành viên APPROVED: " + finalCount);
+                } else {
+                    System.out.println("Data Seeder (JPA Clean): CLB ID=" + club.getId() + " ('" + club.getName() + "') đã có đủ " + existingCount + " thành viên APPROVED.");
+                }
+            }
+
+            userRepository.flush();
+            clubMemberRepository.flush();
+
+            // Safely synchronize PostgreSQL sequence if running on PostgreSQL
+            try {
+                jdbcTemplate.execute("SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users))");
+            } catch (Exception ignored) {}
+        } catch (Exception e) {
+            System.out.println("Data Seeder Error: " + e.getMessage());
+        }
     }
 
     private void seedPlayerUser() {
