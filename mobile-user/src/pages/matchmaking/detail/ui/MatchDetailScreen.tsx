@@ -1,20 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StatusBar,
   Modal,
   TextInput,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
@@ -23,7 +21,16 @@ import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 export function MatchDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { room, loading, requestJoin, acceptRequest, rejectRequest, submitScore, confirmScore } = useMatchDetail(id as string);
+  const { room, loading, refetch, requestJoin, acceptRequest, rejectRequest } = useMatchDetail(id as string);
+
+  // Auto-refetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        refetch();
+      }
+    }, [id, refetch])
+  );
 
   const [requesting, setRequesting] = useState<boolean>(false);
 
@@ -151,7 +158,6 @@ export function MatchDetailScreen() {
         return;
       }
 
-      // RULE 1: Cùng 1 CLB không thể ghép chung 1 trận được (Lọc bỏ CLB Host)
       const validClubs = clubs.filter((c: any) => String(c.id) !== String(host.id));
       if (validClubs.length === 0) {
         showConfirm(
@@ -184,29 +190,12 @@ export function MatchDetailScreen() {
     try {
       await requestJoin(String(selectedClubId), requestNote || 'CLB của chúng tôi muốn xin ghép trận!');
       setIsJoinModalVisible(false);
-      showAlert('Đã gửi yêu cầu ghép trận! 🎉', 'Vui lòng chờ Chủ room (Bên A) phê duyệt.', 'success');
+      await refetch();
+      showAlert('Đã gửi yêu cầu ghép trận', 'Vui lòng chờ Chủ room (Bên A) phê duyệt.', 'success');
     } catch (e: any) {
       showAlert('Không thể gửi yêu cầu', e.message || 'Lỗi gửi yêu cầu', 'danger');
     } finally {
       setRequesting(false);
-    }
-  };
-
-  const openVoteModal = async () => {
-    setLoadingClubs(true);
-    try {
-      const clubs = await getJoinedClubsApi();
-      if (!clubs || clubs.length === 0) {
-        showAlert('Chưa gia nhập CLB', 'Bạn chưa tham gia CLB nào để chia sẻ bài ghép kèo biểu quyết.', 'warning');
-        return;
-      }
-      setMyClubs(clubs);
-      setVoteTargetClubId(clubs[0]?.id || null);
-      setIsVoteModalVisible(true);
-    } catch (e: any) {
-      showAlert('Lỗi', e.message || 'Không thể lấy danh sách CLB của bạn', 'danger');
-    } finally {
-      setLoadingClubs(false);
     }
   };
 
@@ -216,7 +205,7 @@ export function MatchDetailScreen() {
       setVoteSending(false);
       setIsVoteModalVisible(false);
       showAlert(
-        'Đã gửi bài biểu quyết thành công! 🗳️',
+        'Đã gửi bài biểu quyết thành công',
         `Bài ghép kèo trận đấu tại ${booking.facilityName} (${booking.startTime}) đã được chia sẻ vào nhóm thảo luận của CLB. Các thành viên có thể vào bỏ phiếu bình chọn ngay!`,
         'success'
       );
@@ -225,12 +214,13 @@ export function MatchDetailScreen() {
 
   const handleAcceptApplicant = (reqId: string, clubName: string) => {
     showConfirm(
-      'Xác nhận chốt trận ⚽',
+      'Xác nhận chốt trận',
       `Bạn có chắc chắn muốn chọn CLB "${clubName}" làm đối thủ thi đấu chính thức cho trận đấu này?`,
       async () => {
         try {
           await acceptRequest(reqId);
-          showAlert('Chốt trận thành công! ⚽', 'Trận đấu đã chuyển sang trạng thái MATCHED.', 'success');
+          await refetch();
+          showAlert('Chốt trận thành công', 'Trận đấu đã chuyển sang trạng thái MATCHED.', 'success');
         } catch (err: any) {
           showAlert('Lỗi', err.message || 'Không thể chấp nhận yêu cầu', 'danger');
         }
@@ -248,6 +238,7 @@ export function MatchDetailScreen() {
       async () => {
         try {
           await rejectRequest(reqId);
+          await refetch();
           showAlert('Đã từ chối', `Đã từ chối yêu cầu ghép từ CLB "${clubName}".`, 'info');
         } catch (err: any) {
           showAlert('Lỗi', err.message || 'Không thể từ chối yêu cầu', 'danger');
@@ -275,20 +266,26 @@ export function MatchDetailScreen() {
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>
-          <TouchableOpacity onPress={() => {}} style={styles.headerIconBtn}>
-            <Ionicons name="share-social-outline" size={20} color={COLORS.onSurface} />
+          <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn}>
+            <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.responsiveContainer}>
-          {/* Stadium Hero Banner Card */}
+          {/* Stadium Hero Banner Card - Enriched */}
           <View style={styles.heroCard}>
             <View style={styles.badgeRow}>
               <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+                <Ionicons
+                  name={isRanked ? 'trophy' : 'people'}
+                  size={13}
+                  color={isRanked ? '#92400E' : '#075985'}
+                  style={{ marginRight: 4 }}
+                />
                 <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-                  {isRanked ? '🏆 Trận Xếp hạng (Tích CRP)' : '🤝 Trận Giao hữu'}
+                  {isRanked ? 'Trận Xếp hạng (Tích CRP)' : 'Trận Giao hữu'}
                 </Text>
               </View>
               {room.balanceLabel && (
@@ -300,15 +297,39 @@ export function MatchDetailScreen() {
             </View>
 
             <Text style={styles.venueTitle} numberOfLines={1}>{booking.facilityName}</Text>
-            <Text style={styles.courtSubtitle}>
-              {booking.courtName} • {booking.sportName} ({booking.format})
-            </Text>
 
+            {/* Address & Host Info */}
+            <View style={styles.heroMetaGroup}>
+              {booking.address && (
+                <View style={styles.heroMetaRow}>
+                  <Ionicons name="location-outline" size={14} color="rgba(255, 255, 255, 0.9)" />
+                  <Text style={styles.heroMetaText} numberOfLines={1}>{booking.address}</Text>
+                </View>
+              )}
+              <View style={styles.heroMetaRow}>
+                <Ionicons name="shield-checkmark-outline" size={14} color="rgba(255, 255, 255, 0.9)" />
+                <Text style={styles.heroMetaText}>Chủ room: <Text style={{ fontWeight: '900', color: COLORS.white }}>{host.name}</Text></Text>
+              </View>
+            </View>
+
+            {/* Time Box */}
             <View style={styles.timeBox}>
-              <Ionicons name="time-outline" size={16} color={COLORS.white} />
+              <Ionicons name="calendar-outline" size={15} color={COLORS.white} />
               <Text style={styles.timeBoxText}>
                 {booking.date} • {booking.startTime} - {booking.endTime}
               </Text>
+            </View>
+
+            {/* Format & Total Fee Info Chips */}
+            <View style={styles.heroChipRow}>
+              <View style={styles.heroChip}>
+                <Ionicons name="fitness-outline" size={13} color={COLORS.white} />
+                <Text style={styles.heroChipText}>{booking.courtName} ({booking.format})</Text>
+              </View>
+              <View style={styles.heroChipGold}>
+                <Ionicons name="cash-outline" size={13} color="#78350F" />
+                <Text style={styles.heroChipGoldText}>Tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+              </View>
             </View>
           </View>
 
@@ -359,19 +380,29 @@ export function MatchDetailScreen() {
             </View>
           </View>
 
-          {/* Fee Split Card */}
+          {/* Fee Split Card - Fixed Overflow */}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Chi Phí Sân & Quy Tắc Thắng Trả Ít Hơn</Text>
             <Text style={styles.subtext}>Tổng giá trị tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
 
             <View style={styles.feeSplitBox}>
               <View style={styles.feeSplitRow}>
-                <Text style={styles.feeSplitLabel}>🏆 Đội Thắng chỉ trả ({minSharePercent}%):</Text>
+                <View style={styles.feeSplitLabelGroup}>
+                  <Ionicons name="trophy" size={15} color="#15803D" />
+                  <Text style={styles.feeSplitLabel} numberOfLines={1}>
+                    Đội Thắng chỉ trả ({minSharePercent}%):
+                  </Text>
+                </View>
                 <Text style={styles.feeSplitValueHighlight}>~{minAmount.toLocaleString('vi-VN')}đ</Text>
               </View>
 
               <View style={styles.feeSplitRow}>
-                <Text style={styles.feeSplitLabel}>❌ Đội Thua trả phần còn lại ({maxSharePercent}%):</Text>
+                <View style={styles.feeSplitLabelGroup}>
+                  <Ionicons name="alert-circle" size={15} color="#B91C1C" />
+                  <Text style={styles.feeSplitLabel} numberOfLines={1}>
+                    Đội Thua trả phần còn lại ({maxSharePercent}%):
+                  </Text>
+                </View>
                 <Text style={styles.feeSplitValue}>~{maxAmount.toLocaleString('vi-VN')}đ</Text>
               </View>
 
@@ -403,7 +434,7 @@ export function MatchDetailScreen() {
                 <Text style={styles.applicantSubHint}>Chủ room chọn đối thủ phù hợp nhất để chốt trận</Text>
               </View>
 
-              {room.applicants.map((req) => {
+              {room.applicants.map((req: any) => {
                 const canManage = !!room.permissions?.canManageApplicants;
                 return (
                   <View key={req.id} style={styles.applicantCardNew}>
@@ -450,8 +481,8 @@ export function MatchDetailScreen() {
                             onPress={() => handleRejectApplicant(req.id, req.applicantClub.name)}
                             style={styles.rejectBtnNew}
                           >
-                            <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                            <Text style={styles.rejectBtnTextNew}>Từ chối</Text>
+                            <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                            <Text style={styles.rejectBtnTextNew} numberOfLines={1}>Từ chối</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -459,14 +490,14 @@ export function MatchDetailScreen() {
                             onPress={() => handleAcceptApplicant(req.id, req.applicantClub.name)}
                             style={styles.acceptBtnNew}
                           >
-                            <Ionicons name="checkmark-circle" size={18} color={COLORS.white} />
-                            <Text style={styles.acceptBtnTextNew}>Chấp nhận ghép ⚽</Text>
+                            <Ionicons name="checkmark-circle-outline" size={15} color={COLORS.white} />
+                            <Text style={styles.acceptBtnTextNew} numberOfLines={1}>Chấp nhận</Text>
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <View style={styles.pendingStatusBadgeNew}>
-                          <Ionicons name="hourglass-outline" size={14} color="#D97706" />
-                          <Text style={styles.pendingStatusTextNew}>Đang chờ Chủ room (Bên A) phê duyệt ⏳</Text>
+                          <Ionicons name="hourglass-outline" size={14} color="#92400E" />
+                          <Text style={styles.pendingStatusTextNew} numberOfLines={1}>Đang chờ Chủ room (Bên A) phê duyệt</Text>
                         </View>
                       )
                     )}
@@ -478,24 +509,24 @@ export function MatchDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Role-Based Bottom Bar */}
+      {/* Role-Based Bottom Bar - Compact & Tidy Alignment */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomBarInner}>
           {room.status === 'OPEN' && (
             isHost ? (
               <View style={styles.hostBottomBanner}>
-                <Ionicons name="shield-checkmark" size={18} color={COLORS.primary} />
-                <Text style={styles.hostBottomBannerText}>
+                <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
+                <Text style={styles.hostBottomBannerText} numberOfLines={1}>
                   {room.applicants.length > 0
-                    ? `Bạn là Chủ room • Có ${room.applicants.length} CLB xin ghép (Duyệt ở danh sách trên)`
-                    : 'Bạn là Chủ room • Phòng ghép đang mở và chờ đối thủ ⚽'}
+                    ? `Bạn là Chủ room • ${room.applicants.length} CLB xin ghép (Xem trên)`
+                    : 'Bạn là Chủ room • Phòng ghép đang mở'}
                 </Text>
               </View>
             ) : hasSentRequest ? (
               <View style={styles.pendingBottomBanner}>
-                <Ionicons name="time" size={18} color="#92400E" />
-                <Text style={styles.pendingBottomBannerText}>
-                  Đã gửi yêu cầu ghép trận (Đang chờ Chủ room duyệt ⏳)
+                <Ionicons name="time-outline" size={16} color="#92400E" />
+                <Text style={styles.pendingBottomBannerText} numberOfLines={1}>
+                  Đã gửi yêu cầu ghép trận (Đang chờ duyệt)
                 </Text>
               </View>
             ) : (
@@ -506,11 +537,11 @@ export function MatchDetailScreen() {
                 style={styles.actionBtn}
               >
                 {requesting || loadingClubs ? (
-                  <ActivityIndicator color={COLORS.white} />
+                  <ActivityIndicator color={COLORS.white} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.actionBtnText}>Gửi yêu cầu ghép trận ngay</Text>
-                    <Ionicons name="paper-plane-outline" size={18} color={COLORS.white} />
+                    <Ionicons name="paper-plane-outline" size={16} color={COLORS.white} />
+                    <Text style={styles.actionBtnText} numberOfLines={1}>Gửi yêu cầu ghép trận ngay</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -525,14 +556,14 @@ export function MatchDetailScreen() {
                 onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
                 style={styles.scoreBtn}
               >
-                <Ionicons name="trophy-outline" size={20} color={COLORS.white} />
-                <Text style={styles.actionBtnText}>🏆 Nhập tỷ số trận đấu (Chủ room)</Text>
+                <Ionicons name="trophy-outline" size={16} color={COLORS.white} />
+                <Text style={styles.actionBtnText} numberOfLines={1}>Nhập tỷ số trận đấu (Chủ room)</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.matchedWaitingBanner}>
-                <Ionicons name="time" size={18} color="#0369A1" />
-                <Text style={styles.matchedWaitingText}>
-                  Trận đấu đã chốt • Đang chờ Chủ room ({room.hostClub.name}) nhập tỷ số ⚽
+                <Ionicons name="time-outline" size={16} color="#0369A1" />
+                <Text style={styles.matchedWaitingText} numberOfLines={1}>
+                  Trận đã chốt • Chờ Chủ room ({room.hostClub.name}) nhập tỷ số
                 </Text>
               </View>
             )
@@ -546,14 +577,14 @@ export function MatchDetailScreen() {
                 onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
                 style={styles.confirmScoreActionBtn}
               >
-                <Ionicons name="shield-checkmark" size={20} color={COLORS.white} />
-                <Text style={styles.actionBtnText}>🏆 Duyệt & Xác nhận tỷ số (Bên B)</Text>
+                <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.white} />
+                <Text style={styles.actionBtnText} numberOfLines={1}>Duyệt & Xác nhận tỷ số (Bên B)</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.pendingBottomBanner}>
-                <Ionicons name="hourglass" size={18} color="#92400E" />
-                <Text style={styles.pendingBottomBannerText}>
-                  Đã gửi tỷ số • Đang chờ Bên B ({room.guestClub?.name || 'Đối thủ'}) duyệt & xác nhận ⏳
+                <Ionicons name="hourglass-outline" size={16} color="#92400E" />
+                <Text style={styles.pendingBottomBannerText} numberOfLines={1}>
+                  Đã gửi tỷ số • Chờ Bên B ({room.guestClub?.name || 'Đối thủ'}) duyệt
                 </Text>
               </View>
             )
@@ -565,14 +596,14 @@ export function MatchDetailScreen() {
               onPress={() => router.push(`/matchmaking/${room.id}/result` as any)}
               style={styles.resultBtn}
             >
-              <Ionicons name="ribbon-outline" size={20} color={COLORS.white} />
-              <Text style={styles.actionBtnText}>Xem Kết Quả & Thưởng CRP</Text>
+              <Ionicons name="ribbon-outline" size={16} color={COLORS.white} />
+              <Text style={styles.actionBtnText} numberOfLines={1}>Xem Kết Quả & Thưởng CRP</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* 1. SELECT CLUB BOTTOM SHEET MODAL (Rule 1 Enforced) */}
+      {/* 1. SELECT CLUB BOTTOM SHEET MODAL */}
       <Modal
         visible={isJoinModalVisible}
         transparent
@@ -585,10 +616,8 @@ export function MatchDetailScreen() {
           style={styles.modalOverlay}
         >
           <TouchableOpacity activeOpacity={1} style={styles.bottomSheetContainer}>
-            {/* Grab Handle */}
             <View style={styles.grabHandle} />
 
-            {/* Header */}
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderTitleRow}>
                 <View style={styles.headerIconBadge}>
@@ -596,7 +625,6 @@ export function MatchDetailScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.modalTitle}>Chọn CLB Đại Diện Thách Đấu</Text>
-
                 </View>
               </View>
               <TouchableOpacity onPress={() => setIsJoinModalVisible(false)} style={styles.closeBtn}>
@@ -604,9 +632,8 @@ export function MatchDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Target Opponent Info Banner */}
             <View style={styles.targetHostBanner}>
-              <Ionicons name="sparkles" size={16} color={COLORS.primary} />
+              <Ionicons name="sparkles-outline" size={16} color={COLORS.primary} />
               <Text style={styles.targetHostText}>
                 Thách đấu với Chủ room: <Text style={{ fontWeight: '900', color: COLORS.primary }}>{host.name}</Text> ({host.levelLabel})
               </Text>
@@ -614,7 +641,6 @@ export function MatchDetailScreen() {
 
             <Text style={styles.sheetSectionLabel}>CHỌN CLB CỦA BẠN (CÙNG CLB KHÔNG THỂ GHÉP CÙNG KÈO):</Text>
 
-            {/* List of valid clubs */}
             <ScrollView style={styles.clubListScroll} showsVerticalScrollIndicator={false}>
               {myClubs.map((club) => {
                 const isSelected = String(selectedClubId) === String(club.id);
@@ -635,10 +661,12 @@ export function MatchDetailScreen() {
                       </Text>
                       <View style={styles.clubMetaRow}>
                         <View style={styles.eloBadge}>
-                          <Text style={styles.eloBadgeText}>🏆 {club.clubElo || 1200} Elo</Text>
+                          <Ionicons name="trophy-outline" size={10} color="#92400E" style={{ marginRight: 2 }} />
+                          <Text style={styles.eloBadgeText}>{club.clubElo || 1200} Elo</Text>
                         </View>
                         <View style={styles.memberBadge}>
-                          <Text style={styles.memberBadgeText}>👥 {club.activeMemberCount || 10} thành viên</Text>
+                          <Ionicons name="people-outline" size={10} color="#0369A1" style={{ marginRight: 2 }} />
+                          <Text style={styles.memberBadgeText}>{club.activeMemberCount || 10} thành viên</Text>
                         </View>
                       </View>
                     </View>
@@ -679,8 +707,8 @@ export function MatchDetailScreen() {
                   <ActivityIndicator color={COLORS.white} size="small" />
                 ) : (
                   <>
+                    <Ionicons name="send-outline" size={15} color={COLORS.white} />
                     <Text style={styles.sheetSubmitText}>Gửi Yêu Cầu Ghép Trận</Text>
-                    <Ionicons name="send" size={16} color={COLORS.white} />
                   </>
                 )}
               </TouchableOpacity>
@@ -689,7 +717,7 @@ export function MatchDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* 2. SHARE TO CLUB FOR VOTING BOTTOM SHEET MODAL (Rule 2) */}
+      {/* 2. SHARE TO CLUB FOR VOTING BOTTOM SHEET MODAL */}
       <Modal
         visible={isVoteModalVisible}
         transparent
@@ -707,10 +735,10 @@ export function MatchDetailScreen() {
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderTitleRow}>
                 <View style={styles.voteIconBadge}>
-                  <Ionicons name="stats-chart" size={18} color={COLORS.white} />
+                  <Ionicons name="stats-chart-outline" size={18} color={COLORS.white} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>Chia Sẻ Vào CLB Để Biểu Quyết 🗳️</Text>
+                  <Text style={styles.modalTitle}>Chia Sẻ Vào CLB Để Biểu Quyết</Text>
                   <Text style={styles.modalSubtitle}>Đăng khảo sát ý kiến các thành viên trước khi chốt đi trận đấu</Text>
                 </View>
               </View>
@@ -747,16 +775,19 @@ export function MatchDetailScreen() {
             <Text style={styles.sheetSectionLabel}>XEM TRƯỚC NỘI DUNG BIỂU QUYẾT (POLL):</Text>
             <View style={styles.pollPreviewCard}>
               <Text style={styles.pollPreviewQuestion}>
-                ⚽ Kèo trận đấu: <Text style={{ fontWeight: '800', color: COLORS.primary }}>{booking.facilityName}</Text> ({booking.date} • {booking.startTime})
+                Kèo trận đấu: <Text style={{ fontWeight: '800', color: COLORS.primary }}>{booking.facilityName}</Text> ({booking.date} • {booking.startTime})
               </Text>
               <View style={styles.pollOptionBox}>
-                <Text style={styles.pollOptionText}>✅ 1. Tham gia (Đồng ý đi ghép trận)</Text>
+                <Ionicons name="checkmark-circle-outline" size={14} color="#16A34A" />
+                <Text style={styles.pollOptionText}>1. Tham gia (Đồng ý đi ghép trận)</Text>
               </View>
               <View style={styles.pollOptionBox}>
-                <Text style={styles.pollOptionText}>🤔 2. Phân vân / Cần xem lịch</Text>
+                <Ionicons name="help-circle-outline" size={14} color="#D97706" />
+                <Text style={styles.pollOptionText}>2. Phân vân / Cần xem lịch</Text>
               </View>
               <View style={styles.pollOptionBox}>
-                <Text style={styles.pollOptionText}>❌ 3. Bận / Không đi được</Text>
+                <Ionicons name="close-circle-outline" size={14} color="#DC2626" />
+                <Text style={styles.pollOptionText}>3. Bận / Không đi được</Text>
               </View>
             </View>
 
@@ -777,7 +808,8 @@ export function MatchDetailScreen() {
                   <ActivityIndicator color={COLORS.onSecondary} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.voteSubmitText}>Đăng Biểu Quyết Ngay 🗳️</Text>
+                    <Ionicons name="stats-chart" size={15} color={COLORS.onSecondary} />
+                    <Text style={styles.voteSubmitText}>Đăng Biểu Quyết Ngay</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -846,82 +878,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: SPACING.md,
   },
-  simCard: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1.5,
-    borderColor: '#FCD34D',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    gap: 8,
-  },
-  simHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  simTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontWeight: '800',
-    color: '#92400E',
-    fontSize: 15,
-  },
-  simDesc: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 11.5,
-    color: '#78350F',
-    lineHeight: 16,
-  },
-  simBtnGrid: {
-    gap: 6,
-    marginTop: 4,
-  },
-  simBtnPrimary: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: BORDER_RADIUS.full,
-    alignItems: 'center',
-  },
-  simBtnSecondary: {
-    backgroundColor: '#E0F2FE',
-    borderWidth: 1,
-    borderColor: '#0284C7',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: BORDER_RADIUS.full,
-    alignItems: 'center',
-  },
-  simBtnGold: {
-    backgroundColor: '#F59E0B',
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderRadius: BORDER_RADIUS.full,
-    alignItems: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  simBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  simBtnGoldText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 13,
-  },
   heroCard: {
     backgroundColor: COLORS.primary,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
-    gap: 8,
+    gap: 10,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -934,6 +895,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
@@ -976,10 +939,56 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 22,
   },
-  courtSubtitle: {
+  heroMetaGroup: {
+    gap: 4,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroMetaText: {
     ...TYPOGRAPHY.bodyMd,
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12.5,
+    flex: 1,
+  },
+  heroChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  heroChipText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 11.5,
+  },
+  heroChipGold: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  heroChipGoldText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#78350F',
+    fontWeight: '800',
+    fontSize: 11.5,
   },
   timeBox: {
     flexDirection: 'row',
@@ -988,7 +997,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.default,
-    marginTop: 4,
   },
   timeBoxText: {
     ...TYPOGRAPHY.labelMd,
@@ -1130,17 +1138,25 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
-    gap: 6,
+    gap: 8,
   },
   feeSplitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+  },
+  feeSplitLabelGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
   },
   feeSplitLabel: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
+    fontSize: 12.5,
     color: COLORS.onSurfaceVariant,
+    flex: 1,
   },
   feeSplitValue: {
     ...TYPOGRAPHY.labelMd,
@@ -1174,54 +1190,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: COLORS.onSurfaceVariant,
   },
-  applicantCard: {
-    backgroundColor: COLORS.background,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
-    gap: 8,
-  },
-  applicantHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  applicantAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  applicantAvatarText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '800',
-  },
-  applicantInfo: {
-    flex: 1,
-  },
-  applicantName: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-  },
-  applicantMeta: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-  },
-  applicantNote: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: COLORS.onSurfaceVariant,
-  },
-  applicantActionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
   applicantSectionHeader: {
     gap: 2,
     marginBottom: 8,
@@ -1242,18 +1210,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(6, 78, 59, 0.12)',
     padding: SPACING.md,
-    gap: 12,
+    gap: 10,
     marginTop: 8,
   },
   applicantHeaderNew: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   applicantAvatarNew: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: COLORS.primary,
     borderWidth: 2,
     borderColor: 'rgba(6, 78, 59, 0.2)',
@@ -1261,59 +1229,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applicantAvatarTextNew: {
-    ...TYPOGRAPHY.headlineSmall,
+    ...TYPOGRAPHY.headlineLgMobile,
     color: COLORS.white,
     fontWeight: '900',
-    fontSize: 18,
+    fontSize: 17,
   },
   applicantInfoNew: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
   applicantNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   applicantNameNew: {
-    ...TYPOGRAPHY.titleSm,
+    ...TYPOGRAPHY.titleMd,
     fontWeight: '900',
     color: COLORS.onSurface,
-    fontSize: 15,
+    fontSize: 14.5,
     flex: 1,
   },
   levelBadgeMini: {
     backgroundColor: 'rgba(6, 78, 59, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: BORDER_RADIUS.full,
   },
   levelBadgeText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '800',
     color: COLORS.primary,
   },
   applicantStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   statTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: COLORS.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
   },
   statTagText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: COLORS.onSurfaceVariant,
   },
@@ -1323,21 +1291,21 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: COLORS.surface,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
   },
   applicantNoteText: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
+    fontSize: 11.5,
     fontStyle: 'italic',
     color: COLORS.onSurfaceVariant,
     flex: 1,
   },
   applicantActionRowNew: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     marginTop: 2,
   },
   rejectBtnNew: {
@@ -1345,8 +1313,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
+    gap: 4,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
@@ -1356,15 +1325,16 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     color: '#DC2626',
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 12.5,
   },
   acceptBtnNew: {
-    flex: 1.5,
+    flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
+    gap: 4,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.primary,
     shadowColor: COLORS.primary,
@@ -1377,7 +1347,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 12.5,
   },
   pendingStatusBadgeNew: {
     flexDirection: 'row',
@@ -1386,8 +1356,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#FCD34D',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: BORDER_RADIUS.full,
     alignSelf: 'stretch',
     justifyContent: 'center',
@@ -1396,7 +1366,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     color: '#92400E',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 11.5,
   },
   bottomBar: {
     position: 'absolute',
@@ -1412,19 +1382,20 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.md,
+    paddingVertical: 10,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: COLORS.primary,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: BORDER_RADIUS.full,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 4,
   },
@@ -1432,65 +1403,69 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: 'rgba(6, 78, 59, 0.08)',
     borderWidth: 1.5,
     borderColor: 'rgba(6, 78, 59, 0.2)',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: BORDER_RADIUS.full,
   },
   hostBottomBannerText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
     fontWeight: '900',
-    fontSize: 13.5,
+    fontSize: 12.5,
+    flexShrink: 1,
   },
   pendingBottomBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: '#FEF3C7',
     borderWidth: 1.5,
     borderColor: '#FCD34D',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: BORDER_RADIUS.full,
   },
   pendingBottomBannerText: {
     ...TYPOGRAPHY.labelMd,
     color: '#92400E',
     fontWeight: '900',
-    fontSize: 13.5,
+    fontSize: 12.5,
+    flexShrink: 1,
   },
   matchedWaitingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: '#E0F2FE',
     borderWidth: 1.5,
     borderColor: '#7DD3FC',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: BORDER_RADIUS.full,
   },
   matchedWaitingText: {
     ...TYPOGRAPHY.labelMd,
     color: '#0369A1',
     fontWeight: '900',
-    fontSize: 13.5,
+    fontSize: 12.5,
+    flexShrink: 1,
   },
   confirmScoreActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: COLORS.primary,
     borderWidth: 1.5,
     borderColor: COLORS.secondary,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: BORDER_RADIUS.full,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -1502,9 +1477,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: '#0284C7',
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: BORDER_RADIUS.full,
     shadowColor: '#0284C7',
     shadowOffset: { width: 0, height: 4 },
@@ -1516,9 +1492,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: '#D97706',
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: BORDER_RADIUS.full,
     shadowColor: '#D97706',
     shadowOffset: { width: 0, height: 4 },
@@ -1530,43 +1507,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
     fontWeight: '900',
-    fontSize: 15,
-  },
-  // Bottom sheet & Social Vote styles
-  voteBannerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1.5,
-    borderColor: '#A7F3D0',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  voteBannerIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voteBannerTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: '#065F46',
-    fontSize: 14,
-  },
-  voteBannerDesc: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 11.5,
-    color: '#047857',
-    lineHeight: 16,
+    fontSize: 13.5,
   },
   modalOverlay: {
     flex: 1,
@@ -1726,6 +1667,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   eloBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1738,6 +1681,8 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
   },
   memberBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#E0F2FE',
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1836,6 +1781,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   pollOptionBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: '#FCD34D',

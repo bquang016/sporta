@@ -21,7 +21,6 @@ export function FeeSplitSelector({
 
   const guestPercent = 100 - hostPercent;
   const guestAmount = Math.round((totalPrice * guestPercent) / 100);
-  const hostAmount = totalPrice - guestAmount;
 
   const presets = [
     { label: '50/50 (Chia đôi)', host: 50 },
@@ -124,18 +123,28 @@ export function FeeSplitSelector({
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>🏆 Nếu Đội Thắng:</Text>
-          <Text style={styles.summaryHostValue}>Được giảm/miễn trả chỉ còn {Math.min(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.min(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="trophy" size={14} color="#15803D" />
+            <Text style={styles.summaryLabel}>Nếu Đội Thắng:</Text>
+          </View>
+          <Text style={styles.summaryHostValue}>
+            Giảm/miễn trả chỉ còn {Math.min(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.min(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)
+          </Text>
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>❌ Nếu Đội Thua:</Text>
-          <Text style={styles.summaryGuestValue}>Thanh toán phần còn lại {Math.max(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.max(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="alert-circle" size={14} color="#B91C1C" />
+            <Text style={styles.summaryLabel}>Nếu Đội Thua:</Text>
+          </View>
+          <Text style={styles.summaryGuestValue}>
+            Thanh toán phần còn lại {Math.max(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.max(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)
+          </Text>
         </View>
       </View>
 
       <Text style={styles.noteCopy}>
-        💡 Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> khoản tiền sân ngoài đời cho Chủ sân theo kết quả trận đấu.
+        Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> khoản tiền sân ngoài đời cho Chủ sân theo kết quả trận đấu.
       </Text>
     </View>
   );

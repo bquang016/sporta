@@ -112,21 +112,29 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * Lấy danh sách booking đã thanh toán của tôi
+   * Lấy danh sách booking đã thanh toán của tôi (Chỉ trả về các booking chưa tạo phòng ghép trận & chưa hết hạn)
    */
   static async getPaidBookings(sportId?: string): Promise<BookingSummaryVM[]> {
     const bookings = await apiFetch<any[]>(`/bookings/my`, { method: 'GET' }, true);
     
     let usedBookingIds = new Set<string>();
     try {
-      const myMatches = await this.getMyMatches();
+      const [myMatches, publicRooms] = await Promise.all([
+        this.listMyMatches(),
+        this.listRooms(),
+      ]);
       (myMatches || []).forEach((m) => {
         if (m.booking && m.booking.id) {
           usedBookingIds.add(String(m.booking.id));
         }
       });
-    } catch {
-      // Ignore error
+      (publicRooms || []).forEach((m) => {
+        if (m.booking && m.booking.id) {
+          usedBookingIds.add(String(m.booking.id));
+        }
+      });
+    } catch (e) {
+      console.error('Error fetching used booking IDs:', e);
     }
 
     return (bookings || [])
@@ -211,7 +219,7 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * Chấp nhận đối thủ
+   * Chủ room chấp nhận 1 yêu cầu ghép trận
    */
   static async acceptJoinRequest(roomId: string, requestId: string): Promise<MatchRoomVM> {
     return apiFetch<MatchRoomVM>(
@@ -222,10 +230,10 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * Từ chối đối thủ
+   * Chủ room từ chối 1 yêu cầu ghép trận
    */
   static async rejectJoinRequest(requestId: string, reason?: string): Promise<void> {
-    return apiFetch<void>(
+    await apiFetch<void>(
       `/matchmaking/join-requests/${requestId}/reject`,
       {
         method: 'POST',
@@ -236,22 +244,22 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * Nhập tỷ số (Host A)
+   * Chủ room khai báo / gửi tỷ số trận đấu
    */
   static async submitScore(
-    matchId: string,
+    roomId: string,
     hostScore: number | string,
     guestScore: number | string,
-    details?: string
+    rawScoreDetails?: string
   ): Promise<MatchRoomVM> {
     return apiFetch<MatchRoomVM>(
-      `/matchmaking/matches/${matchId}/score`,
+      `/matchmaking/matches/${roomId}/score`,
       {
         method: 'POST',
         body: JSON.stringify({
           hostScore: String(hostScore),
           guestScore: String(guestScore),
-          rawScoreDetails: details,
+          rawScoreDetails,
         }),
       },
       true
@@ -259,34 +267,20 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * Xác nhận tỷ số (Guest B)
+   * Đội đối thủ (Bên B) duyệt & xác nhận tỷ số
    */
-  static async confirmScore(matchId: string): Promise<MatchRoomVM> {
+  static async confirmScore(roomId: string): Promise<MatchRoomVM> {
     return apiFetch<MatchRoomVM>(
-      `/matchmaking/matches/${matchId}/confirm-score`,
+      `/matchmaking/matches/${roomId}/confirm-score`,
       { method: 'POST' },
       true
     );
   }
 
   /**
-   * Xem trước kết quả tính điểm CRP
+   * Lấy thông tin xem trước tính toán điểm xếp hạng
    */
-  static async getRankingPreview(
-    matchId: string,
-    hostScore: string,
-    guestScore: string,
-    details?: string
-  ): Promise<RankingCalculationPreview> {
-    const params = new URLSearchParams({
-      hostScore,
-      guestScore,
-      ...(details ? { rawScoreDetails: details } : {}),
-    });
-    return apiFetch<RankingCalculationPreview>(
-      `/matchmaking/matches/${matchId}/preview-ranking?${params.toString()}`,
-      { method: 'GET' },
-      true
-    );
+  static async getRankingPreview(roomId: string): Promise<RankingCalculationPreview> {
+    return apiFetch<RankingCalculationPreview>(`/matchmaking/matches/${roomId}/preview-ranking`, { method: 'GET' }, true);
   }
 }

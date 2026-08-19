@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
@@ -15,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { MatchmakingApiRepository } from '../../../../shared/api/matchmaking';
-import { MockMatchmakingRepository } from '../../../../features/matchmaking/model/mockMatchmakingRepository';
 import { ClubSummaryVM, BookingSummaryVM, MatchType } from '../../../../entities/match/model/match.types';
 import { ClubSelector } from '../../../../features/matchmaking/ui/ClubSelector';
 import { PaidBookingPicker } from '../../../../features/matchmaking/ui/PaidBookingPicker';
@@ -174,26 +172,38 @@ export function CreateMatchScreen() {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => setMatchType('RANKED')}
-                  style={[styles.typeBtn, matchType === 'RANKED' && styles.typeBtnRanked]}
+                  style={[
+                    styles.typeBtn,
+                    matchType === 'RANKED' && styles.typeBtnRanked,
+                  ]}
                 >
-                  <Text style={[styles.typeBtnTitle, matchType === 'RANKED' && styles.typeTextRanked]}>
-                    🏆 Xếp hạng
-                  </Text>
-                  <Text style={styles.typeBtnDesc}>
-                    Thi đấu tích lũy điểm CRP thành tích CLB.
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="trophy" size={18} color={matchType === 'RANKED' ? '#92400E' : COLORS.onSurfaceVariant} />
+                    <Text style={[styles.typeBtnTitle, matchType === 'RANKED' && styles.typeTextRanked]}>
+                      Xếp hạng (CRP)
+                    </Text>
+                  </View>
+                  <Text style={[styles.typeBtnDesc, matchType === 'RANKED' && styles.typeTextRanked]}>
+                    Tính điểm xếp hạng CLB & thưởng CRP chính thức.
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => setMatchType('FRIENDLY')}
-                  style={[styles.typeBtn, matchType === 'FRIENDLY' && styles.typeBtnFriendly]}
+                  style={[
+                    styles.typeBtn,
+                    matchType === 'FRIENDLY' && styles.typeBtnFriendly,
+                  ]}
                 >
-                  <Text style={[styles.typeBtnTitle, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
-                    🤝 Giao hữu
-                  </Text>
-                  <Text style={styles.typeBtnDesc}>
-                    Giao lưu học hỏi, không tích lũy điểm CRP.
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="people" size={18} color={matchType === 'FRIENDLY' ? '#075985' : COLORS.onSurfaceVariant} />
+                    <Text style={[styles.typeBtnTitle, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
+                      Giao hữu
+                    </Text>
+                  </View>
+                  <Text style={[styles.typeBtnDesc, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
+                    Thi đấu cọ xát, thư giãn, không tính điểm Elo.
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -358,6 +368,7 @@ const styles = StyleSheet.create({
   typeRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
+    marginTop: 4,
   },
   typeBtn: {
     flex: 1,
@@ -380,7 +391,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     fontWeight: '900',
     color: COLORS.onSurface,
-    fontSize: 14,
+    fontSize: 13.5,
   },
   typeTextRanked: {
     color: '#92400E',
@@ -390,7 +401,7 @@ const styles = StyleSheet.create({
   },
   typeBtnDesc: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 10.5,
+    fontSize: 11,
     color: COLORS.onSurfaceVariant,
     lineHeight: 15,
   },
@@ -425,11 +436,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
     borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.sm,
-    minHeight: 80,
-    textAlignVertical: 'top',
+    padding: SPACING.md,
     ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurface,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   submitBtn: {
     flexDirection: 'row',
@@ -439,12 +450,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.full,
-    marginTop: 8,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
+    marginTop: 8,
   },
   submitBtnDisabled: {
     opacity: 0.5,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchmakingList, useMyMatches } from '../../../../features/matchmaking/model/useMatchmaking';
 import { MatchCard } from '../../../../features/matchmaking/ui/MatchCard';
@@ -40,7 +40,32 @@ export function MatchmakingListScreen() {
     refetch: refetchMyMatches,
   } = useMyMatches();
 
-  const currentRooms = activeTab === 'ALL_ROOMS' ? publicRooms : myRooms;
+  // Real-time auto-refetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (activeTab === 'ALL_ROOMS') {
+        refetchPublic();
+      } else {
+        refetchMyMatches();
+      }
+    }, [activeTab, refetchPublic, refetchMyMatches])
+  );
+
+  // Sort "Trận đấu của tôi" descending by createdAt / ID so the latest matches appear at the top
+  const sortedMyRooms = useMemo(() => {
+    return [...myRooms].sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      if (timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
+        return timeB - timeA;
+      }
+      const idA = parseInt(String(a.id), 10) || 0;
+      const idB = parseInt(String(b.id), 10) || 0;
+      return idB - idA;
+    });
+  }, [myRooms]);
+
+  const currentRooms = activeTab === 'ALL_ROOMS' ? publicRooms : sortedMyRooms;
   const isLoading = activeTab === 'ALL_ROOMS' ? publicLoading : myLoading;
 
   const sports = [
@@ -52,14 +77,14 @@ export function MatchmakingListScreen() {
 
   const matchTypes = [
     { id: 'ALL', label: 'Tất cả' },
-    { id: 'RANKED', label: '🏆 Xếp hạng (CRP)' },
-    { id: 'FRIENDLY', label: '🤝 Giao hữu' },
+    { id: 'RANKED', label: 'Xếp hạng (CRP)' },
+    { id: 'FRIENDLY', label: 'Giao hữu' },
   ];
 
   const sortOptions: { id: MatchmakingSortOption; label: string }[] = [
-    { id: 'BALANCE_FIRST', label: '⚡ Cân kèo nhất' },
-    { id: 'HIGHEST_CRP', label: '🏆 CRP cao nhất' },
-    { id: 'NEAREST', label: '📍 Gần tôi' },
+    { id: 'BALANCE_FIRST', label: 'Cân kèo nhất' },
+    { id: 'HIGHEST_CRP', label: 'CRP cao nhất' },
+    { id: 'NEAREST', label: 'Gần tôi' },
   ];
 
   return (
@@ -78,7 +103,7 @@ export function MatchmakingListScreen() {
             <View style={styles.headerBadgeContainer}>
               <View style={styles.liveDot} />
               <Text style={styles.headerBadgeText}>
-                {activeTab === 'ALL_ROOMS' ? `${publicRooms.length} phòng đang tìm đối thủ` : `${myRooms.length} trận đấu của tôi`}
+                {activeTab === 'ALL_ROOMS' ? `${publicRooms.length} phòng tìm đối thủ` : `${sortedMyRooms.length} trận đấu của tôi`}
               </Text>
             </View>
           </View>
@@ -91,7 +116,7 @@ export function MatchmakingListScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Top Segmented Tab Switcher (Sàn Ghép Kèo vs Trận Đấu Của Tôi) */}
+        {/* Top Segmented Tab Switcher - Fixed Overflow */}
         <View style={styles.tabBarContainer}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -100,10 +125,13 @@ export function MatchmakingListScreen() {
           >
             <Ionicons
               name="planet-outline"
-              size={16}
+              size={15}
               color={activeTab === 'ALL_ROOMS' ? COLORS.primary : COLORS.onSurfaceVariant}
             />
-            <Text style={[styles.tabBtnText, activeTab === 'ALL_ROOMS' && styles.tabBtnTextActive]}>
+            <Text
+              style={[styles.tabBtnText, activeTab === 'ALL_ROOMS' && styles.tabBtnTextActive]}
+              numberOfLines={1}
+            >
               Sàn Tìm Đối Thủ
             </Text>
           </TouchableOpacity>
@@ -118,15 +146,18 @@ export function MatchmakingListScreen() {
           >
             <Ionicons
               name="calendar-outline"
-              size={16}
+              size={15}
               color={activeTab === 'MY_MATCHES' ? COLORS.primary : COLORS.onSurfaceVariant}
             />
-            <Text style={[styles.tabBtnText, activeTab === 'MY_MATCHES' && styles.tabBtnTextActive]}>
+            <Text
+              style={[styles.tabBtnText, activeTab === 'MY_MATCHES' && styles.tabBtnTextActive]}
+              numberOfLines={1}
+            >
               Trận Đấu Của Tôi
             </Text>
-            {myRooms.length > 0 && (
+            {sortedMyRooms.length > 0 && (
               <View style={styles.tabBadge}>
-                <Text style={styles.tabBadgeNum}>{myRooms.length}</Text>
+                <Text style={styles.tabBadgeNum}>{sortedMyRooms.length}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -206,7 +237,7 @@ export function MatchmakingListScreen() {
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Đang tải dữ liệu từ máy chủ...</Text>
+            <Text style={styles.loadingText}>Đang cập nhật danh sách bài ghép...</Text>
           </View>
         ) : currentRooms.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -245,6 +276,7 @@ export function MatchmakingListScreen() {
             renderItem={({ item }) => (
               <MatchCard
                 room={item}
+                isMyMatchView={activeTab === 'MY_MATCHES'}
                 onPress={() => router.push(`/matchmaking/${item.id}` as any)}
               />
             )}
@@ -301,7 +333,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 17,
+    fontSize: 16.5,
   },
   headerBadgeContainer: {
     flexDirection: 'row',
@@ -338,8 +370,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.background,
     borderWidth: 1,
@@ -352,7 +385,8 @@ const styles = StyleSheet.create({
   tabBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.onSurfaceVariant,
-    fontSize: 13,
+    fontSize: 12.5,
+    flexShrink: 1,
   },
   tabBtnTextActive: {
     color: COLORS.primary,

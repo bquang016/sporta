@@ -43,13 +43,19 @@ public class CRPEngine {
             double gFactor,
             int recentRankedMatchesCount
     ) {
-        int hostCrpBefore = match.getHostCrpBeforeSnapshot() != null ? match.getHostCrpBeforeSnapshot() : 0;
-        int guestCrpBefore = match.getGuestCrpBeforeSnapshot() != null ? match.getGuestCrpBeforeSnapshot() : 0;
+        int hostCrpBefore = (match.getHostCrpBeforeSnapshot() != null && match.getHostCrpBeforeSnapshot() > 0)
+                ? match.getHostCrpBeforeSnapshot()
+                : (match.getHostClub() != null && match.getHostClub().getCrp() != null ? match.getHostClub().getCrp() : 100);
+
+        int guestCrpBefore = (match.getGuestCrpBeforeSnapshot() != null && match.getGuestCrpBeforeSnapshot() > 0)
+                ? match.getGuestCrpBeforeSnapshot()
+                : (match.getGuestClub() != null && match.getGuestClub().getCrp() != null ? match.getGuestClub().getCrp() : 100);
+
         List<String> explanation = new ArrayList<>();
 
-        boolean isRanked = match.getMatchType() == MatchType.RANKED;
+        MatchType mType = match.getMatchType() != null ? match.getMatchType() : (match.getRoom() != null ? match.getRoom().getMatchType() : MatchType.RANKED);
+        boolean isRanked = mType == MatchType.RANKED;
         boolean withinRepeatLimit = recentRankedMatchesCount < config.getPairLimitCount();
-        boolean eligible = isRanked && withinRepeatLimit;
 
         if (!isRanked) {
             explanation.add("Trận đấu Giao hữu (Friendly) - Không tính điểm xếp hạng CRP.");
@@ -151,7 +157,7 @@ public class CRPEngine {
         int hostAfter = Math.max(config.getZeroFloor(), hostCrpBefore + hostDelta);
         int guestAfter = Math.max(config.getZeroFloor(), guestCrpBefore + guestDelta);
 
-        return CRPEngineResult.builder()
+        CRPEngineResult res = CRPEngineResult.builder()
                 .isRankedEligible(true)
                 .hostCrpBefore(hostCrpBefore)
                 .hostCrpDelta(hostAfter - hostCrpBefore)
@@ -163,5 +169,11 @@ public class CRPEngine {
                 .upsetModifier(upset)
                 .explanation(explanation)
                 .build();
+
+        System.out.println("[CRP Engine] Calculated for Match ID " + match.getId() +
+                ": Host (" + hostCrpBefore + " -> " + hostAfter + ", delta=" + res.getHostCrpDelta() +
+                "), Guest (" + guestCrpBefore + " -> " + guestAfter + ", delta=" + res.getGuestCrpDelta() + ")");
+
+        return res;
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,25 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
-import { MatchmakingApiRepository } from '../../../../shared/api/matchmaking';
 import { MockMatchmakingRepository } from '../../../../features/matchmaking/model/mockMatchmakingRepository';
 import { CrpExplanationSheet } from '../../../../features/matchmaking/ui/CrpExplanationSheet';
 
 export function MatchResultScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { room, loading } = useMatchDetail(id as string);
+  const { room, loading, refetch } = useMatchDetail(id as string);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        refetch();
+      }
+    }, [id, refetch])
+  );
 
   if (loading || !room) {
     return (
@@ -37,23 +44,34 @@ export function MatchResultScreen() {
   const result = room.result || {
     matchId: room.id,
     outcome: 'WIN_A',
-    finalScoreText: '3 - 2',
+    finalScoreText: room.scoreSubmission ? `${room.scoreSubmission.hostScore} - ${room.scoreSubmission.guestScore}` : '3 - 2',
     hostCrpBefore: room.hostClub.crp,
-    hostCrpDelta: room.matchType === 'RANKED' ? 14.2 : 0,
-    hostCrpAfter: room.hostClub.crp + (room.matchType === 'RANKED' ? 14.2 : 0),
-    guestCrpBefore: 142,
-    guestCrpDelta: room.matchType === 'RANKED' ? -6.5 : 0,
-    guestCrpAfter: 135.5,
+    hostCrpDelta: room.matchType === 'RANKED' ? 14 : 0,
+    hostCrpAfter: room.hostClub.crp + (room.matchType === 'RANKED' ? 14 : 0),
+    guestCrpBefore: room.guestClub?.crp || 140,
+    guestCrpDelta: room.matchType === 'RANKED' ? -7 : 0,
+    guestCrpAfter: (room.guestClub?.crp || 140) + (room.matchType === 'RANKED' ? -7 : 0),
     explanation: [
-      `Elo tương đương (${room.hostClub.clubElo} vs ${room.guestClub?.clubElo || 1760})`,
-      'Thắng sát nút nhận +14.2 CRP',
-      'Đã áp dụng cơ chế Positive-sum & Anti-farming',
+      `Elo tương đương (${room.hostClub.clubElo} vs ${room.guestClub?.clubElo || 1200})`,
+      'Kết quả đã được xác nhận chính thức.',
     ],
     confirmedAt: 'Vừa xong',
   };
 
   const isRanked = room.matchType === 'RANKED';
   const preview = MockMatchmakingRepository.getRankingPreview(room);
+
+  const formatCrpDelta = (delta: number) => {
+    if (delta > 0) return `+${delta}`;
+    if (delta === 0) return `0`;
+    return `${delta}`;
+  };
+
+  const getDeltaStyle = (delta: number) => {
+    if (delta > 0) return styles.crpDeltaPlus;
+    if (delta < 0) return styles.crpDeltaMinus;
+    return styles.crpDeltaZero;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -65,7 +83,9 @@ export function MatchResultScreen() {
           <Ionicons name="close" size={20} color={COLORS.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Kết Quả Trận Đấu</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn}>
+          <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -77,19 +97,14 @@ export function MatchResultScreen() {
             </View>
 
             <Text style={styles.outcomeTitle}>KẾT QUẢ ĐÃ ĐƯỢC XÁC NHẬN</Text>
-            <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
-              <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-                {isRanked ? '🏆 Trận Xếp hạng (Tích lũy CRP)' : '🤝 Trận Giao hữu'}
-              </Text>
-            </View>
 
-            {/* Big Final Score Display (Redesigned with zero overlap) */}
+            {/* Big Final Score Display */}
             <View style={styles.scoreBoardCard}>
               <View style={styles.teamScoreCol}>
                 <Text style={styles.teamHostName} numberOfLines={1}>
                   {room.hostClub.name}
                 </Text>
-                <Text style={styles.winnerBadgeText}>Chủ Sân</Text>
+                <Text style={styles.winnerBadgeText}>Chủ Room (Bên A)</Text>
               </View>
 
               <View style={styles.finalScoreBadge}>
@@ -100,7 +115,7 @@ export function MatchResultScreen() {
                 <Text style={styles.teamGuestName} numberOfLines={1}>
                   {room.guestClub?.name || 'Đội bạn'}
                 </Text>
-                <Text style={styles.guestBadgeText}>Đối Thủ</Text>
+                <Text style={styles.guestBadgeText}>Đối Thủ (Bên B)</Text>
               </View>
             </View>
           </View>
@@ -113,7 +128,9 @@ export function MatchResultScreen() {
               <View style={styles.crpMainRow}>
                 <View style={styles.crpCol}>
                   <Text style={styles.crpClubLabel} numberOfLines={1}>{room.hostClub.name}</Text>
-                  <Text style={styles.crpDeltaPlus}>+{result.hostCrpDelta} CRP</Text>
+                  <Text style={getDeltaStyle(result.hostCrpDelta)}>
+                    {formatCrpDelta(result.hostCrpDelta)} CRP
+                  </Text>
                   <Text style={styles.crpBeforeAfter}>
                     {result.hostCrpBefore} → <Text style={{ fontWeight: '900' }}>{result.hostCrpAfter}</Text>
                   </Text>
@@ -123,7 +140,9 @@ export function MatchResultScreen() {
 
                 <View style={styles.crpCol}>
                   <Text style={styles.crpClubLabel} numberOfLines={1}>{room.guestClub?.name || 'Đội bạn'}</Text>
-                  <Text style={styles.crpDeltaMinus}>{result.guestCrpDelta} CRP</Text>
+                  <Text style={getDeltaStyle(result.guestCrpDelta)}>
+                    {formatCrpDelta(result.guestCrpDelta)} CRP
+                  </Text>
                   <Text style={styles.crpBeforeAfter}>
                     {result.guestCrpBefore} → <Text style={{ fontWeight: '900' }}>{result.guestCrpAfter}</Text>
                   </Text>
@@ -152,40 +171,36 @@ export function MatchResultScreen() {
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Thông Tin Sân & Chi Phí</Text>
 
-            <View style={styles.infoLine}>
-              <Ionicons name="location-outline" size={16} color={COLORS.onSurfaceVariant} />
-              <Text style={styles.infoText} numberOfLines={1}>{room.booking.facilityName} ({room.booking.courtName})</Text>
-            </View>
-
-            <View style={styles.infoLine}>
-              <Ionicons name="calendar-outline" size={16} color={COLORS.onSurfaceVariant} />
-              <Text style={styles.infoText}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
-            </View>
-
-            <View style={styles.infoLine}>
-              <Ionicons name="cash-outline" size={16} color={COLORS.onSurfaceVariant} />
-              <Text style={styles.infoText}>
-                Tỉ lệ chia: Chủ sân {room.hostSharePercent}% — Đối thủ {room.guestSharePercent}% (~{room.guestShareAmount.toLocaleString('vi-VN')}đ)
-              </Text>
+            <View style={styles.infoGrid}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Sân thi đấu:</Text>
+                <Text style={styles.infoValue}>{room.booking.facilityName} ({room.booking.courtName})</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Thời gian:</Text>
+                <Text style={styles.infoValue}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Loại trận:</Text>
+                <Text style={styles.infoValue}>{isRanked ? 'Trận Xếp hạng' : 'Trận Giao hữu'}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Tiền sân:</Text>
+                <Text style={styles.infoValue}>{room.booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+              </View>
             </View>
           </View>
-
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() => router.push('/matchmaking' as any)}
-            style={styles.backListBtn}
-          >
-            <Text style={styles.backListBtnText}>Quay về Danh sách Matchmaking</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
       {/* CRP Explanation Sheet Modal */}
-      <CrpExplanationSheet
-        visible={showExplanation}
-        onClose={() => setShowExplanation(false)}
-        preview={preview}
-      />
+      {preview && (
+        <CrpExplanationSheet
+          visible={showExplanation}
+          preview={preview}
+          onClose={() => setShowExplanation(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -196,6 +211,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -240,185 +258,163 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   heroCard: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.lg,
+    backgroundColor: COLORS.primary,
+    padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
     alignItems: 'center',
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#FFFBEB',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FEF3C7',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FCD34D',
   },
   outcomeTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: COLORS.onSurfaceVariant,
-    fontSize: 11,
-    letterSpacing: 1,
-  },
-  typeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  rankedBadge: {
-    backgroundColor: '#FEF3C7',
-  },
-  friendlyBadge: {
-    backgroundColor: '#E0F2FE',
-  },
-  typeText: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '800',
-    fontSize: 11,
-  },
-  rankedText: {
-    color: '#92400E',
-  },
-  friendlyText: {
-    color: '#075985',
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '900',
+    color: COLORS.white,
+    letterSpacing: 0.8,
+    fontSize: 15,
   },
   scoreBoardCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.background,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
     width: '100%',
-    marginTop: 6,
-    gap: 8,
+    marginTop: 4,
   },
   teamScoreCol: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
   },
   teamHostName: {
     ...TYPOGRAPHY.titleMd,
+    color: COLORS.white,
     fontWeight: '800',
-    color: COLORS.onSurface,
-    fontSize: 14,
-    textAlign: 'center',
+    fontSize: 13.5,
   },
   winnerBadgeText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 10,
-    color: COLORS.primary,
+    color: COLORS.secondary,
+    fontWeight: '800',
+    fontSize: 10.5,
+  },
+  teamGuestName: {
+    ...TYPOGRAPHY.titleMd,
+    color: COLORS.white,
+    fontWeight: '800',
+    fontSize: 13.5,
+  },
+  guestBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '700',
+    fontSize: 10.5,
   },
   finalScoreBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: BORDER_RADIUS.lg,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    marginHorizontal: 8,
   },
   finalScoreNum: {
     ...TYPOGRAPHY.headlineXl,
     fontWeight: '900',
-    color: COLORS.white,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: 1,
-  },
-  teamGuestName: {
-    ...TYPOGRAPHY.titleMd,
-    fontWeight: '700',
-    color: COLORS.onSurfaceVariant,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  guestBadgeText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 10,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '600',
+    color: COLORS.onSecondary,
+    fontSize: 22,
   },
   crpCard: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1.5,
-    borderColor: '#FCD34D',
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surface,
     padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 78, 59, 0.08)',
     gap: SPACING.sm,
-    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   crpCardTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '900',
-    color: '#92400E',
+    color: COLORS.onSurface,
+    fontSize: 15.5,
   },
   crpMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginVertical: 4,
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.background,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
   },
   crpCol: {
-    alignItems: 'center',
-    gap: 2,
     flex: 1,
+    alignItems: 'center',
+    gap: 4,
   },
   crpClubLabel: {
     ...TYPOGRAPHY.labelMd,
-    color: '#78350F',
+    color: COLORS.onSurface,
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
   },
   crpDeltaPlus: {
-    ...TYPOGRAPHY.headlineMd,
+    ...TYPOGRAPHY.headlineXl,
     fontWeight: '900',
     color: '#15803D',
-    fontSize: 22,
+    fontSize: 24,
   },
   crpDeltaMinus: {
-    ...TYPOGRAPHY.headlineMd,
+    ...TYPOGRAPHY.headlineXl,
     fontWeight: '900',
     color: '#B91C1C',
-    fontSize: 22,
+    fontSize: 24,
+  },
+  crpDeltaZero: {
+    ...TYPOGRAPHY.headlineXl,
+    fontWeight: '900',
+    color: '#64748B',
+    fontSize: 24,
   },
   crpBeforeAfter: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 11,
-    color: '#78350F',
+    fontSize: 11.5,
+    color: COLORS.onSurfaceVariant,
   },
   crpDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#FCD34D',
+    backgroundColor: COLORS.outlineVariant,
+    marginHorizontal: 8,
   },
   whyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
   },
   whyBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 12.5,
   },
   friendlyNoteCard: {
     flexDirection: 'row',
@@ -427,10 +423,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(6, 78, 59, 0.06)',
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 78, 59, 0.12)',
   },
   friendlyNoteText: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
+    fontSize: 12.5,
     color: COLORS.primary,
     flex: 1,
     lineHeight: 18,
@@ -441,40 +439,37 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
     borderColor: 'rgba(6, 78, 59, 0.08)',
-    gap: 8,
+    gap: SPACING.sm,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
+    fontSize: 15.5,
   },
-  infoLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  infoGrid: {
     gap: 8,
+    marginTop: 2,
   },
-  infoText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    flex: 1,
-  },
-  backListBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.full,
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  backListBtnText: {
+  infoLabel: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12.5,
+  },
+  infoValue: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 14,
+    color: COLORS.onSurface,
+    fontWeight: '800',
+    fontSize: 12.5,
   },
 });

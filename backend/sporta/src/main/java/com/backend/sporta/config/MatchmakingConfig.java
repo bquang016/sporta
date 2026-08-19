@@ -31,8 +31,8 @@ public class MatchmakingConfig {
     @Value("${ranking.crp.draw-delta:0}")
     private int drawDelta = 0;
 
-    @Value("${ranking.crp.pair-limit-count:2}")
-    private int pairLimitCount = 2;
+    @Value("${ranking.crp.pair-limit-count:10}")
+    private int pairLimitCount = 10;
 
     @Value("${ranking.crp.pair-limit-window-days:7}")
     private int pairLimitWindowDays = 7;

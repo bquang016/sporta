@@ -5,10 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,7 +75,7 @@ export function ScoreInputScreen() {
     try {
       await submitScore(hostScore, guestScore, details);
       showAlert(
-        'Đã gửi tỷ số trận đấu! ⚽',
+        'Đã gửi tỷ số trận đấu',
         'Tỷ số đã được gửi tới đối thủ (Bên B). Trận đấu sẽ chính thức hoàn tất sau khi Bên B phê duyệt và xác nhận.',
         'success',
         () => router.replace(`/matchmaking/${room.id}` as any)
@@ -94,7 +92,7 @@ export function ScoreInputScreen() {
     try {
       await confirmScore();
       showAlert(
-        'Hoàn tất trận đấu! 🎉',
+        'Hoàn tất trận đấu',
         'Kết quả đã được xác nhận và cập nhật điểm CRP.',
         'success',
         () => router.replace(`/matchmaking/${room.id}/result` as any)
@@ -104,14 +102,6 @@ export function ScoreInputScreen() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleProposeDraw = () => {
-    showAlert(
-      'Đề xuất hòa',
-      'Đề xuất ghi nhận kết quả hòa đã được gửi cho đối thủ. Cả hai đội cần đồng ý để hoàn tất.',
-      'info'
-    );
   };
 
   const submission = room.scoreSubmission;
@@ -131,7 +121,7 @@ export function ScoreInputScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.responsiveContainer}>
-          {/* Stadium Header Info Card - Strict Theme Tokens */}
+          {/* Stadium Header Info Card */}
           <View style={styles.stadiumCard}>
             <View style={styles.stadiumBadgeRow}>
               <View style={styles.liveTag}>
@@ -170,7 +160,7 @@ export function ScoreInputScreen() {
           {(room.status === 'SCORE_CONFIRMING' || submission) && (
             <View style={styles.confirmCard}>
               <View style={styles.confirmHeader}>
-                <Ionicons name="trophy" size={24} color={COLORS.primary} />
+                <Ionicons name="trophy-outline" size={24} color={COLORS.primary} />
                 <Text style={styles.confirmTitle}>XÁC NHẬN KẾT QUẢ TRẬN ĐẤU</Text>
               </View>
               <Text style={styles.confirmSub}>
@@ -209,7 +199,7 @@ export function ScoreInputScreen() {
                 </View>
               ) : (
                 <View style={styles.waitingGuestBox}>
-                  <Ionicons name="time" size={20} color="#92400E" />
+                  <Ionicons name="time-outline" size={20} color="#92400E" />
                   <Text style={styles.waitingGuestText}>
                     Tỷ số đã được gửi thành công! Đang chờ đối thủ Bên B ({room.guestClub?.name || 'Đối thủ'}) phê duyệt & xác nhận.
                   </Text>
@@ -245,7 +235,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.primaryOpacity06,
+    backgroundColor: 'rgba(6, 78, 59, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -254,18 +244,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.onSurface,
     fontSize: 17,
-  },
-  overdueToggle: {
-    backgroundColor: COLORS.secondaryOpacity15,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  overdueToggleText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.amber,
-    fontSize: 11,
-    fontWeight: '800',
   },
   centerContainer: {
     flex: 1,
@@ -307,7 +285,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.whiteOpacity30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
@@ -316,7 +294,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.successText,
+    backgroundColor: '#10B981',
   },
   liveTagText: {
     ...TYPOGRAPHY.labelSm,
@@ -326,7 +304,7 @@ const styles = StyleSheet.create({
   },
   stadiumSport: {
     ...TYPOGRAPHY.labelSm,
-    color: COLORS.whiteOpacity70,
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -339,13 +317,13 @@ const styles = StyleSheet.create({
   stadiumTime: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
-    color: COLORS.whiteOpacity70,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   teamVsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.whiteOpacity10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.lg,
     marginTop: 4,
@@ -371,76 +349,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 10,
   },
-  overdueCard: {
-    backgroundColor: COLORS.errorOpacity08,
-    borderWidth: 1.5,
-    borderColor: COLORS.errorContainer,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    gap: SPACING.sm,
-  },
-  overdueHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  overdueTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontWeight: '800',
-    color: COLORS.errorText,
-    fontSize: 15,
-  },
-  overdueDesc: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.errorText,
-    lineHeight: 18,
-  },
-  overdueActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  reportBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.errorContainer,
-    paddingVertical: 9,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  reportBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.errorText,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  drawBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 9,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  drawBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '800',
-    fontSize: 12,
-  },
   confirmCard: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity08,
+    borderColor: 'rgba(6, 78, 59, 0.08)',
     gap: SPACING.sm,
     alignItems: 'center',
     shadowColor: COLORS.primary,
@@ -464,6 +378,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMd,
     fontSize: 13,
     color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
   },
   scoreboardBox: {
     backgroundColor: COLORS.background,
@@ -496,6 +411,7 @@ const styles = StyleSheet.create({
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
     fontSize: 12.5,
+    marginBottom: 8,
   },
   confirmBtnRow: {
     width: '100%',

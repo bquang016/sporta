@@ -32,6 +32,7 @@ import com.backend.sporta.enums.ClubMemberRole;
 import com.backend.sporta.enums.ClubMemberStatus;
 import com.backend.sporta.repository.ClubRepository;
 import com.backend.sporta.repository.ClubMemberRepository;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 

@@ -7,32 +7,146 @@ import { MatchRoomVM } from '../../../entities/match/model/match.types';
 interface MatchCardProps {
   room: MatchRoomVM;
   onPress: () => void;
+  isMyMatchView?: boolean;
 }
 
-export function MatchCard({ room, onPress }: MatchCardProps) {
+export function MatchCard({ room, onPress, isMyMatchView = false }: MatchCardProps) {
   const isRanked = room.matchType === 'RANKED';
   const host = room.hostClub;
+  const guest = room.guestClub;
   const booking = room.booking;
 
-  // Fee split calculation: Performance Incentive (Winning team pays less)
   const getFeeSplitLabel = () => {
     if (room.hostSharePercent === 50) return 'Chia đôi 50/50';
-    if (room.hostSharePercent === 70 || room.guestSharePercent === 30) return '🔥 Đội Thắng chỉ trả 30%';
-    if (room.hostSharePercent === 100 || room.guestSharePercent === 0) return '🏆 Đội Thắng MIỄN 100% tiền sân';
+    if (room.hostSharePercent === 70 || room.guestSharePercent === 30) return 'Đội Thắng chỉ trả 30%';
+    if (room.hostSharePercent === 100 || room.guestSharePercent === 0) return 'Đội Thắng MIỄN 100% tiền sân';
     return `Thắng trả ${room.guestSharePercent}%`;
+  };
+
+  // Status & Match Result badge config
+  const getStatusBadge = () => {
+    switch (room.status) {
+      case 'RESULT_FINAL': {
+        const outcome = room.result?.outcome;
+        if (outcome === 'DRAW') {
+          return {
+            label: 'KẾT QUẢ: HÒA',
+            bg: '#FEF3C7',
+            border: '#FCD34D',
+            color: '#B45309',
+            icon: 'swap-horizontal-outline',
+          };
+        }
+        if (outcome === 'WIN_A') {
+          return {
+            label: `THẮNG: ${host.name}`,
+            bg: '#DCFCE7',
+            border: '#86EFAC',
+            color: '#15803D',
+            icon: 'trophy',
+          };
+        }
+        if (outcome === 'WIN_B') {
+          return {
+            label: `THẮNG: ${guest?.name || 'Đối thủ'}`,
+            bg: '#DCFCE7',
+            border: '#86EFAC',
+            color: '#15803D',
+            icon: 'trophy',
+          };
+        }
+        return {
+          label: 'ĐÃ HOÀN TẤT',
+          bg: '#DCFCE7',
+          border: '#86EFAC',
+          color: '#15803D',
+          icon: 'checkmark-done-circle-outline',
+        };
+      }
+
+      case 'MATCHED':
+        return {
+          label: 'ĐÃ CHỐT KÈO',
+          bg: '#E0F2FE',
+          border: '#7DD3FC',
+          color: '#0369A1',
+          icon: 'calendar-outline',
+        };
+
+      case 'SCORE_CONFIRMING':
+      case 'SCORE_PENDING':
+        return {
+          label: 'CHỜ DUYỆT TỶ SỐ',
+          bg: '#FFEDD5',
+          border: '#FDBA74',
+          color: '#C2410C',
+          icon: 'hourglass-outline',
+        };
+
+      case 'CANCELLED':
+        return {
+          label: 'ĐÃ HỦY PHÒNG',
+          bg: '#F3F4F6',
+          border: '#E5E7EB',
+          color: '#6B7280',
+          icon: 'close-circle-outline',
+        };
+
+      case 'OPEN':
+      default:
+        return {
+          label: 'ĐANG TÌM ĐỐI THỦ',
+          bg: 'rgba(6, 78, 59, 0.08)',
+          border: 'rgba(6, 78, 59, 0.2)',
+          color: COLORS.primary,
+          icon: 'radio-button-on-outline',
+        };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+
+  // Dynamic action button label
+  const getActionBtnLabel = () => {
+    switch (room.status) {
+      case 'RESULT_FINAL':
+        return 'Xem Kết Quả';
+      case 'SCORE_CONFIRMING':
+      case 'SCORE_PENDING':
+        return room.permissions?.canConfirmScore ? 'Duyệt Tỷ Số' : 'Xem Tỷ Số';
+      case 'MATCHED':
+        return room.permissions?.canEnterScore ? 'Nhập Tỷ Số' : 'Xem Trận';
+      case 'OPEN':
+      default:
+        return isMyMatchView ? 'Xem Chi Tiết' : 'Xem Chi Tiết';
+    }
   };
 
   return (
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.card}>
-      {/* Top Badge Bar (No text overlap) */}
+      {/* Top Badge Bar */}
       <View style={styles.topBadgeBar}>
         <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+          <Ionicons
+            name={isRanked ? 'trophy' : 'people'}
+            size={11}
+            color={isRanked ? '#92400E' : '#075985'}
+            style={{ marginRight: 3 }}
+          />
           <Text style={[styles.typeBadgeText, isRanked ? styles.rankedBadgeText : styles.friendlyBadgeText]}>
-            {isRanked ? '🏆 Xếp hạng' : '🤝 Giao hữu'}
+            {isRanked ? 'Xếp hạng' : 'Giao hữu'}
           </Text>
         </View>
 
-        {room.balanceLabel && (
+        {/* Distinct Status Color Badge */}
+        <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg, borderColor: statusBadge.border }]}>
+          <Ionicons name={statusBadge.icon as any} size={11} color={statusBadge.color} />
+          <Text style={[styles.statusBadgeText, { color: statusBadge.color }]}>
+            {statusBadge.label}
+          </Text>
+        </View>
+
+        {room.balanceLabel && room.status === 'OPEN' && (
           <View style={styles.balanceChip}>
             <MaterialIcons name="bolt" size={13} color="#D97706" />
             <Text style={styles.balanceChipText}>{room.balanceLabel}</Text>
@@ -45,7 +159,7 @@ export function MatchCard({ room, onPress }: MatchCardProps) {
         </View>
       </View>
 
-      {/* Host Club Row */}
+      {/* Host / Opponent Clubs Row */}
       <View style={styles.hostRow}>
         <View style={styles.avatarContainer}>
           {host.avatarUrl ? (
@@ -61,7 +175,7 @@ export function MatchCard({ room, onPress }: MatchCardProps) {
         <View style={styles.hostInfo}>
           <View style={styles.hostNameRow}>
             <Text style={styles.hostName} numberOfLines={1}>
-              {host.name}
+              {host.name} {guest ? `vs ${guest.name}` : ''}
             </Text>
             <MaterialIcons name="verified" size={14} color={COLORS.primary} />
           </View>
@@ -105,8 +219,8 @@ export function MatchCard({ room, onPress }: MatchCardProps) {
         </View>
 
         <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.actionBtn}>
-          <Text style={styles.actionBtnText}>Ghép Kèo</Text>
-          <MaterialIcons name="arrow-forward" size={16} color={COLORS.white} />
+          <Text style={styles.actionBtnText}>{getActionBtnLabel()}</Text>
+          <MaterialIcons name="arrow-forward" size={15} color={COLORS.white} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -135,8 +249,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   typeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
     borderRadius: BORDER_RADIUS.full,
   },
   rankedBadge: {
@@ -151,7 +267,7 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
   },
   rankedBadgeText: {
@@ -160,13 +276,27 @@ const styles = StyleSheet.create({
   friendlyBadgeText: {
     color: '#075985',
   },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    fontWeight: '900',
+  },
   balanceChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     backgroundColor: '#FFFBEB',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: '#FCD34D',
@@ -183,7 +313,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: 'rgba(6, 78, 59, 0.08)',
     paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: BORDER_RADIUS.full,
   },
   incentiveChipText: {
@@ -242,7 +372,7 @@ const styles = StyleSheet.create({
   },
   hostName: {
     ...TYPOGRAPHY.titleMd,
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     color: COLORS.onSurface,
     flexShrink: 1,
@@ -323,10 +453,10 @@ const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: BORDER_RADIUS.full,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 3 },
@@ -338,6 +468,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 12.5,
   },
 });
