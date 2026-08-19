@@ -57,6 +57,8 @@ export function useSetupWizard() {
     detailImages: [],
     hasSurcharge: false,
     surchargeDescription: '',
+    cancellationPolicy: '',
+    generalRules: [],
   });
 
 
@@ -81,6 +83,9 @@ export function useSetupWizard() {
 
         case 'venue-courts':
           if (!venueInfo.sportId) return 'Vui lòng chọn môn thể thao chính.';
+          if (!venueInfo.openingTime || !venueInfo.closingTime) return 'Vui lòng chọn thời gian hoạt động chung.';
+          if (!venueInfo.shiftDurationMinutes) return 'Vui lòng chọn thời lượng ca cơ bản.';
+          if (venueInfo.hasSurcharge && (!venueInfo.surchargeAmount || !venueInfo.surchargeDescription.trim())) return 'Vui lòng nhập đầy đủ thông tin phụ thu khẩn cấp.';
           if (courts.length === 0) return 'Vui lòng khai báo ít nhất một sân lẻ.';
           for (const court of courts) {
             if (!court.name.trim()) return 'Vui lòng nhập tên cho tất cả sân con.';
@@ -93,10 +98,12 @@ export function useSetupWizard() {
           if (venueInfo.detailImages.length === 0) return 'Vui lòng tải lên ít nhất một ảnh chi tiết.';
           return null;
 
-        case 'venue-operating':
-          if (!venueInfo.openingTime || !venueInfo.closingTime) return 'Vui lòng chọn thời gian hoạt động.';
-          if (!venueInfo.shiftDurationMinutes) return 'Vui lòng chọn thời lượng ca.';
-          if (venueInfo.hasSurcharge && (!venueInfo.surchargeAmount || !venueInfo.surchargeDescription.trim())) return 'Vui lòng nhập đầy đủ thông tin phụ thu.';
+        case 'venue-policy':
+          if (!venueInfo.cancellationPolicy.trim()) return 'Vui lòng nhập chính sách hủy lịch.';
+          if (venueInfo.generalRules.length === 0) return 'Vui lòng thêm ít nhất một quy định sân.';
+          for (const rule of venueInfo.generalRules) {
+            if (!rule.trim()) return 'Quy định sân không được để trống.';
+          }
           return null;
 
         case 'review':

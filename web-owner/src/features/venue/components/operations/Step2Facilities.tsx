@@ -18,9 +18,9 @@ export const Step2Facilities = () => {
   const [newCourtPrice, setNewCourtPrice] = useState<number>(100000);
 
   const SPORT_OPTIONS = [
-    { 
-      id: '1', 
-      name: 'Bóng đá', 
+    {
+      id: '1',
+      name: 'Bóng đá',
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-9h3V8H8v3zm5-3h3v3h-3V8zm-5 5h3v3H8v-3zm5 3v-3h3v3h-3z" />
@@ -29,9 +29,9 @@ export const Step2Facilities = () => {
       bgClass: "hover:border-emerald-500 hover:bg-emerald-50/20",
       activeClass: "border-emerald-500 bg-emerald-50/30 text-emerald-700 shadow-xs"
     },
-    { 
-      id: '2', 
-      name: 'Cầu lông', 
+    {
+      id: '2',
+      name: 'Cầu lông',
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2L4.5 20.29c-.21.52.17 1.09.73 1.09h13.54c.56 0 .94-.57.73-1.09L12 2zm0 4l5.34 13H6.66L12 6z" />
@@ -40,9 +40,9 @@ export const Step2Facilities = () => {
       bgClass: "hover:border-orange-500 hover:bg-orange-50/20",
       activeClass: "border-orange-500 bg-orange-50/30 text-orange-700 shadow-xs"
     },
-    { 
-      id: '3', 
-      name: 'Pickleball', 
+    {
+      id: '3',
+      name: 'Pickleball',
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm-4 5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm2 9a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm4 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm2-4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm-2-5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
@@ -51,9 +51,9 @@ export const Step2Facilities = () => {
       bgClass: "hover:border-sky-500 hover:bg-sky-50/20",
       activeClass: "border-sky-500 bg-sky-50/30 text-sky-700 shadow-xs"
     },
-    { 
-      id: '4', 
-      name: 'Bóng rổ', 
+    {
+      id: '4',
+      name: 'Bóng rổ',
       icon: (
         <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-9a1 1 0 100-2 1 1 0 000 2zm4 0a1 1 0 100-2 1 1 0 000 2zm-2 4a1 1 0 100-2 1 1 0 000 2z" />
@@ -128,11 +128,9 @@ export const Step2Facilities = () => {
                   if (isPureEditMode) return;
                   setSportId(opt.id);
                 }}
-                className={`border-2 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 transition-all ${
-                  isPureEditMode ? 'cursor-default opacity-80' : 'cursor-pointer active:scale-95'
-                } ${
-                  isSelected ? opt.activeClass : `border-slate-100 bg-white text-slate-500 ${!isPureEditMode ? opt.bgClass : ''}`
-                }`}
+                className={`border-2 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 transition-all ${isPureEditMode ? 'cursor-default opacity-80' : 'cursor-pointer active:scale-95'
+                  } ${isSelected ? opt.activeClass : `border-slate-100 bg-white text-slate-500 ${!isPureEditMode ? opt.bgClass : ''}`
+                  }`}
               >
                 {opt.icon}
                 <span className="text-[11px] font-black tracking-wider uppercase">{opt.name}</span>
