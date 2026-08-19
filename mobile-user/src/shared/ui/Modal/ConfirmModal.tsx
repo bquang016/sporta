@@ -4,9 +4,9 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TouchableOpacity, 
   TouchableWithoutFeedback,
-  Platform
+  Platform,
+  useWindowDimensions
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
@@ -23,6 +23,7 @@ export interface ConfirmModalProps {
   iconColor?: string;
   onConfirm: () => void;
   onCancel?: () => void;
+  useViewOverlay?: boolean;
 }
 
 export function ConfirmModal({
@@ -36,7 +37,68 @@ export function ConfirmModal({
   iconColor = COLORS.primary,
   onConfirm,
   onCancel,
+  useViewOverlay = false,
 }: ConfirmModalProps) {
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 360;
+
+  const renderContent = () => (
+    <TouchableWithoutFeedback onPress={onCancel || onConfirm}>
+      <View style={[styles.overlay, { padding: isSmallScreen ? SPACING.md : SPACING.lg }]}>
+        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <View style={[styles.modalContainer, { maxWidth: Math.min(width * 0.9, 360) }]}>
+            {icon && (
+              <View style={styles.iconContainer}>
+                <MaterialIcons name={icon} size={isSmallScreen ? 28 : 32} color={iconColor} />
+              </View>
+            )}
+            
+            <Text 
+              style={[styles.title, isSmallScreen && { fontSize: 18 }]}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              numberOfLines={2}
+            >
+              {title}
+            </Text>
+            
+            <Text style={[styles.message, isSmallScreen && { fontSize: 13 }]}>
+              {message}
+            </Text>
+            
+            <View style={[styles.buttonGroup, isSmallScreen && { gap: SPACING.xs }]}>
+              {onCancel && (
+                <View style={styles.buttonWrapper}>
+                  <Button 
+                    title={cancelText}
+                    variant="ghost"
+                    onPress={onCancel}
+                  />
+                </View>
+              )}
+              <View style={styles.buttonWrapper}>
+                <Button 
+                  title={confirmText}
+                  variant={confirmVariant}
+                  onPress={onConfirm}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+
+  if (useViewOverlay) {
+    if (!visible) return null;
+    return (
+      <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999, elevation: 9999 }]}>
+        {renderContent()}
+      </View>
+    );
+  }
+
   return (
     <Modal
       visible={visible}
@@ -44,41 +106,7 @@ export function ConfirmModal({
       animationType="fade"
       onRequestClose={onCancel || onConfirm}
     >
-      <TouchableWithoutFeedback onPress={onCancel || onConfirm}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContainer}>
-              {icon && (
-                <View style={styles.iconContainer}>
-                  <MaterialIcons name={icon} size={32} color={iconColor} />
-                </View>
-              )}
-              
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.message}>{message}</Text>
-              
-              <View style={styles.buttonGroup}>
-                {onCancel && (
-                  <View style={styles.buttonWrapper}>
-                    <Button 
-                      title={cancelText}
-                      variant="ghost"
-                      onPress={onCancel}
-                    />
-                  </View>
-                )}
-                <View style={styles.buttonWrapper}>
-                  <Button 
-                    title={confirmText}
-                    variant={confirmVariant}
-                    onPress={onConfirm}
-                  />
-                </View>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+      {renderContent()}
     </Modal>
   );
 }
@@ -89,14 +117,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.blackOpacity50,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
   },
   modalContainer: {
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg, // 16px per Minimalist-Tech guidelines
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     width: '100%',
-    maxWidth: 340,
     alignItems: 'center',
     ...Platform.select({
       ios: {
@@ -115,8 +141,8 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: SPACING.md,
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.surfaceContainerLow,
     justifyContent: 'center',
@@ -124,20 +150,23 @@ const styles = StyleSheet.create({
   },
   title: {
     ...TYPOGRAPHY.titleLg,
-    fontSize: 22,
+    fontSize: 20,
+    fontWeight: '800',
     color: COLORS.onSurface,
     textAlign: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   message: {
     ...TYPOGRAPHY.bodyLg,
+    fontSize: 14,
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
+    lineHeight: 20,
   },
   buttonGroup: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: SPACING.sm,
     width: '100%',
   },
   buttonWrapper: {

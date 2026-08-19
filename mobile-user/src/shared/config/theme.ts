@@ -175,6 +175,12 @@ export const TYPOGRAPHY = {
     fontWeight: '400' as const,
     lineHeight: 20,
   },
+  bodySm: {
+    fontFamily: 'HankenGrotesk-Regular',
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 16,
+  },
   labelMd: {
     fontFamily: 'HankenGrotesk-SemiBold',
     fontSize: 12,

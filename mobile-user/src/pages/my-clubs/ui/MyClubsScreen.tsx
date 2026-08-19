@@ -51,6 +51,14 @@ export function MyClubsScreen() {
     }, [selectedSport, searchQuery])
   );
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
+  };
+
   if (isAuthenticated === false) {
     return (
       <View style={styles.container}>
@@ -60,7 +68,7 @@ export function MyClubsScreen() {
             <TouchableOpacity 
               style={styles.backButton} 
               activeOpacity={0.7} 
-              onPress={() => router.replace('/(tabs)/clubs')}
+              onPress={handleBack}
             >
               <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
             </TouchableOpacity>
@@ -117,7 +125,7 @@ export function MyClubsScreen() {
           <TouchableOpacity 
             style={styles.backButton} 
             activeOpacity={0.7} 
-            onPress={() => router.replace('/(tabs)/clubs')}
+            onPress={handleBack}
           >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
           </TouchableOpacity>
