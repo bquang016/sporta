@@ -28,7 +28,7 @@ export function ClubDetailHeader({
     <View style={styles.container}>
       {/* Cover Photo */}
       <View style={styles.coverContainer}>
-        {club.coverImage ? (
+        {club.coverImage && typeof club.coverImage === 'string' && !club.coverImage.startsWith('blob:') ? (
           <Image source={{ uri: club.coverImage }} style={styles.coverImage} />
         ) : (
           <View style={[styles.coverImage, { backgroundColor: COLORS.primary }]} />

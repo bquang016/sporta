@@ -102,7 +102,11 @@ export function ProfileScreen() {
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>Hoạt Động</Text>
             <View style={styles.menuCard}>
-              <MenuRow icon="history" title="Lịch sử đặt sân" />
+              <MenuRow 
+                icon="history" 
+                title="Lịch sử đặt sân" 
+                onPress={() => router.push('/profile/booking-history' as any)} 
+              />
               <View style={styles.divider} />
               <MenuRow 
                 icon="local-activity" 
@@ -110,7 +114,11 @@ export function ProfileScreen() {
                 onPress={() => router.push('/my-tickets' as any)} 
               />
               <View style={styles.divider} />
-              <MenuRow icon="groups" title="Câu lạc bộ của tôi" />
+              <MenuRow 
+                icon="groups" 
+                title="Câu lạc bộ của tôi" 
+                onPress={() => router.push('/my-clubs' as any)} 
+              />
             </View>
           </View>
 
@@ -124,9 +132,17 @@ export function ProfileScreen() {
                 onPress={() => router.push('/wallet')} 
               />
               <View style={styles.divider} />
-              <MenuRow icon="settings" title="Cài đặt tài khoản" />
+              <MenuRow 
+                icon="settings" 
+                title="Cài đặt tài khoản" 
+                onPress={() => router.push('/profile/settings' as any)} 
+              />
               <View style={styles.divider} />
-              <MenuRow icon="help-outline" title="Trung tâm trợ giúp" />
+              <MenuRow 
+                icon="help-outline" 
+                title="Trung tâm trợ giúp" 
+                onPress={() => router.push('/profile/help' as any)} 
+              />
             </View>
           </View>
 
@@ -163,9 +179,9 @@ function MenuRow({ icon, title, badge, onPress }: { icon: keyof typeof MaterialI
     <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={onPress}>
       <View style={styles.menuRowLeft}>
         <View style={styles.menuIconBg}>
-          <MaterialIcons name={icon} size={20} color="#064E3B" />
+          <MaterialIcons name={icon} size={20} color={COLORS.primary} />
         </View>
-        <Text style={styles.menuRowTitle}>{title}</Text>
+        <Text style={styles.menuRowTitle} numberOfLines={1}>{title}</Text>
       </View>
       <View style={styles.menuRowRight}>
         {badge && (
@@ -173,7 +189,7 @@ function MenuRow({ icon, title, badge, onPress }: { icon: keyof typeof MaterialI
             <Text style={styles.menuBadgeText}>{badge}</Text>
           </View>
         )}
-        <MaterialIcons name="chevron-right" size={24} color="#bfc9c3" />
+        <MaterialIcons name="chevron-right" size={22} color={COLORS.outline} />
       </View>
     </TouchableOpacity>
   );
@@ -340,6 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    flex: 1,
   },
   menuIconBg: {
     width: 40,
@@ -353,6 +370,8 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyLg,
     color: '#151c27',
     fontWeight: '500',
+    flex: 1,
+    flexShrink: 1,
   },
   menuRowRight: {
     flexDirection: 'row',

@@ -101,6 +101,10 @@ export function PaymentScreen() {
       };
 
       const result = await createBooking(requestPayload);
+
+      const methodLabel = paymentMethods.find(m => m.id === selectedMethod)?.label || 'MoMo Wallet';
+      const firstSlot = displaySlots[0];
+      const lastSlot = displaySlots[displaySlots.length - 1];
       
       if (selectedMethod === 'payos' && result.checkoutUrl) {
         // Open PayOS browser
