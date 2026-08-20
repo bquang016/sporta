@@ -1,8 +1,9 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, TYPOGRAPHY, SPACING } from '../../shared/config/theme';
+import { COLORS, TYPOGRAPHY, SPACING } from '../../../shared/config/theme';
 import { useCollectVoucher } from '../hooks';
+import { useAlert } from '../../../shared/contexts/AlertContext';
 
 interface CollectVoucherButtonProps {
   voucherId: string;
@@ -18,10 +19,13 @@ export const CollectVoucherButton: React.FC<CollectVoucherButtonProps> = ({
   style 
 }) => {
   const { collectVoucher, loading } = useCollectVoucher();
+  const { showAlert } = useAlert();
 
   const handlePress = () => {
     if (isCollected || loading) return;
-    collectVoucher(voucherId, onSuccess, (err) => alert(err));
+    collectVoucher(voucherId, onSuccess, (err) => {
+      showAlert('Không thể lưu mã', err || 'Có lỗi xảy ra khi lưu mã khuyến mãi.', undefined, { type: 'error' });
+    });
   };
 
   if (isCollected) {
@@ -61,7 +65,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: COLORS.onPrimary,
-    ...TYPOGRAPHY.labelSmall,
+    ...TYPOGRAPHY.labelSm,
     fontWeight: 'bold',
   },
   collected: {
@@ -69,7 +73,7 @@ const styles = StyleSheet.create({
   },
   collectedText: {
     color: COLORS.onSurfaceVariant,
-    ...TYPOGRAPHY.labelSmall,
+    ...TYPOGRAPHY.labelSm,
     fontWeight: 'bold',
   }
 });

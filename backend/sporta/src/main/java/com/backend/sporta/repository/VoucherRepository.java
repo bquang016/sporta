@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Modifying;
 
 @Repository
 public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
@@ -60,14 +61,23 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
            "OR LOWER(v.code) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Voucher> searchByScopeAndStatus(@Param("scope") VoucherScope scope, @Param("status") VoucherStatus status, @Param("keyword") String keyword, Pageable pageable);
 
-    /** Voucher hệ thống có banner, đang active, chưa hết hạn (cho trang chủ user) */
-    @Query("SELECT v FROM Voucher v WHERE v.voucherScope = 'SYSTEM' AND v.status = 'ACTIVE' " +
-           "AND v.bannerImageUrl IS NOT NULL AND v.startDate <= :now AND v.endDate > :now " +
+    /** Voucher hệ thống có banner, đang active, chưa hết hạn (tối đa 10 cái mới nhất cho carousel) */
+    @Query("SELECT v FROM Voucher v WHERE v.voucherScope = com.backend.sporta.enums.VoucherScope.SYSTEM " +
+           "AND v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
+           "AND v.bannerImageUrl IS NOT NULL AND TRIM(v.bannerImageUrl) != '' " +
+           "AND v.endDate > :now " +
            "ORDER BY v.createdAt DESC")
-    List<Voucher> findActiveBannerVouchers(@Param("now") LocalDateTime now);
+    List<Voucher> findActiveBannerVouchers(@Param("now") LocalDateTime now, Pageable pageable);
+
+    /** Lấy voucher để user khám phá / săn mã theo scope (Hệ thống hoặc Chủ sân), bao gồm cả mã hết hạn trong vòng 24h */
+    @Query("SELECT v FROM Voucher v WHERE v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
+           "AND v.endDate > :twentyFourHoursAgo " +
+           "AND (:scope IS NULL OR v.voucherScope = :scope) " +
+           "ORDER BY v.createdAt DESC")
+    List<Voucher> findExploreVouchers(@Param("scope") VoucherScope scope, @Param("twentyFourHoursAgo") LocalDateTime twentyFourHoursAgo);
 
     /** Voucher đã hết hạn nhưng chưa được cập nhật trạng thái */
-    @Query("SELECT v FROM Voucher v WHERE v.status = 'ACTIVE' AND v.endDate <= :now")
+    @Query("SELECT v FROM Voucher v WHERE v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE AND v.endDate <= :now")
     List<Voucher> findExpiredActiveVouchers(@Param("now") LocalDateTime now);
 
     /** Đếm voucher theo owner và trạng thái */
@@ -83,20 +93,35 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     long countByVoucherScope(VoucherScope scope);
 
     /** Lấy voucher VENUE active áp dụng cho tất cả sân của owner (không có record VoucherVenue) */
-    @Query("SELECT v FROM Voucher v WHERE v.voucherScope = 'VENUE' AND v.status = 'ACTIVE' " +
-           "AND v.startDate <= :now AND v.endDate > :now " +
+    @Query("SELECT v FROM Voucher v WHERE v.voucherScope = com.backend.sporta.enums.VoucherScope.VENUE " +
+           "AND v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
+           "AND v.endDate > :now " +
+           "AND v.usedQuantity < v.totalQuantity " +
            "AND v.owner.id = :ownerId " +
            "AND NOT EXISTS (SELECT vv FROM VoucherVenue vv WHERE vv.voucher = v)")
     List<Voucher> findActiveOwnerVouchersForAllVenues(@Param("ownerId") UUID ownerId, @Param("now") LocalDateTime now);
 
     /** Lấy voucher VENUE active áp dụng cho venue cụ thể */
     @Query("SELECT v FROM Voucher v JOIN VoucherVenue vv ON vv.voucher = v " +
-           "WHERE v.voucherScope = 'VENUE' AND v.status = 'ACTIVE' " +
-           "AND v.startDate <= :now AND v.endDate > :now AND vv.venue.id = :venueId")
+           "WHERE v.voucherScope = com.backend.sporta.enums.VoucherScope.VENUE " +
+           "AND v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
+           "AND v.endDate > :now " +
+           "AND v.usedQuantity < v.totalQuantity " +
+           "AND vv.venue.id = :venueId")
     List<Voucher> findActiveVouchersForVenue(@Param("venueId") UUID venueId, @Param("now") LocalDateTime now);
 
     /** Lấy voucher SYSTEM active */
-    @Query("SELECT v FROM Voucher v WHERE v.voucherScope = 'SYSTEM' AND v.status = 'ACTIVE' " +
-           "AND v.startDate <= :now AND v.endDate > :now")
+    @Query("SELECT v FROM Voucher v WHERE v.voucherScope = com.backend.sporta.enums.VoucherScope.SYSTEM " +
+           "AND v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
+           "AND v.endDate > :now " +
+           "AND v.usedQuantity < v.totalQuantity")
     List<Voucher> findActiveSystemVouchers(@Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("UPDATE Voucher v SET v.collectedQuantity = v.collectedQuantity + 1 WHERE v.id = :id AND v.usedQuantity < v.totalQuantity")
+    int incrementCollectedQuantityIfPossible(@Param("id") UUID id);
+
+    @Modifying
+    @Query("UPDATE Voucher v SET v.usedQuantity = v.usedQuantity + 1 WHERE v.id = :id AND v.usedQuantity < v.totalQuantity")
+    int incrementUsedQuantityIfPossible(@Param("id") UUID id);
 }

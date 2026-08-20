@@ -51,7 +51,7 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         prefixIcon={prefix}
         suffixIcon={suffix}
         inputClassName={cn(
-          'rounded-full bg-slate-100 hover:bg-slate-150/40 border-transparent focus:border-slate-200 focus:bg-white focus:ring-slate-100',
+          'rounded-full bg-white hover:bg-slate-50 border-slate-200 focus:border-brand-emerald focus:bg-white focus:ring-brand-emerald',
           onFilterClick && 'pr-13',
           inputClassName
         )}

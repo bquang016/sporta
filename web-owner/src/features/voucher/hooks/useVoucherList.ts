@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { voucherApi } from '../services/voucherApi';
 import { VoucherStatus } from '../types/voucher.types';
 import type { Voucher, VoucherPageResponse } from '../types/voucher.types';
+import { useToast } from '../../../common/ui';
 
 interface UseVoucherListProps {
   initialStatus?: VoucherStatus;
@@ -54,14 +55,17 @@ export function useVoucherList({ initialStatus, initialSize = 10 }: UseVoucherLi
     setPage(newPage);
   };
 
+  const { showToast } = useToast();
+
   const disableVoucher = async (id: string) => {
     try {
       await voucherApi.disableVoucher(id);
       fetchVouchers();
+      showToast('success', 'Vô hiệu hóa mã thành công');
       return true;
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Lỗi khi vô hiệu hóa';
-      alert(msg);
+      showToast('error', msg);
       return false;
     }
   };

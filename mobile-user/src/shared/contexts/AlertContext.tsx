@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Platform, Alert } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { ConfirmModal } from '../ui/Modal/ConfirmModal';
 
 interface AlertOptions {
@@ -10,11 +11,34 @@ interface AlertOptions {
   confirmText?: string;
   cancelText?: string;
   isConfirm?: boolean;
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  iconColor?: string;
+  type?: 'success' | 'error' | 'warning' | 'info';
+}
+
+interface AlertExtraOptions {
+  type?: 'success' | 'error' | 'warning' | 'info';
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  iconColor?: string;
+  confirmText?: string;
 }
 
 interface AlertContextType {
-  showAlert: (title: string, message: string, onConfirm?: () => void) => void;
-  showConfirm: (title: string, message: string, onConfirm: () => void, onCancel?: () => void, confirmText?: string, cancelText?: string) => void;
+  showAlert: (
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+    options?: AlertExtraOptions
+  ) => void;
+  showConfirm: (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    confirmText?: string,
+    cancelText?: string,
+    options?: AlertExtraOptions
+  ) => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
@@ -23,13 +47,68 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
   const [visible, setVisible] = useState(false);
   const [alertData, setAlertData] = useState<AlertOptions>({ title: '', message: '' });
 
-  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
-    setAlertData({ title, message, onConfirm, isConfirm: false, confirmText: 'Đóng' });
+  const getSmartIcon = (opts: AlertOptions): { icon: keyof typeof MaterialIcons.glyphMap; color: string } => {
+    if (opts.icon && opts.iconColor) {
+      return { icon: opts.icon, color: opts.iconColor };
+    }
+    const t = opts.type;
+    const lowerTitle = (opts.title || '').toLowerCase();
+    
+    if (t === 'success' || lowerTitle.includes('thành công')) {
+      return { icon: 'check-circle', color: '#10B981' };
+    }
+    if (t === 'error' || lowerTitle.includes('lỗi') || lowerTitle.includes('thất bại') || lowerTitle.includes('không thể') || lowerTitle.includes('hết hạn')) {
+      return { icon: 'error-outline', color: '#EF4444' };
+    }
+    if (t === 'warning' || lowerTitle.includes('cảnh báo') || lowerTitle.includes('chú ý') || lowerTitle.includes('lưu ý') || lowerTitle.includes('chưa đến')) {
+      return { icon: 'warning-amber', color: '#F59E0B' };
+    }
+    if (opts.isConfirm) {
+      return { icon: 'help-outline', color: '#064E3B' };
+    }
+    return { icon: 'info-outline', color: '#064E3B' };
+  };
+
+  const showAlert = (
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+    options?: AlertExtraOptions
+  ) => {
+    setAlertData({
+      title,
+      message,
+      onConfirm,
+      isConfirm: false,
+      confirmText: options?.confirmText || 'Đóng',
+      type: options?.type,
+      icon: options?.icon,
+      iconColor: options?.iconColor,
+    });
     setVisible(true);
   };
 
-  const showConfirm = (title: string, message: string, onConfirm: () => void, onCancel?: () => void, confirmText = 'Xác nhận', cancelText = 'Hủy') => {
-    setAlertData({ title, message, onConfirm, onCancel, confirmText, cancelText, isConfirm: true });
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    confirmText = 'Xác nhận',
+    cancelText = 'Hủy',
+    options?: AlertExtraOptions
+  ) => {
+    setAlertData({
+      title,
+      message,
+      onConfirm,
+      onCancel,
+      confirmText,
+      cancelText,
+      isConfirm: true,
+      type: options?.type,
+      icon: options?.icon,
+      iconColor: options?.iconColor,
+    });
     setVisible(true);
   };
 
@@ -47,6 +126,8 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const { icon, color } = getSmartIcon(alertData);
+
   return (
     <AlertContext.Provider value={{ showAlert, showConfirm }}>
       {children}
@@ -56,10 +137,10 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
         message={alertData.message}
         onConfirm={handleConfirm}
         onCancel={alertData.isConfirm ? handleCancel : undefined}
-        confirmText={alertData.confirmText || "Đóng"}
+        confirmText={alertData.confirmText || 'Đóng'}
         cancelText={alertData.cancelText}
-        icon={alertData.isConfirm ? "help-outline" : "info-outline"}
-        iconColor="#064E3B"
+        icon={icon}
+        iconColor={color}
       />
     </AlertContext.Provider>
   );

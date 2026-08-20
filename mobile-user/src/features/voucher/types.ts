@@ -26,21 +26,43 @@ export interface Voucher {
   endDate: string;
   totalQuantity: number;
   usedQuantity: number;
+  collectedQuantity?: number;
+  remainingQuantity?: number;
   voucherScope: VoucherScope;
   status: VoucherStatus;
   bannerImageUrl: string | null;
   ownerId: string | null;
   createdAt: string;
+  maxUsagePerUser?: number;
   isExpired: boolean;
+  venueIds?: string[] | null;
   venueNames: string[] | null;
 }
 
 export interface UserVoucher {
   id: string;
   voucherId: string;
-  voucher: Voucher;
-  status: 'ACTIVE' | 'USED' | 'EXPIRED';
+  voucherName?: string;
+  voucherCode?: string;
+  discountType?: DiscountType;
+  discountValue?: number;
+  maxDiscountAmount?: number | null;
+  minOrderAmount?: number;
+  voucherScope?: VoucherScope;
+  startDate?: string;
+  endDate?: string;
+  status: 'COLLECTED' | 'ACTIVE' | 'USED' | 'EXPIRED';
   collectedAt: string;
-  usedAt: string | null;
-  bookingId: string | null;
+  usedAt?: string | null;
+  isUsable?: boolean;
+  reasonIfNotUsable?: string | null;
+  venueIds?: string[] | null;
+  venueNames?: string[] | null;
+  ownerId?: string | null;
+  bannerImageUrl?: string | null;
+  totalQuantity?: number;
+  usedQuantity?: number;
+  remainingQuantity?: number;
+  bookingId?: string | null;
+  voucher?: Voucher;
 }

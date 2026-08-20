@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../../shared/ui';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
@@ -11,73 +10,104 @@ interface HeaderProps {
   userAvatar?: string | null;
   getGreeting: () => string;
   handleAvatarPress: () => void;
+  onNotificationPress?: () => void;
 }
 
-export function Header({ isAuthenticated, userName, userAvatar, getGreeting, handleAvatarPress }: HeaderProps) {
+export function Header({
+  isAuthenticated,
+  userName,
+  userAvatar,
+  getGreeting,
+  handleAvatarPress,
+  onNotificationPress,
+}: HeaderProps) {
   return (
-    <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8} style={styles.headerLeft}>
+    <View style={styles.header}>
+      {/* ── Left: Avatar + Greeting ── */}
+      <TouchableOpacity
+        onPress={handleAvatarPress}
+        activeOpacity={0.8}
+        style={styles.headerLeft}
+      >
+        <View style={styles.avatarBorder}>
           <Avatar
             size="md"
             source={isAuthenticated && userAvatar ? userAvatar : null}
             fallbackIcon="person"
           />
-          <View>
-            <Text style={styles.greetingSmall}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{userName}</Text>
-          </View>
-        </TouchableOpacity>
-        <View style={styles.headerRight}>
-          <Image
-            source={require('../../../../assets/logo/logo-icon_1024x1024.png')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-          <View style={{ position: 'relative' }}>
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={() => console.log('Notification pressed')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.notificationIconBg}>
-                <MaterialIcons name="notifications-none" size={22} color={COLORS.onSurface} />
-              </View>
-            </TouchableOpacity>
-            {isAuthenticated && <View style={styles.notificationBadge} />}
-          </View>
         </View>
+        <View style={styles.greetingWrapper}>
+          <Text style={styles.greetingSmall}>{getGreeting()}</Text>
+          <Text style={styles.userName} numberOfLines={1}>
+            {isAuthenticated ? userName : 'Đăng nhập ngay'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* ── Right: Logo + Notification ── */}
+      <View style={styles.headerRight}>
+        <Image
+          source={require('../../../../assets/logo/logo-horizontal_1600x400.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
+
+        {/* Notification button with dot */}
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={onNotificationPress || (() => console.log('Notification pressed'))}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="notifications-outline" size={20} color={COLORS.onSurface} />
+          {isAuthenticated && (
+            <View style={styles.notificationBadge}>
+              <View style={styles.notificationInnerDot} />
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerSafeArea: {
-    backgroundColor: COLORS.surface,
-  },
   header: {
+    height: 56,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.marginMobile,
-    height: 64,
     backgroundColor: COLORS.surface,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+    flex: 1,
+  },
+  avatarBorder: {
+    borderWidth: 2,
+    borderColor: COLORS.primaryFixedDim,
+    borderRadius: BORDER_RADIUS.full,
+    padding: 1,
+  },
+  greetingWrapper: {
+    justifyContent: 'center',
+    flex: 1,
   },
   greetingSmall: {
-    ...TYPOGRAPHY.labelMd,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.outline,
-    textTransform: 'none',
+    fontSize: 11,
+    fontWeight: '600',
   },
   userName: {
     ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
-    marginTop: 1,
+    fontWeight: '900',
+    fontSize: 15,
+    letterSpacing: -0.2,
+    marginTop: 0,
   },
   headerRight: {
     flexDirection: 'row',
@@ -85,29 +115,33 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   headerLogo: {
-    width: 36,
-    height: 36,
+    width: 90,
+    height: 24,
   },
   notificationButton: {
-    padding: 0,
-  },
-  notificationIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.md,
+    width: 38,
+    height: 38,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.surfaceContainerLow,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   notificationBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    backgroundColor: COLORS.error,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.surface,
+    top: 7,
+    right: 7,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationInnerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
   },
 });

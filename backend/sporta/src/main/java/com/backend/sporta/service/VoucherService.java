@@ -47,10 +47,10 @@ public class VoucherService {
     // --- OWNER VOUCHER API ---
 
     @Transactional
-    public VoucherResponse createOwnerVoucher(UUID ownerId, CreateVoucherRequest request) {
+    public VoucherResponse createOwnerVoucher(String ownerEmail, CreateVoucherRequest request) {
         validateVoucherRequest(request, false);
 
-        Owner owner = ownerRepository.findById(ownerId)
+        Owner owner = ownerRepository.findByUserEmail(ownerEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
 
         Voucher voucher = buildVoucherFromRequest(request, VoucherScope.VENUE);
@@ -63,18 +63,22 @@ public class VoucherService {
     }
 
     @Transactional
-    public VoucherResponse updateOwnerVoucher(UUID ownerId, UUID voucherId, UpdateVoucherRequest request) {
-        Voucher voucher = getOwnerVoucher(ownerId, voucherId);
+    public VoucherResponse updateOwnerVoucher(String ownerEmail, UUID voucherId, UpdateVoucherRequest request) {
+        Voucher voucher = getOwnerVoucher(ownerEmail, voucherId);
         return updateVoucherInternal(voucher, request);
     }
 
     @Transactional
-    public void disableOwnerVoucher(UUID ownerId, UUID voucherId) {
-        Voucher voucher = getOwnerVoucher(ownerId, voucherId);
+    public void disableOwnerVoucher(String ownerEmail, UUID voucherId) {
+        Voucher voucher = getOwnerVoucher(ownerEmail, voucherId);
         disableVoucherInternal(voucher);
     }
 
-    public Page<VoucherResponse> getOwnerVouchers(UUID ownerId, VoucherStatus status, String keyword, Pageable pageable) {
+    public Page<VoucherResponse> getOwnerVouchers(String ownerEmail, VoucherStatus status, String keyword, Pageable pageable) {
+        Owner owner = ownerRepository.findByUserEmail(ownerEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
+        UUID ownerId = owner.getId();
+        
         Page<Voucher> page;
         if (keyword != null && !keyword.isEmpty()) {
             if (status != null) {
@@ -92,15 +96,18 @@ public class VoucherService {
         return page.map(this::mapToVoucherResponse);
     }
 
-    public VoucherResponse getOwnerVoucherDetail(UUID ownerId, UUID voucherId) {
-        Voucher voucher = getOwnerVoucher(ownerId, voucherId);
+    public VoucherResponse getOwnerVoucherDetail(String ownerEmail, UUID voucherId) {
+        Voucher voucher = getOwnerVoucher(ownerEmail, voucherId);
         return mapToVoucherResponse(voucher);
     }
 
-    private Voucher getOwnerVoucher(UUID ownerId, UUID voucherId) {
+    private Voucher getOwnerVoucher(String ownerEmail, UUID voucherId) {
+        Owner owner = ownerRepository.findByUserEmail(ownerEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
+                
         Voucher voucher = voucherRepository.findById(voucherId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy mã khuyến mãi", 404));
-        if (voucher.getOwner() == null || !voucher.getOwner().getId().equals(ownerId)) {
+        if (voucher.getOwner() == null || !voucher.getOwner().getId().equals(owner.getId())) {
             throw new CustomException("Bạn không có quyền truy cập mã khuyến mãi này", 403);
         }
         return voucher;
@@ -179,16 +186,20 @@ public class VoucherService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy mã khuyến mãi", 404));
 
         if (!voucher.isCurrentlyValid()) {
-            throw new CustomException("Mã khuyến mãi không còn hiệu lực hoặc đã hết số lượng", 400);
+            throw new CustomException("Mã khuyến mãi không còn hiệu lực hoặc đã hết lượt sử dụng", 400);
         }
 
         if (userVoucherRepository.existsByUserIdAndVoucherId(userId, voucherId)) {
             throw new CustomException("Bạn đã lưu mã khuyến mãi này rồi", 400);
         }
 
-        // Q1: 1 user per 1 voucher. Use optimistic locking or transactional to prevent race conditions on collectedQuantity
-        voucher.setCollectedQuantity(voucher.getCollectedQuantity() + 1);
-        voucherRepository.save(voucher);
+        // Increment collectedQuantity if voucher is not completely used up
+        int updated = voucherRepository.incrementCollectedQuantityIfPossible(voucherId);
+        if (updated == 0) {
+            throw new CustomException("Mã khuyến mãi đã hết lượt sử dụng", 400);
+        }
+        
+        voucher = voucherRepository.findById(voucherId).get();
 
         UserVoucher userVoucher = UserVoucher.builder()
                 .user(user)
@@ -200,6 +211,17 @@ public class VoucherService {
         return mapToUserVoucherResponse(userVoucher);
     }
 
+    @Transactional
+    public UserVoucherResponse collectVoucherByCode(Long userId, String voucherCode) {
+        if (voucherCode == null || voucherCode.trim().isEmpty()) {
+            throw new CustomException("Mã khuyến mãi không được để trống", 400);
+        }
+        String cleanCode = voucherCode.trim().toUpperCase();
+        Voucher voucher = voucherRepository.findByCodeIgnoreCase(cleanCode)
+                .orElseThrow(() -> new CustomException("Mã khuyến mãi '" + cleanCode + "' không tồn tại", 404));
+        return collectVoucher(userId, voucher.getId());
+    }
+
     public List<UserVoucherResponse> getUserVouchers(Long userId, UserVoucherStatus status) {
         List<UserVoucher> userVouchers;
         if (status != null) {
@@ -207,22 +229,39 @@ public class VoucherService {
         } else {
             userVouchers = userVoucherRepository.findByUserIdOrderByCollectedAtDesc(userId);
         }
+        LocalDateTime twentyFourHoursAgo = LocalDateTime.now().minusHours(24);
         return userVouchers.stream()
+                .filter(uv -> {
+                    // If voucher expired, only display if expired within last 24h
+                    if (uv.getVoucher() != null && uv.getVoucher().getEndDate() != null) {
+                        boolean isExpired = uv.getVoucher().getEndDate().isBefore(LocalDateTime.now()) || uv.getStatus() == UserVoucherStatus.EXPIRED;
+                        if (isExpired && uv.getVoucher().getEndDate().isBefore(twentyFourHoursAgo)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
                 .map(this::mapToUserVoucherResponse)
                 .collect(Collectors.toList());
     }
 
     public List<VoucherResponse> getActiveBannerVouchers() {
         LocalDateTime now = LocalDateTime.now();
-        List<Voucher> vouchers = voucherRepository.findActiveBannerVouchers(now);
+        List<Voucher> vouchers = voucherRepository.findActiveBannerVouchers(now, org.springframework.data.domain.PageRequest.of(0, 10));
+        return vouchers.stream().map(this::mapToVoucherResponse).collect(Collectors.toList());
+    }
+
+    public List<VoucherResponse> getExploreVouchers(VoucherScope scope) {
+        LocalDateTime twentyFourHoursAgo = LocalDateTime.now().minusHours(24);
+        List<Voucher> vouchers = voucherRepository.findExploreVouchers(scope, twentyFourHoursAgo);
         return vouchers.stream().map(this::mapToVoucherResponse).collect(Collectors.toList());
     }
 
     // --- BOOKING VOUCHER LOGIC ---
 
-    public ApplyVoucherResponse previewApplyVouchers(ApplyVoucherRequest request) {
+    public ApplyVoucherResponse previewApplyVouchers(ApplyVoucherRequest request, Long userId) {
         return applyVouchersInternal(request.getOwnerVoucherCode(), request.getSystemVoucherCode(),
-                request.getVenueId(), request.getTotalPrice(), false, null);
+                request.getVenueId(), request.getTotalPrice(), false, null, userId);
     }
 
     /**
@@ -230,10 +269,10 @@ public class VoucherService {
      */
     @Transactional
     public ApplyVoucherResponse commitApplyVouchers(String ownerCode, String systemCode, UUID venueId, Double totalPrice, Booking booking, Long userId) {
-        return applyVouchersInternal(ownerCode, systemCode, venueId, totalPrice, true, booking);
+        return applyVouchersInternal(ownerCode, systemCode, venueId, totalPrice, true, booking, userId);
     }
 
-    private ApplyVoucherResponse applyVouchersInternal(String ownerCode, String systemCode, UUID venueId, Double totalPrice, boolean isCommit, Booking booking) {
+    private ApplyVoucherResponse applyVouchersInternal(String ownerCode, String systemCode, UUID venueId, Double totalPrice, boolean isCommit, Booking booking, Long userId) {
         ApplyVoucherResponse response = new ApplyVoucherResponse();
         response.setFinalPrice(totalPrice);
         
@@ -248,7 +287,7 @@ public class VoucherService {
         if (ownerCode != null && !ownerCode.isEmpty()) {
             ownerVoucher = voucherRepository.findByCodeIgnoreCase(ownerCode)
                     .orElseThrow(() -> new CustomException("Mã khuyến mãi chủ sân không hợp lệ", 400));
-            validateVoucherForBooking(ownerVoucher, venueId, totalPrice, VoucherScope.VENUE);
+            validateVoucherForBooking(ownerVoucher, venueId, totalPrice, VoucherScope.VENUE, userId);
             ownerDiscount = calculateDiscount(ownerVoucher, totalPrice);
         }
 
@@ -256,7 +295,7 @@ public class VoucherService {
         if (systemCode != null && !systemCode.isEmpty()) {
             systemVoucher = voucherRepository.findByCodeIgnoreCase(systemCode)
                     .orElseThrow(() -> new CustomException("Mã khuyến mãi hệ thống không hợp lệ", 400));
-            validateVoucherForBooking(systemVoucher, venueId, totalPrice, VoucherScope.SYSTEM);
+            validateVoucherForBooking(systemVoucher, venueId, totalPrice, VoucherScope.SYSTEM, userId);
             systemDiscount = calculateDiscount(systemVoucher, totalPrice);
         }
 
@@ -286,7 +325,6 @@ public class VoucherService {
 
         // 4. Commit changes if requested
         if (isCommit) {
-            Long userId = booking.getUser().getId();
             if (ownerVoucher != null) {
                 commitVoucherUsage(ownerVoucher, ownerDiscount, booking, userId);
             }
@@ -299,8 +337,12 @@ public class VoucherService {
     }
     
     private void commitVoucherUsage(Voucher voucher, Double discount, Booking booking, Long userId) {
-        voucher.setUsedQuantity(voucher.getUsedQuantity() + 1);
-        voucherRepository.save(voucher);
+        int updated = voucherRepository.incrementUsedQuantityIfPossible(voucher.getId());
+        if (updated == 0) {
+            throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " đã đạt giới hạn sử dụng", 400);
+        }
+        
+        voucher = voucherRepository.findById(voucher.getId()).get();
         
         BookingVoucher bv = BookingVoucher.builder()
                 .booking(booking)
@@ -317,16 +359,31 @@ public class VoucherService {
         userVoucherRepository.save(userVoucher);
     }
 
-    private void validateVoucherForBooking(Voucher voucher, UUID venueId, Double totalPrice, VoucherScope expectedScope) {
+    private void validateVoucherForBooking(Voucher voucher, UUID venueId, Double totalPrice, VoucherScope expectedScope, Long userId) {
         if (voucher.getVoucherScope() != expectedScope) {
             throw new CustomException("Loại mã khuyến mãi không đúng (Cần " + expectedScope + ")", 400);
+        }
+        
+        // Ensure user has collected and can use this voucher
+        UserVoucher userVoucher = userVoucherRepository.findByUserIdAndVoucherId(userId, voucher.getId())
+                .orElseThrow(() -> new CustomException("Bạn chưa lưu mã khuyến mãi " + voucher.getCode(), 400));
+                
+        if (userVoucher.getStatus() != UserVoucherStatus.COLLECTED) {
+            throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " đã được sử dụng hoặc không còn khả dụng trong ví của bạn", 400);
+        }
+        
+        if (userVoucher.getCooldownUntil() != null && LocalDateTime.now().isBefore(userVoucher.getCooldownUntil())) {
+            throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " đang trong thời gian chờ hoàn", 400);
         }
         if (voucher.getStatus() != VoucherStatus.ACTIVE) {
             throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " không còn hoạt động", 400);
         }
         LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(voucher.getStartDate()) || now.isAfter(voucher.getEndDate())) {
-            throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " đã hết hạn hoặc chưa bắt đầu", 400);
+        if (now.isBefore(voucher.getStartDate())) {
+            throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " chưa đến ngày/giờ bắt đầu hiệu lực", 400);
+        }
+        if (now.isAfter(voucher.getEndDate())) {
+            throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " đã hết hạn", 400);
         }
         if (voucher.getUsedQuantity() >= voucher.getTotalQuantity()) {
             throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " đã hết số lượng", 400);
@@ -340,6 +397,16 @@ public class VoucherService {
                 boolean applicable = venues.stream().anyMatch(vv -> vv.getVenue().getId().equals(venueId));
                 if (!applicable) {
                     throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " không áp dụng cho cụm sân này", 400);
+                }
+            } else {
+                // If applicableVenues is empty/null, it applies to all venues belonging to this owner
+                if (voucher.getOwner() != null) {
+                    boolean belongsToOwner = venueRepository.findById(venueId)
+                            .map(v -> v.getOwner() != null && v.getOwner().getId().equals(voucher.getOwner().getId()))
+                            .orElse(false);
+                    if (!belongsToOwner) {
+                        throw new CustomException("Mã khuyến mãi " + voucher.getCode() + " không thuộc quyền áp dụng của cụm sân này", 400);
+                    }
                 }
             }
         }
@@ -509,9 +576,12 @@ public class VoucherService {
         Voucher voucher = uv.getVoucher();
         LocalDateTime now = LocalDateTime.now();
         
+        boolean isUpcoming = now.isBefore(voucher.getStartDate());
+        boolean isSoldOut = voucher.getUsedQuantity() >= voucher.getTotalQuantity();
         boolean isUsable = uv.getStatus() == UserVoucherStatus.COLLECTED &&
                 voucher.getStatus() == VoucherStatus.ACTIVE &&
-                now.isAfter(voucher.getStartDate()) &&
+                !isUpcoming &&
+                !isSoldOut &&
                 now.isBefore(voucher.getEndDate()) &&
                 (uv.getCooldownUntil() == null || now.isAfter(uv.getCooldownUntil()));
         
@@ -519,11 +589,14 @@ public class VoucherService {
         if (!isUsable) {
             if (uv.getStatus() == UserVoucherStatus.USED) reason = "Đã sử dụng";
             else if (uv.getStatus() == UserVoucherStatus.EXPIRED || voucher.getStatus() != VoucherStatus.ACTIVE) reason = "Mã không còn hiệu lực";
-            else if (now.isBefore(voucher.getStartDate())) reason = "Mã chưa đến giờ dùng";
+            else if (isUpcoming) reason = "Chưa đến ngày/giờ bắt đầu";
             else if (now.isAfter(voucher.getEndDate())) reason = "Mã đã hết hạn";
+            else if (isSoldOut) reason = "Mã đã hết lượt sử dụng";
             else if (uv.getCooldownUntil() != null && now.isBefore(uv.getCooldownUntil())) reason = "Mã đang trong thời gian chờ hoàn (cooldown)";
         }
 
+        List<UUID> venueIds = voucher.getApplicableVenues() != null ? 
+                voucher.getApplicableVenues().stream().map(vv -> vv.getVenue().getId()).collect(Collectors.toList()) : null;
         List<String> venueNames = voucher.getApplicableVenues() != null ? 
                 voucher.getApplicableVenues().stream().map(vv -> vv.getVenue().getName()).collect(Collectors.toList()) : null;
 
@@ -544,8 +617,13 @@ public class VoucherService {
                 .usedAt(uv.getUsedAt())
                 .isUsable(isUsable)
                 .reasonIfNotUsable(reason)
+                .venueIds(venueIds)
                 .venueNames(venueNames)
+                .ownerId(voucher.getOwner() != null ? voucher.getOwner().getId() : null)
                 .bannerImageUrl(voucher.getBannerImageUrl())
+                .totalQuantity(voucher.getTotalQuantity())
+                .usedQuantity(voucher.getUsedQuantity())
+                .remainingQuantity(voucher.getRemainingQuantity())
                 .build();
     }
 }

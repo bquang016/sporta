@@ -117,7 +117,12 @@ export function ProfileScreen() {
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>Tài Khoản & Ưu Đãi</Text>
             <View style={styles.menuCard}>
-              <MenuRow icon="card-giftcard" title="Ưu đãi & Voucher" badge="3" />
+              <MenuRow 
+                icon="card-giftcard" 
+                title="Ưu đãi & Voucher" 
+                onPress={() => router.push('/vouchers')} 
+              />
+              <View style={styles.divider} />
               <MenuRow 
                 icon="account-balance-wallet" 
                 title="Ví & Thanh toán" 

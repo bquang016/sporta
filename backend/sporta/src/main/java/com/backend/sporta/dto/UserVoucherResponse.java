@@ -37,9 +37,19 @@ public class UserVoucherResponse {
     /** Lý do không thể sử dụng (nếu isUsable = false) */
     private String reasonIfNotUsable;
 
+    /** Danh sách venue IDs áp dụng */
+    private List<UUID> venueIds;
+
     /** Danh sách tên venue áp dụng (cho hiển thị) */
     private List<String> venueNames;
 
+    /** ID của chủ sân tạo mã */
+    private UUID ownerId;
+
     /** Banner URL (cho voucher hệ thống) */
     private String bannerImageUrl;
+
+    private Integer totalQuantity;
+    private Integer usedQuantity;
+    private Integer remainingQuantity;
 }

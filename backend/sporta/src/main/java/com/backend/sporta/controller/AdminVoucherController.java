@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/vouchers")
+@RequestMapping({"/api/v1/admin/vouchers", "/api/admin/vouchers"})
 public class AdminVoucherController {
 
     @Autowired

@@ -1,9 +1,10 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useVoucherList } from '../hooks/useVoucherList';
 import { VoucherTable } from '../components/VoucherTable';
 import { VoucherFilterBar } from '../components/VoucherFilterBar';
+import { Container, Button, Pagination } from '../../../common/ui';
 
 export const VoucherListPage: React.FC = () => {
   const {
@@ -16,22 +17,29 @@ export const VoucherListPage: React.FC = () => {
     disableVoucher,
     currentPage,
     totalPages,
-    handlePageChange
+    handlePageChange,
+    totalElements
   } = useVoucherList();
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mã khuyến mãi</h1>
-          <p className="text-gray-500 text-sm mt-1">Quản lý các chương trình khuyến mãi cho cụm sân của bạn</p>
+    <Container className="animate-fadeIn py-6 max-w-7xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
+            <Ticket className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Mã khuyến mãi</h1>
+            <p className="text-sm font-semibold text-slate-500 mt-1">Quản lý các chương trình ưu đãi cho cụm sân của bạn</p>
+          </div>
         </div>
-        <Link 
-          to="/vouchers/create" 
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tạo mã mới</span>
+        <Link to="/vouchers/create">
+          <Button 
+            variant="primary" 
+            prefixIcon={<Plus className="w-5 h-5" />}
+          >
+            Tạo mã mới
+          </Button>
         </Link>
       </div>
 
@@ -48,27 +56,16 @@ export const VoucherListPage: React.FC = () => {
         onDisable={disableVoucher}
       />
 
-      {totalPages > 1 && (
-        <div className="mt-6 flex justify-center">
-          <div className="flex gap-2">
-            <button 
-              disabled={currentPage === 0}
-              onClick={() => handlePageChange(currentPage - 1)}
-              className="px-3 py-1 border rounded-md disabled:opacity-50"
-            >
-              Trước
-            </button>
-            <span className="px-3 py-1">Trang {currentPage + 1} / {totalPages}</span>
-            <button 
-              disabled={currentPage >= totalPages - 1}
-              onClick={() => handlePageChange(currentPage + 1)}
-              className="px-3 py-1 border rounded-md disabled:opacity-50"
-            >
-              Sau
-            </button>
-          </div>
+      {totalElements > 0 && (
+        <div className="mt-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-center">
+          <Pagination 
+            currentPage={currentPage + 1} // Backend is 0-indexed, UI is 1-indexed
+            pageSize={10}
+            totalItems={totalElements || 0}
+            onPageChange={(p) => handlePageChange(p - 1)}
+          />
         </div>
       )}
-    </div>
+    </Container>
   );
 };

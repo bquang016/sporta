@@ -1,11 +1,10 @@
 import type { Voucher, CreateVoucherRequest, UpdateVoucherRequest, VoucherPageResponse, VoucherStatus } from '../types/voucher.types';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/owner/vouchers`;
+const BASE_URL = `http://${host}:8387/api/v1/owner/vouchers`;
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  // In a real app, you would add auth headers here
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('accessToken');
   const headers = new Headers(options.headers || {});
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);

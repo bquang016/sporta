@@ -130,9 +130,9 @@ public class Voucher {
 
     // ── Computed helpers ──
 
-    /** Số lượng mã còn lại có thể thu thập */
+    /** Số lượng mã còn lại có thể sử dụng */
     public int getRemainingQuantity() {
-        return Math.max(0, totalQuantity - collectedQuantity);
+        return Math.max(0, totalQuantity - usedQuantity);
     }
 
     /** Tỷ lệ sử dụng (%) */
@@ -147,12 +147,11 @@ public class Voucher {
         return (double) usedQuantity / collectedQuantity * 100;
     }
 
-    /** Kiểm tra voucher có đang còn hiệu lực không */
+    /** Kiểm tra voucher có đang còn hiệu lực không (dựa trên lượt sử dụng) */
     public boolean isCurrentlyValid() {
         LocalDateTime now = LocalDateTime.now();
         return status == VoucherStatus.ACTIVE
-                && now.isAfter(startDate)
                 && now.isBefore(endDate)
-                && collectedQuantity < totalQuantity;
+                && usedQuantity < totalQuantity;
     }
 }
