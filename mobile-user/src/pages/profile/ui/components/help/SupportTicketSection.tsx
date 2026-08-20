@@ -42,14 +42,6 @@ const getStatusConfig = (status: SupportTicketStatusType) => {
         color: '#8E24AA',
         border: 'rgba(142, 36, 170, 0.25)',
       };
-    case 'ESCALATED':
-      return {
-        label: 'Đã chuyển cấp cao',
-        icon: 'trending-up' as const,
-        bg: 'rgba(230, 81, 0, 0.1)',
-        color: '#E65100',
-        border: 'rgba(230, 81, 0, 0.25)',
-      };
     case 'RESOLVED':
       return {
         label: 'Đã giải quyết',

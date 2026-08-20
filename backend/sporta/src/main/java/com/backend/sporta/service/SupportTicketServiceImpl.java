@@ -79,6 +79,10 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         SupportTicket ticket = supportTicketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy yêu cầu hỗ trợ với ID: " + ticketId));
 
+        if (ticket.getStatus() == SupportTicketStatus.CLOSED) {
+            throw new RuntimeException("Yêu cầu hỗ trợ đã ở trạng thái ĐÃ ĐÓNG và không thể cập nhật thêm.");
+        }
+
         if (request.getStatus() != null) {
             ticket.setStatus(request.getStatus());
             if (request.getStatus() == SupportTicketStatus.RESOLVED && ticket.getResolvedAt() == null) {

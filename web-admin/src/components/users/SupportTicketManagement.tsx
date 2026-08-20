@@ -8,7 +8,6 @@ export type SupportTicketStatusType =
   | 'NEW'
   | 'IN_PROGRESS'
   | 'PENDING_CUSTOMER'
-  | 'ESCALATED'
   | 'RESOLVED'
   | 'CLOSED'
   | 'REJECTED';
@@ -52,12 +51,6 @@ const STATUS_CONFIG: Record<SupportTicketStatusType, { label: string; bg: string
     bg: 'bg-purple-50',
     text: 'text-purple-700',
     border: 'border-purple-200',
-  },
-  ESCALATED: {
-    label: 'Đang chuyển tiếp',
-    bg: 'bg-orange-50',
-    text: 'text-orange-700',
-    border: 'border-orange-200',
   },
   RESOLVED: {
     label: 'Đã giải quyết',
@@ -147,6 +140,10 @@ export const SupportTicketManagement: React.FC = () => {
 
   const handleProcess = async () => {
     if (!selectedTicket) return;
+    if (selectedTicket.status === 'CLOSED') {
+      showToast('error', 'Ticket đã ở trạng thái ĐÃ ĐÓNG và không thể chỉnh sửa.');
+      return;
+    }
     setIsProcessing(true);
     try {
       const token = localStorage.getItem('accessToken');
@@ -200,10 +197,9 @@ export const SupportTicketManagement: React.FC = () => {
             { id: 'NEW', label: '1. Mới' },
             { id: 'IN_PROGRESS', label: '2. Đang xử lý' },
             { id: 'PENDING_CUSTOMER', label: '3. Chờ phản hồi' },
-            { id: 'ESCALATED', label: '4. Chuyển tiếp' },
-            { id: 'RESOLVED', label: '5. Đã giải quyết' },
-            { id: 'CLOSED', label: '6. Đã đóng' },
-            { id: 'REJECTED', label: '7. Từ chối/Hủy' }
+            { id: 'RESOLVED', label: '4. Đã giải quyết' },
+            { id: 'CLOSED', label: '5. Đã đóng' },
+            { id: 'REJECTED', label: '6. Từ chối/Hủy' }
           ].map((tab) => {
             const isActive = statusFilter === tab.id;
             return (
@@ -357,7 +353,7 @@ export const SupportTicketManagement: React.FC = () => {
                         onClick={() => handleOpenProcessModal(t)}
                         className="text-xs font-bold"
                       >
-                        {t.status === 'NEW' ? 'Tiếp nhận' : 'Chi tiết / Xử lý'}
+                        {t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / Xử lý'}
                       </Button>
                     </td>
                   </tr>
@@ -378,7 +374,9 @@ export const SupportTicketManagement: React.FC = () => {
                 <span className="font-mono text-xs font-bold bg-brand-emerald/10 text-brand-emerald px-2.5 py-1 rounded-md border border-brand-emerald/20">
                   {selectedTicket.ticketCode}
                 </span>
-                <h3 className="font-bold text-slate-800 text-sm">Chi Tiết Yêu Cầu Hỗ Trợ</h3>
+                <h3 className="font-bold text-slate-800 text-sm">
+                  {selectedTicket.status === 'CLOSED' ? 'Chi Tiết Yêu Cầu Hỗ Trợ (Đã Đóng)' : 'Chi Tiết Yêu Cầu Hỗ Trợ'}
+                </h3>
               </div>
               <button
                 type="button"
@@ -458,48 +456,109 @@ export const SupportTicketManagement: React.FC = () => {
                 );
               })()}
 
-              {/* Status Selector */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-slate-800 font-bold mb-1.5 text-xs">
-                  Cập Nhật Trạng Thái Ticket:
-                </label>
-                <select
-                  value={targetStatusInput}
-                  onChange={(e) => setTargetStatusInput(e.target.value as SupportTicketStatusType)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-white outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 cursor-pointer"
-                >
-                  <option value="NEW">1. Mới tiếp nhận (Hàng đợi)</option>
-                  <option value="IN_PROGRESS">2. Đang xử lý</option>
-                  <option value="PENDING_CUSTOMER">3. Chờ người dùng phản hồi</option>
-                  <option value="ESCALATED">4. Chuyển tiếp kỹ thuật/đối tác</option>
-                  <option value="RESOLVED">5. Đã giải quyết (chờ người dùng xác nhận)</option>
-                  <option value="CLOSED">6. Đã đóng hoàn tất</option>
-                  <option value="REJECTED">7. Đã hủy / Từ chối</option>
-                </select>
-              </div>
+              {selectedTicket.status === 'CLOSED' ? (
+                <div className="pt-3 border-t border-slate-100 space-y-3">
+                  <div className="p-3 bg-slate-100/90 rounded-xl border border-slate-200 text-slate-700">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-2 h-2 rounded-full bg-slate-500" />
+                      <span className="font-bold text-slate-800 text-xs">Trạng thái: Đã đóng hoàn tất</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Ticket này đã đóng. Không thể chỉnh sửa hoặc thay đổi trạng thái nữa.
+                    </p>
+                  </div>
+                  {selectedTicket.adminNote && (
+                    <div>
+                      <label className="block text-slate-800 font-bold mb-1 text-xs">
+                        Ghi Chú Phản Hồi Admin:
+                      </label>
+                      <p className="text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs leading-relaxed whitespace-pre-wrap">
+                        {selectedTicket.adminNote}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Status Selector */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="block text-slate-800 font-bold mb-1.5 text-xs">
+                      Cập Nhật Trạng Thái Ticket:
+                    </label>
+                    <select
+                      value={targetStatusInput}
+                      onChange={(e) => setTargetStatusInput(e.target.value as SupportTicketStatusType)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-white outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 cursor-pointer"
+                    >
+                      <option value="NEW">1. Mới tiếp nhận (Hàng đợi)</option>
+                      <option value="IN_PROGRESS">2. Đang xử lý</option>
+                      <option value="PENDING_CUSTOMER">3. Chờ người dùng phản hồi</option>
+                      <option value="RESOLVED">4. Đã giải quyết (chờ người dùng xác nhận)</option>
+                      <option value="CLOSED">5. Đã đóng hoàn tất</option>
+                      <option value="REJECTED">6. Đã hủy / Từ chối</option>
+                    </select>
+                  </div>
 
-              {/* Admin Feedback Note Input */}
-              <div>
-                <label className="block text-slate-800 font-bold mb-1.5 text-xs">
-                  Ghi Chú Phản Hồi / Lý Do Xử Lý:
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Nhập ghi chú phản hồi hoặc hướng dẫn xử lý cho người dùng..."
-                  value={adminNoteInput}
-                  onChange={(e) => setAdminNoteInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10"
-                />
-              </div>
+                  {/* Admin Feedback Note Input */}
+                  <div>
+                    <label className="block text-slate-800 font-bold mb-1.5 text-xs">
+                      Ghi Chú Phản Hồi / Lý Do Xử Lý:
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Nhập ghi chú phản hồi hoặc hướng dẫn xử lý cho người dùng..."
+                      value={adminNoteInput}
+                      onChange={(e) => setAdminNoteInput(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10"
+                    />
+                  </div>
+                </>
+              )}
 
               {selectedTicket.processedBy && (
-                <div className="text-[11px] text-slate-400 flex flex-col gap-0.5 pt-1 border-t border-slate-100">
-                  <div className="flex justify-between">
-                    <span>Người xử lý gần nhất: <strong>{selectedTicket.processedBy}</strong></span>
-                    <span>Cập nhật: {formatDate(selectedTicket.updatedAt)}</span>
+                <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2.5 mt-2">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">
+                      Nhật Ký & Thời Gian Xử Lý
+                    </span>
+                    <span className="inline-flex items-center gap-1 bg-slate-200/80 text-slate-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                      {STATUS_CONFIG[selectedTicket.status]?.label || selectedTicket.status}
+                    </span>
                   </div>
-                  {selectedTicket.resolvedAt && <span>Đã giải quyết lúc: {formatDate(selectedTicket.resolvedAt)}</span>}
-                  {selectedTicket.closedAt && <span>Đã đóng lúc: {formatDate(selectedTicket.closedAt)}</span>}
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Người xử lý gần nhất</span>
+                      <span className="font-bold text-slate-800 text-xs truncate">
+                        {selectedTicket.processedBy}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời gian cập nhật</span>
+                      <span className="font-bold text-slate-800 text-xs">
+                        {formatDate(selectedTicket.updatedAt)}
+                      </span>
+                    </div>
+
+                    {selectedTicket.resolvedAt && (
+                      <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/60 flex flex-col gap-0.5">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Đã giải quyết lúc</span>
+                        <span className="font-bold text-emerald-900 text-xs">
+                          {formatDate(selectedTicket.resolvedAt)}
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedTicket.closedAt && (
+                      <div className="bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-0.5">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Đã đóng lúc</span>
+                        <span className="font-bold text-slate-800 text-xs">
+                          {formatDate(selectedTicket.closedAt)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -507,22 +566,25 @@ export const SupportTicketManagement: React.FC = () => {
             {/* Modal Footer Actions */}
             <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
               <Button
-                variant="ghost"
+                variant={selectedTicket.status === 'CLOSED' ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setSelectedTicket(null)}
                 disabled={isProcessing}
+                className={selectedTicket.status === 'CLOSED' ? "bg-slate-700 hover:bg-slate-800 text-white font-bold" : ""}
               >
-                Đóng
+                {selectedTicket.status === 'CLOSED' ? 'Đóng Cửa Sổ' : 'Đóng'}
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleProcess}
-                disabled={isProcessing}
-                className="bg-brand-emerald hover:bg-brand-emerald/90 text-white font-bold"
-              >
-                {isProcessing ? 'Đang cập nhật...' : 'Cập Nhật Trạng Thái'}
-              </Button>
+              {selectedTicket.status !== 'CLOSED' && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleProcess}
+                  disabled={isProcessing}
+                  className="bg-brand-emerald hover:bg-brand-emerald/90 text-white font-bold"
+                >
+                  {isProcessing ? 'Đang cập nhật...' : 'Cập Nhật Trạng Thái'}
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -4,7 +4,6 @@ export type SupportTicketStatusType =
   | 'NEW'
   | 'IN_PROGRESS'
   | 'PENDING_CUSTOMER'
-  | 'ESCALATED'
   | 'RESOLVED'
   | 'CLOSED'
   | 'REJECTED';

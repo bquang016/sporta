@@ -128,7 +128,7 @@ public class SupportTicketController {
 
     /**
      * PUT /api/v1/admin/support-tickets/{id}/process
-     * Web Admin xử lý chuyển đổi trạng thái ticket (NEW, IN_PROGRESS, PENDING_CUSTOMER, ESCALATED, RESOLVED, CLOSED, REJECTED)
+     * Web Admin xử lý chuyển đổi trạng thái ticket (NEW, IN_PROGRESS, PENDING_CUSTOMER, RESOLVED, CLOSED, REJECTED)
      */
     @PutMapping("/api/v1/admin/support-tickets/{id}/process")
     public ResponseEntity<SupportTicketResponse> processTicket(
