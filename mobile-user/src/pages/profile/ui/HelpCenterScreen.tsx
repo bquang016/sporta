@@ -17,7 +17,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button } from '../../../shared/ui';
+import { Button, ConfirmModal } from '../../../shared/ui';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 import { FaqSection } from './components/help/FaqSection';
@@ -57,6 +57,51 @@ export function HelpCenterScreen() {
   const [replyImageUris, setReplyImageUris] = useState<string[]>([]);
   const [submittingReply, setSubmittingReply] = useState(false);
 
+  // In-Modal Alert State (uses view overlay so alerts pop up immediately on top of active modals without iOS modal layering conflicts)
+  const [inModalAlert, setInModalAlert] = useState<{
+    title: string;
+    message: string;
+    icon?: keyof typeof MaterialIcons.glyphMap;
+    iconColor?: string;
+    onConfirm?: () => void;
+    confirmText?: string;
+  } | null>(null);
+
+  const showInModalAlert = (
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+    options?: {
+      icon?: keyof typeof MaterialIcons.glyphMap;
+      iconColor?: string;
+      confirmText?: string;
+    }
+  ) => {
+    const lowerTitle = (title || '').toLowerCase();
+    let icon: keyof typeof MaterialIcons.glyphMap = 'info-outline';
+    let iconColor = COLORS.primary;
+
+    if (lowerTitle.includes('lỗi') || lowerTitle.includes('thất bại') || lowerTitle.includes('error') || lowerTitle.includes('cần cấp quyền')) {
+      icon = 'error-outline';
+      iconColor = '#DC2626';
+    } else if (lowerTitle.includes('cảnh báo') || lowerTitle.includes('chú ý') || lowerTitle.includes('warning') || lowerTitle.includes('thiếu')) {
+      icon = 'warning-amber';
+      iconColor = '#F59E0B';
+    } else if (lowerTitle.includes('thành công') || lowerTitle.includes('hoàn tất') || lowerTitle.includes('success')) {
+      icon = 'check-circle-outline';
+      iconColor = '#059669';
+    }
+
+    setInModalAlert({
+      title,
+      message,
+      onConfirm,
+      icon: options?.icon || icon,
+      iconColor: options?.iconColor || iconColor,
+      confirmText: options?.confirmText || 'Đóng',
+    });
+  };
+
   const fetchTickets = async () => {
     try {
       setLoadingTickets(true);
@@ -75,14 +120,14 @@ export function HelpCenterScreen() {
 
   const handlePickProofImage = async () => {
     if (ticketImageUris.length >= 3) {
-      showAlert('Thông báo', 'Bạn chỉ được đính kèm tối đa 3 ảnh bằng chứng.');
+      showInModalAlert('Thông báo', 'Bạn chỉ được đính kèm tối đa 3 ảnh bằng chứng.');
       return;
     }
 
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showAlert('Cần cấp quyền', 'Vui lòng cấp quyền thư viện ảnh để đính kèm bằng chứng.');
+        showInModalAlert('Cần cấp quyền', 'Vui lòng cấp quyền thư viện ảnh để đính kèm bằng chứng.');
         return;
       }
 
@@ -110,7 +155,7 @@ export function HelpCenterScreen() {
 
   const handleSubmitTicket = async () => {
     if (!ticketTitle.trim() || !ticketDescription.trim()) {
-      showAlert('Cảnh báo', 'Vui lòng nhập đầy đủ Tiêu đề và Nội dung cần hỗ trợ.');
+      showInModalAlert('Cảnh báo', 'Vui lòng nhập đầy đủ Tiêu đề và Nội dung cần hỗ trợ.');
       return;
     }
 
@@ -157,7 +202,7 @@ export function HelpCenterScreen() {
         'Yêu cầu hỗ trợ của bạn đã được gửi lên hệ thống và chuyển sang trạng thái Mới Tiếp Nhận. Ban quản trị Sporta sẽ kiểm tra và phản hồi sớm nhất.'
       );
     } catch (err: any) {
-      showAlert('Lỗi tạo Ticket', err.message || 'Không thể gửi yêu cầu hỗ trợ. Vui lòng thử lại sau.');
+      showInModalAlert('Lỗi tạo Ticket', err.message || 'Không thể gửi yêu cầu hỗ trợ. Vui lòng thử lại sau.');
     } finally {
       setSubmittingTicket(false);
     }
@@ -229,14 +274,14 @@ export function HelpCenterScreen() {
 
   const handlePickReplyImage = async () => {
     if (replyImageUris.length >= 3) {
-      showAlert('Thông báo', 'Bạn chỉ được đính kèm tối đa 3 ảnh bằng chứng.');
+      showInModalAlert('Thông báo', 'Bạn chỉ được đính kèm tối đa 3 ảnh bằng chứng.');
       return;
     }
 
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showAlert('Cần cấp quyền', 'Vui lòng cấp quyền thư viện ảnh để đính kèm bằng chứng.');
+        showInModalAlert('Cần cấp quyền', 'Vui lòng cấp quyền thư viện ảnh để đính kèm bằng chứng.');
         return;
       }
 
@@ -265,7 +310,7 @@ export function HelpCenterScreen() {
   const handleSubmitReply = async () => {
     if (!replyingTicketId) return;
     if (!replyMessage.trim() && replyImageUris.length === 0) {
-      showAlert('Cảnh báo', 'Vui lòng nhập nội dung phản hồi hoặc đính kèm ít nhất 1 ảnh bằng chứng.');
+      showInModalAlert('Cảnh báo', 'Vui lòng nhập nội dung phản hồi hoặc đính kèm ít nhất 1 ảnh bằng chứng.');
       return;
     }
 
@@ -306,7 +351,7 @@ export function HelpCenterScreen() {
         'Phản hồi và bằng chứng bổ sung của bạn đã được gửi. Trạng thái ticket đã được cập nhật sang "Đang xử lý".'
       );
     } catch (err: any) {
-      showAlert('Lỗi phản hồi Ticket', err.message || 'Không thể gửi phản hồi. Vui lòng thử lại sau.');
+      showInModalAlert('Lỗi phản hồi Ticket', err.message || 'Không thể gửi phản hồi. Vui lòng thử lại sau.');
     } finally {
       setSubmittingReply(false);
     }
@@ -393,7 +438,10 @@ export function HelpCenterScreen() {
         visible={isCreateTicketModal}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setIsCreateTicketModal(false)}
+        onRequestClose={() => {
+          setInModalAlert(null);
+          setIsCreateTicketModal(false);
+        }}
       >
         <View style={[styles.modalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
           <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -407,9 +455,7 @@ export function HelpCenterScreen() {
             </TouchableOpacity>
             <Text style={styles.modalHeaderTitle}>Gửi Yêu Cầu Hỗ Trợ</Text>
 
-            <TouchableOpacity onPress={handleSubmitTicket} style={styles.modalHeaderIconBtn}>
-              <Text style={styles.modalHeaderSubmit}>Gửi</Text>
-            </TouchableOpacity>
+            <View style={styles.modalHeaderIconBtn} />
           </View>
         </View>
 
@@ -503,6 +549,23 @@ export function HelpCenterScreen() {
             />
           </ScrollView>
         </SafeAreaView>
+
+        {inModalAlert && isCreateTicketModal && (
+          <ConfirmModal
+            visible={!!inModalAlert}
+            title={inModalAlert.title}
+            message={inModalAlert.message}
+            confirmText={inModalAlert.confirmText || 'Đóng'}
+            icon={inModalAlert.icon}
+            iconColor={inModalAlert.iconColor}
+            onConfirm={() => {
+              const cb = inModalAlert.onConfirm;
+              setInModalAlert(null);
+              if (cb) cb();
+            }}
+            useViewOverlay={true}
+          />
+        )}
       </Modal>
 
       {/* Reply Ticket Modal */}
@@ -510,7 +573,10 @@ export function HelpCenterScreen() {
         visible={isReplyModalVisible}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setIsReplyModalVisible(false)}
+        onRequestClose={() => {
+          setInModalAlert(null);
+          setIsReplyModalVisible(false);
+        }}
       >
         <View style={[styles.modalHeaderSafeArea, { paddingTop: modalTopPadding }]}>
           <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -580,6 +646,23 @@ export function HelpCenterScreen() {
             />
           </ScrollView>
         </SafeAreaView>
+
+        {inModalAlert && isReplyModalVisible && (
+          <ConfirmModal
+            visible={!!inModalAlert}
+            title={inModalAlert.title}
+            message={inModalAlert.message}
+            confirmText={inModalAlert.confirmText || 'Đóng'}
+            icon={inModalAlert.icon}
+            iconColor={inModalAlert.iconColor}
+            onConfirm={() => {
+              const cb = inModalAlert.onConfirm;
+              setInModalAlert(null);
+              if (cb) cb();
+            }}
+            useViewOverlay={true}
+          />
+        )}
       </Modal>
     </View>
   );
