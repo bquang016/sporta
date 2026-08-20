@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -174,6 +175,9 @@ public class BookingService {
 
     // ─── Get Booking by ID ─────────────────────────────────────────────────────
 
+    // ─── Get Booking by ID ─────────────────────────────────────────────────────
+
+    @Transactional
     public BookingResponse getBookingById(UUID bookingId, String userEmail) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy đơn đặt sân", 404));
@@ -211,6 +215,7 @@ public class BookingService {
 
     // ─── My Bookings ───────────────────────────────────────────────────────────
 
+    @Transactional
     public List<BookingResponse> getMyBookings(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
@@ -239,6 +244,21 @@ public class BookingService {
     }
 
     private BookingResponse mapToResponse(Booking booking) {
+        // Tự động cập nhật COMPLETED nếu thời gian đá đã qua
+        if (booking.getStatus() == BookingStatus.CONFIRMED || booking.getStatus() == BookingStatus.PENDING) {
+            if (booking.getDetails() != null && !booking.getDetails().isEmpty()) {
+                boolean allFinished = booking.getDetails().stream().allMatch(d -> {
+                    if (d.getBookingDate() == null || d.getEndTime() == null) return false;
+                    LocalDateTime endDateTime = LocalDateTime.of(d.getBookingDate(), d.getEndTime());
+                    return !endDateTime.isAfter(LocalDateTime.now());
+                });
+                if (allFinished) {
+                    booking.setStatus(BookingStatus.COMPLETED);
+                    bookingRepository.save(booking);
+                }
+            }
+        }
+
         Venue venue = booking.getVenue();
         
         List<BookingDetailResponse> detailResponses = booking.getDetails().stream().map(d -> 
@@ -277,8 +297,32 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy đơn đặt sân", 404));
 
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new CustomException("Đơn đặt sân này đã bị hủy trước đó", 400);
+        }
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            throw new CustomException("Không thể hủy đơn đặt sân đã hoàn thành", 400);
+        }
+
+        // Kiểm tra xem đã qua giờ đá chưa
+        if (booking.getDetails() != null && !booking.getDetails().isEmpty()) {
+            boolean isFinished = booking.getDetails().stream().anyMatch(d -> {
+                if (d.getBookingDate() == null || d.getEndTime() == null) return false;
+                LocalDateTime endDateTime = LocalDateTime.of(d.getBookingDate(), d.getEndTime());
+                return !endDateTime.isAfter(LocalDateTime.now());
+            });
+            if (isFinished) {
+                booking.setStatus(BookingStatus.COMPLETED);
+                bookingRepository.save(booking);
+                throw new CustomException("Không thể hủy đơn đặt sân đã qua thời gian thi đấu", 400);
+            }
+        }
+
         // Check if requester is owner of the venue
-        boolean isVenueOwner = booking.getVenue().getOwner().getUser().getEmail().equals(email);
+        boolean isVenueOwner = booking.getVenue() != null &&
+                booking.getVenue().getOwner() != null &&
+                booking.getVenue().getOwner().getUser() != null &&
+                booking.getVenue().getOwner().getUser().getEmail().equals(email);
 
         if (isVenueOwner) {
             if (booking.getIsManual() == null || !booking.getIsManual()) {

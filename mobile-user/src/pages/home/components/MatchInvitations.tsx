@@ -1,84 +1,13 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  ImageBackground,
-  Image,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-
-interface MatchItem {
-  id: string;
-  sport: string;
-  sportIcon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  hostName: string;
-  hostAvatar: string;
-  location: string;
-  time: string;
-  slotsCurrent: number;
-  slotsMax: number;
-  level: string;
-  imageUrl: string;
-  isHot?: boolean;
-}
-
-const MATCHES: MatchItem[] = [
-  {
-    id: 'match-1',
-    sport: 'Bóng đá 7',
-    sportIcon: 'football-outline',
-    title: 'Kèo giao lưu vui vẻ 7v7',
-    hostName: 'Tuấn Anh (FC Star)',
-    hostAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-    location: 'Sân bóng PVF Hưng Yên',
-    time: '19:30 · Hôm nay',
-    slotsCurrent: 11,
-    slotsMax: 14,
-    level: 'Trung bình',
-    imageUrl: 'https://images.unsplash.com/photo-1545151414-8a948e1ea54f?w=600&auto=format&fit=crop&q=80',
-    isHot: true,
-  },
-  {
-    id: 'match-2',
-    sport: 'Pickleball',
-    sportIcon: 'tennisball-outline',
-    title: 'Kèo đôi nam nữ giao lưu',
-    hostName: 'Minh Trang',
-    hostAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-    location: 'Cụm sân Pickleball Cầu Giấy',
-    time: '18:00 · Ngày mai',
-    slotsCurrent: 3,
-    slotsMax: 4,
-    level: 'Mới chơi',
-    imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&auto=format&fit=crop&q=80',
-    isHot: true,
-  },
-  {
-    id: 'match-3',
-    sport: 'Cầu lông',
-    sportIcon: 'tennisball-outline',
-    title: 'Đôi nam trình độ B/C',
-    hostName: 'Hoàng Long',
-    hostAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&auto=format&fit=crop&q=80',
-    location: 'Sân Cầu Lông Hồ Đền Lừ',
-    time: '20:00 · Thứ 7',
-    slotsCurrent: 2,
-    slotsMax: 4,
-    level: 'Khá - Giỏi',
-    imageUrl: 'https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=600&auto=format&fit=crop&q=80',
-    isHot: false,
-  },
-];
+import { useMatchmakingList } from '../../../features/matchmaking/model/useMatchmaking';
 
 export function MatchInvitations() {
   const router = useRouter();
+  const { rooms } = useMatchmakingList();
 
   return (
     <View style={styles.section}>
@@ -86,7 +15,7 @@ export function MatchInvitations() {
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
           <View style={styles.titleIconBox}>
-            <Ionicons name="people-outline" size={17} color={COLORS.primary} />
+            <MaterialIcons name="groups" size={17} color={COLORS.primary} />
           </View>
           <View>
             <View style={styles.titleWithBadge}>
@@ -96,114 +25,92 @@ export function MatchInvitations() {
                 <Text style={styles.liveText}>LIVE</Text>
               </View>
             </View>
-            <Text style={styles.sectionSub}>Tham gia thi đấu & giao lưu ngay</Text>
+            <Text style={styles.sectionSub}>
+              🔥 {rooms.length} trận đấu tìm đối thủ đang diễn ra!
+            </Text>
           </View>
         </View>
 
         <TouchableOpacity
-          onPress={() => router.push('/clubs')}
+          onPress={() => router.push('/matchmaking' as any)}
           style={styles.seeAllButton}
           activeOpacity={0.75}
         >
           <Text style={styles.seeAllText}>Xem tất cả</Text>
-          <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+          <MaterialIcons name="chevron-right" size={14} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* ── Horizontal Matches List ── */}
+      {/* ── Horizontal Rooms List ── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollList}
         decelerationRate="fast"
       >
-        {MATCHES.map((item) => {
-          const slotRatio = item.slotsCurrent / item.slotsMax;
-          const slotPercent = Math.min(100, Math.round(slotRatio * 100));
-          const slotsLeft = item.slotsMax - item.slotsCurrent;
-
+        {rooms.map((room) => {
+          const isRanked = room.matchType === 'RANKED';
           return (
             <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.9}
+              key={room.id}
+              activeOpacity={0.88}
+              onPress={() => router.push(`/matchmaking/${room.id}` as any)}
               style={styles.cardContainer}
-              onPress={() => router.push('/clubs')}
             >
-              <ImageBackground
-                source={{ uri: item.imageUrl }}
-                style={styles.cardBg}
-                imageStyle={styles.cardBgImage}
-              >
-                <LinearGradient
-                  colors={['rgba(0,0,0,0.25)', 'rgba(0, 20, 15, 0.65)', 'rgba(0, 10, 8, 0.95)']}
-                  locations={[0, 0.45, 1]}
-                  style={styles.cardGradient}
-                >
-                  {/* Top Bar: Sport Pill + Hot Pill */}
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.sportPill}>
-                      <Ionicons name={item.sportIcon} size={12} color="#003527" />
-                      <Text style={styles.sportPillText}>{item.sport}</Text>
-                    </View>
-
-                    {item.isHot && (
-                      <View style={styles.hotPill}>
-                        <Ionicons name="flame" size={11} color="#FFFFFF" />
-                        <Text style={styles.hotPillText}>HOT</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Middle Info */}
-                  <View style={styles.cardMid}>
-                    <Text style={styles.matchTitle} numberOfLines={2}>
-                      {item.title}
+              <View style={styles.cardContent}>
+                {/* Header Badge */}
+                <View style={styles.cardHeader}>
+                  <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+                    <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
+                      {isRanked ? '🏆 Xếp hạng' : '🤝 Giao hữu'}
                     </Text>
-
-                    {/* Host */}
-                    <View style={styles.hostRow}>
-                      <Image source={{ uri: item.hostAvatar }} style={styles.hostAvatar} />
-                      <Text style={styles.hostName} numberOfLines={1}>
-                        {item.hostName}
-                      </Text>
-                    </View>
-
-                    {/* Location & Time */}
-                    <View style={styles.infoMeta}>
-                      <View style={styles.metaItem}>
-                        <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.75)" />
-                        <Text style={styles.metaItemText} numberOfLines={1}>
-                          {item.location}
-                        </Text>
-                      </View>
-                      <View style={styles.metaItem}>
-                        <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.75)" />
-                        <Text style={styles.metaItemText} numberOfLines={1}>
-                          {item.time}
-                        </Text>
-                      </View>
-                    </View>
                   </View>
+                  {room.balanceLabel && (
+                    <Text style={styles.balanceText}>{room.balanceLabel}</Text>
+                  )}
+                </View>
 
-                  {/* Bottom: Slots + CTA */}
-                  <View style={styles.cardBottom}>
-                    <View style={styles.slotTrack}>
-                      <View style={[styles.slotFill, { width: `${slotPercent}%` }]} />
+                {/* Host Club & Elo */}
+                <View style={styles.clubInfo}>
+                  <Text style={styles.clubName} numberOfLines={1}>
+                    {room.hostClub.name}
+                  </Text>
+                  <View style={styles.eloRow}>
+                    <View style={styles.levelTag}>
+                      <Text style={styles.levelText}>{room.hostClub.levelLabel}</Text>
                     </View>
-
-                    <View style={styles.slotDetailsRow}>
-                      <Text style={styles.slotCountText}>
-                        Còn <Text style={styles.slotCountBold}>{slotsLeft} chỗ</Text> ({item.slotsCurrent}/{item.slotsMax})
-                      </Text>
-
-                      <View style={styles.joinBtn}>
-                        <Text style={styles.joinBtnText}>Ghép ngay</Text>
-                        <Ionicons name="arrow-forward" size={11} color="#003527" />
-                      </View>
-                    </View>
+                    <Text style={styles.eloText}>{room.hostClub.clubElo} Elo</Text>
+                    <Text style={styles.crpText}>• {room.hostClub.crp} CRP</Text>
                   </View>
-                </LinearGradient>
-              </ImageBackground>
+                </View>
+
+                {/* Time & Venue */}
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="location-on" size={13} color={COLORS.onSurfaceVariant} />
+                  <Text style={styles.detailText} numberOfLines={1}>
+                    {room.booking.facilityName}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <MaterialIcons name="schedule" size={13} color={COLORS.onSurfaceVariant} />
+                  <Text style={styles.detailText}>
+                    {room.booking.date} • {room.booking.startTime}
+                  </Text>
+                </View>
+
+                {/* Fee Split */}
+                <View style={styles.feeBox}>
+                  <Text style={styles.feeLabel}>B trả ({room.guestSharePercent}%):</Text>
+                  <Text style={styles.feeValue}>
+                    ~{room.guestShareAmount.toLocaleString('vi-VN')}đ
+                  </Text>
+                </View>
+
+                <View style={styles.joinBtn}>
+                  <Text style={styles.joinBtnText}>Xem & Ghép kèo</Text>
+                  <MaterialIcons name="arrow-forward" size={14} color={COLORS.white} />
+                </View>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -293,144 +200,135 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   cardContainer: {
-    width: 225,
-    height: 235,
-    borderRadius: BORDER_RADIUS.xl,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardBg: {
-    width: '100%',
-    height: '100%',
-  },
-  cardBgImage: {
-    borderRadius: BORDER_RADIUS.xl,
-  },
-  cardGradient: {
-    flex: 1,
-    padding: SPACING.md - 2,
-    justifyContent: 'space-between',
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sportPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  sportPillText: {
-    color: '#003527',
-    fontSize: 10.5,
-    fontWeight: '900',
-  },
-  hotPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  hotPillText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  cardMid: {
-    gap: 4,
-  },
-  matchTitle: {
-    ...TYPOGRAPHY.titleMd,
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 14.5,
-    lineHeight: 19,
-    letterSpacing: -0.2,
-  },
-  hostRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  hostAvatar: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 215,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: COLORS.outlineVariant,
+    padding: SPACING.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  hostName: {
-    color: 'rgba(255, 255, 255, 0.9)',
+  cardContent: {
+    gap: 8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  rankedBadge: {
+    backgroundColor: '#FEF3C7',
+  },
+  friendlyBadge: {
+    backgroundColor: '#E0F2FE',
+  },
+  typeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  rankedText: {
+    color: '#92400E',
+  },
+  friendlyText: {
+    color: '#075985',
+  },
+  balanceText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  clubInfo: {
+    gap: 2,
+  },
+  clubName: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  eloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  levelTag: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  levelText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  eloText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  crpText: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 11,
     fontWeight: '600',
-    flex: 1,
+    color: '#B45309',
   },
-  infoMeta: {
-    gap: 2,
-    marginTop: 2,
-  },
-  metaItem: {
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  metaItemText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 10.5,
+  detailText: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 11,
+    color: COLORS.onSurfaceVariant,
     flex: 1,
   },
-  cardBottom: {
-    gap: 6,
-  },
-  slotTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    overflow: 'hidden',
-  },
-  slotFill: {
-    height: '100%',
-    backgroundColor: COLORS.secondary,
-    borderRadius: 2,
-  },
-  slotDetailsRow: {
+  feeBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 6,
+    borderRadius: BORDER_RADIUS.sm,
   },
-  slotCountText: {
-    color: 'rgba(255, 255, 255, 0.85)',
+  feeLabel: {
+    ...TYPOGRAPHY.bodyMd,
     fontSize: 10,
+    color: COLORS.onSurfaceVariant,
   },
-  slotCountBold: {
-    color: '#FFFFFF',
+  feeValue: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 11,
     fontWeight: '800',
+    color: COLORS.primary,
   },
   joinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.default,
+    paddingVertical: 7,
   },
   joinBtnText: {
-    color: '#003527',
-    fontSize: 11,
-    fontWeight: '900',
+    ...TYPOGRAPHY.labelMd,
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

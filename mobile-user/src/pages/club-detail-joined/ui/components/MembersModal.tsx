@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Image } fr
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Button } from '../../../../shared/ui';
+import { Button, Avatar } from '../../../../shared/ui';
 
 export interface MemberItem {
   id: string | number;
@@ -127,7 +127,7 @@ export function MembersModal({
                   {approvedMembers.length > 0 ? (
                     approvedMembers.map((member) => (
                       <View key={member.id} style={styles.memberItem}>
-                        <Image source={{ uri: member.avatar }} style={styles.memberAvatar} />
+                        <Avatar source={member.avatar} size={40} fallbackIcon="person" style={styles.memberAvatar} />
                         <View style={styles.memberInfo}>
                           <Text style={styles.memberName}>{member.name}</Text>
                           <View style={styles.memberMetaRow}>
@@ -170,7 +170,7 @@ export function MembersModal({
                   {pendingMembers.length > 0 ? (
                     pendingMembers.map((member) => (
                       <View key={member.id} style={styles.pendingMemberItem}>
-                        <Image source={{ uri: member.avatar }} style={styles.memberAvatar} />
+                        <Avatar source={member.avatar} size={40} fallbackIcon="person" style={styles.memberAvatar} />
                         <View style={styles.memberInfo}>
                           <Text style={styles.memberName}>{member.name}</Text>
                           <View style={styles.pendingBadgeTag}>

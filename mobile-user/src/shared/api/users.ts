@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { BASE_URL, ApiError } from './apiClient';
+import { BASE_URL, ApiError, apiFetch, clearCachedToken } from './apiClient';
 
 export interface UserProfileDto {
   id: number;
@@ -21,6 +21,15 @@ export interface UserProfileDto {
     sportIcon: string;
     level: string;
   }[];
+  location?: string;
+  notifBooking?: boolean;
+  notifPromo?: boolean;
+  notifMatchmake?: boolean;
+  linkGoogle?: boolean;
+  linkFacebook?: boolean;
+  linkApple?: boolean;
+  enableBiometrics?: boolean;
+  privateMode?: boolean;
 }
 
 export interface UpdateUserProfileRequest {
@@ -30,6 +39,16 @@ export interface UpdateUserProfileRequest {
   dateOfBirth?: string;
   height?: number;
   weight?: number;
+  location?: string;
+  notifBooking?: boolean;
+  notifPromo?: boolean;
+  notifMatchmake?: boolean;
+  linkGoogle?: boolean;
+  linkFacebook?: boolean;
+  linkApple?: boolean;
+  enableBiometrics?: boolean;
+  privateMode?: boolean;
+  [key: string]: any;
 }
 
 const getToken = async (): Promise<string | null> => {
@@ -45,19 +64,7 @@ const getToken = async (): Promise<string | null> => {
 
 export const usersApi = {
   getProfile: async (): Promise<UserProfileDto> => {
-    const token = await getToken();
-    const response = await fetch(`${BASE_URL}/users/profile`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new ApiError(errorData.message || 'Lỗi khi lấy thông tin cá nhân', response.status);
-    }
-    return response.json();
+    return apiFetch<UserProfileDto>('/users/profile', { method: 'GET' }, true);
   },
 
   updateProfile: async (data: UpdateUserProfileRequest, avatarUri?: string): Promise<UserProfileDto> => {
@@ -112,6 +119,11 @@ export const usersApi = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        clearCachedToken();
+        const { globalEvent } = require('../lib/eventEmitter');
+        globalEvent.emit('auth:expired');
+      }
       throw new ApiError(errorData.message || 'Lỗi khi cập nhật thông tin cá nhân', response.status);
     }
     return response.json();

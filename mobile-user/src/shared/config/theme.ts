@@ -66,6 +66,7 @@ export const COLORS = {
   onTertiaryFixedVariant: '#6E372F',
 
   // Custom status text colors
+  success: '#10B981',
   successText: '#10B981',
   errorText: '#BA1A1A',
   grayText: '#707974',
@@ -78,6 +79,7 @@ export const COLORS = {
   primaryOpacity12: 'rgba(6, 78, 59, 0.12)',
   primaryOpacity15: 'rgba(6, 78, 59, 0.15)',
   primaryOpacity20: 'rgba(6, 78, 59, 0.2)',
+  primaryOpacity25: 'rgba(6, 78, 59, 0.25)',
   primaryOpacity30: 'rgba(6, 78, 59, 0.3)',
   primaryOpacity40: 'rgba(6, 78, 59, 0.4)',
 
@@ -174,6 +176,12 @@ export const TYPOGRAPHY = {
     fontSize: 14,
     fontWeight: '400' as const,
     lineHeight: 20,
+  },
+  bodySm: {
+    fontFamily: 'HankenGrotesk-Regular',
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 16,
   },
   labelMd: {
     fontFamily: 'HankenGrotesk-SemiBold',

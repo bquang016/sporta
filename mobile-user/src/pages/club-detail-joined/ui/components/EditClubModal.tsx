@@ -15,7 +15,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Button } from '../../../../shared/ui';
+import { Button, Avatar } from '../../../../shared/ui';
 import { Club, useClubs } from '../../../../entities/club';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 import { uploadImageApi } from '../../../../shared/api/upload';
@@ -243,7 +243,11 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
                 activeOpacity={0.9}
                 onPress={() => setIsCoverModalVisible(true)}
               >
-                <Image source={{ uri: coverImage }} style={styles.coverImage} />
+                {coverImage && typeof coverImage === 'string' && !coverImage.startsWith('blob:') ? (
+                  <Image source={{ uri: coverImage }} style={styles.coverImage} />
+                ) : (
+                  <View style={[styles.coverImage, { backgroundColor: COLORS.primary }]} />
+                )}
                 <View style={styles.editMediaBadge}>
                   <MaterialIcons name="photo-camera" size={16} color={COLORS.white} />
                   <Text style={styles.editMediaBadgeText}>Đổi ảnh bìa</Text>
@@ -255,7 +259,12 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
                 activeOpacity={0.9}
                 onPress={() => setIsAvatarModalVisible(true)}
               >
-                <Image source={{ uri: avatarImage }} style={styles.avatarImage} />
+                <Avatar 
+                  source={avatarImage} 
+                  size={80} 
+                  fallbackIcon="groups"
+                  style={styles.avatarImage} 
+                />
                 <View style={styles.avatarEditBadge}>
                   <MaterialIcons name="edit" size={14} color={COLORS.white} />
                 </View>

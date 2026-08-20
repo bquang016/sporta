@@ -14,6 +14,7 @@ interface AlertOptions {
   icon?: keyof typeof MaterialIcons.glyphMap;
   iconColor?: string;
   type?: 'success' | 'error' | 'warning' | 'info';
+  confirmVariant?: 'primary' | 'secondary' | 'outline' | 'ghost';
 }
 
 interface AlertExtraOptions {
@@ -21,6 +22,13 @@ interface AlertExtraOptions {
   icon?: keyof typeof MaterialIcons.glyphMap;
   iconColor?: string;
   confirmText?: string;
+}
+
+interface ConfirmExtraOptions {
+  type?: 'success' | 'error' | 'warning' | 'info';
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  iconColor?: string;
+  confirmVariant?: 'primary' | 'secondary' | 'outline' | 'ghost';
 }
 
 interface AlertContextType {
@@ -37,7 +45,7 @@ interface AlertContextType {
     onCancel?: () => void,
     confirmText?: string,
     cancelText?: string,
-    options?: AlertExtraOptions
+    options?: ConfirmExtraOptions
   ) => void;
 }
 
@@ -53,14 +61,27 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     }
     const t = opts.type;
     const lowerTitle = (opts.title || '').toLowerCase();
-    
-    if (t === 'success' || lowerTitle.includes('thành công')) {
+
+    if (t === 'success' || lowerTitle.includes('thành công') || lowerTitle.includes('hoàn tất')) {
       return { icon: 'check-circle', color: '#10B981' };
     }
-    if (t === 'error' || lowerTitle.includes('lỗi') || lowerTitle.includes('thất bại') || lowerTitle.includes('không thể') || lowerTitle.includes('hết hạn')) {
+    if (
+      t === 'error' ||
+      lowerTitle.includes('lỗi') ||
+      lowerTitle.includes('thất bại') ||
+      lowerTitle.includes('không thể') ||
+      lowerTitle.includes('hết hạn') ||
+      lowerTitle.includes('cần cấp quyền')
+    ) {
       return { icon: 'error-outline', color: '#EF4444' };
     }
-    if (t === 'warning' || lowerTitle.includes('cảnh báo') || lowerTitle.includes('chú ý') || lowerTitle.includes('lưu ý') || lowerTitle.includes('chưa đến')) {
+    if (
+      t === 'warning' ||
+      lowerTitle.includes('cảnh báo') ||
+      lowerTitle.includes('chú ý') ||
+      lowerTitle.includes('lưu ý') ||
+      lowerTitle.includes('chưa đến')
+    ) {
       return { icon: 'warning-amber', color: '#F59E0B' };
     }
     if (opts.isConfirm) {
@@ -84,6 +105,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
       type: options?.type,
       icon: options?.icon,
       iconColor: options?.iconColor,
+      confirmVariant: 'primary',
     });
     setVisible(true);
   };
@@ -95,7 +117,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     onCancel?: () => void,
     confirmText = 'Xác nhận',
     cancelText = 'Hủy',
-    options?: AlertExtraOptions
+    options?: ConfirmExtraOptions
   ) => {
     setAlertData({
       title,
@@ -108,6 +130,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
       type: options?.type,
       icon: options?.icon,
       iconColor: options?.iconColor,
+      confirmVariant: options?.confirmVariant || 'primary',
     });
     setVisible(true);
   };
@@ -139,6 +162,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
         onCancel={alertData.isConfirm ? handleCancel : undefined}
         confirmText={alertData.confirmText || 'Đóng'}
         cancelText={alertData.cancelText}
+        confirmVariant={alertData.confirmVariant || 'primary'}
         icon={icon}
         iconColor={color}
       />
@@ -149,7 +173,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
 export const useAlert = () => {
   const context = useContext(AlertContext);
   if (!context) {
-    // Fallback if AlertProvider is not mounted (e.g. Metro cache issues on root layout)
+    // Fallback if AlertProvider is not mounted
     return {
       showAlert: (title: string, message: string, onConfirm?: () => void) => {
         if (Platform.OS === 'web') {

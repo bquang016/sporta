@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   'owners': 'Quản Lý Chủ Sân',
   'users': 'Quản Lý Người Dùng',
   'vouchers': 'Quản Lý Mã Khuyến Mãi',
+  'tickets': 'Quản Lý Yêu Cầu Hỗ Trợ',
   'transactions': 'Quản Lý Đặt Sân & Giao Dịch',
   'reconciliations': 'Quản Lý Đối Soát',
   'settings': 'Cài Đặt Hệ Thống',
@@ -104,6 +105,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           )}
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_VOUCHERS') || permissions.includes('MANAGE_SYSTEM') || permissions.length === 0) && (
             <NavItem id="vouchers" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="voucher" label="Mã khuyến mãi" isCollapsed={isSidebarCollapsed} />
+          )}
+          {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_TICKETS')) && (
+            <NavItem id="tickets" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="ticket" label="Yêu cầu hỗ trợ" isCollapsed={isSidebarCollapsed} />
           )}
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_TRANSACTIONS')) && (
             <NavItem id="transactions" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="transaction" label="Quản lý giao dịch" isCollapsed={isSidebarCollapsed} />
@@ -402,6 +406,12 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
         </svg>
       );
     case 'voucher':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+        </svg>
+      );
+    case 'ticket':
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />

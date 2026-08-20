@@ -30,8 +30,12 @@ export function useProfile() {
         try {
           const profile = await usersApi.getProfile();
           setProfileData(profile);
-        } catch (apiError) {
+        } catch (apiError: any) {
           console.error("Failed to fetch profile", apiError);
+          if (apiError?.status === 401) {
+            setIsAuthenticated(false);
+            setProfileData(null);
+          }
         }
       } else {
         setIsAuthenticated(false);

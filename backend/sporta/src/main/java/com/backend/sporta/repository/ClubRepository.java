@@ -48,4 +48,7 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
                                      @Param("query") String query);
 
     boolean existsByName(String name);
+
+    @Query("SELECT c FROM Club c WHERE (:sportId IS NULL OR c.sport.id = :sportId) AND (:area IS NULL OR LOWER(c.area) LIKE LOWER(CONCAT('%', :area, '%'))) ORDER BY COALESCE(c.crp, 0) DESC, COALESCE(c.rankedWins, 0) DESC, COALESCE(c.finalMatches, 0) DESC, c.id ASC")
+    List<Club> findLeaderboardClubs(@Param("sportId") Long sportId, @Param("area") String area);
 }

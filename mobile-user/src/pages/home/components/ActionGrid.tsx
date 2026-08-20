@@ -38,7 +38,7 @@ const ACTIONS: ActionItem[] = [
     subtitle: 'Tìm đối thủ & đồng đội',
     badge: 'HOT',
     badgeColor: '#EF4444',
-    route: '/clubs',
+    route: '/matchmaking',
     isPrimary: false,
   },
   {

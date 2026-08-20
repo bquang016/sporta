@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { JoinedClubItem } from '../../../entities/user';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { Avatar } from '../../../shared/ui';
 
 interface UserClubsCardProps {
   clubs?: JoinedClubItem[];
@@ -35,7 +36,7 @@ export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardPr
             onPress={() => onClubPress?.(club)}
           >
             {/* Club Logo */}
-            <Image source={{ uri: club.logoUrl }} style={styles.clubLogo} />
+            <Avatar source={club.logoUrl} size={48} fallbackIcon="groups" style={styles.clubLogo} />
 
             {/* Club Information */}
             <View style={styles.clubInfo}>
