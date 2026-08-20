@@ -31,9 +31,9 @@ export function WalletScreen() {
   const { 
     data: balanceData, 
     isLoading: isLoadingBalance,
-    refetch: refetchBalance
+    refetch: refetchBalance 
   } = useQuery({
-    queryKey: ['wallet_balance'],
+    queryKey: ['walletBalance'],
     queryFn: getWalletBalance,
   });
 

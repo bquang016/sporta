@@ -9,6 +9,7 @@ import { LoginPage } from "@/pages/Auth/LoginPage";
 import { PermissionSettings } from "@/pages/Settings/PermissionSettings";
 import { TransactionManagement } from "@/pages/Transactions/TransactionManagement";
 import { ReconciliationManagement } from "@/pages/Reconciliations/ReconciliationManagement";
+import { SupportTicketManagement } from "@/components/users/SupportTicketManagement";
 
 // A simple wrapper to check auth and permissions
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -28,6 +29,8 @@ function App() {
         return <FacilityAuditing />;
       case "users":
         return <UserManagement />;
+      case "tickets":
+        return <SupportTicketManagement />;
       case "owners":
         return <OwnerManagement />;
       case "staff":

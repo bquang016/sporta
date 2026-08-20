@@ -12,6 +12,7 @@ import {
 import { Platform } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../src/shared/api/queryClient';
+import { AlertProvider } from '../src/shared/contexts/AlertContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -50,17 +51,19 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="search" />
-        <Stack.Screen name="booking/[facilityId]" options={{ headerShown: false }} />
-        <Stack.Screen name="profile/index" options={{ headerShown: true, title: 'Hồ sơ cá nhân' }} />
-        <Stack.Screen name="my-clubs/index" options={{ headerShown: false }} />
-        <Stack.Screen name="create-club/index" options={{ headerShown: false }} />
-        <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
-      </Stack>
+      <AlertProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="booking/[facilityId]" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/index" options={{ headerShown: true, title: 'Hồ sơ cá nhân' }} />
+          <Stack.Screen name="my-clubs/index" options={{ headerShown: false }} />
+          <Stack.Screen name="create-club/index" options={{ headerShown: false }} />
+          <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
+        </Stack>
+      </AlertProvider>
     </QueryClientProvider>
   );
 }

@@ -61,20 +61,25 @@ public class AdminController {
             RolePermission facilities = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_FACILITIES").isAllowed(true).build();
             RolePermission owners = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_OWNERS").isAllowed(true).build();
             RolePermission users = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_USERS").isAllowed(true).build();
+            RolePermission tickets = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_TICKETS").isAllowed(true).build();
             RolePermission system = RolePermission.builder().role(Role.ADMIN).feature("MANAGE_SYSTEM").isAllowed(false).build();
             
-            permissions = rolePermissionRepository.saveAll(List.of(dashboard, facilities, owners, users, system));
+            permissions = rolePermissionRepository.saveAll(List.of(dashboard, facilities, owners, users, tickets, system));
         } else {
             // Check missing permissions for older databases
             boolean hasSystem = permissions.stream().anyMatch(p -> p.getFeature().equals("MANAGE_SYSTEM"));
             boolean hasOwners = permissions.stream().anyMatch(p -> p.getFeature().equals("MANAGE_OWNERS"));
+            boolean hasTickets = permissions.stream().anyMatch(p -> p.getFeature().equals("MANAGE_TICKETS"));
             
-            if (!hasSystem || !hasOwners) {
+            if (!hasSystem || !hasOwners || !hasTickets) {
                 if (!hasSystem) {
                     rolePermissionRepository.save(RolePermission.builder().role(Role.ADMIN).feature("MANAGE_SYSTEM").isAllowed(false).build());
                 }
                 if (!hasOwners) {
                     rolePermissionRepository.save(RolePermission.builder().role(Role.ADMIN).feature("MANAGE_OWNERS").isAllowed(true).build());
+                }
+                if (!hasTickets) {
+                    rolePermissionRepository.save(RolePermission.builder().role(Role.ADMIN).feature("MANAGE_TICKETS").isAllowed(true).build());
                 }
                 // Fetch again to ensure list mutability is safe
                 permissions = rolePermissionRepository.findByRole(Role.ADMIN);
