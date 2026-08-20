@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { BASE_URL, ApiError } from './apiClient';
+import { BASE_URL, ApiError, apiFetch, clearCachedToken } from './apiClient';
 
 export interface UserProfileDto {
   id: number;
@@ -64,19 +64,7 @@ const getToken = async (): Promise<string | null> => {
 
 export const usersApi = {
   getProfile: async (): Promise<UserProfileDto> => {
-    const token = await getToken();
-    const response = await fetch(`${BASE_URL}/users/profile`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new ApiError(errorData.message || 'Lỗi khi lấy thông tin cá nhân', response.status);
-    }
-    return response.json();
+    return apiFetch<UserProfileDto>('/users/profile', { method: 'GET' }, true);
   },
 
   updateProfile: async (data: UpdateUserProfileRequest, avatarUri?: string): Promise<UserProfileDto> => {
@@ -131,6 +119,11 @@ export const usersApi = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        clearCachedToken();
+        const { globalEvent } = require('../lib/eventEmitter');
+        globalEvent.emit('auth:expired');
+      }
       throw new ApiError(errorData.message || 'Lỗi khi cập nhật thông tin cá nhân', response.status);
     }
     return response.json();

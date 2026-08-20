@@ -131,7 +131,7 @@ export const UserManagement: React.FC = () => {
       fetchUsers();
     } catch (err: any) {
       showToast('error', err.message || 'Có lỗi xảy ra khi khóa tài khoản');
-      throw err; // Propagate to keep modal loading or open
+      throw err;
     }
   };
 

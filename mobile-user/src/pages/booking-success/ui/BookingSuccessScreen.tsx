@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/config/theme';
 import { Button } from '../../../shared/ui/Button';
 import { Card } from '../../../shared/ui/Card';
+import * as Clipboard from 'expo-clipboard';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 import { fetchBookingById } from '../../../entities/booking/api/bookingApi';
@@ -35,6 +36,22 @@ export function BookingSuccessScreen() {
   const [showDetailModal, setShowDetailModal] = useState(isFromHistory);
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+  const [showCopySuccessModal, setShowCopySuccessModal] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const handleCopyCode = async (code: string) => {
+    if (!code) return;
+    try {
+      await Clipboard.setStringAsync(code);
+    } catch (e) {
+      console.error('Lỗi sao chép mã đơn:', e);
+    }
+    setCopiedCode(code);
+    setShowCopySuccessModal(true);
+    setTimeout(() => {
+      setCopiedCode(null);
+    }, 2500);
+  };
 
   useEffect(() => {
     if (isFromHistory) {
@@ -225,8 +242,24 @@ export function BookingSuccessScreen() {
               <MaterialIcons name="qr-code-2" size={160} color={COLORS.primary} />
             </View>
             
-            <View style={styles.qrCodePill}>
-              <Text style={styles.qrCodePillText}>{activeBooking.bookingCode}</Text>
+            <View style={styles.qrCodePillRow}>
+              <View style={styles.qrCodePill}>
+                <Text style={styles.qrCodePillText}>{activeBooking.bookingCode}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.copyCodeBtn, copiedCode === activeBooking.bookingCode && styles.copyCodeBtnSuccess]}
+                activeOpacity={0.75}
+                onPress={() => handleCopyCode(activeBooking.bookingCode)}
+              >
+                <MaterialIcons 
+                  name={copiedCode === activeBooking.bookingCode ? "check" : "content-copy"} 
+                  size={16} 
+                  color={copiedCode === activeBooking.bookingCode ? COLORS.primary : COLORS.onSurfaceVariant} 
+                />
+                <Text style={[styles.copyCodeBtnText, copiedCode === activeBooking.bookingCode && styles.copyCodeBtnTextSuccess]}>
+                  {copiedCode === activeBooking.bookingCode ? 'Đã chép' : 'Sao chép'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -517,9 +550,25 @@ export function BookingSuccessScreen() {
                 <MaterialIcons name="qr-code-2" size={160} color={COLORS.primary} />
               </View>
               
+            <View style={styles.qrCodePillRow}>
               <View style={styles.qrCodePill}>
                 <Text style={styles.qrCodePillText}>{activeBooking.bookingCode}</Text>
               </View>
+              <TouchableOpacity
+                style={[styles.copyCodeBtn, copiedCode === activeBooking.bookingCode && styles.copyCodeBtnSuccess]}
+                activeOpacity={0.75}
+                onPress={() => handleCopyCode(activeBooking.bookingCode)}
+              >
+                <MaterialIcons 
+                  name={copiedCode === activeBooking.bookingCode ? "check" : "content-copy"} 
+                  size={16} 
+                  color={copiedCode === activeBooking.bookingCode ? COLORS.primary : COLORS.onSurfaceVariant} 
+                />
+                <Text style={[styles.copyCodeBtnText, copiedCode === activeBooking.bookingCode && styles.copyCodeBtnTextSuccess]}>
+                  {copiedCode === activeBooking.bookingCode ? 'Đã chép' : 'Sao chép'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             </View>
 
             {/* 4. Chi tiết thanh toán */}
@@ -658,6 +707,19 @@ export function BookingSuccessScreen() {
         icon="check-circle"
         iconColor={COLORS.primary}
         onConfirm={() => setShowCancelSuccessModal(false)}
+      />
+
+      {/* Copy Code Success App Modal */}
+      <ConfirmModal
+        visible={showCopySuccessModal}
+        useViewOverlay={true}
+        title="Sao chép thành công"
+        message={`Mã đơn hàng "${copiedCode || activeBooking.bookingCode}" đã được sao chép vào bộ nhớ tạm.`}
+        confirmText="Đã hiểu"
+        confirmVariant="primary"
+        icon="check-circle"
+        iconColor={COLORS.primary}
+        onConfirm={() => setShowCopySuccessModal(false)}
       />
     </SafeAreaView>
   );
@@ -925,6 +987,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: COLORS.primary,
+  },
+  qrCodePillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginTop: 4,
+  },
+  copyCodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surfaceContainerLow || COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  copyCodeBtnSuccess: {
+    backgroundColor: COLORS.primaryOpacity10,
+    borderColor: COLORS.primaryOpacity25,
+  },
+  copyCodeBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  copyCodeBtnTextSuccess: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   modalDetailDivider: {
     height: 1,
