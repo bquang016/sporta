@@ -22,4 +22,10 @@ public class CreateBookingRequest {
     private BookingStatus status;
     private Boolean isManual;
     private String customerName;
+
+    /** Mã voucher cụm sân (nullable — do owner tạo) */
+    private String ownerVoucherCode;
+
+    /** Mã voucher hệ thống (nullable — do admin tạo) */
+    private String systemVoucherCode;
 }

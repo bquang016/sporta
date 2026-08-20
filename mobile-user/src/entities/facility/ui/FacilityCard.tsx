@@ -87,9 +87,9 @@ export function FacilityCard({ facility, style, onPress, onBookPress }: Facility
 
 const styles = StyleSheet.create({
   card: {
-    width: 240, // Kích thước hợp lý để hiện ứng cuộn hé lộ card sau (peek effect)
+    width: '100%',
     backgroundColor: COLORS.surface,
-    borderRadius: 20, // Bo tròn hơn (was 16px)
+    borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,

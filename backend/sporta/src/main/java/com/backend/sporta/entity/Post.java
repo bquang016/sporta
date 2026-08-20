@@ -52,6 +52,11 @@ public class Post {
     private String promoCode;
     private String discountText;
 
+    /** Voucher gắn kèm bài viết (nullable — Q7/Q14: 1 voucher/bài viết) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voucher_id")
+    private Voucher voucher;
+
     @Builder.Default
     @Column(name = "like_count")
     private Integer likeCount = 0;

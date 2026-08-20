@@ -70,6 +70,7 @@ export interface Post {
   clubInfo?: ClubInfoData; // Double Avatar if present
   matchAttachment?: MatchAttachmentData;
   venuePromoAttachment?: VenuePromoAttachmentData;
+  voucher?: any;
   isPinned?: boolean;
 
   // Reaction fields compatibility

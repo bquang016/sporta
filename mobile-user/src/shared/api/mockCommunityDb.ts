@@ -176,9 +176,42 @@ export const MOCK_POSTS: Post[] = [
     type: 'COMMUNITY',
     reactionsCount: { like: 24, love: 18, fire: 32, clap: 5 },
     userReaction: 'fire',
-    commentsCount: 12,
-    sharesCount: 3,
-    comments: MOCK_COMMENTS,
+    commentsCount: 2,
+    sharesCount: 1,
+    comments: [
+      {
+        id: 'c5',
+        postId: 'p3',
+        author: {
+          id: 'user-2',
+          name: 'Trần Thanh Sơn',
+          avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=300&auto=format&fit=crop&q=80',
+          handle: '@sontran_hoop',
+        },
+        content: 'Chỗ này sân đẹp, hôm nào giao lưu đi anh em',
+        createdAt: 'Hôm qua',
+      }
+    ],
+    voucher: {
+      id: 'v1',
+      name: 'Giảm 50% Phí Đặt Sân Cầu Lông',
+      code: 'CL50',
+      discountType: 'PERCENTAGE',
+      discountValue: 50,
+      maxDiscountAmount: 30000,
+      minOrderAmount: 100000,
+      startDate: '2026-08-01T00:00:00Z',
+      endDate: '2026-08-30T00:00:00Z',
+      totalQuantity: 100,
+      usedQuantity: 10,
+      voucherScope: 'VENUE',
+      status: 'ACTIVE',
+      bannerImageUrl: null,
+      ownerId: 'owner1',
+      createdAt: '2026-08-01T00:00:00Z',
+      isExpired: false,
+      venueNames: ['Sân Cầu Lông ABC'],
+    } as any
   },
 
   // 6. Venue Promotion Post

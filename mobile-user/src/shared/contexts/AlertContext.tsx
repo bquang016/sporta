@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Platform, Alert } from 'react-native';
-import { ConfirmModal } from '../ui/Modal/ConfirmModal';
 import { MaterialIcons } from '@expo/vector-icons';
+import { ConfirmModal } from '../ui/Modal/ConfirmModal';
 
 interface AlertOptions {
   title: string;
@@ -13,107 +13,124 @@ interface AlertOptions {
   isConfirm?: boolean;
   icon?: keyof typeof MaterialIcons.glyphMap;
   iconColor?: string;
+  type?: 'success' | 'error' | 'warning' | 'info';
+  confirmVariant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+}
+
+interface AlertExtraOptions {
+  type?: 'success' | 'error' | 'warning' | 'info';
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  iconColor?: string;
+  confirmText?: string;
+}
+
+interface ConfirmExtraOptions {
+  type?: 'success' | 'error' | 'warning' | 'info';
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  iconColor?: string;
   confirmVariant?: 'primary' | 'secondary' | 'outline' | 'ghost';
 }
 
 interface AlertContextType {
   showAlert: (
-    title: string, 
-    message: string, 
+    title: string,
+    message: string,
     onConfirm?: () => void,
-    options?: {
-      icon?: keyof typeof MaterialIcons.glyphMap;
-      iconColor?: string;
-      confirmText?: string;
-    }
+    options?: AlertExtraOptions
   ) => void;
   showConfirm: (
-    title: string, 
-    message: string, 
-    onConfirm: () => void, 
-    onCancel?: () => void, 
-    confirmText?: string, 
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    confirmText?: string,
     cancelText?: string,
-    options?: {
-      icon?: keyof typeof MaterialIcons.glyphMap;
-      iconColor?: string;
-      confirmVariant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-    }
+    options?: ConfirmExtraOptions
   ) => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
-const getAutoIconConfig = (title: string, isConfirm?: boolean) => {
-  const lowerTitle = (title || '').toLowerCase();
-  if (lowerTitle.includes('lỗi') || lowerTitle.includes('thất bại') || lowerTitle.includes('error') || lowerTitle.includes('cần cấp quyền')) {
-    return { icon: 'error-outline' as const, iconColor: '#DC2626' };
-  }
-  if (lowerTitle.includes('cảnh báo') || lowerTitle.includes('chú ý') || lowerTitle.includes('warning')) {
-    return { icon: 'warning-amber' as const, iconColor: '#F59E0B' };
-  }
-  if (lowerTitle.includes('thành công') || lowerTitle.includes('hoàn tất') || lowerTitle.includes('success')) {
-    return { icon: 'check-circle-outline' as const, iconColor: '#059669' };
-  }
-  if (isConfirm) {
-    return { icon: 'help-outline' as const, iconColor: '#064E3B' };
-  }
-  return { icon: 'info-outline' as const, iconColor: '#064E3B' };
-};
-
 export const AlertProvider = ({ children }: { children: ReactNode }) => {
   const [visible, setVisible] = useState(false);
   const [alertData, setAlertData] = useState<AlertOptions>({ title: '', message: '' });
 
-  const showAlert = (
-    title: string, 
-    message: string, 
-    onConfirm?: () => void,
-    options?: {
-      icon?: keyof typeof MaterialIcons.glyphMap;
-      iconColor?: string;
-      confirmText?: string;
+  const getSmartIcon = (opts: AlertOptions): { icon: keyof typeof MaterialIcons.glyphMap; color: string } => {
+    if (opts.icon && opts.iconColor) {
+      return { icon: opts.icon, color: opts.iconColor };
     }
+    const t = opts.type;
+    const lowerTitle = (opts.title || '').toLowerCase();
+
+    if (t === 'success' || lowerTitle.includes('thành công') || lowerTitle.includes('hoàn tất')) {
+      return { icon: 'check-circle', color: '#10B981' };
+    }
+    if (
+      t === 'error' ||
+      lowerTitle.includes('lỗi') ||
+      lowerTitle.includes('thất bại') ||
+      lowerTitle.includes('không thể') ||
+      lowerTitle.includes('hết hạn') ||
+      lowerTitle.includes('cần cấp quyền')
+    ) {
+      return { icon: 'error-outline', color: '#EF4444' };
+    }
+    if (
+      t === 'warning' ||
+      lowerTitle.includes('cảnh báo') ||
+      lowerTitle.includes('chú ý') ||
+      lowerTitle.includes('lưu ý') ||
+      lowerTitle.includes('chưa đến')
+    ) {
+      return { icon: 'warning-amber', color: '#F59E0B' };
+    }
+    if (opts.isConfirm) {
+      return { icon: 'help-outline', color: '#064E3B' };
+    }
+    return { icon: 'info-outline', color: '#064E3B' };
+  };
+
+  const showAlert = (
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+    options?: AlertExtraOptions
   ) => {
-    const autoCfg = getAutoIconConfig(title, false);
-    setAlertData({ 
-      title, 
-      message, 
-      onConfirm, 
-      isConfirm: false, 
+    setAlertData({
+      title,
+      message,
+      onConfirm,
+      isConfirm: false,
       confirmText: options?.confirmText || 'Đóng',
-      icon: options?.icon || autoCfg.icon,
-      iconColor: options?.iconColor || autoCfg.iconColor,
-      confirmVariant: 'primary'
+      type: options?.type,
+      icon: options?.icon,
+      iconColor: options?.iconColor,
+      confirmVariant: 'primary',
     });
     setVisible(true);
   };
 
   const showConfirm = (
-    title: string, 
-    message: string, 
-    onConfirm: () => void, 
-    onCancel?: () => void, 
-    confirmText = 'Xác nhận', 
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    confirmText = 'Xác nhận',
     cancelText = 'Hủy',
-    options?: {
-      icon?: keyof typeof MaterialIcons.glyphMap;
-      iconColor?: string;
-      confirmVariant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-    }
+    options?: ConfirmExtraOptions
   ) => {
-    const autoCfg = getAutoIconConfig(title, true);
-    setAlertData({ 
-      title, 
-      message, 
-      onConfirm, 
-      onCancel, 
-      confirmText, 
-      cancelText, 
+    setAlertData({
+      title,
+      message,
+      onConfirm,
+      onCancel,
+      confirmText,
+      cancelText,
       isConfirm: true,
-      icon: options?.icon || autoCfg.icon,
-      iconColor: options?.iconColor || autoCfg.iconColor,
-      confirmVariant: options?.confirmVariant || 'primary'
+      type: options?.type,
+      icon: options?.icon,
+      iconColor: options?.iconColor,
+      confirmVariant: options?.confirmVariant || 'primary',
     });
     setVisible(true);
   };
@@ -132,6 +149,8 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const { icon, color } = getSmartIcon(alertData);
+
   return (
     <AlertContext.Provider value={{ showAlert, showConfirm }}>
       {children}
@@ -141,11 +160,11 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
         message={alertData.message}
         onConfirm={handleConfirm}
         onCancel={alertData.isConfirm ? handleCancel : undefined}
-        confirmText={alertData.confirmText || "Đóng"}
+        confirmText={alertData.confirmText || 'Đóng'}
         cancelText={alertData.cancelText}
         confirmVariant={alertData.confirmVariant || 'primary'}
-        icon={alertData.icon}
-        iconColor={alertData.iconColor}
+        icon={icon}
+        iconColor={color}
       />
     </AlertContext.Provider>
   );
@@ -182,4 +201,3 @@ export const useAlert = () => {
   }
   return context;
 };
-

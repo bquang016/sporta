@@ -71,22 +71,12 @@ export const TransactionHistoryTable: React.FC<Props> = ({ transactions, loading
               
               <div className="text-right">
                 <p className={`text-base font-black ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
-                  {isPositive ? '+' : ''}{txn.formattedAmount}
+                  {isPositive ? '+' : ''}{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.abs(txn.amount))}
                 </p>
                 <div className="flex items-center justify-end gap-1.5 mt-1">
-                  {txn.status === 'COMPLETED' ? (
-                    <CheckCircle size={14} className="text-emerald-500" />
-                  ) : txn.status === 'PENDING' ? (
-                    <Clock size={14} className="text-yellow-500" />
-                  ) : (
-                    <XCircle size={14} className="text-red-500" />
-                  )}
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${
-                    txn.status === 'COMPLETED' ? 'text-emerald-600' : 
-                    txn.status === 'PENDING' ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
-                    {txn.status === 'COMPLETED' ? 'Thành công' : 
-                     txn.status === 'PENDING' ? 'Đang xử lý' : 'Thất bại'}
+                  <CheckCircle size={14} className="text-emerald-500" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">
+                    Thành công
                   </span>
                 </div>
               </div>

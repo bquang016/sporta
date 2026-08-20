@@ -70,6 +70,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 email, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
                         );
                         SecurityContextHolder.getContext().setAuthentication(authentication);
+                        request.setAttribute("userId", user.getId());
+                        request.setAttribute("userEmail", email);
                     }
                 }
             }

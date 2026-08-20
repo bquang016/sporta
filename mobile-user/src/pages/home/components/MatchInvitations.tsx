@@ -11,29 +11,41 @@ export function MatchInvitations() {
 
   return (
     <View style={styles.section}>
+      {/* ── Section Header ── */}
       <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Ghép kèo nhanh</Text>
-          <View style={styles.liveDot} />
+        <View style={styles.titleRow}>
+          <View style={styles.titleIconBox}>
+            <MaterialIcons name="groups" size={17} color={COLORS.primary} />
+          </View>
+          <View>
+            <View style={styles.titleWithBadge}>
+              <Text style={styles.sectionTitle}>Ghép Kèo Thể Thao</Text>
+              <View style={styles.liveBadge}>
+                <View style={styles.livePulseDot} />
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
+            </View>
+            <Text style={styles.sectionSub}>
+              🔥 {rooms.length} trận đấu tìm đối thủ đang diễn ra!
+            </Text>
+          </View>
         </View>
+
         <TouchableOpacity
           onPress={() => router.push('/matchmaking' as any)}
-          style={styles.seeMoreButton}
-          activeOpacity={0.7}
+          style={styles.seeAllButton}
+          activeOpacity={0.75}
         >
-          <Text style={styles.seeMoreText}>Tất cả</Text>
-          <MaterialIcons name="arrow-forward" size={14} color={COLORS.primary} />
+          <Text style={styles.seeAllText}>Xem tất cả</Text>
+          <MaterialIcons name="chevron-right" size={14} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionSubtitle}>
-        🔥 {rooms.length} trận đấu tìm đối thủ đang diễn ra!
-      </Text>
-
+      {/* ── Horizontal Rooms List ── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.invitationScroll}
+        contentContainerStyle={styles.scrollList}
         decelerationRate="fast"
       >
         {rooms.map((room) => {
@@ -109,48 +121,83 @@ export function MatchInvitations() {
 
 const styles = StyleSheet.create({
   section: {
-    gap: SPACING.base,
-    marginVertical: SPACING.xs,
+    gap: SPACING.xs + 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  sectionTitleRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.base,
+    gap: 8,
+  },
+  titleIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: COLORS.surfaceContainerLow,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  titleWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   sectionTitle: {
     ...TYPOGRAPHY.headlineLgMobile,
     color: COLORS.onSurface,
-    fontWeight: '800',
+    fontWeight: '900',
+    fontSize: 16,
+    letterSpacing: -0.3,
   },
-  sectionSubtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: '#10B981',
-  },
-  seeMoreButton: {
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
   },
-  seeMoreText: {
+  livePulseDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#EF4444',
+  },
+  liveText: {
+    color: '#EF4444',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  sectionSub: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  seeAllText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 11.5,
   },
-  invitationScroll: {
+  scrollList: {
     gap: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 4,
   },
   cardContainer: {
     width: 215,

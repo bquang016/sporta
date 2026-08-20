@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { useQueryClient } from '@tanstack/react-query';
 import { useFacilities } from '../../../entities/facility';
 import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { clubStore } from '../../../entities/club';
@@ -10,11 +11,20 @@ import { getBaseUrl } from '../../../shared/api/config';
 
 export function useHomeScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { showAlert, showConfirm } = useAlert();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const {
+    facilities,
+    loading: facilitiesLoading,
+    error: facilitiesError,
+    refetch: refetchFacilities,
+  } = useFacilities();
+
   const {
     sessions: ticketSessions,
     loading: ticketSessionsLoading,
@@ -32,9 +42,9 @@ export function useHomeScreen() {
         name = localStorage.getItem('userName') || '';
         avatar = localStorage.getItem('userAvatar') || '';
       } else {
-        token = await SecureStore.getItemAsync('accessToken') || '';
-        name = await SecureStore.getItemAsync('userName') || '';
-        avatar = await SecureStore.getItemAsync('userAvatar') || '';
+        token = (await SecureStore.getItemAsync('accessToken')) || '';
+        name = (await SecureStore.getItemAsync('userName')) || '';
+        avatar = (await SecureStore.getItemAsync('userAvatar')) || '';
       }
 
       if (token) {
@@ -44,9 +54,9 @@ export function useHomeScreen() {
 
         try {
           const response = await fetch(`${getBaseUrl()}/auth/ping`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
           });
-          
+
           if (response.status === 403) {
             const errorData = await response.json().catch(() => ({}));
             if (errorData.message && errorData.message.includes('đã bị khóa')) {
@@ -108,7 +118,6 @@ export function useHomeScreen() {
             console.log('Profile sync on Home warning:', profileErr);
           }
         } catch (e) {
-          // Tránh xóa token khi gặp lỗi mạng (ví dụ mất kết nối tạm thời)
           console.log('checkAuth ping network error, keeping local session');
         }
       } else {
@@ -129,6 +138,24 @@ export function useHomeScreen() {
       refetchTicketSessions();
     }, [refetchTicketSessions])
   );
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.allSettled([
+        checkAuth(),
+        refetchFacilities(),
+        refetchTicketSessions(),
+        queryClient.invalidateQueries({ queryKey: ['systemVoucherBanners'] }),
+        queryClient.invalidateQueries({ queryKey: ['wallet_balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['myVouchers'] }),
+      ]);
+    } catch (e) {
+      console.log('Error refreshing home screen:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleFacilityPress = (id: string) => router.push(`/booking/${id}`);
   const handleLoginPress = () => router.push('/(auth)/login');
@@ -190,6 +217,8 @@ export function useHomeScreen() {
     ticketSessions,
     ticketSessionsLoading,
     ticketSessionsError,
+    refreshing,
+    onRefresh,
     handleFacilityPress,
     handleLoginPress,
     handleRegisterPress,

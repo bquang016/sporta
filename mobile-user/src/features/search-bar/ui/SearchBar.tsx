@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface SearchBarProps {
   value?: string;
   onChangeText?: (text: string) => void;
   onFilterPress?: () => void;
-  onPress?: () => void; // Nếu có onPress, nó sẽ tự hiểu là nút bấm
+  onPress?: () => void;
   autoFocus?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  hasActiveFilter?: boolean;
+  placeholder?: string;
 }
 
 export function SearchBar({
@@ -20,13 +22,11 @@ export function SearchBar({
   onPress,
   autoFocus = false,
   onFocus,
-  onBlur
+  onBlur,
+  hasActiveFilter = false,
+  placeholder = 'Tìm sân bóng, kèo đấu, câu lạc bộ...',
 }: SearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
-
-  const borderStyle = {
-    borderColor: isFocused ? COLORS.primary : 'transparent',
-  };
 
   const handleFocus = () => {
     setIsFocused(true);
@@ -40,37 +40,57 @@ export function SearchBar({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.searchContainer, borderStyle]}>
-
-        {/* VÙNG NHẬP LIỆU (HOẶC NÚT BẤM) */}
+      <View
+        style={[
+          styles.searchBarBox,
+          isFocused && styles.searchBarBoxFocused,
+        ]}
+      >
+        {/* Search Touch / Input Area */}
         <TouchableOpacity
           style={styles.inputTouchArea}
-          activeOpacity={onPress ? 0.8 : 1}
+          activeOpacity={onPress ? 0.78 : 1}
           onPress={onPress}
         >
-          <MaterialIcons name="search" size={24} color={COLORS.outline} style={styles.searchIcon} />
+          <View style={styles.searchIconCircle}>
+            <Ionicons
+              name="search"
+              size={17}
+              color={isFocused ? COLORS.primary : COLORS.onSurfaceVariant}
+            />
+          </View>
 
-          {/* Khóa pointerEvents nếu đang làm nút bấm để TouchableOpacity nhận sự kiện */}
           <View style={styles.inputWrapper} pointerEvents={onPress ? 'none' : 'auto'}>
             <TextInput
               style={styles.input}
-              placeholder="Tìm sân, trận đấu hoặc câu lạc bộ..."
-              placeholderTextColor={COLORS.outlineVariant}
+              placeholder={placeholder}
+              placeholderTextColor={COLORS.outline}
               value={value}
               onChangeText={onChangeText}
               autoFocus={autoFocus}
-              editable={!onPress} // Khóa không cho nhập nếu đây là nút bấm (ở Home)
+              editable={!onPress}
               onFocus={handleFocus}
               onBlur={handleBlur}
             />
           </View>
         </TouchableOpacity>
 
-        {/* NÚT FILTER SONG SONG */}
-        <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.8}>
-          <MaterialIcons name="tune" size={20} color={COLORS.white} />
-        </TouchableOpacity>
+        {/* Divider */}
+        <View style={styles.verticalDivider} />
 
+        {/* Filter Trigger Button */}
+        <TouchableOpacity
+          style={[styles.filterBtn, hasActiveFilter && styles.filterBtnActive]}
+          onPress={onFilterPress}
+          activeOpacity={0.75}
+        >
+          <Ionicons
+            name="options-outline"
+            size={18}
+            color={hasActiveFilter ? '#003527' : COLORS.onSurface}
+          />
+          {hasActiveFilter && <View style={styles.filterActiveDot} />}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -78,17 +98,27 @@ export function SearchBar({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: SPACING.xs,
+    width: '100%',
   },
-  searchContainer: {
+  searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surfaceContainerLow,
-    borderWidth: 1.5,
+    borderWidth: 1.2,
+    borderColor: COLORS.surfaceContainerHigh,
     borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.sm,
+    paddingLeft: SPACING.xs,
+    paddingRight: SPACING.xs,
     height: 48,
-    position: 'relative',
+  },
+  searchBarBoxFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   inputTouchArea: {
     flex: 1,
@@ -96,31 +126,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: '100%',
   },
-  searchIcon: {
-    marginRight: SPACING.sm,
+  searchIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
   },
   inputWrapper: {
     flex: 1,
     height: '100%',
+    justifyContent: 'center',
   },
   input: {
-    flex: 1,
-    height: '100%',
     ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurface,
-    paddingRight: 48, // Chừa chỗ cho nút filter
+    fontSize: 13.5,
+    fontWeight: '500',
     ...Platform.select({
       web: { outlineStyle: 'none' } as any,
     }),
   },
-  filterButton: {
-    position: 'absolute',
-    right: 4,
-    width: 40,
-    height: 40,
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.full,
+  verticalDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: COLORS.outlineVariant,
+    marginHorizontal: 4,
+    opacity: 0.6,
+  },
+  filterBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    backgroundColor: 'transparent',
+  },
+  filterBtnActive: {
+    backgroundColor: COLORS.secondary,
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#EF4444',
   },
 });
