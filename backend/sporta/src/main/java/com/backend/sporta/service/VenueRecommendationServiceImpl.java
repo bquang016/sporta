@@ -4,7 +4,6 @@ import com.backend.sporta.config.RecommendationProperties;
 import com.backend.sporta.dto.RecommendedVenueResponse;
 import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.ApprovalStatus;
-import com.backend.sporta.enums.BookingStatus;
 import com.backend.sporta.enums.VenueStatus;
 import com.backend.sporta.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -55,13 +54,24 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
         // Analyze user preferences
         UserPreferenceProfile profile = analyzeUserPreferences(userBookings);
 
-        // 2. Candidate Filtering with Progressive Radius Expansion
+        // 2. Candidate Filtering with Progressive Radius Expansion (incorporating filterSportId at all stages)
         List<Venue> candidates = fetchCandidateVenues(latitude, longitude, filterSportId, targetLimit);
         if (candidates.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 3. Compute Price Range across candidates
+        // 3. Batch compute prices & confirmed booking counts ONLY for candidates (Avoid N+1 and findAll)
+        List<UUID> candidateIds = candidates.stream().map(Venue::getId).collect(Collectors.toList());
+        Map<UUID, Long> bookingCountMap = new HashMap<>();
+        List<Object[]> bookingCounts = venueRepository.countConfirmedBookingsByVenueIds(candidateIds);
+        if (bookingCounts != null) {
+            for (Object[] row : bookingCounts) {
+                if (row.length >= 2 && row[0] != null && row[1] != null) {
+                    bookingCountMap.put((UUID) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        }
+
         double candidateMinPrice = Double.MAX_VALUE;
         double candidateMaxPrice = 0.0;
         Map<UUID, Double> venueAvgPriceMap = new HashMap<>();
@@ -109,18 +119,10 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
 
         // 5. Score candidates
         List<ScoredVenue> scoredVenues = new ArrayList<>();
-        Map<UUID, Long> bookingCountPerVenue = venueRepository.findAll().stream().collect(Collectors.toMap(
-                Venue::getId,
-                v -> {
-                    Long c = venueRepository.countConfirmedBookingsByVenueId(v.getId());
-                    return c != null ? c : 0L;
-                },
-                (a, b) -> a
-        ));
 
         for (Venue v : candidates) {
             Double distKm = null;
-            double sDist = 0.5;
+            double sDist = 0.0;
             if (hasGps && v.getLatitude() != null && v.getLongitude() != null) {
                 distKm = calculateHaversineDistance(latitude, longitude, v.getLatitude(), v.getLongitude());
                 sDist = calculateGaussianDistanceScore(distKm, properties.getParameters().getSigmaKm());
@@ -129,7 +131,9 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
             Long venueSportId = (v.getSport() != null) ? v.getSport().getId() : null;
             double sMatch = calculateSportMatchScore(venueSportId, profile.primarySportId, profile.secondarySportIds);
             double sPrice = calculatePriceAffinityScore(venueAvgPriceMap.get(v.getId()), profile.avgPrice, priceRange);
-            double sPop = calculatePopularityScore(4.8, bookingCountPerVenue.getOrDefault(v.getId(), 0L));
+
+            // Popularity score based on bookings & standard rating benchmark
+            double sPop = calculatePopularityScore(4.8, bookingCountMap.getOrDefault(v.getId(), 0L));
 
             int pastBookingsAtThisVenue = profile.venueBookingCounts.getOrDefault(v.getId(), 0);
             double sHist = calculateHistoryScore(pastBookingsAtThisVenue);
@@ -137,39 +141,48 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
             // Personalized score
             double scorePers = 100.0 * (wSport * sMatch + wDist * sDist + wPrice * sPrice + wPop * sPop + wHist * sHist);
 
-            // Cold start score
-            double scoreCold = 100.0 * (0.45 * sDist + 0.35 * sPop + 0.20 * sMatch);
+            // Cold start score (re-normalized if GPS is absent)
+            double scoreCold;
+            if (hasGps) {
+                scoreCold = 100.0 * (0.45 * sDist + 0.35 * sPop + 0.20 * sMatch);
+            } else {
+                scoreCold = 100.0 * (0.60 * sPop + 0.40 * sMatch);
+            }
 
             // Final blended score
             double finalScore = alpha * scorePers + (1.0 - alpha) * scoreCold;
             finalScore = Math.max(10.0, Math.min(99.0, Math.round(finalScore)));
 
-            // Reason tag disambiguation
+            // Reason tag disambiguation (Deterministic priority)
             String reasonType;
             String reasonTag;
             if (pastBookingsAtThisVenue >= 2) {
                 reasonType = "HISTORY";
-                reasonTag = "🔥 Sân quen • Bạn đã đặt " + pastBookingsAtThisVenue + " lần";
+                reasonTag = "Sân quen • Đã đặt " + pastBookingsAtThisVenue + " lần";
             } else {
                 double cSport = wSport * sMatch;
                 double cDist = wDist * sDist;
                 double cPrice = wPrice * sPrice;
                 double cPop = wPop * sPop;
+                double cHist = wHist * sHist;
 
-                if (cSport >= cDist && cSport >= cPrice && cSport >= cPop && sMatch >= 0.9) {
+                if (cHist > cSport && cHist > cDist && cHist > cPrice && cHist > cPop && pastBookingsAtThisVenue == 1) {
+                    reasonType = "HISTORY";
+                    reasonTag = "Sân bạn đã từng trải nghiệm";
+                } else if (cSport >= cDist && cSport >= cPrice && cSport >= cPop && sMatch >= 0.9) {
                     reasonType = "SPORT";
                     reasonTag = (v.getSport() != null)
-                            ? "✨ Phù hợp môn " + v.getSport().getName() + " bạn yêu thích"
-                            : "✨ Môn bạn chơi nhiều nhất";
-                } else if (cDist >= cSport && cDist >= cPrice && cDist >= cPop && distKm != null && distKm <= 3.5) {
+                            ? "Phù hợp môn " + v.getSport().getName() + " yêu thích"
+                            : "Môn bạn chơi nhiều nhất";
+                } else if (cDist >= cSport && cDist >= cPrice && cDist >= cPop && distKm != null && distKm <= 2.5) {
                     reasonType = "DISTANCE";
-                    reasonTag = String.format("📍 Cách bạn chỉ %.1f km", distKm);
+                    reasonTag = String.format("Cách vị trí của bạn %.1f km", distKm);
                 } else if (cPrice >= cSport && cPrice >= cDist && cPrice >= cPop && sPrice >= 0.85) {
                     reasonType = "PRICE";
-                    reasonTag = "🏷️ Giá tốt trong tầm quen thuộc";
+                    reasonTag = "Mức giá phù hợp thói quen";
                 } else {
                     reasonType = "POPULARITY";
-                    reasonTag = "⭐ Sân bóng được đánh giá cao";
+                    reasonTag = "Sân thể thao nhiều người yêu thích";
                 }
             }
 
@@ -225,7 +238,7 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
 
             responseList.add(dto);
 
-            // Log impression asynchronously or directly
+            // Log impression
             try {
                 RecommendationLog logEntry = RecommendationLog.builder()
                         .userId(currentUser != null ? currentUser.getId() : null)
@@ -299,7 +312,6 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
 
         double ctr = (impressions > 0) ? ((double) clicks / impressions) * 100.0 : 0.0;
 
-        // Precision@3 & Precision@6
         long top3Impressions = logs.stream().filter(l -> l.getPositionIndex() != null && l.getPositionIndex() < 3).count();
         long top3Interactions = logs.stream().filter(l -> l.getPositionIndex() != null && l.getPositionIndex() < 3 && (l.getClicked() || l.getBooked())).count();
         double pAt3 = (top3Impressions > 0) ? ((double) top3Interactions / top3Impressions) * 100.0 : 0.0;
@@ -367,7 +379,7 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
     }
 
     public double calculatePopularityScore(Double rating, Long bookingCount) {
-        double r = (rating != null && rating > 0) ? Math.min(5.0, rating) : 4.8;
+        double r = (rating != null && rating > 0.0) ? Math.min(5.0, Math.max(1.0, rating)) : 4.5;
         double b = (bookingCount != null && bookingCount > 0) ? bookingCount : 0.0;
         double ratingPart = 0.6 * (r / 5.0);
         double bookingPart = 0.4 * Math.min(1.0, Math.log(1.0 + b) / Math.log(101.0));
@@ -395,32 +407,36 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
     private List<Venue> fetchCandidateVenues(Double latitude, Double longitude, Long filterSportId, int targetLimit) {
         List<Venue> candidates = new ArrayList<>();
         if (latitude != null && longitude != null) {
-            // Step 1: 15km
+            // Step 1: initial radius (15km) WITH sport filter
             double[] box1 = calculateBoundingBox(latitude, longitude, properties.getParameters().getInitialRadiusKm());
-            candidates = venueRepository.findInBoundingBox(VenueStatus.ACTIVE, ApprovalStatus.APPROVED, box1[0], box1[1], box1[2], box1[3]);
+            candidates = venueRepository.findInBoundingBox(
+                    VenueStatus.ACTIVE, ApprovalStatus.APPROVED, filterSportId,
+                    box1[0], box1[1], box1[2], box1[3]
+            );
 
-            // Step 2: If < targetLimit, expand to 30km
+            // Step 2: If candidates < targetLimit, expand radius to 30km WITH sport filter
             if (candidates.size() < targetLimit) {
                 double[] box2 = calculateBoundingBox(latitude, longitude, properties.getParameters().getExpandedRadiusKm());
-                candidates = venueRepository.findInBoundingBox(VenueStatus.ACTIVE, ApprovalStatus.APPROVED, box2[0], box2[1], box2[2], box2[3]);
+                candidates = venueRepository.findInBoundingBox(
+                        VenueStatus.ACTIVE, ApprovalStatus.APPROVED, filterSportId,
+                        box2[0], box2[1], box2[2], box2[3]
+                );
             }
         }
 
-        // Step 3: If still < targetLimit, fetch all active approved venues
+        // Step 3: If still < targetLimit, fetch all active approved venues (filtered by sport)
         if (candidates.size() < targetLimit) {
-            List<Venue> allActive = venueRepository.findByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.APPROVED);
+            List<Venue> allActive;
+            if (filterSportId != null) {
+                allActive = venueRepository.findByStatusAndApprovalStatusAndSportId(VenueStatus.ACTIVE, ApprovalStatus.APPROVED, filterSportId);
+            } else {
+                allActive = venueRepository.findByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.APPROVED);
+            }
             for (Venue v : allActive) {
                 if (!candidates.contains(v)) {
                     candidates.add(v);
                 }
             }
-        }
-
-        // Filter by sport if explicitly requested
-        if (filterSportId != null) {
-            candidates = candidates.stream()
-                    .filter(v -> v.getSport() != null && v.getSport().getId().equals(filterSportId))
-                    .collect(Collectors.toList());
         }
 
         return candidates;

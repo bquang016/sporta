@@ -6,15 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions,
 } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { RecommendedVenue } from '../../../entities/facility';
 import { recordRecommendationClick } from '../../../entities/facility/api/facilityApi';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(270, width * 0.72);
 
 export interface PersonalizedRecommendationsProps {
   venues: RecommendedVenue[];
@@ -36,12 +33,12 @@ export function PersonalizedRecommendations({
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleRow}>
-            <View style={styles.aiIconBadge}>
-              <MaterialIcons name="auto-awesome" size={17} color="#FFFFFF" />
+            <View style={styles.titleIconBox}>
+              <Ionicons name="sparkles" size={16} color={COLORS.primary} />
             </View>
             <View>
-              <Text style={styles.sectionTitle}>Gợi Ý Dành Riêng Cho Bạn</Text>
-              <Text style={styles.sectionSub}>AI phân tích thói quen & vị trí của bạn</Text>
+              <Text style={styles.sectionTitle}>Gợi Ý Cho Bạn</Text>
+              <Text style={styles.sectionSub}>Đang phân tích sở thích & vị trí...</Text>
             </View>
           </View>
         </View>
@@ -60,53 +57,84 @@ export function PersonalizedRecommendations({
   }
 
   if (error || !venues || venues.length === 0) {
-    return null; // Không hiển thị nếu không có dữ liệu để giữ Home luôn sạch đẹp
+    return null;
   }
 
   const handleCardPress = (venue: RecommendedVenue) => {
-    // Record impression click metric asynchronously
-    try {
-      recordRecommendationClick(venue.id);
-    } catch (_) {}
+    recordRecommendationClick(venue.id).catch(() => {});
     onVenuePress(venue.id);
   };
 
   const formatPrice = (price?: number | null) => {
-    if (!price || price <= 0) return 'Đang cập nhật';
-    return `${price.toLocaleString('vi-VN')}đ/h`;
+    if (!price || price <= 0) return 'Liên hệ';
+    return `${price.toLocaleString('vi-VN')}đ`;
   };
 
-  const getReasonBadgeStyle = (reasonType?: string) => {
+  const getReasonConfig = (reasonType?: string) => {
     switch (reasonType) {
       case 'HISTORY':
-        return { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', icon: 'whatshot' };
+        return {
+          icon: 'history' as const,
+          color: '#991B1B',
+          bg: '#FEF2F2',
+          border: '#FEE2E2',
+        };
       case 'SPORT':
-        return { bg: '#F0FDF4', border: '#BBF7D0', text: '#16A34A', icon: 'sports-soccer' };
+        return {
+          icon: 'sports-soccer' as const,
+          color: '#065F46',
+          bg: '#ECFDF5',
+          border: '#D1FAE5',
+        };
       case 'DISTANCE':
-        return { bg: '#EFF6FF', border: '#BFDBFE', text: '#2563EB', icon: 'near-me' };
+        return {
+          icon: 'near-me' as const,
+          color: '#1D4ED8',
+          bg: '#EFF6FF',
+          border: '#DBEAFE',
+        };
       case 'PRICE':
-        return { bg: '#FFFBEB', border: '#FDE68A', text: '#D97706', icon: 'local-offer' };
+        return {
+          icon: 'local-offer' as const,
+          color: '#92400E',
+          bg: '#FFFBEB',
+          border: '#FEF3C7',
+        };
+      case 'POPULARITY':
       default:
-        return { bg: '#F8FAFC', border: '#E2E8F0', text: '#475569', icon: 'star' };
+        return {
+          icon: 'local-fire-department' as const,
+          color: '#374151',
+          bg: '#F3F4F6',
+          border: '#E5E7EB',
+        };
     }
+  };
+
+  const cleanReasonText = (text?: string) => {
+    if (!text) return 'Sân thể thao chất lượng cao';
+    return text
+      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '')
+      .trim();
   };
 
   return (
     <View style={styles.section}>
-      {/* Header */}
+      {/* ── Section Header ── */}
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
-          <View style={styles.aiIconBadge}>
-            <MaterialIcons name="auto-awesome" size={17} color="#FFFFFF" />
+          <View style={styles.titleIconBox}>
+            <Ionicons name="sparkles" size={16} color={COLORS.primary} />
           </View>
           <View>
-            <View style={styles.titleWithSparkle}>
-              <Text style={styles.sectionTitle}>Gợi Ý Dành Riêng Cho Bạn</Text>
-              <View style={styles.smartPill}>
-                <Text style={styles.smartPillText}>AI MATCH</Text>
+            <View style={styles.titleWithBadge}>
+              <Text style={styles.sectionTitle}>Gợi Ý Cho Bạn</Text>
+              <View style={styles.smartBadge}>
+                <Ionicons name="flash" size={10} color={COLORS.primary} />
+                <Text style={styles.smartBadgeText}>AI MATCH</Text>
               </View>
             </View>
-            <Text style={styles.sectionSub}>Phân tích theo môn sở trường & cự ly gần</Text>
+            <Text style={styles.sectionSub}>Đề xuất thông minh theo môn sở trường & cự ly</Text>
           </View>
         </View>
 
@@ -116,11 +144,11 @@ export function PersonalizedRecommendations({
           activeOpacity={0.75}
         >
           <Text style={styles.seeAllText}>Xem tất cả</Text>
-          <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+          <Ionicons name="chevron-forward" size={13} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* Horizontal Carousel */}
+      {/* ── Horizontal Scroll List ── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -128,84 +156,116 @@ export function PersonalizedRecommendations({
         decelerationRate="fast"
       >
         {venues.map((venue) => {
-          const badgeStyle = getReasonBadgeStyle(venue.reasonType);
-          const coverUrl = venue.coverImage || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500&auto=format&fit=crop&q=80';
+          const reasonConfig = getReasonConfig(venue.reasonType);
+          const coverUrl =
+            venue.coverImage ||
+            'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500&auto=format&fit=crop&q=80';
 
           return (
             <TouchableOpacity
               key={venue.id}
               style={styles.card}
-              activeOpacity={0.88}
+              activeOpacity={0.9}
               onPress={() => handleCardPress(venue)}
             >
-              {/* Cover Image + Badges */}
+              {/* ── Image Container ── */}
               <View style={styles.imageContainer}>
-                <Image source={{ uri: coverUrl }} style={styles.coverImage} resizeMode="cover" />
-                <View style={styles.imageOverlayGradient} />
+                <Image source={{ uri: coverUrl }} style={styles.image} resizeMode="cover" />
 
-                {/* Match Score Badge (Top Right) */}
-                <View style={styles.matchScoreBadge}>
-                  <MaterialIcons name="auto-awesome" size={12} color="#FFFFFF" />
-                  <Text style={styles.matchScoreText}>{venue.matchScore || 95}% Phù hợp</Text>
-                </View>
+                {/* Subtle Image Bottom Shadow */}
+                <LinearGradient
+                  colors={['transparent', 'rgba(0, 0, 0, 0.45)']}
+                  style={styles.imageGradient}
+                />
 
-                {/* Sport Type Badge (Top Left) */}
+                {/* Badge Top Left: Sport Name */}
                 {venue.sportName ? (
                   <View style={styles.sportBadge}>
                     <Text style={styles.sportBadgeText}>{venue.sportName}</Text>
                   </View>
                 ) : null}
+
+                {/* Badge Top Right: AI Match Score */}
+                <LinearGradient
+                  colors={['rgba(6, 78, 59, 0.95)', 'rgba(4, 120, 87, 0.92)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.matchScoreBadge}
+                >
+                  <Ionicons name="sparkles" size={10} color="#FDE047" />
+                  <Text style={styles.matchScoreText}>{venue.matchScore || 95}% Phù hợp</Text>
+                </LinearGradient>
               </View>
 
-              {/* Card Body */}
-              <View style={styles.cardBody}>
-                {/* AI Reason Tag */}
+              {/* ── Card Content ── */}
+              <View style={styles.content}>
+                {/* Reason Tag Chip (Badge tinh tế, trang nhã) */}
                 <View
                   style={[
-                    styles.reasonTagPill,
-                    { backgroundColor: badgeStyle.bg, borderColor: badgeStyle.border },
+                    styles.reasonChip,
+                    {
+                      backgroundColor: reasonConfig.bg,
+                      borderColor: reasonConfig.border,
+                    },
                   ]}
                 >
                   <MaterialIcons
-                    name={badgeStyle.icon as any}
-                    size={12}
-                    color={badgeStyle.text}
+                    name={reasonConfig.icon}
+                    size={13}
+                    color={reasonConfig.color}
                   />
                   <Text
-                    style={[styles.reasonTagText, { color: badgeStyle.text }]}
+                    style={[styles.reasonChipText, { color: reasonConfig.color }]}
                     numberOfLines={1}
                   >
-                    {venue.recommendationReason || 'Sân bóng chất lượng cao'}
+                    {cleanReasonText(venue.recommendationReason)}
                   </Text>
                 </View>
 
                 {/* Venue Name */}
-                <Text style={styles.venueName} numberOfLines={1}>
+                <Text style={styles.name} numberOfLines={1}>
                   {venue.name}
                 </Text>
 
-                {/* Location & Distance */}
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={13} color="#64748B" />
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {venue.district || venue.location || 'Hà Nội'}
-                    {venue.distanceKm != null ? ` • ${venue.distanceKm} km` : ''}
-                  </Text>
-                </View>
-
-                {/* Bottom Row: Price + Book Button */}
-                <View style={styles.cardFooter}>
-                  <View style={styles.priceCol}>
-                    <Text style={styles.priceLabel}>Giá từ</Text>
-                    <Text style={styles.priceValue}>
-                      {formatPrice(venue.minPrice)}
+                {/* Location & Distance Combined Row */}
+                <View style={styles.metaRow}>
+                  <View style={styles.locationCol}>
+                    <MaterialIcons name="location-on" size={13} color="#94A3B8" />
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {venue.district || venue.location || 'Hà Nội'}
                     </Text>
                   </View>
 
-                  <View style={styles.bookNowBtn}>
-                    <Text style={styles.bookNowText}>Đặt ngay</Text>
-                    <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                  {venue.distanceKm != null && (
+                    <View style={styles.distanceCol}>
+                      <Text style={styles.dotSeparator}>•</Text>
+                      <MaterialIcons name="near-me" size={11} color={COLORS.primary} />
+                      <Text style={styles.distanceText}>{venue.distanceKm} km</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Card Divider */}
+                <View style={styles.cardDivider} />
+
+                {/* Footer Row: Price + CTA Button */}
+                <View style={styles.footerRow}>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.priceLabel}>Giá chỉ từ</Text>
+                    <Text style={styles.price}>
+                      {formatPrice(venue.minPrice)}
+                      <Text style={styles.priceUnit}>/h</Text>
+                    </Text>
                   </View>
+
+                  <TouchableOpacity
+                    style={styles.bookButton}
+                    onPress={() => handleCardPress(venue)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.bookButtonText}>Đặt sân</Text>
+                    <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
               </View>
             </TouchableOpacity>
@@ -218,211 +278,270 @@ export function PersonalizedRecommendations({
 
 const styles = StyleSheet.create({
   section: {
-    marginVertical: SPACING.xs,
+    gap: SPACING.xs + 2,
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
-    marginBottom: SPACING.xs + 2,
+    alignItems: 'center',
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  aiIconBadge: {
+  titleIconBox: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#064E3B',
+    backgroundColor: COLORS.surfaceContainerLow,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#064E3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  titleWithSparkle: {
+  titleWithBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0F172A',
+    ...TYPOGRAPHY.headlineLgMobile,
+    color: COLORS.onSurface,
+    fontWeight: '900',
+    fontSize: 16,
+    letterSpacing: -0.3,
   },
-  smartPill: {
+  smartBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ECFDF5',
     paddingHorizontal: 6,
     paddingVertical: 1.5,
-    borderRadius: 6,
+    borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: '#A7F3D0',
+    gap: 2,
   },
-  smartPillText: {
+  smartBadgeText: {
     fontSize: 9.5,
-    fontWeight: '700',
-    color: '#059669',
+    fontWeight: '800',
+    color: '#065F46',
     letterSpacing: 0.3,
   },
   sectionSub: {
-    fontSize: 11.5,
-    color: '#64748B',
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 11,
     marginTop: 1,
   },
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
   },
   seeAllText: {
-    fontSize: 12.5,
+    ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
-    fontWeight: '500',
+    fontWeight: '800',
+    fontSize: 11.5,
   },
   scrollList: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingBottom: 6,
     gap: 12,
+    paddingVertical: 4,
   },
   card: {
-    width: CARD_WIDTH,
+    width: 242,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderRadius: 18,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.07)',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
   },
   imageContainer: {
-    width: '100%',
-    height: 125,
-    backgroundColor: '#F1F5F9',
+    height: 136,
     position: 'relative',
+    backgroundColor: COLORS.surfaceVariant,
   },
-  coverImage: {
+  image: {
     width: '100%',
     height: '100%',
   },
-  imageOverlayGradient: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.15)',
-  },
-  matchScoreBadge: {
+  imageGradient: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(6, 78, 59, 0.92)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
-    gap: 3,
-  },
-  matchScoreText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 48,
   },
   sportBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
+    top: 10,
+    left: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   sportBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 10.5,
     color: '#1E293B',
+    letterSpacing: 0.1,
   },
-  cardBody: {
-    padding: 10,
-    gap: 5,
-  },
-  reasonTagPill: {
+  matchScoreBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    gap: 3.5,
+    borderWidth: 0.6,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  matchScoreText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  content: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 6,
+  },
+  reasonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
     gap: 4,
     alignSelf: 'flex-start',
     maxWidth: '100%',
   },
-  reasonTagText: {
+  reasonChipText: {
     fontSize: 10.5,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
-  venueName: {
-    fontSize: 13.5,
-    fontWeight: '600',
+  name: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#0F172A',
+    letterSpacing: -0.2,
+    marginTop: 2,
   },
-  locationRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
+  },
+  locationCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 1,
   },
   locationText: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#64748B',
-    flex: 1,
+    fontWeight: '500',
   },
-  cardFooter: {
+  dotSeparator: {
+    fontSize: 10,
+    color: '#CBD5E1',
+    marginHorizontal: 2,
+  },
+  distanceCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    gap: 2,
   },
-  priceCol: {
-    gap: 1,
+  distanceText: {
+    fontSize: 11.5,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceContainer: {
+    flexDirection: 'column',
   },
   priceLabel: {
     fontSize: 9.5,
     color: '#94A3B8',
-    fontWeight: '400',
+    fontWeight: '500',
   },
-  priceValue: {
-    fontSize: 12,
-    fontWeight: '600',
+  price: {
+    fontSize: 14.5,
+    fontWeight: '800',
     color: COLORS.primary,
+    letterSpacing: -0.2,
   },
-  bookNowBtn: {
+  priceUnit: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  bookButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
-    borderRadius: 6,
-    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  bookNowText: {
-    fontSize: 10.5,
-    fontWeight: '600',
+  bookButtonText: {
+    fontSize: 11.5,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   skeletonCard: {
-    width: CARD_WIDTH,
-    height: 220,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 16,
+    width: 242,
+    height: 250,
+    backgroundColor: COLORS.surfaceContainerHigh,
+    borderRadius: 18,
+    opacity: 0.6,
   },
 });
+

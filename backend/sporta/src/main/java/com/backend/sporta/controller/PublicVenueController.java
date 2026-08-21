@@ -59,7 +59,7 @@ public class PublicVenueController {
     @PostMapping("/recommendations/{id}/click")
     public ResponseEntity<Void> recordRecommendationClick(@PathVariable UUID id) {
         recommendationService.recordClick(id, getCurrentUserEmail());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     /**

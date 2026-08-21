@@ -16,18 +16,21 @@ import java.util.UUID;
 public interface VenueRepository extends JpaRepository<Venue, UUID>, JpaSpecificationExecutor<Venue> {
     List<Venue> findByOwnerUserEmail(String email);
     List<Venue> findByStatusAndApprovalStatus(VenueStatus status, ApprovalStatus approvalStatus);
+    List<Venue> findByStatusAndApprovalStatusAndSportId(VenueStatus status, ApprovalStatus approvalStatus, Long sportId);
 
     @Query("SELECT v FROM Venue v WHERE v.status = :status AND v.approvalStatus = :approvalStatus " +
+           "AND (:sportId IS NULL OR v.sport.id = :sportId) " +
            "AND v.latitude BETWEEN :minLat AND :maxLat AND v.longitude BETWEEN :minLng AND :maxLng")
     List<Venue> findInBoundingBox(
             @Param("status") VenueStatus status,
             @Param("approvalStatus") ApprovalStatus approvalStatus,
+            @Param("sportId") Long sportId,
             @Param("minLat") Double minLat,
             @Param("maxLat") Double maxLat,
             @Param("minLng") Double minLng,
             @Param("maxLng") Double maxLng
     );
 
-    @Query("SELECT COUNT(b) FROM Booking b WHERE b.venue.id = :venueId AND b.status = com.backend.sporta.enums.BookingStatus.CONFIRMED")
-    Long countConfirmedBookingsByVenueId(@Param("venueId") UUID venueId);
+    @Query("SELECT b.venue.id, COUNT(b) FROM Booking b WHERE b.venue.id IN :venueIds AND b.status = com.backend.sporta.enums.BookingStatus.CONFIRMED GROUP BY b.venue.id")
+    List<Object[]> countConfirmedBookingsByVenueIds(@Param("venueIds") List<UUID> venueIds);
 }
