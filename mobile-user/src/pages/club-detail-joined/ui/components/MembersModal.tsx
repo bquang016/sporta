@@ -131,10 +131,35 @@ export function MembersModal({
                         <View style={styles.memberInfo}>
                           <Text style={styles.memberName}>{member.name}</Text>
                           <View style={styles.memberMetaRow}>
-                            <Text style={styles.memberRole}>{member.role}</Text>
-                            <Text style={styles.memberDivider}>•</Text>
+                            <View style={[
+                              styles.roleBadge,
+                              member.role === 'Trưởng câu lạc bộ' ? styles.roleBadgeLeader :
+                              member.role === 'Phó câu lạc bộ' ? styles.roleBadgeSubLeader :
+                              styles.roleBadgeMember
+                            ]}>
+                              <MaterialIcons 
+                                name={
+                                  member.role === 'Trưởng câu lạc bộ' ? 'stars' :
+                                  member.role === 'Phó câu lạc bộ' ? 'verified' : 'person'
+                                } 
+                                size={12} 
+                                color={
+                                  member.role === 'Trưởng câu lạc bộ' ? COLORS.amberStar :
+                                  member.role === 'Phó câu lạc bộ' ? '#0284c7' :
+                                  COLORS.onSurfaceVariant
+                                } 
+                              />
+                              <Text style={[
+                                styles.memberRole,
+                                member.role === 'Trưởng câu lạc bộ' ? styles.memberRoleLeader :
+                                member.role === 'Phó câu lạc bộ' ? styles.memberRoleSubLeader :
+                                styles.memberRoleMember
+                              ]}>
+                                {member.role}
+                              </Text>
+                            </View>
                             <View style={styles.memberEloContainer}>
-                              <MaterialIcons name="star" size={10} color={COLORS.amberStar} style={{ marginRight: 2 }} />
+                              <MaterialIcons name="star" size={12} color={COLORS.amberStar} style={{ marginRight: 2 }} />
                               <Text style={styles.memberElo}>{member.elo} Elo</Text>
                             </View>
                           </View>
@@ -321,8 +346,9 @@ export function MembersModal({
                       activeOpacity={0.7}
                       onPress={() => {
                         if (selectedMemberForAction && onTransferLeadership) {
-                          onTransferLeadership(selectedMemberForAction);
+                          const member = selectedMemberForAction;
                           setSelectedMemberForAction(null);
+                          onTransferLeadership(member);
                         }
                       }}
                     >
@@ -330,13 +356,48 @@ export function MembersModal({
                       <Text style={styles.optionText}>Chuyển quyền Trưởng câu lạc bộ</Text>
                     </TouchableOpacity>
 
+                    {selectedMemberForAction?.role === 'Thành viên' && onAssignSubLeader && (
+                      <TouchableOpacity 
+                        style={styles.actionOptionItem} 
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          if (selectedMemberForAction) {
+                            const member = selectedMemberForAction;
+                            setSelectedMemberForAction(null);
+                            onAssignSubLeader(member);
+                          }
+                        }}
+                      >
+                        <MaterialIcons name="military-tech" size={20} color="#0284c7" style={styles.optionIcon} />
+                        <Text style={styles.optionText}>Bổ nhiệm Phó câu lạc bộ</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {(selectedMemberForAction?.role === 'Phó câu lạc bộ' || selectedMemberForAction?.role === 'Phó nhóm') && onDemoteSubLeader && (
+                      <TouchableOpacity 
+                        style={styles.actionOptionItem} 
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          if (selectedMemberForAction) {
+                            const member = selectedMemberForAction;
+                            setSelectedMemberForAction(null);
+                            onDemoteSubLeader(member);
+                          }
+                        }}
+                      >
+                        <MaterialIcons name="remove-circle-outline" size={20} color={COLORS.amberStar} style={styles.optionIcon} />
+                        <Text style={styles.optionText}>Hạ chức Phó câu lạc bộ</Text>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity 
                       style={styles.actionOptionItem} 
                       activeOpacity={0.7}
                       onPress={() => {
                         if (selectedMemberForAction && onKickMember) {
-                          onKickMember(selectedMemberForAction);
+                          const member = selectedMemberForAction;
                           setSelectedMemberForAction(null);
+                          onKickMember(member);
                         }
                       }}
                     >
@@ -481,27 +542,59 @@ const styles = StyleSheet.create({
   memberMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    gap: SPACING.xs + 2,
+    marginTop: 4,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 3,
+  },
+  roleBadgeLeader: {
+    backgroundColor: '#fef3c7', // Gold amber background
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  roleBadgeSubLeader: {
+    backgroundColor: '#e0f2fe', // Blue sky background
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+  },
+  roleBadgeMember: {
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
   },
   memberRole: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
-    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
-  memberDivider: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
+  memberRoleLeader: {
+    color: '#b45309', // Dark amber
+  },
+  memberRoleSubLeader: {
+    color: '#0369a1', // Dark blue
+  },
+  memberRoleMember: {
     color: COLORS.onSurfaceVariant,
-    marginHorizontal: SPACING.xs + 2,
   },
   memberEloContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.secondaryOpacity10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
   },
   memberElo: {
-    ...TYPOGRAPHY.bodyMd,
+    ...TYPOGRAPHY.labelSm,
     fontSize: 11,
-    color: COLORS.onSurfaceVariant,
+    fontWeight: '700',
+    color: COLORS.onSurface,
   },
   pendingBadgeTag: {
     flexDirection: 'row',

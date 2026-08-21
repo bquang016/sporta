@@ -34,14 +34,14 @@ export function MatchmakeModal({
               <MaterialIcons name="sports-kabaddi" size={24} color={COLORS.primary} />
               <Text style={styles.sheetTitle}>Tự động chia đội ghép trận</Text>
             </View>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
+              <MaterialIcons name="close" size={22} color={COLORS.onSurface} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.matchmakeScroll} showsVerticalScrollIndicator={false}>
             <Text style={styles.matchmakeSubtitle}>
-              Hệ thống tự động xuất danh sách thành viên đăng ký "Tham gia" và chia thành 2 đội cân bằng ngẫu nhiên.
+              Hệ thống đã chọn ngẫu nhiên danh sách {teamA.length + teamB.length} thành viên biểu quyết "Tham gia" và phân bổ thành 2 đội cân đối.
             </Text>
 
             <View style={styles.teamsGrid}>
@@ -56,8 +56,10 @@ export function MatchmakeModal({
                   ) : (
                     teamA.map((member, index) => (
                       <View key={index} style={styles.teamMemberItem}>
-                        <MaterialIcons name="person" size={16} color={COLORS.primary} />
-                        <Text style={styles.teamMemberName}>{member}</Text>
+                        <View style={styles.memberNumberBadgeA}>
+                          <Text style={styles.memberNumberTextA}>{index + 1}</Text>
+                        </View>
+                        <Text style={styles.teamMemberName} numberOfLines={1}>{member}</Text>
                       </View>
                     ))
                   )}
@@ -75,31 +77,33 @@ export function MatchmakeModal({
                   ) : (
                     teamB.map((member, index) => (
                       <View key={index} style={styles.teamMemberItem}>
-                        <MaterialIcons name="person" size={16} color={COLORS.amber} />
-                        <Text style={styles.teamMemberName}>{member}</Text>
+                        <View style={styles.memberNumberBadgeB}>
+                          <Text style={styles.memberNumberTextB}>{index + 1}</Text>
+                        </View>
+                        <Text style={styles.teamMemberName} numberOfLines={1}>{member}</Text>
                       </View>
                     ))
                   )}
                 </View>
               </View>
             </View>
- 
+
             <View style={styles.matchmakeActions}>
               <TouchableOpacity
                 style={[styles.matchmakeBtn, styles.reshuffleBtn]}
                 onPress={onReshuffle}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="refresh" size={18} color={COLORS.primary} />
-                <Text style={styles.reshuffleBtnText}>Chia lại đội</Text>
+                <MaterialIcons name="refresh" size={20} color={COLORS.primary} />
+                <Text style={styles.reshuffleBtnText}>Chia lại ngẫu nhiên</Text>
               </TouchableOpacity>
- 
+
               <TouchableOpacity
                 style={[styles.matchmakeBtn, styles.confirmTeamsBtn]}
                 onPress={onConfirm}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
-                <MaterialIcons name="check" size={18} color={COLORS.white} />
+                <MaterialIcons name="check" size={20} color={COLORS.white} />
                 <Text style={styles.confirmTeamsBtnText}>Xác nhận đội hình</Text>
               </TouchableOpacity>
             </View>
@@ -109,7 +113,7 @@ export function MatchmakeModal({
     </Modal>
   );
 }
- 
+
 const styles = StyleSheet.create({
   sheetOverlay: {
     flex: 1,
@@ -118,59 +122,69 @@ const styles = StyleSheet.create({
   },
   matchmakeSheetContent: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: BORDER_RADIUS.lg,
-    borderTopRightRadius: BORDER_RADIUS.lg,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
     paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl,
-    maxHeight: '75%',
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl * 1.5,
+    maxHeight: '85%',
   },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm + 2,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.primaryOpacity10,
+    borderBottomColor: COLORS.outlineVariant,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.base,
+    gap: SPACING.xs + 2,
   },
   sheetTitle: {
-    ...TYPOGRAPHY.bodyMd,
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 17,
     fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.onSurface,
   },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   matchmakeScroll: {
-    paddingVertical: SPACING.base,
+    paddingVertical: SPACING.md,
   },
   matchmakeSubtitle: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 13,
     color: COLORS.onSurfaceVariant,
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: SPACING.md,
   },
   teamsGrid: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: SPACING.sm,
     marginBottom: SPACING.lg,
   },
   teamCard: {
     flex: 1,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: COLORS.surfaceContainerLowest || COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
     overflow: 'hidden',
   },
   teamHeaderBadgeA: {
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingVertical: SPACING.base,
+    backgroundColor: COLORS.primaryOpacity12,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.primaryOpacity15,
   },
   teamHeaderTextA: {
     ...TYPOGRAPHY.labelMd,
@@ -179,29 +193,59 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   teamHeaderBadgeB: {
-    backgroundColor: COLORS.amberOpacity10,
-    paddingVertical: SPACING.base,
+    backgroundColor: '#fef3c7',
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fde68a',
   },
   teamHeaderTextB: {
     ...TYPOGRAPHY.labelMd,
     fontWeight: '800',
     fontSize: 12,
-    color: COLORS.amber,
+    color: '#b45309',
   },
   teamMemberList: {
     padding: SPACING.sm,
-    gap: SPACING.base,
+    gap: SPACING.xs + 2,
   },
   teamMemberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs + 2,
+    gap: 6,
+  },
+  memberNumberBadgeA: {
+    width: 20,
+    height: 20,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberNumberTextA: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  memberNumberBadgeB: {
+    width: 20,
+    height: 20,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberNumberTextB: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b45309',
   },
   teamMemberName: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 13,
     color: COLORS.onSurface,
+    fontWeight: '600',
+    flex: 1,
   },
   emptyTeamText: {
     ...TYPOGRAPHY.bodyMd,
@@ -219,12 +263,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
-    borderRadius: BORDER_RADIUS.default,
-    gap: SPACING.xs + 2,
+    height: 48,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 6,
   },
   reshuffleBtn: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.primary,
     backgroundColor: COLORS.surface,
   },
@@ -232,15 +276,20 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
   },
   confirmTeamsBtn: {
     backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   confirmTeamsBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.white,
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
   },
 });

@@ -97,15 +97,17 @@ export function ClubDetailJoinedScreen() {
   const [teamB, setTeamB] = useState<string[]>([]);
   const [matchmadeTeams, setMatchmadeTeams] = useState<{ teamA: string[]; teamB: string[] } | null>(null);
 
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+
   const club = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
 
   // Determine current user role
-  const currentUserRole = club?.userStatus === 'ADMIN' ? 'Trưởng câu lạc bộ' : 'Thành viên';
+  const currentUserRole = (club?.userStatus === 'ADMIN' || (currentUserId && Number(club?.creatorId) === Number(currentUserId)))
+    ? 'Trưởng câu lạc bộ'
+    : (club?.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên');
 
   const approvedMembers = members.filter(m => m.status === 'APPROVED' || !m.status);
   const pendingMembers = members.filter(m => m.status === 'PENDING');
-
-  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
 
   // Load current user ID from JWT Token
   useEffect(() => {
@@ -171,8 +173,13 @@ export function ClubDetailJoinedScreen() {
         const virtualElo = m.elo && m.elo !== 1200 ? m.elo : (1000 + (Number(m.userId) % 300) + 150);
         
         let roleText = m.role;
-        if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') roleText = 'Trưởng câu lạc bộ';
-        else roleText = 'Thành viên';
+        if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') {
+          roleText = 'Trưởng câu lạc bộ';
+        } else if (m.role === 'Phó nhóm' || m.role === 'SUB_LEADER' || m.role === 'Phó câu lạc bộ') {
+          roleText = 'Phó câu lạc bộ';
+        } else {
+          roleText = 'Thành viên';
+        }
 
         return {
           id: m.id,
@@ -614,25 +621,75 @@ export function ClubDetailJoinedScreen() {
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
             {club.name}
           </Text>
-          <View style={styles.headerPlaceholder} />
+          {currentUserRole === 'Trưởng câu lạc bộ' ? (
+            <TouchableOpacity 
+              style={styles.editHeaderButton}
+              activeOpacity={0.8}
+              onPress={() => setIsEditModalVisible(true)}
+            >
+              <MaterialIcons name="edit" size={22} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerPlaceholder} />
+          )}
         </View>
       </SafeAreaView>
 
       {/* Main Content */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Reusable Club detail header with collapsible info accordion */}
+        {/* Reusable Club detail header */}
         <ClubDetailHeader 
           club={club} 
           hideMembersMeta={true} 
           isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
+          userRole={currentUserRole}
           onEditPress={() => setIsEditModalVisible(true)}
           showDescription={true}
         />
 
         {/* Info Section */}
         <View style={styles.infoSection}>
-          {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
-          
+          {/* Action buttons row */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={styles.rowActionBtn} 
+              activeOpacity={0.7} 
+              onPress={() => setIsInviteModalVisible(true)}
+            >
+              <MaterialIcons name="share" size={18} color={COLORS.primary} />
+              <Text style={styles.actionBtnText} numberOfLines={1}>Mời bạn</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.rowActionBtn} 
+              activeOpacity={0.7} 
+              onPress={() => setIsMembersModalVisible(true)}
+            >
+              <MaterialIcons name="people" size={18} color={COLORS.primary} />
+              <Text style={styles.actionBtnText} numberOfLines={1}>Thành viên</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.rowActionBtn} 
+              activeOpacity={0.7} 
+              onPress={() => setIsHistoryModalVisible(true)}
+            >
+              <MaterialIcons name="history" size={18} color={COLORS.primary} />
+              <Text style={styles.actionBtnText} numberOfLines={1}>Lịch sử</Text>
+            </TouchableOpacity>
+
+            {currentUserRole === 'Trưởng câu lạc bộ' && (
+              <TouchableOpacity 
+                style={[styles.rowActionBtn, styles.rowActionBtnEdit]} 
+                activeOpacity={0.7} 
+                onPress={() => setIsEditModalVisible(true)}
+              >
+                <MaterialIcons name="tune" size={18} color={COLORS.primary} />
+                <Text style={styles.actionBtnText} numberOfLines={1}>Cài đặt CLB</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
           {currentUserRole === 'Trưởng câu lạc bộ' && pendingMembers.length > 0 && (
             <TouchableOpacity 
@@ -657,36 +714,6 @@ export function ClubDetailJoinedScreen() {
               </View>
             </TouchableOpacity>
           )}
-
-          {/* Action buttons row below description */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={styles.rowActionBtn} 
-              activeOpacity={0.7} 
-              onPress={() => setIsInviteModalVisible(true)}
-            >
-              <MaterialIcons name="share" size={16} color={COLORS.primary} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Mời bạn</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.rowActionBtn} 
-              activeOpacity={0.7} 
-              onPress={() => setIsMembersModalVisible(true)}
-            >
-              <MaterialIcons name="people" size={16} color={COLORS.primary} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Thành viên</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.rowActionBtn} 
-              activeOpacity={0.7} 
-              onPress={() => setIsHistoryModalVisible(true)}
-            >
-              <MaterialIcons name="history" size={16} color={COLORS.primary} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Lịch sử đấu</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* Poll / Matchmaking Section */}
           <PollCard 
@@ -887,26 +914,35 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: SPACING.md,
-    marginTop: 0,
+    gap: SPACING.xs + 2,
+    marginBottom: SPACING.md,
   },
   rowActionBtn: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
-    borderRadius: BORDER_RADIUS.default,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.primaryOpacity15,
     backgroundColor: COLORS.surface,
-    gap: SPACING.base,
+    gap: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  rowActionBtnEdit: {
+    borderColor: '#fde68a',
+    backgroundColor: '#fefce8',
   },
   actionBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: COLORS.onSurface,
   },
   pendingBanner: {
     flexDirection: 'row',

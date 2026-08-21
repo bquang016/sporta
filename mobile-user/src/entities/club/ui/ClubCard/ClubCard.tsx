@@ -45,19 +45,10 @@ export function ClubCard({ club, onPress, style }: ClubCardProps) {
                 {club.members}/{club.maxMembers}
               </Text>
             </View>
-            {club.averageElo && (
-              <View style={styles.eloBadge}>
-                <MaterialIcons 
-                  name="star" 
-                  size={14} 
-                  color={COLORS.brandGold} 
-                  style={styles.eloIcon} 
-                />
-                <Text style={styles.infoText}>
-                  Elo: {club.averageElo}
-                </Text>
-              </View>
-            )}
+            <Badge 
+              text={club.isPrivate ? "Riêng tư" : "Công khai"} 
+              variant={club.isPrivate ? "warning" : "info"} 
+            />
           </View>
 
           {/* Row with Area */}

@@ -198,19 +198,28 @@ public class ClubMemberServiceImpl implements ClubMemberService {
     }
 
     private ClubMemberResponse mapToResponse(ClubMember member) {
-        String roleText = (member.getRole() == ClubMemberRole.ADMIN) ? "Trưởng câu lạc bộ" : "Thành viên";
+        String roleText = "Thành viên";
+        if (member.getRole() == ClubMemberRole.ADMIN) {
+            roleText = "Trưởng câu lạc bộ";
+        } else if (member.getRole() == ClubMemberRole.SUB_LEADER) {
+            roleText = "Phó câu lạc bộ";
+        }
 
         // Elo default logic for users
         Integer userElo = 1200; // Mock ELO as user profile currently has no ELO field, 1200 is default ELO.
 
+        String avatar = (member.getUser() != null && member.getUser().getAvatarUrl() != null && !member.getUser().getAvatarUrl().trim().isEmpty())
+                ? member.getUser().getAvatarUrl()
+                : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
+
         return ClubMemberResponse.builder()
                 .id(member.getId())
-                .userId(member.getUser().getId())
-                .name(member.getUser().getFullName())
+                .userId(member.getUser() != null ? member.getUser().getId() : null)
+                .name(member.getUser() != null ? member.getUser().getFullName() : "")
                 .role(roleText)
                 .elo(userElo)
-                .avatar("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80") // default placeholder avatar if null
-                .status(member.getStatus().name())
+                .avatar(avatar)
+                .status(member.getStatus() != null ? member.getStatus().name() : ClubMemberStatus.APPROVED.name())
                 .joinedAt(member.getJoinedAt() != null ? member.getJoinedAt().format(DATE_FORMATTER) : null)
                 .build();
     }

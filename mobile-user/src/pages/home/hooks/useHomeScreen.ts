@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useQueryClient } from '@tanstack/react-query';
-import { useFacilities } from '../../../entities/facility';
+import { useFacilities, Facility } from '../../../entities/facility';
 import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { clubStore } from '../../../entities/club';
 import { useAlert } from '../../../shared/contexts/AlertContext';
@@ -157,7 +157,22 @@ export function useHomeScreen() {
     }
   };
 
-  const handleFacilityPress = (id: string) => router.push(`/booking/${id}`);
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [selectedFacilityForModal, setSelectedFacilityForModal] = useState<Facility | null>(null);
+  const [isVenueModalVisible, setIsVenueModalVisible] = useState(false);
+
+  const handleFacilityPress = (id: string) => {
+    const venueIdStr = String(id);
+    const found = facilities.find(f => String(f.id) === venueIdStr) || null;
+    setSelectedVenueId(venueIdStr);
+    setSelectedFacilityForModal(found);
+    setIsVenueModalVisible(true);
+  };
+
+  const handleCloseVenueModal = () => {
+    setIsVenueModalVisible(false);
+  };
+
   const handleLoginPress = () => router.push('/(auth)/login');
   const handleRegisterPress = () => router.push('/(auth)/register');
 
@@ -220,6 +235,10 @@ export function useHomeScreen() {
     refreshing,
     onRefresh,
     handleFacilityPress,
+    selectedVenueId,
+    selectedFacilityForModal,
+    isVenueModalVisible,
+    handleCloseVenueModal,
     handleLoginPress,
     handleRegisterPress,
     handleAvatarPress,

@@ -103,8 +103,8 @@ export function ClubDetailExploreScreen() {
 
       {/* Main Content */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Reusable Club detail header with info expanded by default for explore screen */}
-        <ClubDetailHeader club={club} showDescription={true} defaultExpanded={true} />
+        {/* Reusable Club detail header */}
+        <ClubDetailHeader club={club} showDescription={true} />
       </ScrollView>
 
       {/* Sticky Bottom Footer */}
