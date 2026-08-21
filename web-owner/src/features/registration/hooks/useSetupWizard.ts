@@ -57,12 +57,25 @@ export function useSetupWizard() {
     detailImages: [],
     hasSurcharge: false,
     surchargeDescription: '',
-    cancellationPolicy: '',
-    generalRules: [],
+    freeCancellationHours: 12,
+    lateCancellationRefundRate: 70,
+    rainRescheduleAllowed: true,
   });
 
 
   const [courts, setCourts] = useState<SubCourt[]>([]);
+
+  // ── Contract & Signature ──
+  const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
+  const [isContractSigned, setIsContractSigned] = useState(false);
+  const [signatureData, setSignatureData] = useState<{ timestamp: string; ip: string } | null>(null);
+
+  // Reset signature if core info changes (Edge Case 2.3)
+  useEffect(() => {
+    setIsContractSigned(false);
+    setIsAgreedToTerms(false);
+    setSignatureData(null);
+  }, [personalInfo.fullName, personalInfo.idNumber, venueInfo.name]);
 
   // ── Step index helpers ──
   const stepIndex = SETUP_STEPS.findIndex((s) => s.key === currentStep);
@@ -99,11 +112,7 @@ export function useSetupWizard() {
           return null;
 
         case 'venue-policy':
-          if (!venueInfo.cancellationPolicy.trim()) return 'Vui lòng nhập chính sách hủy lịch.';
-          if (venueInfo.generalRules.length === 0) return 'Vui lòng thêm ít nhất một quy định sân.';
-          for (const rule of venueInfo.generalRules) {
-            if (!rule.trim()) return 'Quy định sân không được để trống.';
-          }
+          // All fields have a fallback (null), so no strict validation required
           return null;
 
         case 'review':
@@ -156,7 +165,8 @@ export function useSetupWizard() {
         registrationToken,
         personalInfo,
         venueInfo,
-        courts
+        courts,
+        signatureData
       );
 
       // Navigate back to register page with success state
@@ -169,7 +179,7 @@ export function useSetupWizard() {
     } finally {
       setIsLoading(false);
     }
-  }, [registrationToken, personalInfo, venueInfo, courts, navigate]);
+  }, [registrationToken, personalInfo, venueInfo, courts, signatureData, navigate]);
 
   return {
     // State
@@ -181,12 +191,18 @@ export function useSetupWizard() {
     personalInfo,
     venueInfo,
     courts,
+    isAgreedToTerms,
+    isContractSigned,
+    signatureData,
 
     // Setters
     setPersonalInfo,
     setVenueInfo,
     setCourts,
     setErrorMsg,
+    setIsAgreedToTerms,
+    setIsContractSigned,
+    setSignatureData,
 
     // Actions
     nextStep,

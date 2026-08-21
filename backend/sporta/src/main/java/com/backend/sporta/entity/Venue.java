@@ -87,6 +87,9 @@ public class Venue {
     @Builder.Default
     private List<VenueImage> images = new ArrayList<>();
 
+    @OneToOne(mappedBy = "venue", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private VenuePolicy venuePolicy;
+
     // TÍNH NĂNG: Phụ thu (Surcharge)
     @Column(name = "has_surcharge", nullable = false)
     @Builder.Default

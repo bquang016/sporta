@@ -14,6 +14,8 @@ import { VenueCourtsStep } from '../components/VenueCourtsStep';
 import { VenueImagesStep } from '../components/VenueImagesStep';
 import { VenuePolicyStep } from '../components/VenuePolicyStep';
 import { ReviewStep } from '../components/ReviewStep';
+import { ContractModal } from '../components/ContractModal';
+import { OtpSignatureModal } from '../components/OtpSignatureModal';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { SETUP_STEPS } from '../types';
 
@@ -24,6 +26,8 @@ export const SetupPage = () => {
   const isLastStep = wizard.stepIndex === SETUP_STEPS.length - 1;
 
   const [isSportModalOpen, setIsSportModalOpen] = useState(false);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
 
   const handleNextAction = () => {
     if (wizard.currentStep === 'venue-basic') {
@@ -189,28 +193,56 @@ export const SetupPage = () => {
 
                 {/* Next / Submit button */}
                 {isLastStep ? (
-                  <button
-                    type="button"
-                    onClick={wizard.handleSubmit}
-                    disabled={wizard.isLoading}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-yellow hover:bg-yellow-400 text-primary font-black text-xs shadow-md
-                               transition-all active:scale-[0.98] cursor-pointer
-                               disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-                  >
-                    {wizard.isLoading ? (
-                      <>
-                        <LoadingSpinner size="sm" color="primary" />
-                        <span>Đang gửi...</span>
-                      </>
-                    ) : (
-                      <>
+                  !wizard.isContractSigned ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsContractModalOpen(true)}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black text-xs shadow-md
+                                 transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span>Mở hợp đồng</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsContractModalOpen(true)}
+                        disabled={wizard.isLoading}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-sm transition-all cursor-pointer"
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <span>Hoàn tất</span>
-                      </>
-                    )}
-                  </button>
+                        <span>Xem lại Hợp đồng</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={wizard.handleSubmit}
+                        disabled={wizard.isLoading}
+                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-yellow hover:bg-yellow-400 text-primary font-black text-xs shadow-md
+                                   transition-all active:scale-[0.98] cursor-pointer
+                                   disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                      >
+                        {wizard.isLoading ? (
+                          <>
+                            <LoadingSpinner size="sm" color="primary" />
+                            <span>Đang gửi duyệt...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Gửi yêu cầu phê duyệt</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <button
                     type="button"
@@ -258,6 +290,29 @@ export const SetupPage = () => {
             venueInfo={wizard.venueInfo}
             onVenueInfoChange={wizard.setVenueInfo}
             isLoading={wizard.isLoading}
+          />
+          
+          <ContractModal
+            isOpen={isContractModalOpen}
+            onClose={() => setIsContractModalOpen(false)}
+            personalInfo={wizard.personalInfo}
+            venueInfo={wizard.venueInfo}
+            isAgreedToTerms={wizard.isAgreedToTerms}
+            setIsAgreedToTerms={wizard.setIsAgreedToTerms}
+            isContractSigned={wizard.isContractSigned}
+            signatureData={wizard.signatureData}
+            onOpenOtp={() => setIsOtpModalOpen(true)}
+          />
+          
+          <OtpSignatureModal
+            isOpen={isOtpModalOpen}
+            email={wizard.email}
+            onClose={() => setIsOtpModalOpen(false)}
+            onSuccess={(signatureData) => {
+              wizard.setIsContractSigned(true);
+              wizard.setSignatureData(signatureData);
+              setIsOtpModalOpen(false);
+            }}
           />
         </div>
       </main>

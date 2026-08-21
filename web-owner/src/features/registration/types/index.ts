@@ -32,8 +32,9 @@ export interface VenueInfo {
   hasSurcharge: boolean;
   surchargeAmount?: number;
   surchargeDescription: string;
-  cancellationPolicy: string;
-  generalRules: string[];
+  freeCancellationHours: number | null;
+  lateCancellationRefundRate: number | null;
+  rainRescheduleAllowed: boolean | null;
 }
 
 export interface CourtPriceRuleRequest {

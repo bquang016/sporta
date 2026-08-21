@@ -85,6 +85,15 @@ public class OwnerRegistration {
     @Column(name = "sub_court_count")
     private int subCourtCount;
 
+    @Column(name = "free_cancellation_hours")
+    private Integer freeCancellationHours;
+
+    @Column(name = "late_cancellation_refund_rate")
+    private Integer lateCancellationRefundRate;
+
+    @Column(name = "rain_reschedule_allowed")
+    private Boolean rainRescheduleAllowed;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
@@ -108,6 +117,17 @@ public class OwnerRegistration {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // ── Contract Signature (Temporary before approval) ──
+    @Column(name = "is_contract_signed")
+    @Builder.Default
+    private Boolean isContractSigned = false;
+
+    @Column(name = "signature_ip", columnDefinition = "VARCHAR(45)")
+    private String signatureIp;
+
+    @Column(name = "signature_timestamp")
+    private LocalDateTime signatureTimestamp;
 
     @PrePersist
     protected void onCreate() {

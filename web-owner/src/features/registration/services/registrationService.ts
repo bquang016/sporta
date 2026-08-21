@@ -68,7 +68,8 @@ export async function registerOwner(
   registrationToken: string,
   personalInfo: PersonalInfo,
   venueInfo: VenueInfo,
-  courts: SubCourt[]
+  courts: SubCourt[],
+  signatureData: { timestamp: string; ip: string } | null
 ): Promise<RegisterOwnerResponse> {
   const formData = new FormData();
 
@@ -107,8 +108,19 @@ export async function registerOwner(
   formData.append('hasSurcharge', String(venueInfo.hasSurcharge));
   if (venueInfo.surchargeAmount !== undefined) formData.append('surchargeAmount', String(venueInfo.surchargeAmount));
   if (venueInfo.surchargeDescription) formData.append('surchargeDescription', venueInfo.surchargeDescription);
+  if (venueInfo.freeCancellationHours !== null) formData.append('freeCancellationHours', String(venueInfo.freeCancellationHours));
+  if (venueInfo.lateCancellationRefundRate !== null) formData.append('lateCancellationRefundRate', String(venueInfo.lateCancellationRefundRate));
+  if (venueInfo.rainRescheduleAllowed !== null) formData.append('rainRescheduleAllowed', String(venueInfo.rainRescheduleAllowed));
+
   // Courts with pricing rules
   formData.append('courts', JSON.stringify(courts));
+
+  // Signature data
+  if (signatureData) {
+    formData.append('isContractSigned', 'true');
+    formData.append('signatureTimestamp', signatureData.timestamp);
+    formData.append('signatureIp', signatureData.ip);
+  }
 
   if (venueInfo.addressDetail) formData.append('addressDetail', venueInfo.addressDetail);
 

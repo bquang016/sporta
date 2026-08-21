@@ -4,6 +4,7 @@
 
 import React from 'react';
 import type { VenueInfo } from '../types';
+import { Dropdown } from '../../../components/ui/Dropdown';
 
 interface VenuePolicyStepProps {
   venueInfo: VenueInfo;
@@ -17,30 +18,36 @@ export const VenuePolicyStep = ({
   isLoading,
 }: VenuePolicyStepProps) => {
 
-  const addRule = () => {
-    onVenueInfoChange({
-      ...venueInfo,
-      generalRules: [...venueInfo.generalRules, ''],
-    });
+  const handleFreeCancellationChange = (val: string) => {
+    const numVal = val === '' ? null : Number(val);
+    onVenueInfoChange({ ...venueInfo, freeCancellationHours: numVal });
   };
 
-  const updateRule = (index: number, value: string) => {
-    const newRules = [...venueInfo.generalRules];
-    newRules[index] = value;
-    onVenueInfoChange({
-      ...venueInfo,
-      generalRules: newRules,
-    });
+  const handleLateRefundChange = (val: string) => {
+    const numVal = val === '' ? null : Number(val);
+    onVenueInfoChange({ ...venueInfo, lateCancellationRefundRate: numVal });
   };
 
-  const removeRule = (index: number) => {
-    const newRules = [...venueInfo.generalRules];
-    newRules.splice(index, 1);
-    onVenueInfoChange({
-      ...venueInfo,
-      generalRules: newRules,
-    });
-  };
+  const DefaultTag = (
+    <span className="text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded ml-2">
+      Mặc định
+    </span>
+  );
+
+  const freeCancellationOptions = [
+    { value: "2", label: "Trước 2 tiếng" },
+    { value: "4", label: "Trước 4 tiếng" },
+    { value: "12", label: "Trước 12 tiếng", suffix: DefaultTag },
+    { value: "24", label: "Trước 24 tiếng" }
+  ];
+
+  const refundRateOptions = [
+    { value: "0", label: "0% (Không hoàn tiền)" },
+    { value: "30", label: "30%" },
+    { value: "50", label: "50%" },
+    { value: "70", label: "70%", suffix: DefaultTag },
+    { value: "100", label: "100%" }
+  ];
 
   return (
     <div className="animate-fadeIn">
@@ -50,92 +57,67 @@ export const VenuePolicyStep = ({
           Chính sách của sân
         </h3>
         <p className="text-xs lg:text-sm text-slate-500 font-medium mt-1.5 leading-relaxed max-w-2xl">
-          Cung cấp các quy định chung và chính sách hủy lịch để người chơi nắm rõ trước khi đặt sân.
+          Cung cấp các quy định về việc hủy sân, hoàn tiền và hỗ trợ đổi lịch để bảo vệ quyền lợi của bạn và người chơi.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:gap-8">
-        {/* Cancellation Policy */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+        {/* Free Cancellation Timeframe */}
         <div className="bg-slate-50/50 rounded-2xl p-5 lg:p-6 border border-slate-200/60">
           <label className="block text-sm font-black text-slate-800 mb-2">
-            Chính sách hủy lịch <span className="text-red-500">*</span>
+            Khung giờ hủy sân miễn phí
           </label>
           <p className="text-[11px] text-slate-500 mb-4 font-medium">
-            Ví dụ: Hủy trước 24h hoàn 100%, trước 12h hoàn 50%, sau 12h không hoàn tiền.
+            Thời gian tối thiểu người chơi phải báo trước để được hủy sân mà không mất phí.
           </p>
-          <textarea
-            value={venueInfo.cancellationPolicy || ''}
-            onChange={(e) => onVenueInfoChange({ ...venueInfo, cancellationPolicy: e.target.value })}
+          <Dropdown
+            options={freeCancellationOptions}
+            value={venueInfo.freeCancellationHours === null ? '12' : String(venueInfo.freeCancellationHours)}
+            onChange={handleFreeCancellationChange}
             disabled={isLoading}
-            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder-slate-400
-                       focus:outline-none focus:border-brand-emerald focus:ring-4 focus:ring-brand-emerald/10 transition-all min-h-[100px] resize-y"
-            placeholder="Nhập chính sách hủy lịch của bạn..."
+            placeholder="Chọn thời gian"
           />
         </div>
 
-        {/* General Rules */}
+        {/* Late Cancellation Refund Rate */}
         <div className="bg-slate-50/50 rounded-2xl p-5 lg:p-6 border border-slate-200/60">
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-black text-slate-800">
-              Quy định chung <span className="text-red-500">*</span>
-            </label>
-            <button
-              type="button"
-              onClick={addRule}
-              disabled={isLoading}
-              className="text-[11px] font-black text-brand-emerald hover:bg-brand-emerald/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-              </svg>
-              Thêm quy định
-            </button>
-          </div>
+          <label className="block text-sm font-black text-slate-800 mb-2">
+            Tỷ lệ hoàn tiền khi hủy cận giờ
+          </label>
           <p className="text-[11px] text-slate-500 mb-4 font-medium">
-            Ví dụ: Không hút thuốc, bắt buộc đi giày thể thao...
+            Mức % số tiền sẽ hoàn lại cho khách nếu họ hủy sân sau khung giờ miễn phí.
           </p>
-
-          <div className="flex flex-col gap-3">
-            {venueInfo.generalRules.map((rule, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-slate-200/60 text-slate-500 flex items-center justify-center shrink-0 text-[10px] font-bold">
-                  {index + 1}
-                </div>
-                <input
-                  type="text"
-                  value={rule}
-                  onChange={(e) => updateRule(index, e.target.value)}
-                  disabled={isLoading}
-                  placeholder={`Nhập quy định thứ ${index + 1}...`}
-                  className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder-slate-400
-                             focus:outline-none focus:border-brand-emerald focus:ring-4 focus:ring-brand-emerald/10 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeRule(index)}
-                  disabled={isLoading}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-            
-            {venueInfo.generalRules.length === 0 && (
-              <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl">
-                <p className="text-xs font-semibold text-slate-400 mb-2">Chưa có quy định nào</p>
-                <button
-                  type="button"
-                  onClick={addRule}
-                  disabled={isLoading}
-                  className="text-xs font-black text-brand-emerald hover:underline"
-                >
-                  Bấm vào đây để thêm
-                </button>
-              </div>
-            )}
+          <Dropdown
+            options={refundRateOptions}
+            value={venueInfo.lateCancellationRefundRate === null ? '70' : String(venueInfo.lateCancellationRefundRate)}
+            onChange={handleLateRefundChange}
+            disabled={isLoading}
+            placeholder="Chọn tỷ lệ hoàn tiền"
+          />
+        </div>
+        
+        {/* Weather Reschedule Policy */}
+        <div className="md:col-span-2 bg-slate-50/50 rounded-2xl p-5 lg:p-6 border border-slate-200/60 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div>
+            <label className="block text-sm font-black text-slate-800 mb-1">
+              Hỗ trợ đổi lịch khi trời mưa
+            </label>
+            <p className="text-[11px] text-slate-500 font-medium max-w-xl">
+              Cho phép người chơi đổi lịch sang khung giờ khác (phụ thuộc vào tình trạng sân trống) nếu thời tiết xấu không thể thi đấu.
+            </p>
+          </div>
+          
+          <div className="shrink-0 pt-2 md:pt-0">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer"
+                checked={venueInfo.rainRescheduleAllowed ?? true}
+                onChange={(e) => onVenueInfoChange({ ...venueInfo, rainRescheduleAllowed: e.target.checked })}
+                disabled={isLoading}
+              />
+              <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-emerald/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-brand-emerald"></div>
+            </label>
           </div>
         </div>
       </div>

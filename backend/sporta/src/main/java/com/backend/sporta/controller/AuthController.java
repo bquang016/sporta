@@ -73,10 +73,16 @@ public class AuthController {
             @RequestParam("subCourtCount") int subCourtCount,
             @RequestParam(value = "description", required = false, defaultValue = "") String description,
             @RequestParam(value = "courts", required = false, defaultValue = "[]") String courts,
+            @RequestParam(value = "freeCancellationHours", required = false) Integer freeCancellationHours,
+            @RequestParam(value = "lateCancellationRefundRate", required = false) Integer lateCancellationRefundRate,
+            @RequestParam(value = "rainRescheduleAllowed", required = false) Boolean rainRescheduleAllowed,
             @RequestParam(value = "idFrontImage", required = false) org.springframework.web.multipart.MultipartFile idFrontImage,
             @RequestParam(value = "idBackImage", required = false) org.springframework.web.multipart.MultipartFile idBackImage,
-            @RequestParam(value = "coverImage", required = false) String coverImage,
-            @RequestParam(value = "registrationImages", required = false) String registrationImages) {
+            @RequestParam(required = false) String coverImage,
+            @RequestParam(required = false) String registrationImages,
+            @RequestParam(required = false) Boolean isContractSigned,
+            @RequestParam(required = false) String signatureTimestamp,
+            @RequestParam(required = false) String signatureIp) {
         
         java.time.LocalTime openingTime = openingTimeStr != null && !openingTimeStr.isEmpty() ? java.time.LocalTime.parse(openingTimeStr) : java.time.LocalTime.of(5, 0);
         java.time.LocalTime closingTime = closingTimeStr != null && !closingTimeStr.isEmpty() ? java.time.LocalTime.parse(closingTimeStr) : java.time.LocalTime.of(22, 0);
@@ -84,7 +90,7 @@ public class AuthController {
         RegisterOwnerResponse response = authService.registerOwner(
                 registrationToken, fullName, idNumber, venueName, province, 
                 district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge, surchargeAmount, surchargeDescription, latitude, longitude, subCourtCount, description,
-                courts, idFrontImage, idBackImage, coverImage, registrationImages);
+                courts, freeCancellationHours, lateCancellationRefundRate, rainRescheduleAllowed, idFrontImage, idBackImage, coverImage, registrationImages, isContractSigned, signatureTimestamp, signatureIp);
         return ResponseEntity.ok(response);
     }
 

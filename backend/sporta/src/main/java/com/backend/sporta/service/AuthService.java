@@ -72,6 +72,9 @@ public class AuthService {
     private com.backend.sporta.repository.CourtPriceRuleRepository courtPriceRuleRepository;
 
     @Autowired
+    private com.backend.sporta.repository.OwnerContractRepository ownerContractRepository;
+
+    @Autowired
     private RolePermissionRepository rolePermissionRepository;
 
     @Autowired
@@ -265,10 +268,16 @@ public class AuthService {
             int subCourtCount,
             String description,
             String courtsJson,
+            Integer freeCancellationHours,
+            Integer lateCancellationRefundRate,
+            Boolean rainRescheduleAllowed,
             org.springframework.web.multipart.MultipartFile idFrontImage,
             org.springframework.web.multipart.MultipartFile idBackImage,
             String coverImage,
-            String registrationImages) {
+            String registrationImages,
+            Boolean isContractSigned,
+            String signatureTimestamp,
+            String signatureIp) {
 
         // 1. Validate registration token
         if (!jwtTokenProvider.validateToken(registrationToken)) {
@@ -323,6 +332,12 @@ public class AuthService {
                 .coverImage(coverImage)
                 .registrationImages(registrationImages)
                 .courtsJson(courtsJson)
+                .freeCancellationHours(freeCancellationHours)
+                .lateCancellationRefundRate(lateCancellationRefundRate)
+                .rainRescheduleAllowed(rainRescheduleAllowed)
+                .isContractSigned(isContractSigned != null ? isContractSigned : false)
+                .signatureIp(signatureIp)
+                .signatureTimestamp(signatureTimestamp != null ? java.time.LocalDateTime.parse(signatureTimestamp.replace("Z", "")) : null)
                 .status(RegistrationStatus.PENDING)
                 .build();
 
@@ -432,6 +447,14 @@ public class AuthService {
         }
         venue.setImages(venueImagesList);
 
+        VenuePolicy venuePolicy = VenuePolicy.builder()
+                .venue(venue)
+                .freeCancellationHours(reg.getFreeCancellationHours() != null ? reg.getFreeCancellationHours() : 12)
+                .lateCancellationRefundRate(reg.getLateCancellationRefundRate() != null ? reg.getLateCancellationRefundRate() : 70)
+                .rainRescheduleAllowed(reg.getRainRescheduleAllowed() != null ? reg.getRainRescheduleAllowed() : true)
+                .build();
+        venue.setVenuePolicy(venuePolicy);
+
         venue = venueRepository.save(venue);
 
 
@@ -506,6 +529,40 @@ public class AuthService {
         venue.setMaxPrice(maxPrice != null ? maxPrice : 0.0);
         venue.setSubCourtCount(courtCount);
         venueRepository.save(venue);
+
+        // 6.5 Create OwnerContract
+        if (reg.getIsContractSigned() != null && reg.getIsContractSigned()) {
+            String contractCode = "SPOR-CTR-" + java.time.Year.now().getValue() + "-" + owner.getId().toString().substring(0, 8).toUpperCase();
+            
+            com.backend.sporta.entity.OwnerContract contract = com.backend.sporta.entity.OwnerContract.builder()
+                    .owner(owner)
+                    .venue(venue)
+                    .contractCode(contractCode)
+                    .signedIpAddress(reg.getSignatureIp() != null ? reg.getSignatureIp() : "Unknown")
+                    .signedAt(reg.getSignatureTimestamp() != null ? reg.getSignatureTimestamp() : java.time.LocalDateTime.now())
+                    .status(com.backend.sporta.enums.ContractStatus.ACTIVE)
+                    .build();
+            
+            // Generate simple hash (mock)
+            try {
+                String rawData = contractCode + venue.getId() + contract.getSignedAt().toString();
+                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(rawData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder(2 * hash.length);
+                for (byte b : hash) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex);
+                }
+                contract.setDigitalSignatureHash(hexString.toString());
+            } catch (Exception e) {
+                contract.setDigitalSignatureHash("HASH_ERROR");
+            }
+
+            ownerContractRepository.save(contract);
+        }
 
         // 7. Update registration status
         reg.setStatus(RegistrationStatus.APPROVED);
