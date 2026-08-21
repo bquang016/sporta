@@ -12,5 +12,9 @@ public interface ClubPollService {
     
     ClubPollResponse closePoll(Long pollId, String userEmail);
     
+    ClubPollResponse reopenPoll(Long pollId, String userEmail);
+    
+    ClubPollResponse saveMatchmadeTeams(Long pollId, ClubPollResponse.MatchmadeTeamsResponse request, String userEmail);
+    
     void deletePoll(Long pollId, String userEmail);
 }

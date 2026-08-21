@@ -87,7 +87,13 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
 
         if (member.getRole() == ClubMemberRole.ADMIN) {
-            throw new RuntimeException("Trưởng câu lạc bộ không thể rời câu lạc bộ khi còn thành viên khác. Vui lòng chuyển nhượng quyền Trưởng câu lạc bộ cho thành viên khác trước.");
+            long totalApproved = clubMemberRepository.countByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
+            if (totalApproved > 1) {
+                throw new RuntimeException("Trưởng câu lạc bộ không thể rời câu lạc bộ khi còn thành viên khác. Vui lòng chuyển nhượng quyền Trưởng câu lạc bộ trước.");
+            }
+            // Sole member admin leaving will delete the club
+            clubRepository.delete(club);
+            return;
         }
 
         clubMemberRepository.delete(member);
@@ -105,8 +111,9 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         Optional<ClubMember> callerOpt = clubMemberRepository.findByClubIdAndUserId(clubId, user.getId());
 
         List<ClubMember> members;
-        // If ADMIN (Trưởng câu lạc bộ), show all members (including PENDING requests to approve)
-        if (callerOpt.isPresent() && callerOpt.get().getStatus() == ClubMemberStatus.APPROVED && callerOpt.get().getRole() == ClubMemberRole.ADMIN) {
+        // If ADMIN or SUB_LEADER, show all members (including PENDING requests to approve)
+        if (callerOpt.isPresent() && callerOpt.get().getStatus() == ClubMemberStatus.APPROVED &&
+                (callerOpt.get().getRole() == ClubMemberRole.ADMIN || callerOpt.get().getRole() == ClubMemberRole.SUB_LEADER)) {
             members = clubMemberRepository.findByClubId(clubId);
         } else {
             // Regular members and non-members can view all APPROVED members of this club
@@ -122,7 +129,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         User caller = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkAdminPrivileges(clubId, caller.getId());
+        checkAdminOrSubLeaderPrivileges(clubId, caller.getId());
 
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy câu lạc bộ"));
@@ -151,7 +158,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         User caller = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkAdminPrivileges(clubId, caller.getId());
+        checkAdminOrSubLeaderPrivileges(clubId, caller.getId());
 
         ClubMember memberToReject = clubMemberRepository.findByClubIdAndUserId(clubId, userIdToReject)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy yêu cầu gia nhập của người dùng này"));
@@ -175,7 +182,8 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         ClubMember callerMember = clubMemberRepository.findByClubIdAndUserId(clubId, caller.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
 
-        if (callerMember.getStatus() != ClubMemberStatus.APPROVED || callerMember.getRole() != ClubMemberRole.ADMIN) {
+        if (callerMember.getStatus() != ClubMemberStatus.APPROVED ||
+                (callerMember.getRole() != ClubMemberRole.ADMIN && callerMember.getRole() != ClubMemberRole.SUB_LEADER)) {
             throw new RuntimeException("Bạn không có quyền thực hiện hành động này");
         }
 
@@ -183,7 +191,11 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .orElseThrow(() -> new RuntimeException("Thành viên không tồn tại trong câu lạc bộ này"));
 
         if (memberToRemove.getRole() == ClubMemberRole.ADMIN) {
-            throw new RuntimeException("Không thể trục xuất Trưởng nhóm sáng lập");
+            throw new RuntimeException("Không thể trục xuất Trưởng câu lạc bộ");
+        }
+
+        if (callerMember.getRole() == ClubMemberRole.SUB_LEADER && memberToRemove.getRole() == ClubMemberRole.SUB_LEADER) {
+            throw new RuntimeException("Phó câu lạc bộ không thể trục xuất Phó câu lạc bộ khác");
         }
 
         clubMemberRepository.delete(memberToRemove);
@@ -193,6 +205,15 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         ClubMember member = clubMemberRepository.findByClubIdAndUserId(clubId, userId)
                 .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
         if (member.getStatus() != ClubMemberStatus.APPROVED || member.getRole() != ClubMemberRole.ADMIN) {
+            throw new RuntimeException("Chỉ Trưởng câu lạc bộ mới có quyền thực hiện hành động này");
+        }
+    }
+
+    private void checkAdminOrSubLeaderPrivileges(Long clubId, Long userId) {
+        ClubMember member = clubMemberRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên câu lạc bộ này"));
+        if (member.getStatus() != ClubMemberStatus.APPROVED ||
+                (member.getRole() != ClubMemberRole.ADMIN && member.getRole() != ClubMemberRole.SUB_LEADER)) {
             throw new RuntimeException("Bạn không có quyền thực hiện hành động này");
         }
     }

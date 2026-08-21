@@ -1,7 +1,25 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
+import { Avatar } from '../../../../shared/ui';
+
+export interface PollVoter {
+  userId: number;
+  name: string;
+  avatar: string;
+  elo: number;
+  role: string;
+}
+
+export interface MatchmadeTeams {
+  teamA: string[];
+  teamB: string[];
+  teamAPlayers?: PollVoter[];
+  teamBPlayers?: PollVoter[];
+  teamATotalElo?: number;
+  teamBTotalElo?: number;
+}
 
 export interface PollData {
   id: string;
@@ -12,14 +30,20 @@ export interface PollData {
     join: string[];
     absent: string[];
   };
+  joinedVoters?: PollVoter[];
+  absentVoters?: PollVoter[];
+  creatorId?: number;
+  creatorName?: string;
 }
 
 export interface PollCardProps {
   activePoll: PollData | null;
   userVote: 'join' | 'absent' | null;
-  matchmadeTeams: { teamA: string[]; teamB: string[] } | null;
+  matchmadeTeams: MatchmadeTeams | null;
+  isLeaderOrSubLeader: boolean;
   onVote: (option: 'join' | 'absent') => void;
   onClosePoll: () => void;
+  onReopenPoll?: () => void;
   onStartMatchmaking: () => void;
   onDeletePoll: () => void;
   onCreatePollPress: () => void;
@@ -29,104 +53,163 @@ export function PollCard({
   activePoll,
   userVote,
   matchmadeTeams,
+  isLeaderOrSubLeader,
   onVote,
   onClosePoll,
+  onReopenPoll,
   onStartMatchmaking,
   onDeletePoll,
-  onCreatePollPress
+  onCreatePollPress,
 }: PollCardProps) {
+  const [expandedSection, setExpandedSection] = useState<'join' | 'absent' | null>(null);
+
   if (!activePoll) {
     return (
       <View style={styles.pollSection}>
-        <View style={styles.pollSectionHeader}>
-          <View style={styles.sectionTitleRow}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionTitleCol}>
             <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
-            <Text style={styles.pollSectionTitle}>Biểu quyết ghép trận</Text>
+            <Text style={styles.sectionTitle}>Biểu quyết ghép trận</Text>
           </View>
         </View>
-        <View style={styles.emptyPollCard}>
+
+        <View style={styles.emptyCard}>
           <View style={styles.emptyIconCircle}>
-            <MaterialIcons name="poll" size={32} color={COLORS.primary} />
+            <MaterialIcons name="poll" size={28} color={COLORS.primary} />
           </View>
-          <Text style={styles.emptyPollTitle}>Chưa có biểu quyết nào</Text>
-          <Text style={styles.emptyPollSubtitle}>
-            Tạo biểu quyết để thống kê quân số, chia đội hình thi đấu hoặc giao lưu nội bộ.
+          <Text style={styles.emptyTitle}>Chưa có biểu quyết nào</Text>
+          <Text style={styles.emptySubtitle}>
+            Tạo biểu quyết để thống kê quân số, chia đội hình thi đấu hoặc bình chọn lịch giao lưu nội bộ.
           </Text>
-          <TouchableOpacity
-            style={styles.createPollBtn}
-            activeOpacity={0.85}
-            onPress={onCreatePollPress}
-          >
-            <MaterialIcons name="add-circle-outline" size={18} color={COLORS.white} />
-            <Text style={styles.createPollBtnText}>Tạo biểu quyết mới</Text>
-          </TouchableOpacity>
+          {isLeaderOrSubLeader ? (
+            <TouchableOpacity
+              style={styles.createPollBtn}
+              activeOpacity={0.85}
+              onPress={onCreatePollPress}
+            >
+              <MaterialIcons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.createPollBtnText}>Tạo biểu quyết mới</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.emptyNoticePill}>
+              <Text style={styles.emptyNoticeText}>Chờ Ban quản trị tạo biểu quyết mới</Text>
+            </View>
+          )}
         </View>
       </View>
     );
   }
 
-  const totalVotes = activePoll.votes.join.length + activePoll.votes.absent.length;
-  const joinPercent = totalVotes > 0 ? Math.round((activePoll.votes.join.length / totalVotes) * 100) : 0;
-  const absentPercent = totalVotes > 0 ? Math.round((activePoll.votes.absent.length / totalVotes) * 100) : 0;
+  const joinCount = activePoll.joinedVoters ? activePoll.joinedVoters.length : activePoll.votes.join.length;
+  const absentCount = activePoll.absentVoters ? activePoll.absentVoters.length : activePoll.votes.absent.length;
+  const totalVotes = joinCount + absentCount;
+  const joinPercent = totalVotes > 0 ? Math.round((joinCount / totalVotes) * 100) : 0;
+  const absentPercent = totalVotes > 0 ? Math.round((absentCount / totalVotes) * 100) : 0;
+
+  // Joined voters list
+  const joinedList: PollVoter[] = activePoll.joinedVoters || activePoll.votes.join.map((name, i) => ({
+    userId: i,
+    name,
+    avatar: '',
+    elo: 1200,
+    role: 'Thành viên',
+  }));
+
+  // Absent voters list
+  const absentList: PollVoter[] = activePoll.absentVoters || activePoll.votes.absent.map((name, i) => ({
+    userId: i,
+    name,
+    avatar: '',
+    elo: 1200,
+    role: 'Thành viên',
+  }));
+
+  // Average ELO calculation for teams
+  const teamAPlayers = matchmadeTeams?.teamAPlayers || (matchmadeTeams?.teamA || []).map((name, i) => ({
+    userId: i,
+    name,
+    avatar: '',
+    elo: 1200,
+    role: 'Thành viên',
+  }));
+
+  const teamBPlayers = matchmadeTeams?.teamBPlayers || (matchmadeTeams?.teamB || []).map((name, i) => ({
+    userId: i,
+    name,
+    avatar: '',
+    elo: 1200,
+    role: 'Thành viên',
+  }));
+
+  const avgEloA = teamAPlayers.length > 0
+    ? Math.round(teamAPlayers.reduce((sum, p) => sum + (p.elo || 1200), 0) / teamAPlayers.length)
+    : 0;
+
+  const avgEloB = teamBPlayers.length > 0
+    ? Math.round(teamBPlayers.reduce((sum, p) => sum + (p.elo || 1200), 0) / teamBPlayers.length)
+    : 0;
 
   return (
     <View style={styles.pollSection}>
-      <View style={styles.pollSectionHeader}>
-        <View style={styles.sectionTitleRow}>
+      {/* Section Header */}
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionTitleCol}>
           <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
-          <Text style={styles.pollSectionTitle}>Biểu quyết ghép trận</Text>
+          <Text style={styles.sectionTitle}>Biểu quyết ghép trận</Text>
         </View>
-        <TouchableOpacity 
-          onPress={onDeletePoll} 
-          style={styles.deletePollBtn} 
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="delete-outline" size={18} color={COLORS.error} />
-        </TouchableOpacity>
+
+        {isLeaderOrSubLeader && (
+          <TouchableOpacity
+            onPress={onDeletePoll}
+            style={styles.deleteBtn}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="delete-outline" size={18} color="#EF4444" />
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* Main Poll Card */}
       <View style={[styles.pollCard, activePoll.isClosed && styles.pollCardClosed]}>
-        {/* Header with Title and Status */}
-        <View style={styles.pollCardHeader}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={styles.pollTitle}>{activePoll.title}</Text>
-            <View style={styles.pollMetaRow}>
-              <MaterialIcons 
-                name="schedule" 
-                size={14} 
-                color={activePoll.isClosed ? COLORS.outline : COLORS.primary} 
-              />
-              <Text style={styles.pollMetaText}>
-                {activePoll.isClosed 
-                  ? `Đã đóng biểu quyết (${activePoll.closeTime})` 
-                  : `Đóng biểu quyết lúc: ${activePoll.closeTime}`}
-              </Text>
-            </View>
-          </View>
-
+        {/* Top Meta Bar */}
+        <View style={styles.cardTopRow}>
           <View style={[
-            styles.statusBadge, 
-            activePoll.isClosed ? styles.statusBadgeClosed : styles.statusBadgeActive
+            styles.statusPill,
+            activePoll.isClosed ? styles.statusPillClosed : styles.statusPillActive,
           ]}>
             <View style={[
-              styles.statusDot, 
-              activePoll.isClosed ? styles.statusDotClosed : styles.statusDotActive
+              styles.statusDot,
+              activePoll.isClosed ? styles.statusDotClosed : styles.statusDotActive,
             ]} />
             <Text style={[
-              styles.statusBadgeText,
-              activePoll.isClosed ? styles.statusBadgeTextClosed : styles.statusBadgeTextActive
+              styles.statusText,
+              activePoll.isClosed ? styles.statusTextClosed : styles.statusTextActive,
             ]}>
-              {activePoll.isClosed ? 'Đã đóng' : 'Đang mở'}
+              {activePoll.isClosed ? 'Đã chốt sổ' : 'Đang bình chọn'}
+            </Text>
+          </View>
+
+          <View style={styles.deadlineContainer}>
+            <MaterialIcons
+              name="schedule"
+              size={13}
+              color={activePoll.isClosed ? '#94A3B8' : COLORS.primary}
+            />
+            <Text style={styles.deadlineText}>
+              {activePoll.isClosed ? `Đã đóng (${activePoll.closeTime})` : `Hạn: ${activePoll.closeTime}`}
             </Text>
           </View>
         </View>
 
-        {/* Option 1: Tham gia */}
+        {/* Title */}
+        <Text style={styles.pollTitle}>{activePoll.title}</Text>
+
+        {/* ================= OPTION 1: THAM GIA ================= */}
         <TouchableOpacity
           style={[
-            styles.pollOptionCard,
-            userVote === 'join' && styles.pollOptionSelected,
-            activePoll.isClosed && styles.pollOptionDisabled
+            styles.optionCard,
+            userVote === 'join' && styles.optionCardActiveJoin,
+            activePoll.isClosed && styles.optionCardDisabled,
           ]}
           activeOpacity={activePoll.isClosed ? 1 : 0.75}
           onPress={() => !activePoll.isClosed && onVote('join')}
@@ -135,55 +218,81 @@ export function PollCard({
             <View style={styles.optionLeft}>
               <View style={[
                 styles.radioCircle,
-                userVote === 'join' && styles.radioCircleActive
+                userVote === 'join' && styles.radioCircleActiveJoin,
               ]}>
                 {userVote === 'join' && (
-                  <MaterialIcons name="check" size={14} color={COLORS.white} />
+                  <MaterialIcons name="check" size={13} color="#FFFFFF" />
                 )}
               </View>
               <Text style={[
-                styles.optionText,
-                userVote === 'join' && styles.optionTextSelected
+                styles.optionLabel,
+                userVote === 'join' && styles.optionLabelActiveJoin,
               ]}>
-                Tham gia
+                Tham gia thi đấu
               </Text>
             </View>
+
             <View style={styles.optionRight}>
-              <Text style={styles.optionCount}>{activePoll.votes.join.length} người</Text>
-              <Text style={styles.optionPercent}>({joinPercent}%)</Text>
+              <Text style={styles.optionCountText}>{joinCount} người</Text>
+              <Text style={styles.optionPercentText}>({joinPercent}%)</Text>
             </View>
           </View>
-          
+
           {/* Progress Bar */}
           <View style={styles.progressBarBg}>
-            <View style={[
-              styles.progressBarFill, 
-              { width: `${joinPercent}%` }
-            ]} />
+            <View style={[styles.progressBarFillJoin, { width: `${joinPercent}%` }]} />
           </View>
 
-          {/* Voter list chips */}
-          {activePoll.votes.join.length > 0 && (
-            <View style={styles.votersContainer}>
-              <Text style={styles.voterLabel}>Danh sách tham gia ({activePoll.votes.join.length}):</Text>
-              <View style={styles.voterChipsRow}>
-                {activePoll.votes.join.map((voter, index) => (
-                  <View key={index} style={styles.voterChip}>
-                    <MaterialIcons name="person" size={12} color={COLORS.primary} />
-                    <Text style={styles.voterChipText}>{voter}</Text>
+          {/* Voter Avatar Stack & Summary */}
+          {joinedList.length > 0 && (
+            <View style={styles.votersRow}>
+              <View style={styles.avatarStack}>
+                {joinedList.slice(0, 5).map((voter, idx) => (
+                  <View key={voter.userId || idx} style={[styles.stackedAvatar, { left: idx * 18, zIndex: 10 - idx }]}>
+                    <Avatar source={voter.avatar} size={24} fallbackIcon="person" />
                   </View>
                 ))}
               </View>
+
+              <TouchableOpacity
+                style={styles.expandVotersBtn}
+                activeOpacity={0.7}
+                onPress={() => setExpandedSection(expandedSection === 'join' ? null : 'join')}
+              >
+                <Text style={styles.expandVotersText}>
+                  {expandedSection === 'join' ? 'Ẩn bớt' : `Xem tất cả ${joinedList.length} người`}
+                </Text>
+                <MaterialIcons
+                  name={expandedSection === 'join' ? 'expand-less' : 'expand-more'}
+                  size={16}
+                  color={COLORS.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Expanded Voters List */}
+          {expandedSection === 'join' && joinedList.length > 0 && (
+            <View style={styles.expandedVotersList}>
+              {joinedList.map((v, i) => (
+                <View key={v.userId || i} style={styles.expandedVoterItem}>
+                  <Avatar source={v.avatar} size={26} fallbackIcon="person" />
+                  <Text style={styles.expandedVoterName} numberOfLines={1}>{v.name}</Text>
+                  <View style={styles.voterEloBadge}>
+                    <Text style={styles.voterEloText}>{v.elo || 1200} ELO</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
         </TouchableOpacity>
 
-        {/* Option 2: Vắng mặt */}
+        {/* ================= OPTION 2: VẮNG MẶT ================= */}
         <TouchableOpacity
           style={[
-            styles.pollOptionCard,
-            userVote === 'absent' && styles.pollOptionSelectedAbsent,
-            activePoll.isClosed && styles.pollOptionDisabled
+            styles.optionCard,
+            userVote === 'absent' && styles.optionCardActiveAbsent,
+            activePoll.isClosed && styles.optionCardDisabled,
           ]}
           activeOpacity={activePoll.isClosed ? 1 : 0.75}
           onPress={() => !activePoll.isClosed && onVote('absent')}
@@ -192,101 +301,119 @@ export function PollCard({
             <View style={styles.optionLeft}>
               <View style={[
                 styles.radioCircle,
-                userVote === 'absent' && styles.radioCircleActiveAbsent
+                userVote === 'absent' && styles.radioCircleActiveAbsent,
               ]}>
                 {userVote === 'absent' && (
-                  <MaterialIcons name="check" size={14} color={COLORS.white} />
+                  <MaterialIcons name="close" size={13} color="#FFFFFF" />
                 )}
               </View>
               <Text style={[
-                styles.optionText,
-                userVote === 'absent' && styles.optionTextSelectedAbsent
+                styles.optionLabel,
+                userVote === 'absent' && styles.optionLabelActiveAbsent,
               ]}>
-                Vắng mặt
+                Bận / Vắng mặt
               </Text>
             </View>
+
             <View style={styles.optionRight}>
-              <Text style={styles.optionCountAbsent}>{activePoll.votes.absent.length} người</Text>
-              <Text style={styles.optionPercentAbsent}>({absentPercent}%)</Text>
+              <Text style={styles.optionCountText}>{absentCount} người</Text>
+              <Text style={styles.optionPercentText}>({absentPercent}%)</Text>
             </View>
           </View>
-          
+
           {/* Progress Bar */}
           <View style={styles.progressBarBg}>
-            <View style={[
-              styles.progressBarFillAbsent, 
-              { width: `${absentPercent}%` }
-            ]} />
+            <View style={[styles.progressBarFillAbsent, { width: `${absentPercent}%` }]} />
           </View>
 
-          {/* Voter list chips */}
-          {activePoll.votes.absent.length > 0 && (
-            <View style={styles.votersContainer}>
-              <Text style={styles.voterLabel}>Danh sách vắng ({activePoll.votes.absent.length}):</Text>
-              <View style={styles.voterChipsRow}>
-                {activePoll.votes.absent.map((voter, index) => (
-                  <View key={index} style={[styles.voterChip, styles.voterChipAbsent]}>
-                    <MaterialIcons name="person-outline" size={12} color={COLORS.onSurfaceVariant} />
-                    <Text style={styles.voterChipTextAbsent}>{voter}</Text>
+          {/* Voter Avatar Stack & Summary */}
+          {absentList.length > 0 && (
+            <View style={styles.votersRow}>
+              <View style={styles.avatarStack}>
+                {absentList.slice(0, 4).map((voter, idx) => (
+                  <View key={voter.userId || idx} style={[styles.stackedAvatar, { left: idx * 18, zIndex: 10 - idx }]}>
+                    <Avatar source={voter.avatar} size={24} fallbackIcon="person" />
                   </View>
                 ))}
               </View>
+
+              <TouchableOpacity
+                style={styles.expandVotersBtn}
+                activeOpacity={0.7}
+                onPress={() => setExpandedSection(expandedSection === 'absent' ? null : 'absent')}
+              >
+                <Text style={[styles.expandVotersText, { color: '#64748B' }]}>
+                  {expandedSection === 'absent' ? 'Ẩn bớt' : `Xem ${absentList.length} người`}
+                </Text>
+                <MaterialIcons
+                  name={expandedSection === 'absent' ? 'expand-less' : 'expand-more'}
+                  size={16}
+                  color="#64748B"
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Expanded Voters List */}
+          {expandedSection === 'absent' && absentList.length > 0 && (
+            <View style={styles.expandedVotersList}>
+              {absentList.map((v, i) => (
+                <View key={v.userId || i} style={styles.expandedVoterItem}>
+                  <Avatar source={v.avatar} size={26} fallbackIcon="person" />
+                  <Text style={styles.expandedVoterName} numberOfLines={1}>{v.name}</Text>
+                  <Text style={styles.absentReasonText}>• Vắng</Text>
+                </View>
+              ))}
             </View>
           )}
         </TouchableOpacity>
 
-        {/* Matchmaking Results Cards (Team A vs Team B) */}
+        {/* ================= MATCHMAKING SPLIT ROSTER (WHEN CLOSED) ================= */}
         {activePoll.isClosed && matchmadeTeams && (
-          <View style={styles.confirmedTeamsContainer}>
-            <View style={styles.confirmedTeamsHeader}>
-              <MaterialIcons name="sports-kabaddi" size={20} color={COLORS.primary} />
-              <Text style={styles.confirmedTeamsTitle}>Đội hình đã chia</Text>
-              <View style={styles.totalPlayersBadge}>
-                <Text style={styles.totalPlayersText}>
-                  {matchmadeTeams.teamA.length + matchmadeTeams.teamB.length} cầu thủ
+          <View style={styles.matchupCard}>
+            <View style={styles.matchupHeader}>
+              <MaterialIcons name="sports-kabaddi" size={18} color={COLORS.primary} />
+              <Text style={styles.matchupTitle}>Đội hình thi đấu đã chia</Text>
+              <View style={styles.playerCountBadge}>
+                <Text style={styles.playerCountText}>
+                  {teamAPlayers.length + teamBPlayers.length} cầu thủ
                 </Text>
               </View>
             </View>
 
-            <View style={styles.teamsSplitGrid}>
-              {/* Team A */}
-              <View style={styles.teamResultCol}>
-                <View style={styles.teamResultBadgeA}>
-                  <Text style={styles.teamResultBadgeTextA}>
-                    ĐỘI A ({matchmadeTeams.teamA.length})
-                  </Text>
+            <View style={styles.teamsSplitRow}>
+              {/* Team A Card */}
+              <View style={styles.teamCol}>
+                <View style={styles.teamBadgeA}>
+                  <Text style={styles.teamBadgeTextA}>ĐỘI XANH ({teamAPlayers.length})</Text>
+                  <Text style={styles.teamAvgEloText}>Avg {avgEloA} ELO</Text>
                 </View>
-                <View style={styles.teamMembersContainer}>
-                  {matchmadeTeams.teamA.map((p, idx) => (
-                    <View key={idx} style={styles.teamMemberRow}>
-                      <View style={styles.memberNumberBadgeA}>
-                        <Text style={styles.memberNumberTextA}>{idx + 1}</Text>
-                      </View>
-                      <Text style={styles.teamResultMember} numberOfLines={1}>{p}</Text>
+                <View style={styles.playerList}>
+                  {teamAPlayers.map((p, idx) => (
+                    <View key={idx} style={styles.playerRow}>
+                      <Avatar source={p.avatar} size={22} fallbackIcon="person" />
+                      <Text style={styles.playerName} numberOfLines={1}>{p.name}</Text>
                     </View>
                   ))}
                 </View>
               </View>
 
               {/* VS Divider */}
-              <View style={styles.vsDivider}>
+              <View style={styles.vsCircle}>
                 <Text style={styles.vsText}>VS</Text>
               </View>
 
-              {/* Team B */}
-              <View style={styles.teamResultCol}>
-                <View style={styles.teamResultBadgeB}>
-                  <Text style={styles.teamResultBadgeTextB}>
-                    ĐỘI B ({matchmadeTeams.teamB.length})
-                  </Text>
+              {/* Team B Card */}
+              <View style={styles.teamCol}>
+                <View style={styles.teamBadgeB}>
+                  <Text style={styles.teamBadgeTextB}>ĐỘI CAM ({teamBPlayers.length})</Text>
+                  <Text style={styles.teamAvgEloText}>Avg {avgEloB} ELO</Text>
                 </View>
-                <View style={styles.teamMembersContainer}>
-                  {matchmadeTeams.teamB.map((p, idx) => (
-                    <View key={idx} style={styles.teamMemberRow}>
-                      <View style={styles.memberNumberBadgeB}>
-                        <Text style={styles.memberNumberTextB}>{idx + 1}</Text>
-                      </View>
-                      <Text style={styles.teamResultMember} numberOfLines={1}>{p}</Text>
+                <View style={styles.playerList}>
+                  {teamBPlayers.map((p, idx) => (
+                    <View key={idx} style={styles.playerRow}>
+                      <Avatar source={p.avatar} size={22} fallbackIcon="person" />
+                      <Text style={styles.playerName} numberOfLines={1}>{p.name}</Text>
                     </View>
                   ))}
                 </View>
@@ -295,30 +422,45 @@ export function PollCard({
           </View>
         )}
 
-        {/* Leader Control Actions */}
-        <View style={styles.pollCardActions}>
-          {!activePoll.isClosed ? (
-            <TouchableOpacity
-              style={styles.closePollActionBtn}
-              activeOpacity={0.85}
-              onPress={onClosePoll}
-            >
-              <MaterialIcons name="lock-outline" size={16} color={COLORS.white} />
-              <Text style={styles.closePollActionText}>Đóng biểu quyết & Chuẩn bị chia đội</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.matchmakeActionBtn}
-              activeOpacity={0.85}
-              onPress={onStartMatchmaking}
-            >
-              <MaterialIcons name="shuffle" size={18} color={COLORS.white} />
-              <Text style={styles.matchmakeActionText}>
-                {matchmadeTeams ? 'Chia lại đội hình ngẫu nhiên' : 'Tự động chia đội ghép trận'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* ================= CONTROLS FOR LEADER / SUB-LEADER ================= */}
+        {isLeaderOrSubLeader && (
+          <View style={styles.controlActionRow}>
+            {!activePoll.isClosed ? (
+              <TouchableOpacity
+                style={styles.closePollBtn}
+                activeOpacity={0.85}
+                onPress={onClosePoll}
+              >
+                <MaterialIcons name="lock-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.closePollBtnText}>Chốt danh sách & Chia đội</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.closedActionsGroup}>
+                <TouchableOpacity
+                  style={styles.reshuffleBtn}
+                  activeOpacity={0.85}
+                  onPress={onStartMatchmaking}
+                >
+                  <MaterialIcons name="shuffle" size={16} color="#FFFFFF" />
+                  <Text style={styles.reshuffleBtnText}>
+                    {matchmadeTeams ? 'Chia lại đội hình' : 'Tự động chia đội'}
+                  </Text>
+                </TouchableOpacity>
+
+                {onReopenPoll && (
+                  <TouchableOpacity
+                    style={styles.reopenBtn}
+                    activeOpacity={0.8}
+                    onPress={onReopenPoll}
+                  >
+                    <MaterialIcons name="lock-open" size={16} color={COLORS.primary} />
+                    <Text style={styles.reopenBtnText}>Mở lại</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -326,491 +468,454 @@ export function PollCard({
 
 const styles = StyleSheet.create({
   pollSection: {
-    marginTop: SPACING.md,
-    gap: SPACING.sm,
+    gap: 10,
   },
-  pollSectionHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  sectionTitleRow: {
+  sectionTitleCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs + 2,
+    gap: 6,
   },
-  pollSectionTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 16,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '800',
-    color: COLORS.onSurface,
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
   },
-  deletePollBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.errorOpacity08 || '#fee2e2',
-    justifyContent: 'center',
+  deleteBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
-  },
-  emptyPollCard: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: COLORS.primaryOpacity30,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryOpacity05,
-    gap: SPACING.xs,
+    borderWidth: 1,
+    borderColor: '#E8EDF5',
+    gap: 8,
   },
   emptyIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primaryOpacity12,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primaryOpacity10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.xs,
+    marginBottom: 2,
   },
-  emptyPollTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.onSurface,
+  emptyTitle: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: '#1E293B',
   },
-  emptyPollSubtitle: {
-    ...TYPOGRAPHY.bodyMd,
+  emptySubtitle: {
     fontSize: 12,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: 18,
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.xs,
+    paddingHorizontal: 12,
   },
   createPollBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 42,
     backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.xs + 2,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 6,
+    marginTop: 4,
   },
   createPollBtnText: {
-    ...TYPOGRAPHY.labelMd,
     fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.white,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  emptyNoticePill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  emptyNoticeText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '500',
   },
   pollCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity15,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    gap: SPACING.md,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: '#E2E8F0',
+    gap: 12,
   },
   pollCardClosed: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderColor: COLORS.outlineVariant,
+    backgroundColor: '#FAFBFD',
+    borderColor: '#E2E8F0',
   },
-  pollCardHeader: {
+  cardTopRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
-    paddingBottom: SPACING.sm,
-    gap: SPACING.sm,
   },
-  pollTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 16,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '800',
-    color: COLORS.onSurface,
-  },
-  pollMetaRow: {
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  pollMetaText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
     gap: 5,
   },
-  statusBadgeActive: {
-    backgroundColor: COLORS.primaryOpacity12,
+  statusPillActive: {
+    backgroundColor: '#ECFDF5',
   },
-  statusBadgeClosed: {
-    backgroundColor: COLORS.surfaceContainerHigh || '#e2e8f0',
+  statusPillClosed: {
+    backgroundColor: '#F1F5F9',
   },
   statusDot: {
     width: 6,
     height: 6,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: 3,
   },
   statusDotActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#10B981',
   },
   statusDotClosed: {
-    backgroundColor: COLORS.onSurfaceVariant,
+    backgroundColor: '#94A3B8',
   },
-  statusBadgeText: {
-    ...TYPOGRAPHY.labelSm,
+  statusText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  statusBadgeTextActive: {
-    color: COLORS.primary,
+  statusTextActive: {
+    color: '#059669',
   },
-  statusBadgeTextClosed: {
-    color: COLORS.onSurfaceVariant,
+  statusTextClosed: {
+    color: '#64748B',
   },
-  pollOptionCard: {
-    backgroundColor: COLORS.surfaceContainerLowest || COLORS.surface,
+  deadlineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  deadlineText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '400',
+  },
+  pollTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+    lineHeight: 20,
+  },
+  optionCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1.5,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    gap: SPACING.xs,
+    borderColor: '#F1F5F9',
+    gap: 8,
   },
-  pollOptionSelected: {
+  optionCardActiveJoin: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryOpacity05,
+    backgroundColor: '#F0FDF4',
   },
-  pollOptionSelectedAbsent: {
-    borderColor: '#f59e0b',
-    backgroundColor: '#fffbeb',
+  optionCardActiveAbsent: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFBEB',
   },
-  pollOptionDisabled: {
-    opacity: 0.9,
+  optionCardDisabled: {
+    opacity: 0.95,
   },
   optionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    justifyContent: 'space-between',
   },
   optionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: 8,
   },
   radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: BORDER_RADIUS.full,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 1.5,
-    borderColor: COLORS.outline,
+    borderColor: '#CBD5E1',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  radioCircleActive: {
+  radioCircleActiveJoin: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
   radioCircleActiveAbsent: {
-    backgroundColor: '#f59e0b',
-    borderColor: '#f59e0b',
+    backgroundColor: '#F59E0B',
+    borderColor: '#F59E0B',
   },
-  optionText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.onSurface,
+  optionLabel: {
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#334155',
   },
-  optionTextSelected: {
-    fontWeight: '700',
+  optionLabelActiveJoin: {
     color: COLORS.primary,
+    fontWeight: '600',
   },
-  optionTextSelectedAbsent: {
-    fontWeight: '700',
-    color: '#d97706',
+  optionLabelActiveAbsent: {
+    color: '#B45309',
+    fontWeight: '600',
   },
   optionRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  optionCount: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  optionPercent: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
+  optionCountText: {
+    fontSize: 12.5,
     fontWeight: '600',
-    color: COLORS.onSurfaceVariant,
+    color: '#0F172A',
   },
-  optionCountAbsent: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#d97706',
-  },
-  optionPercentAbsent: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.onSurfaceVariant,
+  optionPercentText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '400',
   },
   progressBarBg: {
-    height: 7,
-    backgroundColor: COLORS.surfaceContainerHigh || '#e2e8f0',
-    borderRadius: BORDER_RADIUS.full,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E2E8F0',
     overflow: 'hidden',
-    marginBottom: 4,
   },
-  progressBarFill: {
+  progressBarFillJoin: {
     height: '100%',
     backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: 3,
   },
   progressBarFillAbsent: {
     height: '100%',
-    backgroundColor: '#f59e0b',
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#F59E0B',
+    borderRadius: 3,
   },
-  votersContainer: {
-    marginTop: SPACING.xs,
-    gap: 4,
-  },
-  voterLabel: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '600',
-  },
-  voterChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-  },
-  voterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
-    gap: 3,
-  },
-  voterChipAbsent: {
-    backgroundColor: COLORS.surfaceContainerHigh || '#f1f5f9',
-  },
-  voterChipText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  voterChipTextAbsent: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '500',
-  },
-  confirmedTeamsContainer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity15,
-    gap: SPACING.md,
-    shadowColor: COLORS.shadowBlack,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  confirmedTeamsHeader: {
+  votersRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
-    paddingBottom: SPACING.xs + 2,
+    marginTop: 2,
   },
-  confirmedTeamsTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 14,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '800',
-    color: COLORS.primary,
-    flex: 1,
-    marginLeft: 6,
-  },
-  totalPlayersBadge: {
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  totalPlayersText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  teamsSplitGrid: {
+  avatarStack: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: SPACING.sm,
+    height: 24,
+    minWidth: 100,
+    position: 'relative',
   },
-  teamResultCol: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceContainerLowest || COLORS.background,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    overflow: 'hidden',
+  stackedAvatar: {
+    position: 'absolute',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    borderRadius: 12,
   },
-  teamResultBadgeA: {
-    backgroundColor: COLORS.primaryOpacity12,
-    paddingVertical: 6,
+  expandVotersBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.primaryOpacity15,
+    gap: 2,
   },
-  teamResultBadgeTextA: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '800',
+  expandVotersText: {
+    fontSize: 11.5,
+    fontWeight: '500',
     color: COLORS.primary,
   },
-  teamResultBadgeB: {
-    backgroundColor: '#fef3c7',
-    paddingVertical: 6,
+  expandedVotersList: {
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 8,
+    gap: 6,
+  },
+  expandedVoterItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#fde68a',
+    gap: 8,
   },
-  teamResultBadgeTextB: {
-    ...TYPOGRAPHY.labelSm,
+  expandedVoterName: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#334155',
+    fontWeight: '500',
+  },
+  voterEloBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  voterEloText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#B45309',
+  },
+  absentReasonText: {
     fontSize: 11,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '800',
-    color: '#b45309',
+    color: '#94A3B8',
+    fontWeight: '400',
   },
-  teamMembersContainer: {
-    padding: SPACING.sm,
-    gap: SPACING.xs,
+  matchupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
   },
-  teamMemberRow: {
+  matchupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  memberNumberBadgeA: {
-    width: 18,
-    height: 18,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primaryOpacity15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  memberNumberTextA: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  memberNumberBadgeB: {
-    width: 18,
-    height: 18,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: '#fef3c7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  memberNumberTextB: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#b45309',
-  },
-  teamResultMember: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurface,
+  matchupTitle: {
+    fontSize: 13.5,
     fontWeight: '600',
+    color: '#1E293B',
     flex: 1,
   },
-  vsDivider: {
+  playerCountBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  playerCountText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  teamsSplitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  teamCol: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 8,
+    gap: 6,
+  },
+  teamBadgeA: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  teamBadgeTextA: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#0284C7',
+  },
+  teamBadgeB: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  teamBadgeTextB: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#D97706',
+  },
+  teamAvgEloText: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '400',
+    marginTop: 1,
+  },
+  playerList: {
+    gap: 4,
+  },
+  playerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  playerName: {
+    fontSize: 11.5,
+    color: '#334155',
+    fontWeight: '500',
+    flex: 1,
+  },
+  vsCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 2,
   },
   vsText: {
-    fontSize: 12,
-    fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '900',
-    color: COLORS.outline,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
   },
-  pollCardActions: {
+  controlActionRow: {
     marginTop: 2,
   },
-  closePollActionBtn: {
+  closePollBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 42,
-    backgroundColor: '#dc2626',
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.xs + 2,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  closePollActionText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  matchmakeActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
     backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.xs + 2,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
   },
-  matchmakeActionText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 14,
+  closePollBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  closedActionsGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  reshuffleBtn: {
+    flex: 1.6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0284C7',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  reshuffleBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  reopenBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 4,
+  },
+  reopenBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });
