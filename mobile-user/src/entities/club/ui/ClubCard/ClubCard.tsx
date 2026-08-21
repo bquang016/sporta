@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle, Image, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Avatar, Card, Badge } from '../../../../shared/ui';
+import { Badge } from '../../../../shared/ui';
 import { Club } from '../../model/clubStore';
+import { getDefaultAvatar } from '../../model/clubDefaults';
 
 export interface ClubCardProps {
   club: Club;
@@ -11,159 +12,214 @@ export interface ClubCardProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const getSportIconName = (sportName?: string) => {
+  switch (sportName?.toLowerCase()) {
+    case 'bóng đá':
+      return 'sports-soccer';
+    case 'cầu lông':
+      return 'sports-tennis';
+    case 'pickleball':
+      return 'sports-tennis';
+    case 'bóng rổ':
+      return 'sports-basketball';
+    case 'tennis':
+      return 'sports-baseball';
+    default:
+      return 'sports';
+  }
+};
+
 export function ClubCard({ club, onPress, style }: ClubCardProps) {
+  const memberRatio = Math.min(1, (club.members || 1) / (club.maxMembers || 30));
+  const avatarUrl = getDefaultAvatar(club.sport, club.avatarImage);
+
   return (
-    <Card 
-      variant="default" 
+    <TouchableOpacity
       style={[styles.clubCard, style]}
+      activeOpacity={0.88}
       onPress={onPress}
     >
-      <View style={styles.cardHeader}>
-        <Avatar 
-          size="lg" 
-          source={club.avatarImage} 
-          fallbackIcon={club.sportIcon as any} 
-          style={styles.avatar} 
-        />
-        <View style={styles.headerInfo}>
-          <View style={styles.titleRow}>
-            <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
-            <MaterialIcons name="chevron-right" size={20} color={COLORS.outline} />
+      <View style={styles.cardMainRow}>
+        {/* Left: Avatar */}
+        <View style={styles.avatarWrapper}>
+          <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          <View style={styles.sportBadgeSmall}>
+            <MaterialIcons
+              name={getSportIconName(club.sport) as any}
+              size={12}
+              color={COLORS.primary}
+            />
           </View>
-          
-          {/* Row with sport and members */}
-          <View style={styles.infoRow}>
-            <Badge text={club.sport} variant="success_flat" style={styles.sportBadge} />
-            <View style={styles.memberBadge}>
-              <MaterialIcons 
-                name="people" 
-                size={14} 
-                color={COLORS.primary} 
-                style={styles.memberIcon} 
-              />
-              <Text style={styles.infoText}>
-                {club.members}/{club.maxMembers}
-              </Text>
-            </View>
-            <Badge 
-              text={club.isPrivate ? "Riêng tư" : "Công khai"} 
-              variant={club.isPrivate ? "warning" : "info"} 
+        </View>
+
+        {/* Right: Info */}
+        <View style={styles.cardInfoCol}>
+          <View style={styles.titleRow}>
+            <Text style={styles.clubName} numberOfLines={1}>
+              {club.name}
+            </Text>
+            <Badge
+              text={club.isPrivate ? 'Riêng tư' : 'Công khai'}
+              variant={club.isPrivate ? 'warning' : 'success_flat'}
             />
           </View>
 
-          {/* Row with Area */}
+          {/* Area Row */}
           <View style={styles.areaRow}>
-            <MaterialIcons 
-              name="location-on" 
-              size={14} 
-              color={COLORS.primary} 
-              style={styles.locationIcon} 
-            />
+            <MaterialIcons name="location-on" size={13} color={COLORS.primary} />
             <Text style={styles.areaText} numberOfLines={1}>
-              {club.area || 'Chưa cập nhật khu vực'}
+              {club.area || 'Toàn quốc'}
             </Text>
+          </View>
+
+          {/* Description Preview */}
+          {club.description ? (
+            <Text style={styles.descText} numberOfLines={1}>
+              {club.description}
+            </Text>
+          ) : null}
+
+          {/* Members & Action Bar */}
+          <View style={styles.footerRow}>
+            <View style={styles.memberProgressWrapper}>
+              <View style={styles.memberProgressBar}>
+                <View
+                  style={[
+                    styles.memberProgressFill,
+                    { width: `${Math.round(memberRatio * 100)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.memberCountText}>
+                {club.members}/{club.maxMembers} thành viên
+              </Text>
+            </View>
+
+            <View style={styles.actionBtnBox}>
+              <Text style={styles.actionBtnText}>Xem CLB</Text>
+              <MaterialIcons name="chevron-right" size={16} color={COLORS.primary} />
+            </View>
           </View>
         </View>
       </View>
-    </Card>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   clubCard: {
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg, // 16px standard container radius
     backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity12,
-    shadowColor: COLORS.primary,
+    borderColor: '#E2E8F0',
+    shadowColor: COLORS.shadowBlack,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
-    elevation: 1,
-    gap: SPACING.base,
+    elevation: 2,
   },
-  cardHeader: {
+  cardMainRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  avatar: {
-    backgroundColor: COLORS.primaryOpacity10,
-    borderWidth: 2,
-    borderColor: COLORS.primaryOpacity15,
+  avatarWrapper: {
+    position: 'relative',
   },
-  headerInfo: {
-    flex: 1,
+  avatarImg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  sportBadgeSmall: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: COLORS.surface,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
     justifyContent: 'center',
-    gap: SPACING.xs,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+  },
+  cardInfoCol: {
+    flex: 1,
+    gap: 4,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: SPACING.xs,
+    gap: 6,
   },
   clubName: {
     ...TYPOGRAPHY.titleMd,
-    fontSize: 16,
+    fontSize: 15.5,
     fontFamily: 'HankenGrotesk-Bold',
-    fontWeight: '700',
-    color: COLORS.onSurface,
+    fontWeight: '800',
+    color: '#0F172A',
     flex: 1,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.base,
-    marginTop: 2,
-  },
-  sportBadge: {},
-  memberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.base,
-    paddingVertical: 2,
-  },
-  memberIcon: {
-    marginRight: -2,
-  },
-  eloBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.secondaryOpacity10,
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.base,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: COLORS.secondaryOpacity20,
-  },
-  eloIcon: {
-    marginRight: -2,
-  },
-  infoText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '600',
   },
   areaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: 2,
-  },
-  locationIcon: {
-    marginRight: -2,
+    gap: 3,
   },
   areaText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
+    fontSize: 11.5,
     color: COLORS.onSurfaceVariant,
+    fontWeight: '500',
+  },
+  descText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 8,
+  },
+  memberProgressWrapper: {
     flex: 1,
+    gap: 3,
+  },
+  memberProgressBar: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+    width: 100,
+  },
+  memberProgressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+  memberCountText: {
+    fontSize: 10.5,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  actionBtnBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
 });

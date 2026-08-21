@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Avatar, Badge } from '../../../../shared/ui';
 import { Club } from '../../model/clubStore';
+import { getDefaultCover, getDefaultAvatar } from '../../model/clubDefaults';
 
 export interface ClubDetailHeaderProps {
   club: Club;
@@ -26,15 +27,14 @@ export function ClubDetailHeader({
   // Determine displayed role
   const displayRole = userRole || (isLeadership ? 'Trưởng câu lạc bộ' : (club.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên'));
 
+  const coverUrl = getDefaultCover(club.sport, club.coverImage);
+  const avatarUrl = getDefaultAvatar(club.sport, club.avatarImage);
+
   return (
     <View style={styles.container}>
       {/* Cover Photo with Gradient Overlay */}
       <View style={styles.coverContainer}>
-        {club.coverImage && typeof club.coverImage === 'string' && !club.coverImage.startsWith('blob:') ? (
-          <Image source={{ uri: club.coverImage }} style={styles.coverImage} />
-        ) : (
-          <View style={[styles.coverImage, { backgroundColor: COLORS.primary }]} />
-        )}
+        <Image source={{ uri: coverUrl }} style={styles.coverImage} />
         <LinearGradient
           colors={['rgba(0,0,0,0.3)', 'transparent', 'rgba(0,0,0,0.7)']}
           style={styles.coverGradient}
@@ -60,7 +60,7 @@ export function ClubDetailHeader({
           <View style={styles.avatarWrapper}>
             <Avatar 
               size={84} 
-              source={club.avatarImage} 
+              source={avatarUrl} 
               fallbackIcon={club.sportIcon as any}
               style={styles.avatar}
             />
@@ -119,7 +119,7 @@ export function ClubDetailHeader({
           <View style={styles.statDivider} />
 
           <View style={styles.statBox}>
-            <MaterialIcons name="star" size={18} color={COLORS.brandGold} />
+            <MaterialIcons name="military-tech" size={18} color="#D97706" />
             <Text style={styles.statValue}>
               {club.averageElo || 1200}
             </Text>
