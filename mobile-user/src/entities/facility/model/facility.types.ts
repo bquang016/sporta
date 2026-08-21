@@ -24,6 +24,17 @@ export interface VenueResponse {
   district?: string | null;
 }
 
+// ─── Recommended Venue (AI Matching) ──────────────────────────────────────────
+
+export interface RecommendedVenue extends VenueResponse {
+  matchScore: number; // 0 - 100
+  recommendationReason: string;
+  reasonType: 'SPORT' | 'DISTANCE' | 'PRICE' | 'POPULARITY' | 'HISTORY';
+  distanceKm?: number | null;
+  pastBookingCount?: number;
+  availableSlotsCount?: number;
+}
+
 // ─── CourtPriceRule ───────────────────────────────────────────────────────────
 
 export interface CourtPriceRule {

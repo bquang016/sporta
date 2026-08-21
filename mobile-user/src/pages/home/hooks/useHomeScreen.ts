@@ -3,7 +3,8 @@ import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useQueryClient } from '@tanstack/react-query';
-import { useFacilities, Facility } from '../../../entities/facility';
+import { useFacilities, Facility, RecommendedVenue } from '../../../entities/facility';
+import { fetchRecommendedVenues } from '../../../entities/facility/api/facilityApi';
 import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { clubStore } from '../../../entities/club';
 import { useAlert } from '../../../shared/contexts/AlertContext';
@@ -17,6 +18,38 @@ export function useHomeScreen() {
   const [userName, setUserName] = useState('Khách');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [recommendedVenues, setRecommendedVenues] = useState<RecommendedVenue[]>([]);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedError, setRecommendedError] = useState<string | null>(null);
+
+  const fetchRecommendations = useCallback(async () => {
+    try {
+      setRecommendedLoading(true);
+      setRecommendedError(null);
+      let lat = 21.0285;
+      let lng = 105.8542;
+      try {
+        const Location = require('expo-location');
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc && loc.coords) {
+            lat = loc.coords.latitude;
+            lng = loc.coords.longitude;
+          }
+        }
+      } catch (_) {}
+
+      const data = await fetchRecommendedVenues({ lat, lng, limit: 6 });
+      setRecommendedVenues(data || []);
+    } catch (e: any) {
+      console.log('Error fetching recommendations:', e);
+      setRecommendedError(e.message || 'Lỗi tải gợi ý sân');
+    } finally {
+      setRecommendedLoading(false);
+    }
+  }, []);
 
   const {
     facilities,
@@ -136,7 +169,8 @@ export function useHomeScreen() {
     useCallback(() => {
       checkAuth();
       refetchTicketSessions();
-    }, [refetchTicketSessions])
+      fetchRecommendations();
+    }, [refetchTicketSessions, fetchRecommendations])
   );
 
   const onRefresh = async () => {
@@ -146,6 +180,7 @@ export function useHomeScreen() {
         checkAuth(),
         refetchFacilities(),
         refetchTicketSessions(),
+        fetchRecommendations(),
         queryClient.invalidateQueries({ queryKey: ['systemVoucherBanners'] }),
         queryClient.invalidateQueries({ queryKey: ['wallet_balance'] }),
         queryClient.invalidateQueries({ queryKey: ['myVouchers'] }),
@@ -229,6 +264,9 @@ export function useHomeScreen() {
     facilities,
     facilitiesLoading,
     facilitiesError,
+    recommendedVenues,
+    recommendedLoading,
+    recommendedError,
     ticketSessions,
     ticketSessionsLoading,
     ticketSessionsError,
