@@ -24,6 +24,7 @@ import { ActionGrid } from '../components/ActionGrid';
 import { StatsStrip } from '../components/StatsStrip';
 import { MatchInvitations } from '../components/MatchInvitations';
 import { TicketSessionsSection } from '../components/TicketSessionsSection';
+import { PersonalizedRecommendations } from '../components/PersonalizedRecommendations';
 
 const HEADER_HEIGHT = 56;
 const SEARCH_CONTAINER_HEIGHT = 60;
@@ -38,6 +39,9 @@ export function HomeScreen() {
     facilities,
     facilitiesLoading,
     facilitiesError,
+    recommendedVenues,
+    recommendedLoading,
+    recommendedError,
     ticketSessions,
     ticketSessionsLoading,
     ticketSessionsError,
@@ -170,7 +174,16 @@ export function HomeScreen() {
         {/* 5. Ghép kèo thể thao (Live Match Invitations) */}
         <MatchInvitations />
 
-        {/* 6. Sân Gần Bạn (Facilities Nearby) */}
+        {/* 6. Gợi Ý Dành Riêng Cho Bạn (AI Hybrid Matching) */}
+        <PersonalizedRecommendations
+          venues={recommendedVenues}
+          loading={recommendedLoading}
+          error={recommendedError}
+          onVenuePress={handleFacilityPress}
+          onSeeAllPress={() => router.push({ pathname: '/search', params: { openFilter: 'false' } })}
+        />
+
+        {/* 7. Sân Gần Bạn (Facilities Nearby) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleRow}>

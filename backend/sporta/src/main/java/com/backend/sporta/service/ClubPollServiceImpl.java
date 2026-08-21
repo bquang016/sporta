@@ -163,10 +163,11 @@ public class ClubPollServiceImpl implements ClubPollService {
         poll.setIsClosed(true);
 
         // Perform matchmaking split for users who voted JOIN
+        Long clubId = poll.getClub().getId();
         List<ClubPollVote> votes = clubPollVoteRepository.findByPollId(pollId);
         List<PollVoterDto> joinedVoters = votes.stream()
                 .filter(v -> v.getOption() == PollVoteOption.JOIN)
-                .map(v -> mapVoterDto(poll.getClub().getId(), v.getUser()))
+                .map(v -> mapVoterDto(clubId, v.getUser()))
                 .collect(Collectors.toList());
 
         List<String> teamA = new ArrayList<>();

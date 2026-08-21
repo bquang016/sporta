@@ -18,6 +18,12 @@ public class BookingPaidEventListener {
     @Autowired
     private OwnerWalletService ownerWalletService;
 
+    @Autowired
+    private com.backend.sporta.repository.BookingRepository bookingRepository;
+
+    @Autowired
+    private com.backend.sporta.service.VenueRecommendationService recommendationService;
+
     @EventListener
     @Transactional
     public void onBookingPaid(BookingPaidEvent event) {
@@ -29,5 +35,18 @@ public class BookingPaidEventListener {
                 event.getBookingId(),
                 event.getPaidAmount()
         );
+
+        // Ghi nhận chuyển đổi đặt sân cho hệ thống gợi ý AI
+        try {
+            if (event.getBookingId() != null) {
+                bookingRepository.findById(event.getBookingId()).ifPresent(booking -> {
+                    if (booking.getVenue() != null && booking.getUser() != null) {
+                        recommendationService.recordBooking(booking.getVenue().getId(), booking.getUser().getEmail());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi ghi nhận conversion gợi ý sân: {}", e.getMessage());
+        }
     }
 }
