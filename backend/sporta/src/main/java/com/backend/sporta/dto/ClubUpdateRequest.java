@@ -8,6 +8,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ClubUpdateRequest {
+    private String name;
     private String description;
     private String avatarImage;
     private String coverImage;

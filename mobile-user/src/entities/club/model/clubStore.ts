@@ -29,6 +29,8 @@ export interface Club {
   area?: string;
   averageElo?: number;
   userStatus?: string;
+  creatorId?: number;
+  creatorName?: string;
 }
 
 class ClubStore {

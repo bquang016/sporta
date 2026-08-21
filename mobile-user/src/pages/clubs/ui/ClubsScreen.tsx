@@ -90,7 +90,21 @@ export function ClubsScreen() {
       {/* Header wrapper to color the status bar and notch area white */}
       <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Câu lạc bộ</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Câu lạc bộ</Text>
+            <Text style={styles.headerSubtitle}>Khám phá & giao lưu thi đấu</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.createHeaderBtn}
+            activeOpacity={0.85}
+            onPress={() => {
+              if (handleRequireLogin('tạo câu lạc bộ')) return;
+              router.push('/create-club');
+            }}
+          >
+            <MaterialIcons name="add" size={18} color={COLORS.white} />
+            <Text style={styles.createHeaderBtnText}>Tạo CLB</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -234,19 +248,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.marginMobile,
-    height: 64,
+    paddingVertical: SPACING.sm + 2,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.outlineVariant,
   },
+  headerTitleContainer: {
+    gap: 2,
+  },
   headerTitle: {
     ...TYPOGRAPHY.headlineLgMobile,
-    fontSize: 20,
+    fontSize: 22,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
     color: COLORS.primary,
   },
+  headerSubtitle: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+  },
   createHeaderBtn: {
-    paddingHorizontal: SPACING.sm,
-    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 3,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primary,
+    gap: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createHeaderBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.white,
   },
   filterSection: {
     backgroundColor: COLORS.surface,

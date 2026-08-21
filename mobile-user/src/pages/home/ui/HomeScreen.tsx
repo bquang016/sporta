@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { SearchBar } from '../../../features/search-bar';
 import { FacilityCard } from '../../../entities/facility';
+import { VenueDetailModal } from '../../../features/venue-detail';
 import { useHomeScreen } from '../hooks/useHomeScreen';
 import { Header } from '../components/Header';
 import { VoucherBannerCarousel } from '../components/VoucherBannerCarousel';
@@ -43,6 +44,10 @@ export function HomeScreen() {
     refreshing,
     onRefresh,
     handleFacilityPress,
+    selectedVenueId,
+    selectedFacilityForModal,
+    isVenueModalVisible,
+    handleCloseVenueModal,
     handleAvatarPress,
     getGreeting,
   } = useHomeScreen();
@@ -229,6 +234,15 @@ export function HomeScreen() {
           error={ticketSessionsError}
         />
       </ScrollView>
+
+      {/* Floating Venue Detail Modal (60fps) */}
+      <VenueDetailModal
+        visible={isVenueModalVisible}
+        venueId={selectedVenueId || (selectedFacilityForModal?.id ? String(selectedFacilityForModal.id) : null)}
+        initialFacility={selectedFacilityForModal}
+        onClose={handleCloseVenueModal}
+        onBookNow={(venueId) => router.push(`/booking/${venueId}`)}
+      />
     </View>
   );
 }

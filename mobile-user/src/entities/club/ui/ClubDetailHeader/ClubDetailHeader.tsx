@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Avatar, Badge } from '../../../../shared/ui';
 import { Club } from '../../model/clubStore';
@@ -9,133 +10,155 @@ export interface ClubDetailHeaderProps {
   club: Club;
   hideMembersMeta?: boolean;
   isLeadership?: boolean;
+  userRole?: string;
   onEditPress?: () => void;
   showDescription?: boolean;
-  defaultExpanded?: boolean;
 }
 
 export function ClubDetailHeader({ 
   club, 
   hideMembersMeta = false,
   isLeadership = false,
+  userRole,
   onEditPress,
   showDescription = true,
-  defaultExpanded = false,
 }: ClubDetailHeaderProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  // Determine displayed role
+  const displayRole = userRole || (isLeadership ? 'Trưởng câu lạc bộ' : (club.userStatus === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên'));
 
   return (
     <View style={styles.container}>
-      {/* Cover Photo */}
+      {/* Cover Photo with Gradient Overlay */}
       <View style={styles.coverContainer}>
         {club.coverImage && typeof club.coverImage === 'string' && !club.coverImage.startsWith('blob:') ? (
           <Image source={{ uri: club.coverImage }} style={styles.coverImage} />
         ) : (
           <View style={[styles.coverImage, { backgroundColor: COLORS.primary }]} />
         )}
-      </View>
-
-      {/* Avatar overlapping cover */}
-      <View style={styles.avatarContainer}>
-        <Avatar 
-          size={80} 
-          source={club.avatarImage} 
-          fallbackIcon={club.sportIcon as any}
-          style={styles.avatar}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.3)', 'transparent', 'rgba(0,0,0,0.7)']}
+          style={styles.coverGradient}
         />
+
+        {/* Top Right Floating Edit Button for Leader */}
+        {isLeadership && onEditPress && (
+          <TouchableOpacity 
+            style={styles.floatingEditBtn}
+            activeOpacity={0.85}
+            onPress={onEditPress}
+          >
+            <MaterialIcons name="edit" size={15} color={COLORS.white} />
+            <Text style={styles.floatingEditText}>Sửa thông tin</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Dropdown Accordion Section */}
-      <View style={styles.infoSection}>
-        {/* Accordion Toggle Header */}
-        <TouchableOpacity 
-          style={[styles.accordionHeader, isExpanded && styles.accordionHeaderExpanded]}
-          activeOpacity={0.8}
-          onPress={() => setIsExpanded(!isExpanded)}
-        >
-          <View style={styles.accordionTitleRow}>
-            <MaterialIcons name="info-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.accordionTitle}>Thông tin chi tiết câu lạc bộ</Text>
-          </View>
-          <View style={styles.accordionRightRow}>
-            <Text style={styles.accordionHintText}>
-              {isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
-            </Text>
-            <MaterialIcons 
-              name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
-              size={22} 
-              color={COLORS.primary} 
+      {/* Main Profile Info Card */}
+      <View style={styles.profileSection}>
+        {/* Avatar Row */}
+        <View style={styles.avatarRow}>
+          <View style={styles.avatarWrapper}>
+            <Avatar 
+              size={84} 
+              source={club.avatarImage} 
+              fallbackIcon={club.sportIcon as any}
+              style={styles.avatar}
             />
           </View>
-        </TouchableOpacity>
 
-        {/* Collapsible Content */}
-        {isExpanded && (
-          <View style={styles.accordionContent}>
-            {/* Badges row + Sửa thông tin button */}
-            <View style={styles.badgesHeaderRow}>
-              <View style={styles.badgesRow}>
-                <Badge text={club.sport} variant="success" />
-                <Badge 
-                  text={club.isPrivate ? 'Riêng tư' : 'Công khai'} 
-                  variant={club.isPrivate ? 'warning' : 'info'} 
-                />
-                <Badge text={club.activityLevel || 'Mới thành lập'} variant="default" />
-              </View>
-
-              {isLeadership && onEditPress && (
-                <TouchableOpacity 
-                  style={styles.editBioBtn} 
-                  activeOpacity={0.7}
-                  onPress={onEditPress}
-                >
-                  <MaterialIcons name="edit" size={14} color={COLORS.primary} />
-                  <Text style={styles.editBioText}>Sửa thông tin</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Location & Members Details */}
-            <View style={styles.metaContainer}>
-              <View style={styles.metaItem}>
-                <MaterialIcons 
-                  name="location-on" 
-                  size={16} 
-                  color={COLORS.primary} 
-                />
-                <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">
-                  {club.area || 'Chưa cập nhật khu vực'}
+          {/* Quick Role & Sport Badge */}
+          <View style={styles.roleContainer}>
+            {isLeadership ? (
+              <View style={[styles.roleBadge, styles.roleBadgeLeader]}>
+                <MaterialIcons name="stars" size={14} color="#b45309" />
+                <Text style={[styles.roleBadgeText, styles.roleBadgeTextLeader]}>
+                  Trưởng câu lạc bộ
                 </Text>
               </View>
-              
-              {!hideMembersMeta && (
-                <>
-                  <View style={styles.metaDivider} />
-                  <View style={styles.metaItem}>
-                    <MaterialIcons 
-                      name="people" 
-                      size={16} 
-                      color={COLORS.primary} 
-                    />
-                    <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">
-                      {club.members}/{club.maxMembers} thành viên
-                    </Text>
-                  </View>
-                </>
-              )}
-            </View>
-
-            {/* Description Card */}
-            {showDescription && (
-              <View style={styles.bioCard}>
-                <View style={styles.bioHeaderRow}>
-                  <Text style={styles.bioSectionTitle}>Giới thiệu câu lạc bộ</Text>
-                </View>
-                <Text style={styles.descriptionText}>
-                  {club.description || 'Không có mô tả chi tiết cho câu lạc bộ này.'}
+            ) : displayRole === 'Phó câu lạc bộ' ? (
+              <View style={[styles.roleBadge, styles.roleBadgeSubLeader]}>
+                <MaterialIcons name="verified" size={14} color="#0369a1" />
+                <Text style={[styles.roleBadgeText, styles.roleBadgeTextSubLeader]}>
+                  Phó câu lạc bộ
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.roleBadge, styles.roleBadgeMember]}>
+                <MaterialIcons name="person" size={14} color={COLORS.onSurfaceVariant} />
+                <Text style={[styles.roleBadgeText, styles.roleBadgeTextMember]}>
+                  Thành viên
                 </Text>
               </View>
             )}
+
+            <View style={styles.tagsRow}>
+              <Badge text={club.sport} variant="success" />
+              <Badge 
+                text={club.isPrivate ? 'Riêng tư' : 'Công khai'} 
+                variant={club.isPrivate ? 'warning' : 'info'} 
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Club Name */}
+        <View style={styles.titleSection}>
+          <Text style={styles.clubName}>{club.name}</Text>
+        </View>
+
+        {/* 3-Column Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <MaterialIcons name="people" size={18} color={COLORS.primary} />
+            <Text style={styles.statValue}>
+              {club.members}/{club.maxMembers}
+            </Text>
+            <Text style={styles.statLabel}>Thành viên</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statBox}>
+            <MaterialIcons name="star" size={18} color={COLORS.brandGold} />
+            <Text style={styles.statValue}>
+              {club.averageElo || 1200}
+            </Text>
+            <Text style={styles.statLabel}>Elo trung bình</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statBox}>
+            <MaterialIcons name="location-on" size={18} color={COLORS.primary} />
+            <Text style={styles.statValue} numberOfLines={1} ellipsizeMode="tail">
+              {club.area ? club.area.split(',')[0] : 'Toàn quốc'}
+            </Text>
+            <Text style={styles.statLabel}>Khu vực</Text>
+          </View>
+        </View>
+
+        {/* Description Card */}
+        {showDescription && (
+          <View style={styles.bioCard}>
+            <View style={styles.bioHeaderRow}>
+              <View style={styles.bioTitleRow}>
+                <MaterialIcons name="article" size={18} color={COLORS.primary} />
+                <Text style={styles.bioSectionTitle}>Giới thiệu câu lạc bộ</Text>
+              </View>
+              {isLeadership && onEditPress && (
+                <TouchableOpacity 
+                  style={styles.inlineEditBtn} 
+                  activeOpacity={0.7}
+                  onPress={onEditPress}
+                >
+                  <MaterialIcons name="edit" size={13} color={COLORS.primary} />
+                  <Text style={styles.inlineEditText}>Chỉnh sửa</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.descriptionText}>
+              {club.description || 'Chưa có mô tả chi tiết cho câu lạc bộ này.'}
+            </Text>
           </View>
         )}
       </View>
@@ -145,143 +168,196 @@ export function ClubDetailHeader({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background,
   },
   coverContainer: {
-    height: 180,
+    height: 190,
     width: '100%',
+    position: 'relative',
+    backgroundColor: COLORS.surfaceContainerLow,
   },
   coverImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  avatarContainer: {
-    alignItems: 'flex-start',
-    paddingLeft: SPACING.marginMobile,
-    marginTop: -40,
+  coverGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  floatingEditBtn: {
+    position: 'absolute',
+    top: 14,
+    right: SPACING.marginMobile,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  floatingEditText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  profileSection: {
+    paddingHorizontal: SPACING.marginMobile,
+    marginTop: -44,
     zIndex: 10,
+    gap: SPACING.md,
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+  },
+  avatarWrapper: {
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderRadius: BORDER_RADIUS.full,
   },
   avatar: {
-    borderWidth: 3,
+    borderWidth: 3.5,
     borderColor: COLORS.surface,
     backgroundColor: COLORS.surfaceContainer,
   },
-  infoSection: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
+  roleContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: SPACING.xs + 2,
+    paddingBottom: 4,
   },
-  accordionHeader: {
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 4,
+  },
+  roleBadgeLeader: {
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  roleBadgeSubLeader: {
+    backgroundColor: '#e0f2fe',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+  },
+  roleBadgeMember: {
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+  roleBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  roleBadgeTextLeader: {
+    color: '#b45309',
+  },
+  roleBadgeTextSubLeader: {
+    color: '#0369a1',
+  },
+  roleBadgeTextMember: {
+    color: COLORS.onSurfaceVariant,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  titleSection: {
+    marginTop: 2,
+  },
+  clubName: {
+    ...TYPOGRAPHY.headlineLgMobile,
+    fontSize: 22,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: COLORS.onSurface,
+    lineHeight: 28,
+  },
+  statsGrid: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    shadowColor: COLORS.shadowBlack,
-    shadowOffset: { width: 0, height: 1 },
+    borderColor: COLORS.primaryOpacity12,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowRadius: 6,
     elevation: 2,
-    marginBottom: SPACING.xs,
   },
-  accordionHeaderExpanded: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomWidth: 0,
-    borderColor: COLORS.primaryOpacity15,
-    backgroundColor: COLORS.primaryOpacity05 || COLORS.surface,
-  },
-  accordionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs + 2,
+  statBox: {
     flex: 1,
+    alignItems: 'center',
+    gap: 3,
   },
-  accordionTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
-    fontWeight: '700',
+  statValue: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 15,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
     color: COLORS.onSurface,
   },
-  accordionRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  accordionHintText: {
+  statLabel: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  accordionContent: {
-    backgroundColor: COLORS.surface,
-    borderBottomLeftRadius: BORDER_RADIUS.lg,
-    borderBottomRightRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: COLORS.primaryOpacity15,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  badgesHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-    gap: SPACING.xs,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.base,
-    flex: 1,
-  },
-  metaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerLow || COLORS.background,
-    borderRadius: BORDER_RADIUS.default,
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    marginBottom: SPACING.md,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.base,
-    flex: 1,
-  },
-  metaText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
+    fontSize: 11,
     color: COLORS.onSurfaceVariant,
-    flex: 1,
   },
-  metaDivider: {
+  statDivider: {
     width: 1,
-    height: 16,
+    height: 28,
     backgroundColor: COLORS.outlineVariant,
-    marginHorizontal: SPACING.sm,
   },
   bioCard: {
-    backgroundColor: COLORS.primaryOpacity05,
-    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity15,
+    borderColor: COLORS.primaryOpacity10,
+    gap: SPACING.xs,
+    shadowColor: COLORS.shadowBlack,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   bioHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
+    marginBottom: 2,
+  },
+  bioTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
   },
   bioSectionTitle: {
     ...TYPOGRAPHY.labelMd,
@@ -289,25 +365,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.onSurface,
   },
-  editBioBtn: {
+  inlineEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.xs + 4,
-    paddingVertical: 2,
+    backgroundColor: COLORS.primaryOpacity10,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primaryOpacity15,
     gap: 3,
   },
-  editBioText: {
+  inlineEditText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
-    color: COLORS.primary,
+    fontSize: 11,
     fontWeight: '700',
+    color: COLORS.primary,
   },
   descriptionText: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 13,
     color: COLORS.onSurfaceVariant,
-    lineHeight: 19,
+    lineHeight: 20,
   },
 });

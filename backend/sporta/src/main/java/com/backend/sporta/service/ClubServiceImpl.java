@@ -94,6 +94,13 @@ public class ClubServiceImpl implements ClubService {
             throw new RuntimeException("Chỉ Trưởng nhóm mới có quyền cập nhật thông tin câu lạc bộ");
         }
 
+        if (request.getName() != null && !request.getName().trim().isEmpty() && !request.getName().trim().equals(club.getName())) {
+            String newName = request.getName().trim();
+            if (clubRepository.existsByName(newName)) {
+                throw new RuntimeException("Tên câu lạc bộ đã tồn tại");
+            }
+            club.setName(newName);
+        }
         if (request.getDescription() != null) club.setDescription(request.getDescription());
         if (request.getAvatarImage() != null) club.setAvatarImage(request.getAvatarImage());
         if (request.getCoverImage() != null) club.setCoverImage(request.getCoverImage());

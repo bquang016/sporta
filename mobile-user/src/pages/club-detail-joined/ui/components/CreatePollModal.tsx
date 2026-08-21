@@ -40,9 +40,12 @@ export function CreatePollModal({
       <View style={styles.modalOverlay}>
         <View style={styles.pollModalContent}>
           <View style={styles.pollModalHeader}>
-            <Text style={styles.pollModalTitle}>Tạo biểu quyết mới</Text>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
+            <View style={styles.headerTitleRow}>
+              <MaterialIcons name="add-circle" size={22} color={COLORS.primary} />
+              <Text style={styles.pollModalTitle}>Tạo biểu quyết mới</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
+              <MaterialIcons name="close" size={22} color={COLORS.onSurface} />
             </TouchableOpacity>
           </View>
 
@@ -52,12 +55,12 @@ export function CreatePollModal({
             style={styles.pollTextInput}
             value={pollTitleInput}
             onChangeText={setPollTitleInput}
-            placeholder="Ví dụ: Ghép trận cuối tuần"
-            placeholderTextColor={COLORS.onSurfaceVariant}
+            placeholder="Ví dụ: Ghép trận cuối tuần, Giao lưu nội bộ..."
+            placeholderTextColor={COLORS.outline}
           />
 
           {/* Close Time Input */}
-          <Text style={styles.modalFieldLabel}>Cài đặt thời gian đóng</Text>
+          <Text style={styles.modalFieldLabel}>Thời gian đóng biểu quyết</Text>
           <View style={styles.timePickerContainer}>
             <View style={styles.timeSelectorRow}>
               <TouchableOpacity 
@@ -65,25 +68,31 @@ export function CreatePollModal({
                 onPress={() => adjustHour(-1)}
                 activeOpacity={0.7}
               >
-                <MaterialIcons name="remove" size={18} color={COLORS.primary} />
+                <MaterialIcons name="remove" size={20} color={COLORS.primary} />
               </TouchableOpacity>
+
               <View style={styles.timeDisplayBox}>
                 <Text style={styles.timeDisplayText}>
                   {pollTimeHour.toString().padStart(2, '0')}
                 </Text>
+                <Text style={styles.timeUnitLabel}>Giờ</Text>
               </View>
+
               <Text style={styles.timeSeparator}>:</Text>
+
               <View style={styles.timeDisplayBox}>
                 <Text style={styles.timeDisplayText}>
                   {pollTimeMinute.toString().padStart(2, '0')}
                 </Text>
+                <Text style={styles.timeUnitLabel}>Phút</Text>
               </View>
+
               <TouchableOpacity 
                 style={styles.timeAdjustBtn} 
                 onPress={() => adjustHour(1)}
                 activeOpacity={0.7}
               >
-                <MaterialIcons name="add" size={18} color={COLORS.primary} />
+                <MaterialIcons name="add" size={20} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
             
@@ -94,6 +103,7 @@ export function CreatePollModal({
                 { h: 15, m: 0, label: '15:00' },
                 { h: 18, m: 0, label: '18:00' },
                 { h: 20, m: 0, label: '20:00' },
+                { h: 22, m: 0, label: '22:00' },
               ].map((preset, index) => {
                 const isSelected = pollTimeHour === preset.h && pollTimeMinute === preset.m;
                 return (
@@ -115,16 +125,16 @@ export function CreatePollModal({
             </View>
           </View>
 
-          {/* Default Options (Locked Visual display) */}
-          <Text style={styles.modalFieldLabel}>Tùy chọn mặc định (Không thể xóa)</Text>
+          {/* Default Options Display */}
+          <Text style={styles.modalFieldLabel}>Lựa chọn biểu quyết</Text>
           <View style={styles.lockedOptionsRow}>
             <View style={styles.lockedOptionBadge}>
-              <MaterialIcons name="check" size={14} color={COLORS.primary} />
-              <Text style={styles.lockedOptionText}>Tham gia</Text>
+              <MaterialIcons name="check-circle" size={16} color={COLORS.primary} />
+              <Text style={styles.lockedOptionText}>Tham gia thi đấu</Text>
             </View>
-            <View style={styles.lockedOptionBadge}>
-              <MaterialIcons name="check" size={14} color={COLORS.primary} />
-              <Text style={styles.lockedOptionText}>Vắng mặt</Text>
+            <View style={[styles.lockedOptionBadge, styles.lockedOptionBadgeAbsent]}>
+              <MaterialIcons name="cancel" size={16} color="#d97706" />
+              <Text style={[styles.lockedOptionText, { color: '#d97706' }]}>Bận / Vắng mặt</Text>
             </View>
           </View>
 
@@ -140,8 +150,9 @@ export function CreatePollModal({
             <TouchableOpacity
               style={[styles.pollModalBtn, styles.pollModalConfirmBtn]}
               onPress={onCreatePoll}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
+              <MaterialIcons name="check" size={18} color={COLORS.white} />
               <Text style={styles.pollModalConfirmText}>Tạo biểu quyết</Text>
             </TouchableOpacity>
           </View>
@@ -158,51 +169,66 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pollModalContent: {
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: BORDER_RADIUS.lg,
-    borderTopRightRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
     paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl,
-    maxHeight: '85%',
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl * 1.5,
+    maxHeight: '90%',
+    gap: SPACING.xs,
   },
   pollModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.primaryOpacity10,
-    marginBottom: SPACING.md,
+    borderBottomColor: COLORS.outlineVariant,
+    marginBottom: SPACING.xs,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
   },
   pollModalTitle: {
-    ...TYPOGRAPHY.headlineMd,
-    fontSize: 16,
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 17,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
     color: COLORS.onSurface,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalFieldLabel: {
     ...TYPOGRAPHY.labelMd,
     fontSize: 13,
+    fontWeight: '700',
     color: COLORS.onSurface,
-    marginBottom: SPACING.base,
-    marginTop: SPACING.base,
+    marginTop: SPACING.xs,
   },
   pollTextInput: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity20,
-    borderRadius: BORDER_RADIUS.default,
-    paddingHorizontal: SPACING.sm,
-    height: 44,
+    borderColor: COLORS.primaryOpacity15,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    height: 48,
     ...TYPOGRAPHY.bodyMd,
     fontSize: 14,
     color: COLORS.onSurface,
   },
   timePickerContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity10,
-    borderRadius: BORDER_RADIUS.default,
+    borderColor: COLORS.primaryOpacity15,
+    borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     alignItems: 'center',
     gap: SPACING.md,
@@ -213,98 +239,140 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   timeAdjustBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDER_RADIUS.default,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity20,
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryOpacity25,
+    backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   timeDisplayBox: {
-    width: 60,
-    height: 48,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
+    width: 72,
+    height: 58,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   timeDisplayText: {
     ...TYPOGRAPHY.headlineMd,
-    fontSize: 20,
+    fontSize: 24,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
     color: COLORS.primary,
+  },
+  timeUnitLabel: {
+    fontSize: 9,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+    marginTop: -2,
   },
   timeSeparator: {
     ...TYPOGRAPHY.headlineMd,
-    color: COLORS.onSurface,
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   presetTimeChipsRow: {
     flexDirection: 'row',
-    gap: SPACING.base,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: SPACING.xs + 2,
   },
   presetTimeChip: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.xl,
-    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: COLORS.outlineVariant,
   },
   presetTimeChipSelected: {
-    backgroundColor: COLORS.secondaryContainer,
+    backgroundColor: COLORS.primaryOpacity12,
+    borderColor: COLORS.primary,
   },
   presetTimeChipText: {
     ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
     color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
   presetTimeChipTextSelected: {
-    color: COLORS.onSecondaryContainer,
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   lockedOptionsRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: SPACING.sm,
   },
   lockedOptionBadge: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs + 2,
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.xl,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity15,
+  },
+  lockedOptionBadgeAbsent: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fde68a',
   },
   lockedOptionText: {
     ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '700',
     color: COLORS.primary,
   },
   pollModalActions: {
     flexDirection: 'row',
     gap: SPACING.md,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
   },
   pollModalBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: BORDER_RADIUS.default,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 6,
   },
   pollModalCancelBtn: {
-    backgroundColor: COLORS.surfaceContainer,
+    backgroundColor: COLORS.surfaceContainerLow,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
   },
   pollModalCancelText: {
     ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.onSurfaceVariant,
   },
   pollModalConfirmBtn: {
     backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   pollModalConfirmText: {
     ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    fontWeight: '700',
     color: COLORS.white,
   },
 });

@@ -86,7 +86,7 @@ export function CreateMatchModal({ visible, onClose, club, onSuccess }: CreateMa
 
     setIsSubmitting(true);
     try {
-      await addClubMatchApi(club.id, payload);
+      await addClubMatchApi(Number(club.id), payload);
       showAlert('Thành công', 'Đã ghi nhận kết quả trận đấu mới!');
       setOpponentName('');
       setOurScore('');

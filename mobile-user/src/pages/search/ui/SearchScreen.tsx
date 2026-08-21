@@ -10,6 +10,7 @@ import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/conf
 import { useDebounce } from '../../../shared/lib/useDebounce';
 import { SearchBar } from '../../../features/search-bar';
 import { FacilityCard, Facility, useFacilities } from '../../../entities/facility';
+import { VenueDetailModal } from '../../../features/venue-detail';
 import { FilterModal } from './FilterModal';
 import { FilterState } from './FilterModal';
 import { MapViewComponent } from './MapViewComponent';
@@ -46,7 +47,15 @@ const getDefaultFilters = (): FilterState => ({
   rating: 0,
 });
 
-const AnimatedPopupCard = ({ facility, onClose, router }: { facility: Facility, onClose: () => void, router: any }) => {
+const AnimatedPopupCard = ({ 
+  facility, 
+  onClose, 
+  onOpenDetail 
+}: { 
+  facility: Facility; 
+  onClose: () => void; 
+  onOpenDetail: (facility: Facility) => void;
+}) => {
   const translateY = useRef(new Animated.Value(300)).current;
 
   useEffect(() => {
@@ -74,8 +83,8 @@ const AnimatedPopupCard = ({ facility, onClose, router }: { facility: Facility, 
         <FacilityCard
           facility={facility}
           style={{ width: '100%' }}
-          onPress={() => router.push(`/booking/${facility.id}`)}
-          onBookPress={() => router.push(`/booking/${facility.id}`)}
+          onPress={() => onOpenDetail(facility)}
+          onBookPress={() => onOpenDetail(facility)}
         />
         <TouchableOpacity style={styles.closeCardBtn} onPress={closeCard}>
           <MaterialIcons name="close" size={20} color={COLORS.onSurfaceVariant} />
@@ -96,6 +105,21 @@ export function SearchScreen() {
   const [isFilterVisible, setFilterVisible] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Venue Detail Modal State
+  const [selectedModalVenueId, setSelectedModalVenueId] = useState<string | null>(null);
+  const [selectedModalVenue, setSelectedModalVenue] = useState<Facility | null>(null);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+
+  const handleOpenVenueDetail = (facility: Facility) => {
+    setSelectedModalVenueId(String(facility.id));
+    setSelectedModalVenue(facility);
+    setIsDetailModalVisible(true);
+  };
+
+  const handleCloseVenueDetail = () => {
+    setIsDetailModalVisible(false);
+  };
 
   // Map Display Mode
   const [pinDisplayMode, setPinDisplayMode] = useState<MapDisplayMode>('sport');
@@ -372,7 +396,7 @@ export function SearchScreen() {
                 <AnimatedPopupCard
                   facility={facility}
                   onClose={() => setSelectedFacilityId(null)}
-                  router={router}
+                  onOpenDetail={handleOpenVenueDetail}
                 />
               );
             })()
@@ -569,8 +593,8 @@ export function SearchScreen() {
                   <FacilityCard
                     facility={item}
                     style={styles.fullWidthCard}
-                    onPress={() => router.push(`/booking/${item.id}`)}
-                    onBookPress={() => router.push(`/booking/${item.id}`)}
+                    onPress={() => handleOpenVenueDetail(item)}
+                    onBookPress={() => handleOpenVenueDetail(item)}
                   />
                 </View>
               )}
@@ -617,6 +641,15 @@ export function SearchScreen() {
         />
       </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Floating Venue Detail Modal (60fps) */}
+      <VenueDetailModal
+        visible={isDetailModalVisible}
+        venueId={selectedModalVenueId || (selectedModalVenue?.id ? String(selectedModalVenue.id) : null)}
+        initialFacility={selectedModalVenue}
+        onClose={handleCloseVenueDetail}
+        onBookNow={(venueId) => router.push(`/booking/${venueId}`)}
+      />
     </View>
   );
 }
