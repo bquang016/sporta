@@ -43,4 +43,8 @@ public class VenueDetailResponse {
 
     // Danh sách sân con kèm giá và priceRules
     private List<CourtPublicResponse> courts;
+
+    // Điểm đánh giá (cache từ bảng venue_reviews)
+    private Double averageRating;
+    private Integer totalReviews;
 }

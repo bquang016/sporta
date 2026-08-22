@@ -15,6 +15,7 @@ import {
   Share,
   Platform,
   PanResponder,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,11 +27,16 @@ import { fetchVenueDetail } from '../../../entities/facility/api/facilityApi';
 import { VenueDetail } from '../../../entities/facility/model/facility.types';
 import { Facility } from '../../../entities/facility/ui/FacilityCard';
 import {
-  MOCK_VENUE_REVIEWS,
   MOCK_VENUE_RULES,
   MOCK_GALLERY_IMAGES,
   MOCK_DEFAULT_COURTS,
 } from '../model/venueDetailMock';
+import {
+  ReviewCard,
+  ReviewSummaryBanner,
+  WriteReviewSheet,
+  useVenueReviews,
+} from '../../venue-rating';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CAROUSEL_HEIGHT = 190;
@@ -99,6 +105,7 @@ export function VenueDetailModal({
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedReviewFilter, setSelectedReviewFilter] = useState<'all' | '5' | '4'>('all');
+  const [showWriteReview, setShowWriteReview] = useState(false);
 
   // 60FPS Slide & Fade Animation
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -341,13 +348,23 @@ export function VenueDetailModal({
 
   const courtList = venue?.courts && venue.courts.length > 0 ? venue.courts : MOCK_DEFAULT_COURTS;
 
-  // Filter reviews
-  const filteredReviews = MOCK_VENUE_REVIEWS.filter((rev) => {
+  // 5. Load real reviews from API
+  const {
+    data: reviewData,
+    loading: reviewsLoading,
+    loadMore: loadMoreReviews,
+    refetch: refetchReviews,
+  } = useVenueReviews(visible && venueId ? venueId : null);
+
+  // Filter reviews client-side by star rating
+  const filteredReviews = (reviewData?.reviews ?? []).filter((rev) => {
     if (selectedReviewFilter === 'all') return true;
     if (selectedReviewFilter === '5') return rev.rating >= 5;
     if (selectedReviewFilter === '4') return rev.rating >= 4 && rev.rating < 5;
     return true;
   });
+
+  const canReview = reviewData?.canReview ?? false;
 
   return (
     <Modal
@@ -457,7 +474,11 @@ export function VenueDetailModal({
               {/* Star Rating Curved Sporta Emerald Badge */}
               <View style={styles.starRatingBadgeTop}>
                 <MaterialIcons name="star" size={15} color={COLORS.secondary} />
-                <Text style={styles.starRatingBadgeText}>4.9 (128 đánh giá)</Text>
+                <Text style={styles.starRatingBadgeText}>
+                  {(venue?.averageRating ?? (initialFacility?.rating && initialFacility.rating > 0 ? initialFacility.rating : null)) != null
+                    ? `${(venue?.averageRating ?? initialFacility!.rating).toFixed(1)} (${venue?.totalReviews ?? 0} đánh giá)`
+                    : 'Chưa có đánh giá'}
+                </Text>
               </View>
 
               <View style={styles.heroCardContent}>
@@ -730,57 +751,36 @@ export function VenueDetailModal({
                 </View>
               )}
 
-              {/* TAB 5: ĐÁNH GIÁ (Nâng cấp giao diện đẹp mắt) */}
+              {/* TAB 5: DANH GIA (Ket noi API thuc) */}
               {activeTab === 'reviews' && (
                 <View style={styles.tabPaneContainer}>
-                  {/* Rating Breakdown Banner */}
-                  <View style={styles.ratingSummaryCard}>
-                    <LinearGradient
-                      colors={[COLORS.primary, '#033326']}
-                      style={styles.ratingBigScoreCard}
+                  {/* Summary Banner */}
+                  <ReviewSummaryBanner
+                    averageRating={reviewData?.averageRating ?? venue?.averageRating ?? 0}
+                    totalReviews={reviewData?.totalReviews ?? venue?.totalReviews ?? 0}
+                    avgSurfaceScore={reviewData?.avgSurfaceScore ?? 0}
+                    avgLightingScore={reviewData?.avgLightingScore ?? 0}
+                    avgServiceScore={reviewData?.avgServiceScore ?? 0}
+                  />
+
+                  {/* Write Review Button (only when user can review) */}
+                  {canReview && (
+                    <TouchableOpacity
+                      style={styles.writeReviewBtn}
+                      activeOpacity={0.85}
+                      onPress={() => setShowWriteReview(true)}
                     >
-                      <Text style={styles.ratingBigScoreNumber}>4.9</Text>
-                      <View style={styles.ratingStarsBig}>
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <MaterialIcons key={i} name="star" size={14} color={COLORS.secondary} />
-                        ))}
-                      </View>
-                      <Text style={styles.ratingTotalSubText}>128 đánh giá</Text>
-                    </LinearGradient>
+                      <MaterialIcons name="edit" size={16} color={COLORS.primary} />
+                      <Text style={styles.writeReviewBtnText}>Viet danh gia cua ban</Text>
+                    </TouchableOpacity>
+                  )}
 
-                    <View style={styles.ratingProgressCol}>
-                      <View style={styles.ratingProgressRow}>
-                        <Text style={styles.ratingProgressLabel}>Mặt sân</Text>
-                        <View style={styles.progressBarTrack}>
-                          <View style={[styles.progressBarFill, { width: '98%' }]} />
-                        </View>
-                        <Text style={styles.ratingProgressScore}>5.0</Text>
-                      </View>
-
-                      <View style={styles.ratingProgressRow}>
-                        <Text style={styles.ratingProgressLabel}>Ánh sáng</Text>
-                        <View style={styles.progressBarTrack}>
-                          <View style={[styles.progressBarFill, { width: '94%' }]} />
-                        </View>
-                        <Text style={styles.ratingProgressScore}>4.8</Text>
-                      </View>
-
-                      <View style={styles.ratingProgressRow}>
-                        <Text style={styles.ratingProgressLabel}>Dịch vụ</Text>
-                        <View style={styles.progressBarTrack}>
-                          <View style={[styles.progressBarFill, { width: '96%' }]} />
-                        </View>
-                        <Text style={styles.ratingProgressScore}>4.9</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Review Filter Chips */}
+                  {/* Filter Chips */}
                   <View style={styles.reviewChipsFilterRow}>
                     {[
-                      { key: 'all', label: 'Tất cả (128)' },
-                      { key: '5', label: '⭐ 5 Sao (112)' },
-                      { key: '4', label: '⭐ 4 Sao (16)' },
+                      { key: 'all', label: `Tat ca (${reviewData?.totalReviews ?? 0})` },
+                      { key: '5', label: '5 Sao' },
+                      { key: '4', label: '4 Sao' },
                     ].map((f) => (
                       <TouchableOpacity
                         key={f.key}
@@ -803,47 +803,39 @@ export function VenueDetailModal({
                   </View>
 
                   {/* Reviews List */}
-                  <View style={styles.reviewsList}>
-                    {filteredReviews.map((rev) => (
-                      <View key={rev.id} style={styles.reviewCard}>
-                        <View style={styles.reviewHeader}>
-                          <Image source={{ uri: rev.userAvatar }} style={styles.reviewAvatar} />
-                          <View style={styles.reviewUserCol}>
-                            <View style={styles.userNameRow}>
-                              <Text style={styles.reviewUserName}>{rev.userName}</Text>
-                              <View style={styles.verifiedRoleBadge}>
-                                <MaterialIcons name="verified" size={12} color={COLORS.primary} />
-                                <Text style={styles.verifiedRoleText}>Đã xác thực</Text>
-                              </View>
-                            </View>
-                            <Text style={styles.reviewDate}>{rev.date}</Text>
-                          </View>
-                          <View style={styles.reviewStars}>
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <MaterialIcons
-                                key={i}
-                                name={i < Math.floor(rev.rating) ? 'star' : 'star-half'}
-                                size={14}
-                                color={COLORS.secondary}
-                              />
-                            ))}
-                          </View>
-                        </View>
-
-                        <Text style={styles.reviewContent}>{rev.content}</Text>
-
-                        {rev.tags && rev.tags.length > 0 ? (
-                          <View style={styles.reviewTagsRow}>
-                            {rev.tags.map((tag, tIdx) => (
-                              <View key={tIdx} style={styles.reviewTag}>
-                                <Text style={styles.reviewTagText}>#{tag}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
+                  {reviewsLoading && filteredReviews.length === 0 ? (
+                    <View style={styles.reviewsLoadingBox}>
+                      <ActivityIndicator size="small" color={COLORS.primary} />
+                      <Text style={styles.reviewsLoadingText}>Dang tai danh gia...</Text>
+                    </View>
+                  ) : filteredReviews.length === 0 ? (
+                    <View style={styles.reviewsEmptyBox}>
+                      <MaterialIcons name="rate-review" size={40} color={COLORS.outlineVariant} />
+                      <Text style={styles.reviewsEmptyTitle}>Chua co danh gia</Text>
+                      <Text style={styles.reviewsEmptyText}>
+                        Hay la nguoi dau tien danh gia cum san nay!
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.reviewsList}>
+                      {filteredReviews.map((rev) => (
+                        <ReviewCard key={rev.id} review={rev} />
+                      ))}
+                      {reviewData?.hasMore && (
+                        <TouchableOpacity
+                          style={styles.loadMoreBtn}
+                          onPress={loadMoreReviews}
+                          activeOpacity={0.8}
+                        >
+                          {reviewsLoading ? (
+                            <ActivityIndicator size="small" color={COLORS.primary} />
+                          ) : (
+                            <Text style={styles.loadMoreText}>Xem them danh gia</Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -902,6 +894,18 @@ export function VenueDetailModal({
           </View>
         </Modal>
       )}
+
+      {/* WriteReview Sheet */}
+      <WriteReviewSheet
+        visible={showWriteReview}
+        venueId={venueId}
+        venueName={venueName}
+        onClose={() => setShowWriteReview(false)}
+        onSuccess={() => {
+          setShowWriteReview(false);
+          refetchReviews();
+        }}
+      />
     </Modal>
   );
 }
@@ -1745,5 +1749,65 @@ const styles = StyleSheet.create({
   photoPreviewImage: {
     width: SCREEN_WIDTH * 0.95,
     height: SCREEN_HEIGHT * 0.7,
+  },
+
+  // ─── Review Tab extras ───────────────────────────────────────────────────────
+  writeReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.primaryOpacity08,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity20,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  writeReviewBtnText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.primary,
+    fontWeight: '600',
+    flex: 1,
+  },
+  loadMoreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    marginTop: SPACING.xs,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceContainerHigh,
+  },
+  loadMoreText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  reviewsLoadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  reviewsLoadingText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.grayText,
+  },
+  reviewsEmptyBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+    gap: SPACING.sm,
+  },
+  reviewsEmptyTitle: {
+    ...TYPOGRAPHY.headlineMd,
+    color: COLORS.onSurface,
+  },
+  reviewsEmptyText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.grayText,
+    textAlign: 'center',
   },
 });

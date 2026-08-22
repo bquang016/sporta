@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { MyTicketsScreen } from '../../my-tickets/ui/MyTicketsScreen';
+import { BookingHistoryScreen } from '../../profile/ui/BookingHistoryScreen';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 
 export function BookingsScreen() {
@@ -53,11 +54,7 @@ export function BookingsScreen() {
       {activeTab === 'tickets' ? (
         <MyTicketsScreen showHeader={false} />
       ) : (
-        <View style={styles.bodyCenter}>
-          <MaterialIcons name="event-available" size={64} color={COLORS.surfaceContainerHigh} />
-          <Text style={styles.title}>Lịch Đặt Sân</Text>
-          <Text style={styles.subtitle}>Quản lý các suất đặt sân cố định và đặt trước của bạn.</Text>
-        </View>
+        <BookingHistoryScreen showHeader={false} />
       )}
     </SafeAreaView>
   );

@@ -47,4 +47,8 @@ public class VenueResponse {
     // Thêm cho tính năng Search LBS & Availability
     private Double distanceKm;
     private Integer availableSlotsCount;
+
+    // Điểm đánh giá (cache từ bảng venue_reviews)
+    private Double averageRating;
+    private Integer totalReviews;
 }
