@@ -54,7 +54,10 @@ export const UserProfileHeader = React.memo(({
       <View style={styles.profileMainRow}>
         {/* Avatar Container with Border and Badges */}
         <View style={styles.avatarContainer}>
-          <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+          <Image 
+            source={profile.avatarUrl ? { uri: profile.avatarUrl } : require('../../../../assets/player/player_699x699.png')} 
+            style={styles.avatarImage} 
+          />
           {profile.sportaPoints && (
             <View style={styles.pointsBadge}>
               <Text style={styles.pointsText}>{profile.sportaPoints}</Text>

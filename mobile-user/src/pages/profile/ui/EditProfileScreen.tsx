@@ -192,7 +192,7 @@ export function EditProfileScreen() {
           {/* HEADER INFO */}
           <View style={styles.profileHeader}>
           <View style={styles.avatarWrapper}>
-            <Avatar size={100} source={avatarUri || defaultAvatar} />
+            <Avatar size={100} source={avatarUri || null} fallbackType="user" />
             <TouchableOpacity style={styles.avatarCamera} onPress={handlePickImage}>
               <MaterialIcons name="camera-alt" size={16} color="#064E3B" />
             </TouchableOpacity>

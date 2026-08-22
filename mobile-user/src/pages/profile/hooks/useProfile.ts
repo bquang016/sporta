@@ -79,10 +79,12 @@ export function useProfile() {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('userName');
         localStorage.removeItem('userEmail');
+        localStorage.removeItem('userAvatar');
       } else {
         await SecureStore.deleteItemAsync('accessToken');
         await SecureStore.deleteItemAsync('userName');
         await SecureStore.deleteItemAsync('userEmail');
+        await SecureStore.deleteItemAsync('userAvatar');
       }
       setIsAuthenticated(false);
       setProfileData(null);

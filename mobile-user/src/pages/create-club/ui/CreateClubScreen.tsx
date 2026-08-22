@@ -193,7 +193,7 @@ export function CreateClubScreen() {
 
       // Final fallback logic applied automatically
       const finalCover = customCoverUrl || getDefaultCover(sport);
-      const finalAvatar = customAvatarUrl || getDefaultAvatar(sport);
+      const finalAvatar = customAvatarUrl || null;
 
       await createClub({
         name: name.trim(),
@@ -267,7 +267,10 @@ export function CreateClubScreen() {
               activeOpacity={0.88}
               onPress={() => pickImage('avatar')}
             >
-              <Image source={{ uri: effectiveAvatar }} style={styles.avatarImg} />
+              <Image 
+                source={typeof effectiveAvatar === 'string' ? { uri: effectiveAvatar } : effectiveAvatar} 
+                style={styles.avatarImg} 
+              />
               <View style={styles.avatarBadgeAction}>
                 <MaterialIcons name="camera-alt" size={14} color={COLORS.white} />
               </View>

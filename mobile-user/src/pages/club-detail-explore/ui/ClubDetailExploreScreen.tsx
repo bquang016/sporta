@@ -194,7 +194,7 @@ export function ClubDetailExploreScreen() {
               <Avatar
                 size={84}
                 source={avatarUrl}
-                fallbackIcon={getSportIcon(club.sport) as any}
+                fallbackType="club"
                 style={styles.avatar}
               />
             </View>

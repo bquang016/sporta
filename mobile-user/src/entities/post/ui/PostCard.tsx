@@ -47,7 +47,10 @@ export const PostCard = React.memo(({
               activeOpacity={0.8}
               onPress={() => onClubPress && onClubPress(post.clubInfo!)}
             >
-              <Image source={{ uri: post.clubInfo.avatarUrl }} style={styles.clubAvatar} />
+              <Image 
+                source={post.clubInfo.avatarUrl ? { uri: post.clubInfo.avatarUrl } : require('../../../../assets/logo/club/699x699__1_-removebg-preview.png')} 
+                style={styles.clubAvatar} 
+              />
             </TouchableOpacity>
 
             {/* User Avatar Overlapping on Bottom-Right */}
@@ -56,13 +59,19 @@ export const PostCard = React.memo(({
               onPress={() => onUserPress && onUserPress(post.author.id)}
               style={styles.userOverlappingTouch}
             >
-              <Image source={{ uri: post.author.avatar }} style={styles.userOverlappingAvatar} />
+              <Image 
+                source={post.author.avatar ? { uri: post.author.avatar } : require('../../../../assets/player/player_699x699.png')} 
+                style={styles.userOverlappingAvatar} 
+              />
             </TouchableOpacity>
           </View>
         ) : (
           /* Standard Single Avatar */
           <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
-            <Image source={{ uri: post.author.avatar }} style={styles.singleAvatar} />
+            <Image 
+              source={post.author.avatar ? { uri: post.author.avatar } : require('../../../../assets/player/player_699x699.png')} 
+              style={styles.singleAvatar} 
+            />
           </TouchableOpacity>
         )}
 

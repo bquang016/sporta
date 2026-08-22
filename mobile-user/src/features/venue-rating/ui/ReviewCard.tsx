@@ -54,17 +54,15 @@ export function ReviewCard({ review }: ReviewCardProps) {
       {/* Header: Avatar + Name + Date + Stars */}
       <View style={styles.header}>
         <View style={styles.avatarWrapper}>
-          {review.reviewerAvatar && !avatarError ? (
-            <Image
-              source={{ uri: review.reviewerAvatar }}
-              style={styles.avatar}
-              onError={() => setAvatarError(true)}
-            />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            </View>
-          )}
+          <Image
+            source={
+              review.reviewerAvatar && !avatarError
+                ? { uri: review.reviewerAvatar }
+                : require('../../../../assets/player/player_699x699.png')
+            }
+            style={styles.avatar}
+            onError={() => setAvatarError(true)}
+          />
         </View>
 
         <View style={styles.headerInfo}>
