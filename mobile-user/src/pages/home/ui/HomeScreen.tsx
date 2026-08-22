@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 import { SearchBar } from '../../../features/search-bar';
 import { FacilityCard } from '../../../entities/facility';
 import { VenueDetailModal } from '../../../features/venue-detail';
+import { NotificationsModal, useUnreadNotificationCount } from '../../../features/notifications';
 import { useHomeScreen } from '../hooks/useHomeScreen';
 import { Header } from '../components/Header';
 import { VoucherBannerCarousel } from '../components/VoucherBannerCarousel';
@@ -31,6 +32,8 @@ const SEARCH_CONTAINER_HEIGHT = 60;
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const [isNotifModalVisible, setIsNotifModalVisible] = useState(false);
+
   const {
     router,
     isAuthenticated,
@@ -56,7 +59,9 @@ export function HomeScreen() {
     getGreeting,
   } = useHomeScreen();
 
-  // ─── Collapsible Top Bar Animation (Same pattern as SocialScreen) ───────────
+  const { data: unreadCount = 0 } = useUnreadNotificationCount(isAuthenticated);
+
+  // Collapsible Top Bar Animation
   const COLLAPSE_HEIGHT = HEADER_HEIGHT;
   const TOTAL_TOP_BAR_HEIGHT = insets.top + HEADER_HEIGHT + SEARCH_CONTAINER_HEIGHT;
 
@@ -88,10 +93,10 @@ export function HomeScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* ── Fixed Status Bar Background (che kín notch, z-index 101) ── */}
+      {/* Fixed Status Bar Background */}
       <View style={[styles.statusBarBackground, { height: insets.top }]} />
 
-      {/* ── Collapsible Top Bar: Header (collapses) + SearchBar (stays sticky) ── */}
+      {/* Collapsible Top Bar: Header (collapses) + SearchBar (stays sticky) */}
       <Animated.View
         style={[
           styles.topBar,
@@ -106,8 +111,16 @@ export function HomeScreen() {
           isAuthenticated={isAuthenticated}
           userName={userName}
           userAvatar={userAvatar}
+          unreadNotificationsCount={unreadCount}
           getGreeting={getGreeting}
           handleAvatarPress={handleAvatarPress}
+          onNotificationPress={() => {
+            if (isAuthenticated) {
+              setIsNotifModalVisible(true);
+            } else {
+              router.push('/(auth)/login');
+            }
+          }}
         />
 
         {/* Sticky SearchBar row */}
@@ -121,7 +134,7 @@ export function HomeScreen() {
         </View>
       </Animated.View>
 
-      {/* ── Main Scroll View ── */}
+      {/* Main Scroll View */}
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -168,13 +181,13 @@ export function HomeScreen() {
         {/* 3. Dịch vụ nổi bật (Action Grid 2x2) */}
         <ActionGrid isAuthenticated={isAuthenticated} />
 
-        {/* 4. Stats Strip (Thống kê Sporta hôm nay) */}
+        {/* 4. Stats Strip */}
         <StatsStrip />
 
         {/* 5. Ghép kèo thể thao (Live Match Invitations) */}
         <MatchInvitations />
 
-        {/* 6. Gợi Ý Dành Riêng Cho Bạn (AI Hybrid Matching) */}
+        {/* 6. Gợi Ý Dành Riêng Cho Bạn */}
         <PersonalizedRecommendations
           venues={recommendedVenues}
           loading={recommendedLoading}
@@ -183,7 +196,7 @@ export function HomeScreen() {
           onSeeAllPress={() => router.push({ pathname: '/search', params: { openFilter: 'false' } })}
         />
 
-        {/* 7. Sân Gần Bạn (Facilities Nearby) */}
+        {/* 7. Sân Gần Bạn */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleRow}>
@@ -213,7 +226,6 @@ export function HomeScreen() {
             decelerationRate="fast"
           >
             {facilitiesLoading ? (
-              // Skeletons
               Array.from({ length: 3 }).map((_, idx) => (
                 <View key={idx} style={styles.facilitySkeletonCard} />
               ))
@@ -240,7 +252,7 @@ export function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* 7. Sân Chơi Xé Vé (Ticket Sessions) */}
+        {/* 8. Sân Chơi Xé Vé */}
         <TicketSessionsSection
           sessions={ticketSessions}
           loading={ticketSessionsLoading}
@@ -248,13 +260,19 @@ export function HomeScreen() {
         />
       </ScrollView>
 
-      {/* Floating Venue Detail Modal (60fps) */}
+      {/* Floating Venue Detail Modal */}
       <VenueDetailModal
         visible={isVenueModalVisible}
         venueId={selectedVenueId || (selectedFacilityForModal?.id ? String(selectedFacilityForModal.id) : null)}
         initialFacility={selectedFacilityForModal}
         onClose={handleCloseVenueModal}
-        onBookNow={(venueId) => router.push(`/booking/${venueId}`)}
+        onBookNow={(venueId) => router.push(('/booking/' + venueId) as any)}
+      />
+
+      {/* In-App Notifications Modal */}
+      <NotificationsModal
+        visible={isNotifModalVisible}
+        onClose={() => setIsNotifModalVisible(false)}
       />
     </View>
   );

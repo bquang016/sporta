@@ -5,73 +5,51 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Image,
   Animated,
   Dimensions,
   PanResponder,
   ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { NotificationVM } from '../../../shared/api/notifications';
+import {
+  useNotifications,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+} from '../model/useNotifications';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-export interface NotificationItem {
-  id: string;
-  type: 'MATCH_INVITE' | 'COMMENT' | 'LIKE' | 'CLUB';
-  title: string;
-  body: string;
-  time: string;
-  avatar: string;
-  isRead: boolean;
-}
-
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'n-1',
-    type: 'MATCH_INVITE',
-    title: 'Lời mời giao lưu Cầu lông 🏸',
-    body: 'Phạm Ngọc Lê vừa mời bạn tham gia trận Cầu Lông giao lưu sáng mai tại Nhà Thi Đấu Cầu Giấy.',
-    time: '5 phút trước',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&auto=format&fit=crop&q=80',
-    isRead: false,
-  },
-  {
-    id: 'n-2',
-    type: 'LIKE',
-    title: 'Nguyễn Văn Nam và 4 người khác',
-    body: 'Đã bày tỏ cảm xúc về bài viết Pickleball của bạn.',
-    time: '20 phút trước',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80',
-    isRead: false,
-  },
-  {
-    id: 'n-3',
-    type: 'COMMENT',
-    title: 'Quan Luu đã bình luận',
-    body: '"Kèo này hấp dẫn quá anh em ơi! Cho mình xin 1 suất với nhé 🏸🔥"',
-    time: '1 giờ trước',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    isRead: false,
-  },
-  {
-    id: 'n-4',
-    type: 'CLUB',
-    title: 'CLB Pickleball Cầu Giấy Official',
-    body: 'Yêu cầu tham gia CLB của bạn đã được Quản trị viên chấp nhận. Chào mừng bạn!',
-    time: '2 giờ trước',
-    avatar: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80',
-    isRead: true,
-  },
-];
 
 interface NotificationsModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectNotification?: (item: NotificationItem) => void;
+  onSelectNotification?: (item: NotificationVM) => void;
 }
 
-type NotifFilter = 'ALL' | 'MATCHES' | 'INTERACTIONS';
+type NotifFilter = 'ALL' | 'MATCHES' | 'BOOKINGS';
+
+function formatTimeAgo(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (diffSec < 60) return 'Vừa xong';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + ' phút trước';
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return diffHours + ' giờ trước';
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return diffDays + ' ngày trước';
+    return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+  } catch {
+    return '';
+  }
+}
 
 export function NotificationsModal({
   visible,
@@ -96,10 +74,16 @@ function NotificationsModalContent({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSelectNotification?: (item: NotificationItem) => void;
+  onSelectNotification?: (item: NotificationVM) => void;
 }) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<NotifFilter>('ALL');
+
+  const { data: notifData, isLoading, refetch, isRefetching } = useNotifications(0, 50, visible);
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+
+  const notifications = useMemo(() => notifData?.content || [], [notifData]);
 
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -179,101 +163,161 @@ function NotificationsModalContent({
   );
 
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    markAllAsReadMutation.mutate();
   };
 
-  const handlePressItem = (item: NotificationItem) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-    );
-    if (onSelectNotification) onSelectNotification(item);
+  const handlePressItem = (item: NotificationVM) => {
+    if (!(item.isRead ?? item.read)) {
+      markAsReadMutation.mutate(item.id);
+    }
+    if (onSelectNotification) {
+      onSelectNotification(item);
+    }
+
+    animateClose();
+
+    setTimeout(() => {
+      if (item.type.startsWith('BOOKING_')) {
+        if (item.referenceId) {
+          router.push({
+            pathname: '/booking/success' as any,
+            params: {
+              bookingId: item.referenceId,
+              fromHistory: 'true',
+            },
+          });
+        } else {
+          router.push('/profile/booking-history' as any);
+        }
+      } else if (item.type.startsWith('MATCH_')) {
+        if (item.referenceId) {
+          router.push(`/matchmaking/${item.referenceId}` as any);
+        } else {
+          router.push('/matchmaking' as any);
+        }
+      } else if (item.type.startsWith('TICKET_')) {
+        router.push('/my-tickets' as any);
+      } else if (item.type.startsWith('CLUB_')) {
+        if (item.referenceId) {
+          router.push(`/club-detail-joined/${item.referenceId}` as any);
+        } else {
+          router.push('/my-clubs' as any);
+        }
+      } else if (item.type.startsWith('POST_')) {
+        router.push('/social' as any);
+      } else if (item.type === 'WALLET_DEPOSIT_SUCCESS') {
+        router.push('/wallet' as any);
+      } else if (item.type === 'VOUCHER_RECEIVED') {
+        router.push('/vouchers' as any);
+      }
+    }, 250);
   };
 
   const filteredNotifs = useMemo(() => {
-    if (activeFilter === 'MATCHES') return notifications.filter((n) => n.type === 'MATCH_INVITE');
-    if (activeFilter === 'INTERACTIONS') return notifications.filter((n) => n.type === 'LIKE' || n.type === 'COMMENT');
+    if (activeFilter === 'MATCHES') {
+      return notifications.filter((n) => n.type.startsWith('MATCH_'));
+    }
+    if (activeFilter === 'BOOKINGS') {
+      return notifications.filter((n) => n.type.startsWith('BOOKING_') || n.type.startsWith('TICKET_'));
+    }
     return notifications;
   }, [notifications, activeFilter]);
 
-  const unreadTotal = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
+  const unreadTotal = useMemo(() => notifications.filter((n) => !(n.isRead ?? n.read)).length, [notifications]);
   const allCount = notifications.length;
-  const matchesCount = useMemo(() => notifications.filter((n) => n.type === 'MATCH_INVITE').length, [notifications]);
-  const interactionsCount = useMemo(() => notifications.filter((n) => n.type === 'LIKE' || n.type === 'COMMENT').length, [notifications]);
+  const matchesCount = useMemo(() => notifications.filter((n) => n.type.startsWith('MATCH_')).length, [notifications]);
+  const bookingsCount = useMemo(
+    () => notifications.filter((n) => n.type.startsWith('BOOKING_') || n.type.startsWith('TICKET_')).length,
+    [notifications]
+  );
 
-  const renderTypeIcon = (type: NotificationItem['type']) => {
-    switch (type) {
-      case 'MATCH_INVITE':
-        return (
-          <View style={[styles.badgeOverlay, { backgroundColor: COLORS.primary }]}>
-            <MaterialCommunityIcons name="badminton" size={10} color="#FFFFFF" />
-          </View>
-        );
-      case 'LIKE':
-        return (
-          <View style={[styles.badgeOverlay, { backgroundColor: '#EF4444' }]}>
-            <Ionicons name="heart" size={10} color="#FFFFFF" />
-          </View>
-        );
-      case 'COMMENT':
-        return (
-          <View style={[styles.badgeOverlay, { backgroundColor: '#10B981' }]}>
-            <Ionicons name="chatbubble" size={10} color="#FFFFFF" />
-          </View>
-        );
-      case 'CLUB':
-        return (
-          <View style={[styles.badgeOverlay, { backgroundColor: '#8B5CF6' }]}>
-            <Ionicons name="shield-checkmark" size={10} color="#FFFFFF" />
-          </View>
-        );
-      default:
-        return null;
+  const renderTypeIcon = (type: string, isRead: boolean) => {
+    let bgColor = '#3B82F6';
+    let iconName: any = 'notifications-outline';
+
+    if (type.startsWith('MATCH_')) {
+      bgColor = '#10B981';
+      iconName = 'football-outline';
+    } else if (type.startsWith('BOOKING_')) {
+      bgColor = '#3B82F6';
+      iconName = 'calendar-outline';
+    } else if (type.startsWith('TICKET_')) {
+      bgColor = '#8B5CF6';
+      iconName = 'ticket-outline';
+    } else if (type.startsWith('CLUB_')) {
+      bgColor = '#F59E0B';
+      iconName = 'people-outline';
+    } else if (type.startsWith('POST_')) {
+      bgColor = '#EC4899';
+      iconName = 'heart-outline';
+    } else if (type === 'WALLET_DEPOSIT_SUCCESS') {
+      bgColor = '#059669';
+      iconName = 'wallet-outline';
+    } else if (type === 'VOUCHER_RECEIVED') {
+      bgColor = '#F97316';
+      iconName = 'gift-outline';
     }
+
+    return (
+      <View
+        style={[
+          styles.iconBadge,
+          { backgroundColor: bgColor },
+          isRead && styles.iconBadgeRead,
+        ]}
+      >
+        <Ionicons name={iconName} size={18} color="#FFFFFF" />
+      </View>
+    );
   };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={animateClose}>
       <View style={styles.modalRoot}>
-        {/* Animated Fade Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={animateClose} />
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={animateClose} />
         </Animated.View>
 
-        {/* Fixed Height Floating Sheet (Chống co cụt khi chuyển tab) */}
         <Animated.View
           style={[styles.sheetContainer, { transform: [{ translateY }] }]}
           {...panResponder.panHandlers}
         >
-          {/* Drag Handle */}
           <View style={styles.dragHandleContainer}>
             <View style={styles.dragHandle} />
           </View>
 
-          {/* Header Row */}
+          {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.titleWithBadge}>
-              <Text style={styles.headerTitle}>Thông báo 🔔</Text>
+              <Text style={styles.headerTitle}>Thông báo</Text>
               {unreadTotal > 0 && (
                 <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadBadgeText}>{unreadTotal}</Text>
+                  <Text style={styles.unreadBadgeText}>{unreadTotal} mới</Text>
                 </View>
               )}
             </View>
 
             <View style={styles.headerActionsGroup}>
               {unreadTotal > 0 && (
-                <TouchableOpacity style={styles.markReadBtn} activeOpacity={0.7} onPress={handleMarkAllRead}>
-                  <Text style={styles.markReadText}>Đọc tất cả</Text>
+                <TouchableOpacity
+                  style={styles.markReadBtn}
+                  activeOpacity={0.75}
+                  onPress={handleMarkAllRead}
+                >
+                  <Text style={styles.markReadText}>Đã đọc tất cả</Text>
                 </TouchableOpacity>
               )}
-
-              <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={animateClose}>
-                <Ionicons name="close" size={20} color={COLORS.onSurface} />
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={animateClose}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={18} color={COLORS.onSurface} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Filter Chips With Badges */}
+          {/* Filter Chips */}
           <View style={styles.filterRow}>
             <TouchableOpacity
               style={[styles.filterChip, activeFilter === 'ALL' && styles.filterChipActive]}
@@ -291,28 +335,40 @@ function NotificationsModalContent({
               onPress={() => setActiveFilter('MATCHES')}
             >
               <Text style={[styles.filterText, activeFilter === 'MATCHES' && styles.filterTextActive]}>
-                Mời đấu ({matchesCount})
+                Ghép kèo ({matchesCount})
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'INTERACTIONS' && styles.filterChipActive]}
+              style={[styles.filterChip, activeFilter === 'BOOKINGS' && styles.filterChipActive]}
               activeOpacity={0.8}
-              onPress={() => setActiveFilter('INTERACTIONS')}
+              onPress={() => setActiveFilter('BOOKINGS')}
             >
-              <Text style={[styles.filterText, activeFilter === 'INTERACTIONS' && styles.filterTextActive]}>
-                Tương tác ({interactionsCount})
+              <Text style={[styles.filterText, activeFilter === 'BOOKINGS' && styles.filterTextActive]}>
+                Đặt sân ({bookingsCount})
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Scrollable Notifications Area with Flex 1 */}
+          {/* Content Area */}
           <View style={styles.scrollArea}>
-            {filteredNotifs.length > 0 ? (
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải thông báo...</Text>
+              </View>
+            ) : filteredNotifs.length > 0 ? (
               <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefetching}
+                    onRefresh={refetch}
+                    colors={[COLORS.primary]}
+                  />
+                }
                 onScroll={(e) => {
                   isAtTopRef.current = e.nativeEvent.contentOffset.y <= 2;
                 }}
@@ -321,29 +377,50 @@ function NotificationsModalContent({
                 {filteredNotifs.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.notifCard, !item.isRead && styles.unreadCard]}
-                    activeOpacity={0.8}
+                    style={[
+                      styles.notifCard,
+                      (item.isRead ?? item.read) ? styles.readCard : styles.unreadCard,
+                    ]}
+                    activeOpacity={0.75}
                     onPress={() => handlePressItem(item)}
                   >
-                    <View style={styles.avatarWrapper}>
-                      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-                      {renderTypeIcon(item.type)}
+                    <View style={styles.iconWrapper}>
+                      {renderTypeIcon(item.type, (item.isRead ?? item.read))}
                     </View>
 
                     <View style={styles.contentGroup}>
                       <View style={styles.cardHeaderRow}>
-                        <Text style={styles.cardTitle} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.cardTitle,
+                            (item.isRead ?? item.read) ? styles.cardTitleRead : styles.cardTitleUnread,
+                          ]}
+                          numberOfLines={1}
+                        >
                           {item.title}
                         </Text>
-                        <Text style={styles.cardTime}>{item.time}</Text>
+                        <Text style={[styles.cardTime, (item.isRead ?? item.read) && styles.cardTimeRead]}>
+                          {formatTimeAgo(item.createdAt)}
+                        </Text>
                       </View>
 
-                      <Text style={styles.cardBody} numberOfLines={2}>
-                        {item.body}
+                      <Text
+                        style={[
+                          styles.cardBody,
+                          (item.isRead ?? item.read) ? styles.cardBodyRead : styles.cardBodyUnread,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.content}
                       </Text>
                     </View>
 
-                    {!item.isRead && <View style={styles.unreadDot} />}
+                    {/* Green dot for unread notifications */}
+                    {!(item.isRead ?? item.read) ? (
+                      <View style={styles.unreadDot} />
+                    ) : (
+                      <View style={styles.readPlaceholder} />
+                    )}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -352,12 +429,12 @@ function NotificationsModalContent({
                 <View style={styles.emptyIconCircle}>
                   <Ionicons name="notifications-off-outline" size={32} color={COLORS.grayText} />
                 </View>
-                <Text style={styles.emptyTitle}>Chưa có thông báo mới</Text>
+                <Text style={styles.emptyTitle}>Chưa có thông báo nào</Text>
                 <Text style={styles.emptySubText}>
                   {activeFilter === 'MATCHES'
-                    ? 'Các lời mời thi đấu thể thao từ bạn bè sẽ xuất hiện tại đây.'
-                    : activeFilter === 'INTERACTIONS'
-                    ? 'Các lượt tương tác cảm xúc và bình luận mới sẽ xuất hiện tại đây.'
+                    ? 'Các lời mời, cập nhật ghép kèo sẽ xuất hiện tại đây.'
+                    : activeFilter === 'BOOKINGS'
+                    ? 'Thông tin đặt sân & vé lượt của bạn sẽ hiển thị tại đây.'
                     : 'Tất cả các thông báo mới của bạn sẽ hiển thị tại đây.'}
                 </Text>
               </View>
@@ -378,7 +455,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
-  /* Fixed Height Sheet Container (76% SCREEN_HEIGHT) */
   sheetContainer: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 24,
@@ -397,8 +473,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.onSurfaceVariant,
     opacity: 0.3,
   },
-
-  /* Header */
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -452,8 +526,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  /* Filters */
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.marginMobile,
@@ -477,50 +549,55 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: '#FFFFFF',
   },
-
-  /* Scroll Area */
   scrollArea: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.grayText,
+  },
   listContainer: {
     paddingHorizontal: SPACING.marginMobile,
-    gap: 8,
+    gap: 10,
     paddingBottom: SPACING.md,
   },
   notifCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
-    padding: 12,
+    padding: 13,
     gap: 12,
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
   },
+  // THẺ CHƯA ĐỌC: Nền xanh nhạt nổi bật, viền xanh dương, bóng nhẹ
   unreadCard: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: '#F0F7FF',
+    borderColor: '#BAE6FD',
   },
-  avatarWrapper: {
-    position: 'relative',
+  // THẺ ĐÃ ĐỌC: Nền xám tối/dịu hơn rõ rệt, viền xám mờ, không bóng
+  readCard: {
+    backgroundColor: '#F1F5F9', // slate-100 dịu tối hơn
+    borderColor: '#E2E8F0',
+    opacity: 0.72,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.surfaceDim,
+  iconWrapper: {
+    marginTop: 2,
   },
-  badgeOverlay: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+  iconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.surface,
+  },
+  iconBadgeRead: {
+    opacity: 0.65,
   },
   contentGroup: {
     flex: 1,
@@ -532,33 +609,55 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   cardTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.onSurface,
+    fontSize: 13.5,
     flex: 1,
     marginRight: 6,
+  },
+  cardTitleUnread: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cardTitleRead: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#64748B',
   },
   cardTime: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
     color: COLORS.grayText,
   },
+  cardTimeRead: {
+    color: '#94A3B8',
+  },
   cardBody: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  cardBodyUnread: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 12.5,
-    color: COLORS.onSurfaceVariant,
-    lineHeight: 18,
+    fontSize: 12,
+    color: '#334155',
+    fontWeight: '500',
+  },
+  cardBodyRead: {
+    ...TYPOGRAPHY.bodyMd,
+    fontSize: 12,
+    color: '#94A3B8',
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#10B981',
     marginTop: 6,
   },
-
-  /* Empty State */
+  readPlaceholder: {
+    width: 8,
+  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -573,20 +672,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
   emptyTitle: {
     ...TYPOGRAPHY.titleMd,
-    fontSize: 15,
-    fontWeight: '700',
     color: COLORS.onSurface,
-    textAlign: 'center',
+    fontWeight: '700',
   },
   emptySubText: {
     ...TYPOGRAPHY.bodySm,
-    fontSize: 12.5,
     color: COLORS.grayText,
     textAlign: 'center',
-    lineHeight: 18,
   },
 });

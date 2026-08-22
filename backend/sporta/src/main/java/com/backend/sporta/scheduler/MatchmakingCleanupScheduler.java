@@ -40,49 +40,57 @@ public class MatchmakingCleanupScheduler {
         LocalDateTime now = LocalDateTime.now();
 
         // 1. Expire OPEN rooms passed joinDeadline
-        List<MatchRoom> expiredRooms = matchRoomRepository.findByStatusAndJoinDeadlineBefore(MatchStatus.OPEN, now);
-        for (MatchRoom room : expiredRooms) {
-            room.setStatus(MatchStatus.EXPIRED);
-            matchRoomRepository.save(room);
+        try {
+            List<MatchRoom> expiredRooms = matchRoomRepository.findByStatusAndJoinDeadlineBefore(MatchStatus.OPEN, now);
+            for (MatchRoom room : expiredRooms) {
+                room.setStatus(MatchStatus.EXPIRED);
+                matchRoomRepository.save(room);
 
-            List<JoinRequest> requests = joinRequestRepository.findByRoomId(room.getId());
-            for (JoinRequest req : requests) {
-                if (req.getStatus() == JoinRequestStatus.PENDING) {
-                    req.setStatus(JoinRequestStatus.WITHDRAWN);
-                    joinRequestRepository.save(req);
-                }
-            }
-        }
-
-        // 2. Mark matches RESULT_OVERDUE if passed endTime + 1 hour without final result
-        List<MatchStatus> pendingStatuses = Arrays.asList(MatchStatus.MATCHED, MatchStatus.UPCOMING, MatchStatus.SCORE_PENDING, MatchStatus.SCORE_CONFIRMING);
-        List<Match> matches = matchRepository.findByStatusNotIn(Arrays.asList(MatchStatus.RESULT_FINAL, MatchStatus.DISPUTED, MatchStatus.CANCELLED, MatchStatus.RESULT_OVERDUE));
-
-        for (Match m : matches) {
-            if (pendingStatuses.contains(m.getStatus())) {
-                LocalDateTime endTime = getBookingEndTime(m);
-                LocalDateTime overdueThreshold = endTime.plusMinutes(config.getResultConfirmationGraceMinutes());
-                if (now.isAfter(overdueThreshold)) {
-                    m.setStatus(MatchStatus.RESULT_OVERDUE);
-                    matchRepository.save(m);
-
-                    MatchRoom room = m.getRoom();
-                    if (room != null) {
-                        room.setStatus(MatchStatus.RESULT_OVERDUE);
-                        matchRoomRepository.save(room);
+                List<JoinRequest> requests = joinRequestRepository.findByRoomId(room.getId());
+                for (JoinRequest req : requests) {
+                    if (req.getStatus() == JoinRequestStatus.PENDING) {
+                        req.setStatus(JoinRequestStatus.WITHDRAWN);
+                        joinRequestRepository.save(req);
                     }
                 }
             }
-        }
+        } catch (Exception ignored) {}
+
+        // 2. Mark matches RESULT_OVERDUE if passed endTime + 1 hour without final result
+        try {
+            List<MatchStatus> pendingStatuses = Arrays.asList(MatchStatus.MATCHED, MatchStatus.UPCOMING, MatchStatus.SCORE_PENDING, MatchStatus.SCORE_CONFIRMING);
+            List<Match> matches = matchRepository.findByStatusNotIn(Arrays.asList(MatchStatus.RESULT_FINAL, MatchStatus.DISPUTED, MatchStatus.CANCELLED, MatchStatus.RESULT_OVERDUE));
+
+            for (Match m : matches) {
+                if (m != null && pendingStatuses.contains(m.getStatus())) {
+                    LocalDateTime endTime = getBookingEndTime(m);
+                    LocalDateTime overdueThreshold = endTime.plusMinutes(config.getResultConfirmationGraceMinutes());
+                    if (now.isAfter(overdueThreshold)) {
+                        m.setStatus(MatchStatus.RESULT_OVERDUE);
+                        matchRepository.save(m);
+
+                        try {
+                            if (m.getRoom() != null) {
+                                MatchRoom room = m.getRoom();
+                                room.setStatus(MatchStatus.RESULT_OVERDUE);
+                                matchRoomRepository.save(room);
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     private LocalDateTime getBookingEndTime(Match m) {
-        if (m.getBooking() != null && m.getBooking().getDetails() != null && !m.getBooking().getDetails().isEmpty()) {
-            BookingDetail detail = m.getBooking().getDetails().get(0);
-            if (detail.getBookingDate() != null && detail.getEndTime() != null) {
-                return LocalDateTime.of(detail.getBookingDate(), detail.getEndTime());
+        try {
+            if (m.getBooking() != null && m.getBooking().getDetails() != null && !m.getBooking().getDetails().isEmpty()) {
+                BookingDetail detail = m.getBooking().getDetails().get(0);
+                if (detail != null && detail.getBookingDate() != null && detail.getEndTime() != null) {
+                    return LocalDateTime.of(detail.getBookingDate(), detail.getEndTime());
+                }
             }
-        }
+        } catch (Exception ignored) {}
         return m.getCreatedAt() != null ? m.getCreatedAt().plusHours(2) : LocalDateTime.now();
     }
 }
