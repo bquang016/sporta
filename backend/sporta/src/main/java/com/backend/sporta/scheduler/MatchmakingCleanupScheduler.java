@@ -67,8 +67,10 @@ public class MatchmakingCleanupScheduler {
                     matchRepository.save(m);
 
                     MatchRoom room = m.getRoom();
-                    room.setStatus(MatchStatus.RESULT_OVERDUE);
-                    matchRoomRepository.save(room);
+                    if (room != null) {
+                        room.setStatus(MatchStatus.RESULT_OVERDUE);
+                        matchRoomRepository.save(room);
+                    }
                 }
             }
         }
@@ -77,8 +79,10 @@ public class MatchmakingCleanupScheduler {
     private LocalDateTime getBookingEndTime(Match m) {
         if (m.getBooking() != null && m.getBooking().getDetails() != null && !m.getBooking().getDetails().isEmpty()) {
             BookingDetail detail = m.getBooking().getDetails().get(0);
-            return LocalDateTime.of(detail.getBookingDate(), detail.getEndTime());
+            if (detail.getBookingDate() != null && detail.getEndTime() != null) {
+                return LocalDateTime.of(detail.getBookingDate(), detail.getEndTime());
+            }
         }
-        return m.getCreatedAt().plusHours(2);
+        return m.getCreatedAt() != null ? m.getCreatedAt().plusHours(2) : LocalDateTime.now();
     }
 }

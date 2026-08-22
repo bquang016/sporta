@@ -475,9 +475,9 @@ export function VenueDetailModal({
               <View style={styles.starRatingBadgeTop}>
                 <MaterialIcons name="star" size={15} color={COLORS.secondary} />
                 <Text style={styles.starRatingBadgeText}>
-                  {(venue?.averageRating ?? 0) > 0
-                    ? `${venue!.averageRating!.toFixed(1)} (${venue?.totalReviews ?? 0} danh gia)`
-                    : 'Chua co danh gia'}
+                  {(venue?.averageRating ?? (initialFacility?.rating && initialFacility.rating > 0 ? initialFacility.rating : null)) != null
+                    ? `${(venue?.averageRating ?? initialFacility!.rating).toFixed(1)} (${venue?.totalReviews ?? 0} đánh giá)`
+                    : 'Chưa có đánh giá'}
                 </Text>
               </View>
 
