@@ -26,4 +26,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /** Tìm các booking theo trạng thái và được tạo trước một mốc thời gian */
     List<Booking> findByStatusAndCreatedAtBefore(BookingStatus status, java.time.LocalDateTime cutoffTime);
+
+    /** Kiểm tra user đã có Booking COMPLETED tại venue này chưa (dùng cho điều kiện review) */
+    boolean existsByUserIdAndVenueIdAndStatus(Long userId, UUID venueId, BookingStatus status);
 }

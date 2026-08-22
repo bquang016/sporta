@@ -176,6 +176,8 @@ public class VenueService {
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .ownerPhone(ownerPhone)
                 .courts(courtPublicList)
+                .averageRating(venue.getAverageRating())
+                .totalReviews(venue.getTotalReviews())
                 .build();
     }
 
@@ -968,6 +970,8 @@ public class VenueService {
                 .minPrice(venue.getMinPrice())
                 .maxPrice(venue.getMaxPrice())
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
+                .averageRating(venue.getAverageRating())
+                .totalReviews(venue.getTotalReviews())
                 .build();
     }
 
