@@ -61,7 +61,7 @@ export const useFacilities = () => {
           return {
             id: venue.id,
             name: venue.name,
-            rating: 4.5, // Mock value
+            rating: venue.averageRating != null && venue.averageRating > 0 ? Math.round(venue.averageRating * 10) / 10 : 0,
             location: venue.location,
             distance: distanceStr,
             price: venue.minPrice != null ? `${Math.round(venue.minPrice / 1000)}k` : 'Liên hệ',

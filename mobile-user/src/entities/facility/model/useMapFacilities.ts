@@ -67,7 +67,7 @@ export const useMapFacilities = () => {
               venue.minPrice != null
                 ? `${Math.round(venue.minPrice / 1000)}k/h`
                 : 'Liên hệ',
-            rating: 4.5, // Sẽ thay bằng dữ liệu thực khi có rating API
+            rating: venue.averageRating != null && venue.averageRating > 0 ? Math.round(venue.averageRating * 10) / 10 : 0,
             location: venue.location,
             coverImage: venue.coverImage || null,
             status: venue.status,
