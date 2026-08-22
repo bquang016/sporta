@@ -14,6 +14,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.backend.sporta.event.NotificationEvent;
+import com.backend.sporta.enums.NotificationType;
+import com.backend.sporta.enums.Role;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +27,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class MatchmakingServiceImpl implements MatchmakingService {
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private MatchRoomRepository matchRoomRepository;
@@ -317,6 +324,19 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             if (req.getStatus() == JoinRequestStatus.PENDING) {
                 req.setStatus(JoinRequestStatus.WITHDRAWN);
                 joinRequestRepository.save(req);
+                try {
+                    if (req.getApplicantClub() != null && req.getApplicantClub().getCreator() != null) {
+                        eventPublisher.publishEvent(new NotificationEvent(
+                                this,
+                                req.getApplicantClub().getCreator().getId(),
+                                Role.PLAYER,
+                                "Kèo đấu đã bị hủy",
+                                "Phòng ghép kèo của CLB " + room.getHostClub().getName() + " đã bị hủy.",
+                                NotificationType.MATCH_CANCELLED,
+                                room.getId().toString()
+                        ));
+                    }
+                } catch (Exception ignored) {}
             }
         }
     }
@@ -359,6 +379,21 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .build();
 
         joinReq = joinRequestRepository.save(joinReq);
+
+        try {
+            if (room.getHostClub() != null && room.getHostClub().getCreator() != null) {
+                eventPublisher.publishEvent(new NotificationEvent(
+                        this,
+                        room.getHostClub().getCreator().getId(),
+                        Role.PLAYER,
+                        "Yêu cầu ghép kèo mới ⚽",
+                        "CLB " + applicantClub.getName() + " vừa gửi yêu cầu xin ghép kèo vào phòng của bạn.",
+                        NotificationType.MATCH_REQUEST_JOIN,
+                        room.getId().toString()
+                ));
+            }
+        } catch (Exception ignored) {}
+
         return mapToJoinRequestResponse(joinReq);
     }
 
@@ -398,6 +433,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         req.setStatus(JoinRequestStatus.REJECTED);
         joinRequestRepository.save(req);
+
+        try {
+            if (req.getApplicantClub() != null && req.getApplicantClub().getCreator() != null) {
+                eventPublisher.publishEvent(new NotificationEvent(
+                        this,
+                        req.getApplicantClub().getCreator().getId(),
+                        Role.PLAYER,
+                        "Yêu cầu ghép kèo bị từ chối",
+                        "CLB " + req.getRoom().getHostClub().getName() + " đã từ chối yêu cầu ghép kèo.",
+                        NotificationType.MATCH_JOIN_REJECTED,
+                        req.getRoom().getId().toString()
+                ));
+            }
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -428,6 +477,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         room.setStatus(MatchStatus.MATCHED);
         room.setGuestClub(guestClub);
         matchRoomRepository.save(room);
+
+        try {
+            if (guestClub != null && guestClub.getCreator() != null) {
+                eventPublisher.publishEvent(new NotificationEvent(
+                        this,
+                        guestClub.getCreator().getId(),
+                        Role.PLAYER,
+                        "Yêu cầu ghép kèo được chấp nhận! 🎉",
+                        "CLB " + room.getHostClub().getName() + " đã đồng ý ghép kèo với CLB của bạn. Chuẩn bị ra sân nào!",
+                        NotificationType.MATCH_JOIN_ACCEPTED,
+                        room.getId().toString()
+                ));
+            }
+        } catch (Exception ignored) {}
 
         List<JoinRequest> roomRequests = joinRequestRepository.findByRoomId(room.getId());
         for (JoinRequest r : roomRequests) {

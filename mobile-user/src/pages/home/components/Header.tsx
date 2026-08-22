@@ -8,6 +8,7 @@ interface HeaderProps {
   isAuthenticated: boolean;
   userName: string;
   userAvatar?: string | null;
+  unreadNotificationsCount?: number;
   getGreeting: () => string;
   handleAvatarPress: () => void;
   onNotificationPress?: () => void;
@@ -17,13 +18,14 @@ export function Header({
   isAuthenticated,
   userName,
   userAvatar,
+  unreadNotificationsCount = 0,
   getGreeting,
   handleAvatarPress,
   onNotificationPress,
 }: HeaderProps) {
   return (
     <View style={styles.header}>
-      {/* ── Left: Avatar + Greeting ── */}
+      {/* Left: Avatar + Greeting */}
       <TouchableOpacity
         onPress={handleAvatarPress}
         activeOpacity={0.8}
@@ -44,7 +46,7 @@ export function Header({
         </View>
       </TouchableOpacity>
 
-      {/* ── Right: Logo + Notification ── */}
+      {/* Right: Logo + Notification */}
       <View style={styles.headerRight}>
         <Image
           source={require('../../../../assets/logo/logo-horizontal_1600x400.png')}
@@ -52,16 +54,18 @@ export function Header({
           resizeMode="contain"
         />
 
-        {/* Notification button with dot */}
+        {/* Notification button with red number badge */}
         <TouchableOpacity
           style={styles.notificationButton}
-          onPress={onNotificationPress || (() => console.log('Notification pressed'))}
+          onPress={onNotificationPress}
           activeOpacity={0.75}
         >
-          <Ionicons name="notifications-outline" size={20} color={COLORS.onSurface} />
-          {isAuthenticated && (
+          <Ionicons name="notifications-outline" size={21} color={COLORS.onSurface} />
+          {isAuthenticated && unreadNotificationsCount > 0 && (
             <View style={styles.notificationBadge}>
-              <View style={styles.notificationInnerDot} />
+              <Text style={styles.badgeText}>
+                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
@@ -129,19 +133,26 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: COLORS.surface,
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.surface,
+    zIndex: 10,
+    elevation: 3,
   },
-  notificationInnerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    includeFontPadding: false,
+    lineHeight: 12,
   },
 });

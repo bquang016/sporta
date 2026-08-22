@@ -17,7 +17,7 @@ import { CommunityFeed } from '../../../features/community-feed';
 import { CreatePostModal, PostUploadProgressBar } from '../../../features/create-post';
 import { ReactionOverlayProvider } from '../../../features/like-post';
 import { SocialSearchModal } from '../../../features/community-search';
-import { NotificationsModal } from '../../../features/notifications';
+import { NotificationsModal, useUnreadNotificationCount } from '../../../features/notifications';
 import { MessagesListModal } from '../../../features/messages';
 import { UserProfileModal } from '../../../features/user-profile';
 import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
@@ -34,6 +34,7 @@ export function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isLoggedIn } = useIsLoggedIn();
+  const { unreadCount: unreadNotifCount } = useUnreadNotificationCount(isLoggedIn);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newCreatedPost, setNewCreatedPost] = useState<Post | null>(null);
 

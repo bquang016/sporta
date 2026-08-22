@@ -1,16 +1,15 @@
 package com.backend.sporta.event;
 
+import com.backend.sporta.enums.NotificationType;
+import com.backend.sporta.enums.Role;
 import com.backend.sporta.service.OwnerWalletService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Lắng nghe BookingPaidEvent từ Module 2 (User Wallet).
- * Khi user thanh toán booking → cộng doanh thu cho Owner (trừ chiết khấu nền tảng).
- */
 @Component
 @Slf4j
 public class BookingPaidEventListener {
@@ -24,29 +23,52 @@ public class BookingPaidEventListener {
     @Autowired
     private com.backend.sporta.service.VenueRecommendationService recommendationService;
 
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
+
     @EventListener
     @Transactional
     public void onBookingPaid(BookingPaidEvent event) {
         log.info("Received BookingPaidEvent: bookingId={}, paidAmount={}, ownerId={}",
                 event.getBookingId(), event.getPaidAmount(), event.getOwnerId());
 
-        ownerWalletService.creditEarning(
-                event.getOwnerId(),
-                event.getBookingId(),
-                event.getPaidAmount()
-        );
+        try {
+            if (event.getOwnerId() != null) {
+                ownerWalletService.creditEarning(
+                        event.getOwnerId(),
+                        event.getBookingId(),
+                        event.getPaidAmount()
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi cộng ví chủ sân: {}", e.getMessage());
+        }
 
-        // Ghi nhận chuyển đổi đặt sân cho hệ thống gợi ý AI
         try {
             if (event.getBookingId() != null) {
                 bookingRepository.findById(event.getBookingId()).ifPresent(booking -> {
                     if (booking.getVenue() != null && booking.getUser() != null) {
-                        recommendationService.recordBooking(booking.getVenue().getId(), booking.getUser().getEmail());
+                        try {
+                            recommendationService.recordBooking(booking.getVenue().getId(), booking.getUser().getEmail());
+                        } catch (Exception ignored) {}
+
+                        // Gửi thông báo cho Owner (Chủ sân)
+                        if (booking.getVenue().getOwner() != null && booking.getVenue().getOwner().getUser() != null) {
+                            eventPublisher.publishEvent(new NotificationEvent(
+                                    this,
+                                    booking.getVenue().getOwner().getUser().getId(),
+                                    Role.OWNER,
+                                    "Đơn đặt sân mới! 💵",
+                                    "Khách hàng " + booking.getUser().getFullName() + " vừa đặt sân tại " + booking.getVenue().getName() + " (" + String.format("%,d", Math.round(booking.getFinalPrice())) + "đ).",
+                                    NotificationType.OWNER_NEW_BOOKING,
+                                    booking.getId().toString()
+                            ));
+                        }
                     }
                 });
             }
         } catch (Exception e) {
-            log.warn("Lỗi ghi nhận conversion gợi ý sân: {}", e.getMessage());
+            log.warn("Lỗi xử lý hậu thanh toán booking: {}", e.getMessage());
         }
     }
 }
