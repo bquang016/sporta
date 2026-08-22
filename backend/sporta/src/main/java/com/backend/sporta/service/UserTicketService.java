@@ -8,6 +8,8 @@ import com.backend.sporta.entity.User;
 import com.backend.sporta.enums.SportLevel;
 import com.backend.sporta.enums.TicketSessionStatus;
 import com.backend.sporta.enums.TicketStatus;
+import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.NotificationType;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.TicketRepository;
 import com.backend.sporta.repository.TicketSessionRepository;
@@ -38,6 +40,9 @@ public class UserTicketService {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private NotificationService notificationService;
 
     public List<TicketSessionResponse> getAvailableSessions(Double userLat, 
                                                             Double userLng, 
@@ -139,6 +144,40 @@ public class UserTicketService {
         String qrToken = jwtTokenProvider.generateTicketToken(savedTicket.getId(), user.getId(), session.getId());
         savedTicket.setQrCodeToken(qrToken);
         ticketRepository.save(savedTicket);
+
+        
+        // Gửi thông báo cho người mua vé
+        try {
+            String venueName = session.getVenue() != null ? session.getVenue().getName() : "Sân thể thao";
+            String courtName = session.getCourt() != null ? session.getCourt().getName() : "Sân đấu";
+            String timeStr = session.getStartTime() + " - " + session.getEndTime();
+            notificationService.createNotification(
+                    user.getId(),
+                    user.getRole() != null ? user.getRole() : Role.PLAYER,
+                    "Mua vé thành công! 🎟️",
+                    String.format("Bạn đã mua %d vé tại ca %s (%s, %s). Mã vé: %s.",
+                            quantity, timeStr, courtName, venueName, shortCode),
+                    NotificationType.TICKET_PURCHASE_SUCCESS,
+                    savedTicket.getId().toString()
+            );
+
+            // Gửi thông báo cho chủ sân
+            if (session.getVenue() != null && session.getVenue().getOwner() != null && session.getVenue().getOwner().getUser() != null) {
+                Long ownerUserId = session.getVenue().getOwner().getUser().getId();
+                String buyerName = user.getFullName() != null && !user.getFullName().isEmpty() ? user.getFullName() : user.getEmail();
+                notificationService.createNotification(
+                        ownerUserId,
+                        Role.OWNER,
+                        "Khách mua vé ca ghép! 🎟️",
+                        String.format("Khách hàng %s vừa mua %d vé tại ca ghép %s (%s - %s).",
+                                buyerName, quantity, timeStr, courtName, venueName),
+                        NotificationType.OWNER_TICKET_BOUGHT,
+                        session.getId().toString()
+                );
+            }
+        } catch (Exception e) {
+            // Non-blocking notification failure
+        }
 
         return mapToTicketResponse(savedTicket);
     }

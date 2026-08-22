@@ -5,6 +5,8 @@ import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.BookingStatus;
 import com.backend.sporta.enums.TicketSessionStatus;
 import com.backend.sporta.enums.TicketStatus;
+import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.NotificationType;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.*;
 import com.backend.sporta.security.JwtTokenProvider;
@@ -45,6 +47,9 @@ public class TicketSessionService {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private NotificationService notificationService;
 
     private User getOrCreateTestUser(String email, String fullName) {
         return userRepository.findByEmail(email).orElseGet(() -> {
@@ -243,6 +248,21 @@ public class TicketSessionService {
 
         TicketSession session = ticket.getSession();
 
+        
+        try {
+            if (ticket.getUser() != null) {
+                notificationService.createNotification(
+                        ticket.getUser().getId(),
+                        ticket.getUser().getRole() != null ? ticket.getUser().getRole() : Role.PLAYER,
+                        "Check-in vé thành công! 📍",
+                        String.format("Vé %s của bạn đã được quét check-in tại %s (%s, %s - %s). Chúc bạn thi đấu vui vẻ!",
+                                ticket.getShortCode(), session.getVenue().getName(), session.getCourt().getName(), session.getStartTime(), session.getEndTime()),
+                        NotificationType.TICKET_CHECKIN_SUCCESS,
+                        ticket.getId().toString()
+                );
+            }
+        } catch (Exception e) {}
+
         return TicketCheckInResponse.builder()
                 .ticketId(ticket.getId())
                 .customerName(ticket.getUser().getFullName())
@@ -296,5 +316,25 @@ public class TicketSessionService {
 
         session.setStatus(TicketSessionStatus.CANCELLED);
         ticketSessionRepository.save(session);
+
+        try {
+            List<Ticket> tickets = ticketRepository.findBySessionId(sessionId);
+            for (Ticket t : tickets) {
+                if (t.getUser() != null && t.getStatus() == TicketStatus.UNUSED) {
+                    t.setStatus(TicketStatus.REFUNDED);
+                    ticketRepository.save(t);
+
+                    notificationService.createNotification(
+                            t.getUser().getId(),
+                            t.getUser().getRole() != null ? t.getUser().getRole() : Role.PLAYER,
+                            "Ca ghép sân bị hủy! ⚠️",
+                            String.format("Ca xé vé lúc %s - %s ngày %s tại %s đã bị hủy bởi chủ sân. Tiền vé đã được hoàn lại.",
+                                    session.getStartTime(), session.getEndTime(), session.getPlayDate(), session.getVenue().getName()),
+                            NotificationType.TICKET_SESSION_CANCELLED,
+                            session.getId().toString()
+                    );
+                }
+            }
+        } catch (Exception e) {}
     }
 }
