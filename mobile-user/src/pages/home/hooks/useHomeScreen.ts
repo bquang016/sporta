@@ -134,17 +134,30 @@ export function useHomeScreen() {
           try {
             const { usersApi } = require('../../../shared/api/users');
             const profile = await usersApi.getProfile();
-            if (profile && profile.fullName) {
-              setUserName(profile.fullName);
-              if (profile.avatarUrl) {
-                setUserAvatar(profile.avatarUrl);
+            if (profile) {
+              if (profile.fullName) {
+                setUserName(profile.fullName);
+                if (Platform.OS === 'web') {
+                  localStorage.setItem('userName', profile.fullName);
+                } else {
+                  await SecureStore.setItemAsync('userName', profile.fullName);
+                }
               }
+
+              const currentAvatar = profile.avatarUrl || null;
+              setUserAvatar(currentAvatar);
               if (Platform.OS === 'web') {
-                localStorage.setItem('userName', profile.fullName);
-                if (profile.avatarUrl) localStorage.setItem('userAvatar', profile.avatarUrl);
+                if (currentAvatar) {
+                  localStorage.setItem('userAvatar', currentAvatar);
+                } else {
+                  localStorage.removeItem('userAvatar');
+                }
               } else {
-                await SecureStore.setItemAsync('userName', profile.fullName);
-                if (profile.avatarUrl) await SecureStore.setItemAsync('userAvatar', profile.avatarUrl);
+                if (currentAvatar) {
+                  await SecureStore.setItemAsync('userAvatar', currentAvatar);
+                } else {
+                  await SecureStore.deleteItemAsync('userAvatar');
+                }
               }
             }
           } catch (profileErr) {

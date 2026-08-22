@@ -374,12 +374,12 @@ export const ChatbotFAB: React.FC<ChatbotFABProps> = ({ onPress }) => {
               </View>
               <View style={styles.tooltipTextGroup}>
                 <View style={styles.tooltipHeaderRow}>
-                  <Text style={styles.tooltipTitle}>Sporta AI</Text>
+                  <Text style={styles.tooltipTitle} numberOfLines={1}>Sporta AI</Text>
                   <View style={styles.newPill}>
                     <Text style={styles.newPillText}>HOT</Text>
                   </View>
                 </View>
-                <Text style={styles.tooltipSubtitle}>Vuốt sang 2 mép để thu gọn ✨</Text>
+                <Text style={styles.tooltipSubtitle} numberOfLines={1}>Vuốt sang 2 mép để thu gọn ✨</Text>
               </View>
 
               {/* Quick Dock / Minimize Button */}
@@ -484,18 +484,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: FAB_SIZE + 10,
     top: 4,
+    width: 226,
   },
   tooltipContainerLeft: {
     position: 'absolute',
     left: FAB_SIZE + 10,
     top: 4,
+    width: 226,
   },
   tooltipBubble: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1.2,
     borderColor: 'rgba(6, 78, 59, 0.14)',
@@ -504,18 +506,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 10,
     elevation: 6,
+    width: '100%',
   },
   tooltipIconBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 6,
+    marginRight: 7,
   },
   tooltipTextGroup: {
+    flex: 1,
     justifyContent: 'center',
+    marginRight: 4,
   },
   tooltipHeaderRow: {
     flexDirection: 'row',
@@ -524,7 +529,7 @@ const styles = StyleSheet.create({
   },
   tooltipTitle: {
     ...TYPOGRAPHY.labelMd,
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.primary,
   },
@@ -547,12 +552,11 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   tooltipMinimizeBtn: {
-    marginLeft: 6,
-    padding: 2,
+    padding: 3,
+    marginRight: 2,
   },
   tooltipCloseBtn: {
-    marginLeft: 2,
-    padding: 2,
+    padding: 3,
   },
   tooltipArrowRight: {
     position: 'absolute',

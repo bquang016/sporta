@@ -44,6 +44,7 @@ public class GeminiService {
         "   - Khi người dùng muốn ĐẶT SÂN / TÌM SÂN TRỐNG:\n" +
         "     -> Nếu chưa có Quận/Huyện cụ thể hoặc chưa có môn thể thao: Hỏi lại người dùng để làm rõ.\n" +
         "     -> Khi đã có đủ thông tin: Gọi function search_venues.\n" +
+        "     -> Nếu người dùng hỏi sân nào uy tín/chất lượng nhất hoặc nhiều sao nhất: Dựa vào điểm đánh giá rating và số lượt đánh giá trong dữ liệu để gợi ý sân chất lượng tốt nhất.\n" +
         "   - Khi người dùng muốn TÌM ĐỐI / GHÉP KÈO / GIAO LƯU CLB:\n" +
         "     -> Gọi function find_match_partners với môn thể thao (sport) và khu vực (area), trình độ (level nếu có).\n" +
         "     -> Nếu tìm thấy kèo/CLB: Thông báo ngắn gọn và mời bấm 'Ghép kèo ngay' hoặc 'Giao lưu CLB' trên thẻ bên dưới.\n" +
@@ -296,11 +297,27 @@ public class GeminiService {
                         } catch (NumberFormatException ignored) {}
                     }
 
+                    Double rating = null;
+                    if (v.get("rating") != null) {
+                        try {
+                            rating = Double.parseDouble(v.get("rating").toString());
+                        } catch (NumberFormatException ignored) {}
+                    }
+
+                    Integer totalReviews = null;
+                    if (v.get("total_reviews") != null) {
+                        try {
+                            totalReviews = Integer.parseInt(v.get("total_reviews").toString());
+                        } catch (NumberFormatException ignored) {}
+                    }
+
                     cardsMap.put(id, CardDto.builder()
                             .type("venue")
                             .id(id)
                             .name((String) v.get("name"))
                             .price(price)
+                            .rating(rating != null && rating > 0 ? rating : 5.0)
+                            .totalReviews(totalReviews != null ? totalReviews : 0)
                             .image((String) v.get("image"))
                             .subtitle((String) v.get("subtitle"))
                             .actionText("Xem chi tiết")

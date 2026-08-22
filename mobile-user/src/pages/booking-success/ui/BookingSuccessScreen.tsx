@@ -19,6 +19,7 @@ import * as Clipboard from 'expo-clipboard';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 import { fetchBookingById } from '../../../entities/booking/api/bookingApi';
 import type { BookingResponse } from '../../../entities/booking/model/booking.types';
+import { WriteReviewSheet } from '../../../features/venue-rating';
 
 export function BookingSuccessScreen() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export function BookingSuccessScreen() {
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
   const [showCopySuccessModal, setShowCopySuccessModal] = useState(false);
+  const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const handleCopyCode = async (code: string) => {
@@ -451,7 +453,28 @@ export function BookingSuccessScreen() {
           </View>
         </View>
 
-        {/* ── 7. Cancellation Policy (If applicable) ── */}
+        {/* ── 7. Rating Review Section for Completed Bookings ── */}
+        {activeBooking.status === 'COMPLETED' ? (
+          <View style={styles.reviewPromptCard}>
+            <View style={styles.reviewPromptLeft}>
+              <Ionicons name="star" size={24} color="#F59E0B" />
+              <View style={styles.reviewPromptTextGroup}>
+                <Text style={styles.reviewPromptTitle}>Đánh giá trải nghiệm sân</Text>
+                <Text style={styles.reviewPromptSub}>Chia sẻ cảm nhận về cơ sở vật chất & dịch vụ</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.reviewPromptBtn}
+              activeOpacity={0.85}
+              onPress={() => setShowReviewSheet(true)}
+            >
+              <Ionicons name="create-outline" size={15} color={COLORS.white} />
+              <Text style={styles.reviewPromptBtnText}>Viết đánh giá</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* ── 8. Cancellation Policy (If applicable) ── */}
         {!isCancelled && activeBooking.status !== 'COMPLETED' ? (
           <View style={styles.cancelPolicySection}>
             <TouchableOpacity 
@@ -468,13 +491,23 @@ export function BookingSuccessScreen() {
 
       {/* ── Sticky Bottom Action Bar ── */}
       <View style={[styles.bottomActionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Button 
-          title="Xem lịch sử đặt sân" 
-          variant="primary" 
-          icon={<Ionicons name="receipt-outline" size={18} color={COLORS.onPrimary} />}
-          onPress={() => router.push('/(tabs)/bookings')}
-          style={styles.actionBtn}
-        />
+        {activeBooking.status === 'COMPLETED' ? (
+          <Button 
+            title="Đánh giá sân ngay" 
+            variant="secondary" 
+            icon={<Ionicons name="star" size={18} color={COLORS.onSecondary} />}
+            onPress={() => setShowReviewSheet(true)}
+            style={styles.actionBtn}
+          />
+        ) : (
+          <Button 
+            title="Xem lịch sử đặt sân" 
+            variant="primary" 
+            icon={<Ionicons name="receipt-outline" size={18} color={COLORS.onPrimary} />}
+            onPress={() => router.push('/(tabs)/bookings')}
+            style={styles.actionBtn}
+          />
+        )}
         <Button 
           title="Về trang chủ" 
           variant="outline"
@@ -530,6 +563,17 @@ export function BookingSuccessScreen() {
         icon="check-circle"
         iconColor={COLORS.primary}
         onConfirm={() => setShowCopySuccessModal(false)}
+      />
+
+      {/* Review Modal */}
+      <WriteReviewSheet
+        visible={showReviewSheet}
+        venueId={activeBooking.venueId || (booking as any)?.venueId || (params.venueId as string) || null}
+        venueName={activeBooking.venueName}
+        onClose={() => setShowReviewSheet(false)}
+        onSuccess={() => {
+          setShowReviewSheet(false);
+        }}
       />
     </SafeAreaView>
   );
@@ -989,6 +1033,58 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: COLORS.error,
     fontWeight: '700',
+  },
+
+  /* Review Prompt Card */
+  reviewPromptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFBEB',
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 10,
+  },
+  reviewPromptLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  reviewPromptTextGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  reviewPromptTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  reviewPromptSub: {
+    fontSize: 11,
+    color: '#B45309',
+    lineHeight: 15,
+  },
+  reviewPromptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D97706',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 4,
+  },
+  reviewPromptBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 
   /* Sticky Bottom Action Bar */

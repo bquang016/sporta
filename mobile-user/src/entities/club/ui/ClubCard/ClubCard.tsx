@@ -42,7 +42,10 @@ export function ClubCard({ club, onPress, style }: ClubCardProps) {
       <View style={styles.cardMainRow}>
         {/* Left: Avatar */}
         <View style={styles.avatarWrapper}>
-          <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          <Image 
+            source={typeof avatarUrl === 'string' ? { uri: avatarUrl } : avatarUrl} 
+            style={styles.avatarImg} 
+          />
           <View style={styles.sportBadgeSmall}>
             <MaterialIcons
               name={getSportIconName(club.sport) as any}

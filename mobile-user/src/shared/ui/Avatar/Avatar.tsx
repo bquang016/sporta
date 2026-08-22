@@ -6,16 +6,21 @@ import {
   StyleSheet, 
   ViewStyle, 
   TextStyle,
-  StyleProp
+  StyleProp,
+  ImageSourcePropType
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
 
+export const DEFAULT_USER_AVATAR = require('../../../../assets/player/player_699x699.png');
+export const DEFAULT_CLUB_AVATAR = require('../../../../assets/logo/club/699x699__1_-removebg-preview.png');
+
 export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | number;
 
 export interface AvatarProps {
-  source?: { uri: string } | string | null;
+  source?: ImageSourcePropType | string | null;
   size?: AvatarSize;
+  fallbackType?: 'user' | 'club';
   fallbackIcon?: keyof typeof MaterialIcons.glyphMap;
   text?: string;
   style?: StyleProp<ViewStyle>;
@@ -25,7 +30,8 @@ export interface AvatarProps {
 export function Avatar({
   source,
   size = 'md',
-  fallbackIcon = 'person',
+  fallbackType = 'user',
+  fallbackIcon,
   text,
   style,
   textStyle,
@@ -61,12 +67,17 @@ export function Avatar({
   const isBlobUri = typeof uriStr === 'string' && uriStr.startsWith('blob:');
 
   const renderContent = () => {
-    // 1. If image source exists, is not blob URL, and hasn't errored
+    // 1. If valid image source exists (number or valid remote string URI) and hasn't errored
     if (source && !isBlobUri && !imageError) {
-      const imgSource = typeof source === 'string' ? { uri: source } : source;
+      const imgSource = typeof source === 'string' 
+        ? { uri: source } 
+        : typeof source === 'number' 
+        ? source 
+        : source;
+
       return (
         <Image 
-          source={imgSource} 
+          source={imgSource as ImageSourcePropType} 
           style={[styles.image, { borderRadius: dim / 2 }]} 
           resizeMode="cover" 
           onError={() => setImageError(true)}
@@ -74,9 +85,9 @@ export function Avatar({
       );
     }
 
-    // 2. If text (initials) exists
+    // 2. If text (initials) exists (only when text is explicitly provided)
     if (text) {
-      const initials = text.substring(0, 3).toUpperCase(); // Support up to 3 chars for "+X"
+      const initials = text.substring(0, 3).toUpperCase();
       const fontSize = dim * 0.35;
       return (
         <Text style={[styles.text, { fontSize }, textStyle]}>
@@ -85,13 +96,25 @@ export function Avatar({
       );
     }
 
-    // 3. Fallback icon
-    const iconSize = dim * 0.6;
+    // 3. Explicit fallbackIcon if provided
+    if (fallbackIcon) {
+      const iconSize = dim * 0.6;
+      return (
+        <MaterialIcons 
+          name={fallbackIcon} 
+          size={iconSize} 
+          color={COLORS.primary} 
+        />
+      );
+    }
+
+    // 4. Default Placeholders: Club vs User
+    const defaultPlaceholder = fallbackType === 'club' ? DEFAULT_CLUB_AVATAR : DEFAULT_USER_AVATAR;
     return (
-      <MaterialIcons 
-        name={fallbackIcon} 
-        size={iconSize} 
-        color={COLORS.primary} 
+      <Image 
+        source={defaultPlaceholder} 
+        style={[styles.image, { borderRadius: dim / 2 }]} 
+        resizeMode="cover" 
       />
     );
   };
@@ -107,7 +130,7 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryOpacity10,
+    backgroundColor: COLORS.surfaceContainerLow,
     overflow: 'hidden',
   },
   image: {

@@ -33,7 +33,7 @@ export function Header({
           <Avatar
             size="md"
             source={isAuthenticated && userAvatar ? userAvatar : null}
-            fallbackIcon="person"
+            fallbackType="user"
           />
         </View>
         <View style={styles.greetingWrapper}>

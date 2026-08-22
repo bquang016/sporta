@@ -243,6 +243,14 @@ export function PersonalizedRecommendations({
                       <Text style={styles.distanceText}>{venue.distanceKm} km</Text>
                     </View>
                   )}
+
+                  <View style={styles.ratingCol}>
+                    <Text style={styles.dotSeparator}>•</Text>
+                    <MaterialIcons name="star" size={12} color="#D97706" />
+                    <Text style={styles.ratingText}>
+                      {((venue as any).averageRating || 5.0).toFixed(1)}
+                    </Text>
+                  </View>
                 </View>
 
                 {/* Card Divider */}
@@ -486,6 +494,16 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  ratingCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingText: {
+    fontSize: 11.5,
+    color: '#D97706',
+    fontWeight: '700',
   },
   cardDivider: {
     height: 1,

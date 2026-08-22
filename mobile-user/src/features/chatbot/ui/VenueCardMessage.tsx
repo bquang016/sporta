@@ -10,6 +10,8 @@ interface VenueCardMessageProps {
     image?: string | null;
     subtitle?: string;
     price?: number | null;
+    rating?: number | null;
+    totalReviews?: number | null;
     actionText?: string;
     type?: string;
   };
@@ -53,6 +55,14 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
             <Ionicons name={badge.icon} size={10} color={COLORS.white} style={{ marginRight: 3 }} />
             <Text style={styles.typeBadgeText}>{badge.text}</Text>
           </View>
+          {isVenue && card.rating ? (
+            <View style={styles.floatingRatingBadge}>
+              <Ionicons name="star" size={10} color="#F59E0B" />
+              <Text style={styles.floatingRatingText}>
+                {Number(card.rating).toFixed(1)}
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={[styles.fallbackImageWrapper, { backgroundColor: isMatchRoom ? '#ECFDF5' : isClub ? '#F0F9FF' : COLORS.surfaceContainer }]}>
@@ -65,6 +75,14 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
             <Ionicons name={badge.icon} size={10} color={COLORS.white} style={{ marginRight: 3 }} />
             <Text style={styles.typeBadgeText}>{badge.text}</Text>
           </View>
+          {isVenue && card.rating ? (
+            <View style={styles.floatingRatingBadge}>
+              <Ionicons name="star" size={10} color="#F59E0B" />
+              <Text style={styles.floatingRatingText}>
+                {Number(card.rating).toFixed(1)}
+              </Text>
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -200,6 +218,28 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 10,
     fontWeight: '800',
+  },
+  floatingRatingBadge: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  floatingRatingText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#B45309',
   },
   content: {
     padding: SPACING.sm,
