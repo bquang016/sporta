@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '../ui/Tooltip';
 import { getLoggedInUser } from '../../utils/auth';
 import { ConfirmModal } from '../ui/ConfirmModal';
+import { ContractsListModal } from '../../features/profile/components/ContractsListModal';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import { useOwnerNotifications, type NotificationItem } from '../../features/notifications';
 import logoHorizontal from '../../assets/logo/light/logo-horizontal_1600x400px.svg';
@@ -46,6 +47,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isContractsListModalOpen, setIsContractsListModalOpen] = useState(false);
 
   const { isOnline, latency } = useSystemStatus(10000);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useOwnerNotifications(12000);
@@ -354,6 +356,19 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                           </svg>
                           <span>Cài đặt hệ thống</span>
                         </button>
+                        
+                        <button 
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            setIsContractsListModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left cursor-pointer"
+                        >
+                          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Hợp đồng hợp tác</span>
+                        </button>
 
                         <button 
                           onClick={() => {
@@ -427,6 +442,14 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           cancelText="Hủy"
           variant="logout"
         />
+
+        {/* Import here if not dynamically loaded. Or just render the modal component if created */}
+        {isContractsListModalOpen && (
+          <ContractsListModal
+            isOpen={isContractsListModalOpen}
+            onClose={() => setIsContractsListModalOpen(false)}
+          />
+        )}
       </main>
     </div>
   );

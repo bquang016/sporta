@@ -1,27 +1,24 @@
 import React, { useState } from 'react';
-import type { VenueInfo, SubCourt } from '../types';
-import { useToast } from '../../../components/ui/Toast';
-import { CurrencyInput } from '../../../components/ui/CurrencyInput';
-import { Dropdown } from '../../../components/ui/Dropdown';
-import { Checkbox } from '../../../components/ui/Checkbox';
+import { useVenueWizard } from './VenueWizardContext';
+import { useToast } from '../../../../components/ui/Toast';
+import { CurrencyInput } from '../../../../components/ui/CurrencyInput';
+import { Dropdown } from '../../../../components/ui/Dropdown';
+import { Checkbox } from '../../../../components/ui/Checkbox';
 import { AdvancedOperationsModal } from './AdvancedOperationsModal';
+import type { CourtDraftDto } from '../../types';
 
-interface VenueCourtsStepProps {
-  venueInfo: VenueInfo;
-  onVenueInfoChange: (val: VenueInfo) => void;
-  courts: SubCourt[];
-  onCourtsChange: (val: SubCourt[]) => void;
-  isLoading: boolean;
-}
-
-export const VenueCourtsStep = ({
-  venueInfo,
-  onVenueInfoChange,
-  courts,
-  onCourtsChange,
-  isLoading
-}: VenueCourtsStepProps) => {
+export const Step2OperationsAndCourts = () => {
   const { showToast } = useToast();
+  const {
+    openingTime, setOpeningTime,
+    closingTime, setClosingTime,
+    shiftDurationMinutes, setShiftDurationMinutes,
+    hasSurcharge, setHasSurcharge,
+    surchargeAmount, setSurchargeAmount,
+    surchargeDescription, setSurchargeDescription,
+    courts, setCourts,
+    loading
+  } = useVenueWizard();
 
   const [courtPrefix, setCourtPrefix] = useState('Sân');
   const [courtQuantity, setCourtQuantity] = useState<number>(1);
@@ -29,22 +26,6 @@ export const VenueCourtsStep = ({
   
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   const [showTooltipTemp, setShowTooltipTemp] = useState(false);
-
-  const {
-    openingTime,
-    closingTime,
-    shiftDurationMinutes,
-    hasSurcharge,
-    surchargeAmount,
-    surchargeDescription,
-  } = venueInfo;
-
-  const setOpeningTime = (val: string) => onVenueInfoChange({ ...venueInfo, openingTime: val });
-  const setClosingTime = (val: string) => onVenueInfoChange({ ...venueInfo, closingTime: val });
-  const setShiftDurationMinutes = (val?: number) => onVenueInfoChange({ ...venueInfo, shiftDurationMinutes: val || 0 });
-  const setHasSurcharge = (val: boolean) => onVenueInfoChange({ ...venueInfo, hasSurcharge: val });
-  const setSurchargeAmount = (val?: number) => onVenueInfoChange({ ...venueInfo, surchargeAmount: val });
-  const setSurchargeDescription = (val: string) => onVenueInfoChange({ ...venueInfo, surchargeDescription: val });
 
   const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
     const hours = Math.floor(i / 2).toString().padStart(2, '0');
@@ -61,8 +42,6 @@ export const VenueCourtsStep = ({
     { value: '120', label: '2 tiếng (120 phút)' }
   ];
 
-
-
   const handleBulkAddCourts = () => {
     if (!courtPrefix.trim()) {
       showToast('warning', 'Vui lòng nhập tên/tiền tố sân');
@@ -77,7 +56,7 @@ export const VenueCourtsStep = ({
       return;
     }
 
-    const newCourts: SubCourt[] = [];
+    const newCourts: CourtDraftDto[] = [];
     const baseName = courtPrefix.trim();
 
     if (courtQuantity === 1) {
@@ -113,7 +92,7 @@ export const VenueCourtsStep = ({
       }
     }
 
-    onCourtsChange([...courts, ...newCourts]);
+    setCourts([...courts, ...newCourts]);
     showToast('success', `Đã thêm ${newCourts.length} sân vào danh sách`);
     
     // Auto-show tooltip to remind about advanced config
@@ -125,7 +104,7 @@ export const VenueCourtsStep = ({
 
   const handleRemoveCourt = (index: number) => {
     const courtName = courts[index].name;
-    onCourtsChange(courts.filter((_, i) => i !== index));
+    setCourts(courts.filter((_, i) => i !== index));
     showToast('info', `Đã xóa ${courtName}`);
   };
 
@@ -144,9 +123,8 @@ export const VenueCourtsStep = ({
   return (
     <div className="flex-grow overflow-y-auto px-8 py-6 space-y-8 select-none max-w-4xl mx-auto w-full font-sans animate-fadeIn">
 
-
-      {/* 2. Cấu hình vận hành cơ bản */}
-      <div className={`space-y-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      {/* 1. Cấu hình vận hành cơ bản */}
+      <div className={`space-y-4 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="space-y-0.5">
           <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Cấu hình vận hành chung</h4>
           <p className="text-[9px] text-slate-400 font-bold">Thiết lập giờ mở/đóng cửa và phụ thu cho toàn bộ cụm sân.</p>
@@ -163,7 +141,7 @@ export const VenueCourtsStep = ({
                   options={hourDropdownOptions}
                   value={openingTime}
                   onChange={setOpeningTime}
-                  disabled={isLoading}
+                  disabled={loading}
                   className="w-full text-xs font-bold text-slate-700 rounded-xl"
                 />
               </div>
@@ -173,7 +151,7 @@ export const VenueCourtsStep = ({
                   options={hourDropdownOptions}
                   value={closingTime}
                   onChange={setClosingTime}
-                  disabled={isLoading}
+                  disabled={loading}
                   className="w-full text-xs font-bold text-slate-700 rounded-xl"
                 />
               </div>
@@ -184,7 +162,7 @@ export const VenueCourtsStep = ({
                 options={SHIFT_DURATIONS}
                 value={shiftDurationMinutes ? String(shiftDurationMinutes) : ''}
                 onChange={val => setShiftDurationMinutes(val ? parseInt(val) : undefined)}
-                disabled={isLoading}
+                disabled={loading}
                 className="w-full text-xs font-bold text-slate-700 rounded-xl"
               />
             </div>
@@ -194,7 +172,7 @@ export const VenueCourtsStep = ({
           <div className="space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Phụ thu khẩn cấp</h5>
-              <Checkbox checked={hasSurcharge} onChange={setHasSurcharge} disabled={isLoading} />
+              <Checkbox checked={hasSurcharge} onChange={setHasSurcharge} disabled={loading} />
             </div>
 
             {hasSurcharge ? (
@@ -214,7 +192,7 @@ export const VenueCourtsStep = ({
                     placeholder="Ví dụ: Dọn dẹp sau 18:00..."
                     value={surchargeDescription}
                     onChange={e => setSurchargeDescription(e.target.value)}
-                    disabled={isLoading}
+                    disabled={loading}
                     className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald"
                   />
                 </div>
@@ -230,8 +208,8 @@ export const VenueCourtsStep = ({
 
       <div className="w-full h-px bg-slate-100" />
 
-      {/* 3. Form thêm sân & Danh sách */}
-      <div className={`space-y-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      {/* 2. Form thêm sân & Danh sách */}
+      <div className={`space-y-4 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="space-y-0.5">
           <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Danh sách sân bãi</h4>
           <p className="text-[9px] text-slate-400 font-bold">Tạo hàng loạt các sân và áp dụng quy tắc giá (giờ vàng, cuối tuần).</p>
@@ -246,7 +224,7 @@ export const VenueCourtsStep = ({
               placeholder="VD: Sân"
               value={courtPrefix}
               onChange={e => setCourtPrefix(e.target.value)}
-              disabled={isLoading}
+              disabled={loading}
               className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
             />
           </div>
@@ -258,7 +236,7 @@ export const VenueCourtsStep = ({
               max="50"
               value={courtQuantity}
               onChange={e => setCourtQuantity(parseInt(e.target.value) || 1)}
-              disabled={isLoading}
+              disabled={loading}
               className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
             />
           </div>
@@ -274,7 +252,7 @@ export const VenueCourtsStep = ({
             <button
               type="button"
               onClick={handleBulkAddCourts}
-              disabled={isLoading}
+              disabled={loading}
               className="w-full bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-[11px] py-2.5 rounded-xl transition-all cursor-pointer shadow-md"
             >
               Tạo sân
@@ -322,7 +300,7 @@ export const VenueCourtsStep = ({
                 
                 return (
                   <div
-                    key={index}
+                    key={court.id || index}
                     className={`border rounded-2xl p-4 flex flex-col gap-3 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group ${
                       hasRules ? 'bg-emerald-50/20 border-emerald-200' : 'bg-white border-slate-200/80'
                     }`}
@@ -372,7 +350,7 @@ export const VenueCourtsStep = ({
         isOpen={isAdvancedModalOpen}
         onClose={() => setIsAdvancedModalOpen(false)}
         courts={courts}
-        onCourtsChange={onCourtsChange}
+        onCourtsChange={(newCourts: CourtDraftDto[]) => setCourts(newCourts)}
         openingTime={openingTime}
         closingTime={closingTime}
         shiftDurationMinutes={shiftDurationMinutes}

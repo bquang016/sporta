@@ -129,7 +129,7 @@ export const ReviewStep = ({
       <div className="bg-white border border-slate-200 rounded-xl p-4">
         <SectionHeader
           title="Vận hành & Phụ thu"
-          step="venue-operating"
+          step="venue-courts"
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
         <InfoRow label="Giờ hoạt động" value={`${venueInfo.openingTime} - ${venueInfo.closingTime}`} />
@@ -183,6 +183,19 @@ export const ReviewStep = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ═══ Section 5: Venue Policy ═══ */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <SectionHeader
+          title="Chính sách của sân"
+          step="venue-policy"
+          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+        />
+        <InfoRow label="Thanh toán" value="Thanh toán 100%" />
+        <InfoRow label="Hủy miễn phí" value={venueInfo.freeCancellationHours === null ? 'Trước 12 tiếng' : `Trước ${venueInfo.freeCancellationHours} tiếng`} />
+        <InfoRow label="Hoàn tiền" value={venueInfo.lateCancellationRefundRate === null ? 'Hoàn 70%' : `Hoàn ${venueInfo.lateCancellationRefundRate}%`} />
+        <InfoRow label="Trời mưa" value={venueInfo.rainRescheduleAllowed ?? true ? 'Hỗ trợ đổi lịch' : 'Không hỗ trợ'} />
       </div>
 
       {/* Warning note */}

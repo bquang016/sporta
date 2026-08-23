@@ -28,5 +28,11 @@ public class VenueDraftRequest {
     private Boolean hasSurcharge;
     private Double surchargeAmount;
     private String surchargeDescription;
+    private Boolean isContractSigned;
+    private String signatureTimestamp;
+    private String signatureIp;
+    private Integer freeCancellationHours;
+    private Integer lateCancellationRefundRate;
+    private Boolean rainRescheduleAllowed;
     private List<CourtDraftDto> courts;
 }

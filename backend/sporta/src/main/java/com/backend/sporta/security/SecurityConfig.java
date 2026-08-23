@@ -36,6 +36,7 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
+                .requestMatchers("/api/v1/test-db").permitAll()
                 .requestMatchers("/api/v1/public/**", "/api/public/**").permitAll()
                 .requestMatchers("/api/v1/upload/**", "/api/upload/**").permitAll()
                 .requestMatchers("/api/v1/chat/**", "/api/chat/**").permitAll()

@@ -1,15 +1,18 @@
 import React from 'react';
 import { VenueWizardProvider, useVenueWizard } from './VenueWizardContext';
 import { Step1BasicInfo } from './Step1BasicInfo';
-import { Step2Facilities } from './Step2Facilities';
+import { Step2OperationsAndCourts } from './Step2OperationsAndCourts';
 import { Step3Images } from './Step3Images';
-import { Step4OperatingPricing } from './Step4OperatingPricing';
+import { Step4Policy } from './Step4Policy';
 import { Step5Summary } from './Step5Summary';
 import type { VenueResponse } from '../../types';
 import { Button } from '../../../../components/ui/Button';
 import { LoadingSpinner } from '../../../../components/ui/LoadingSpinner';
 import { useToast } from '../../../../components/ui/Toast';
 import { ConfirmModal } from '../../../../common/ui/overlay/ConfirmModal';
+import { ContractModal } from './ContractModal';
+import { OtpSignatureModal } from './OtpSignatureModal';
+import { getLoggedInUser } from '../../../../utils/auth';
 
 interface VenueWizardProps {
   onClose: () => void;
@@ -36,10 +39,19 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
     courts,
     openingTime,
     closingTime,
-    shiftDurationMinutes
+    shiftDurationMinutes,
+    isContractSigned,
+    setIsContractSigned,
+    setSignatureData
   } = useVenueWizard();
 
   const [isConfirmCancelSubmitOpen, setIsConfirmCancelSubmitOpen] = React.useState(false);
+  
+  const [isContractModalOpen, setIsContractModalOpen] = React.useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = React.useState(false);
+  
+  const loggedInUser = getLoggedInUser();
+  const userEmail = loggedInUser?.email || 'owner@sporta.vn';
 
   const handleCancelSubmit = async () => {
     const success = await cancelSubmission();
@@ -50,14 +62,14 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
 
   const STEPS_CONFIG = [
     { number: 1, label: 'Thông tin cơ bản' },
-    { number: 2, label: 'Khai báo sân' },
+    { number: 2, label: 'Vận hành & Khai báo sân' },
     { number: 3, label: 'Tải ảnh' },
-    { number: 4, label: 'Vận hành & Giá' },
-    { number: 5, label: 'Xác nhận' }
+    { number: 4, label: 'Chính sách & Quy định' },
+    { number: 5, label: 'Xác nhận & Ký hợp đồng' }
   ];
 
   const handleNext = async () => {
-    // Validate Step 2: Main Sport & Courts Registration
+    // Validate Step 2: Main Sport & Courts Registration & Operating Hours
     if (step === 2) {
       if (!sportId) {
         showToast('error', 'Vui lòng chọn môn thể thao chính ở Bước 2!');
@@ -67,10 +79,7 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
         showToast('error', 'Vui lòng đăng ký ít nhất một sân lẻ ở Bước 2!');
         return;
       }
-    }
 
-    // Validate Step 4: Operating Hours & Price Rules alignment
-    if (step === 4) {
       if (!shiftDurationMinutes || shiftDurationMinutes <= 0) {
         showToast('error', 'Vui lòng chọn thời lượng mỗi ca thuê!');
         return;
@@ -150,12 +159,29 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
+  const handleSubmitClick = () => {
+    if (!isPureEditMode && !isContractSigned) {
+      setIsContractModalOpen(true);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleOtpSuccess = (signatureData: { timestamp: string; ip: string }) => {
+    setIsOtpModalOpen(false);
+    setSignatureData(signatureData);
+    setIsContractSigned(true);
+    showToast('success', 'Ký hợp đồng thành công!');
+    // Allow user to review the contract or just submit automatically. 
+    // Usually we just close the modal. They can click "Gửi duyệt" now.
+  };
+
   const renderStepComponent = () => {
     switch (step) {
       case 1: return <Step1BasicInfo />;
-      case 2: return <Step2Facilities />;
+      case 2: return <Step2OperationsAndCourts />;
       case 3: return <Step3Images />;
-      case 4: return <Step4OperatingPricing />;
+      case 4: return <Step4Policy />;
       case 5: return <Step5Summary />;
       default: return <Step1BasicInfo />;
     }
@@ -287,12 +313,12 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={handleSubmit}
+                  onClick={handleSubmitClick}
                   disabled={loading}
                   className="font-bold text-xs flex items-center gap-1.5 border-b-2 border-emerald-950"
                 >
                   {loading && <LoadingSpinner size="sm" color="white" />}
-                  {isPureEditMode ? 'Xác nhận & Cập nhật' : 'Gửi duyệt'}
+                  {isPureEditMode ? 'Xác nhận & Cập nhật' : (isContractSigned ? 'Gửi duyệt' : 'Xem & Ký Hợp Đồng')}
                 </Button>
               ) : (
                 <Button
@@ -339,6 +365,19 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
         confirmText="Đồng ý hủy"
         cancelText="Không"
         variant="warning"
+      />
+
+      <ContractModal
+        isOpen={isContractModalOpen}
+        onClose={() => setIsContractModalOpen(false)}
+        onOpenOtp={() => setIsOtpModalOpen(true)}
+      />
+
+      <OtpSignatureModal
+        isOpen={isOtpModalOpen}
+        email={userEmail}
+        onClose={() => setIsOtpModalOpen(false)}
+        onSuccess={handleOtpSuccess}
       />
 
     </div>
