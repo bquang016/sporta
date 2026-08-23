@@ -66,8 +66,7 @@ export function PersonalizedRecommendations({
   };
 
   const formatPrice = (price?: number | null) => {
-    if (!price || price <= 0) return 'Liên hệ';
-    return `${price.toLocaleString('vi-VN')}đ`;
+    return `${Number(price || 0).toLocaleString('vi-VN')} VND`;
   };
 
   const getReasonConfig = (reasonType?: string) => {
@@ -244,13 +243,22 @@ export function PersonalizedRecommendations({
                     </View>
                   )}
 
-                  <View style={styles.ratingCol}>
-                    <Text style={styles.dotSeparator}>•</Text>
-                    <MaterialIcons name="star" size={12} color="#D97706" />
-                    <Text style={styles.ratingText}>
-                      {((venue as any).averageRating || 5.0).toFixed(1)}
-                    </Text>
-                  </View>
+                  {venue.averageRating != null && venue.averageRating > 0 ? (
+                    <View style={styles.ratingCol}>
+                      <Text style={styles.dotSeparator}>•</Text>
+                      <MaterialIcons name="star" size={12} color="#D97706" />
+                      <Text style={styles.ratingText}>
+                        {venue.averageRating.toFixed(1)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.ratingCol}>
+                      <Text style={styles.dotSeparator}>•</Text>
+                      <View style={styles.newBadge}>
+                        <Text style={styles.newBadgeText}>Mới</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
 
                 {/* Card Divider */}
@@ -504,6 +512,19 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#D97706',
     fontWeight: '700',
+  },
+  newBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#A7F3D0',
+  },
+  newBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#065F46',
   },
   cardDivider: {
     height: 1,

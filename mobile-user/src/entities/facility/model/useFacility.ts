@@ -43,12 +43,14 @@ export const useFacilities = () => {
         
         // Map VenueResponse to Facility
         const mappedFacilities: Facility[] = data.map((venue) => {
-          let priceCategory = 'Dưới 300k';
+          let priceCategory = 'Dưới 200k';
           const minP = venue.minPrice || 0;
-          if (minP >= 300000 && minP <= 500000) {
-            priceCategory = '300k - 500k';
-          } else if (minP > 500000) {
-            priceCategory = 'Trên 500k';
+          if (minP >= 200000 && minP <= 400000) {
+            priceCategory = '200k - 400k';
+          } else if (minP > 400000 && minP <= 600000) {
+            priceCategory = '400k - 600k';
+          } else if (minP > 600000) {
+            priceCategory = 'Trên 600k';
           }
 
           let distanceStr = '-- km';
@@ -64,10 +66,10 @@ export const useFacilities = () => {
             rating: venue.averageRating != null && venue.averageRating > 0 ? Math.round(venue.averageRating * 10) / 10 : 0,
             location: venue.location,
             distance: distanceStr,
-            price: venue.minPrice != null ? `${Math.round(venue.minPrice / 1000)}k` : 'Liên hệ',
+            price: venue.minPrice != null ? `${Number(venue.minPrice).toLocaleString('vi-VN')} VND` : '0 VND',
             status: venue.status === 'ACTIVE' ? 'Còn chỗ' : 'Đóng cửa',
             statusType: venue.status === 'ACTIVE' ? 'success' : 'warning',
-            imageUrl: venue.coverImage || 'https://via.placeholder.com/300x160?text=No+Image',
+            imageUrl: venue.coverImage || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
             sport: venue.sportName || 'Khác',
             area: venue.location || 'Khác',
             priceCategory: priceCategory,

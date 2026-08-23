@@ -65,8 +65,8 @@ export const useMapFacilities = () => {
             sportName: venue.sportName || 'Thể thao',
             price:
               venue.minPrice != null
-                ? `${Math.round(venue.minPrice / 1000)}k/h`
-                : 'Liên hệ',
+                ? `${Number(venue.minPrice).toLocaleString('vi-VN')} VND/h`
+                : '0 VND/h',
             rating: venue.averageRating != null && venue.averageRating > 0 ? Math.round(venue.averageRating * 10) / 10 : 0,
             location: venue.location,
             coverImage: venue.coverImage || null,

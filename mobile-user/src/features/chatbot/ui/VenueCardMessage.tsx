@@ -55,7 +55,7 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
             <Ionicons name={badge.icon} size={10} color={COLORS.white} style={{ marginRight: 3 }} />
             <Text style={styles.typeBadgeText}>{badge.text}</Text>
           </View>
-          {isVenue && card.rating ? (
+          {isVenue && card.rating != null && card.rating > 0 && (card.totalReviews == null || card.totalReviews > 0) ? (
             <View style={styles.floatingRatingBadge}>
               <Ionicons name="star" size={10} color="#F59E0B" />
               <Text style={styles.floatingRatingText}>
@@ -75,7 +75,7 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
             <Ionicons name={badge.icon} size={10} color={COLORS.white} style={{ marginRight: 3 }} />
             <Text style={styles.typeBadgeText}>{badge.text}</Text>
           </View>
-          {isVenue && card.rating ? (
+          {isVenue && card.rating != null && card.rating > 0 && (card.totalReviews == null || card.totalReviews > 0) ? (
             <View style={styles.floatingRatingBadge}>
               <Ionicons name="star" size={10} color="#F59E0B" />
               <Text style={styles.floatingRatingText}>

@@ -126,7 +126,9 @@ export function HomeScreen() {
         {/* Sticky SearchBar row */}
         <View style={styles.searchBarRow}>
           <SearchBar
-            onPress={() => router.push('/search')}
+            onPress={() =>
+              router.push({ pathname: '/search', params: { autoFocus: 'true' } })
+            }
             onFilterPress={() =>
               router.push({ pathname: '/search', params: { openFilter: 'true' } })
             }
@@ -193,7 +195,7 @@ export function HomeScreen() {
           loading={recommendedLoading}
           error={recommendedError}
           onVenuePress={handleFacilityPress}
-          onSeeAllPress={() => router.push({ pathname: '/search', params: { openFilter: 'false' } })}
+          onSeeAllPress={() => router.push('/recommended-venues' as any)}
         />
 
         {/* 7. Sân Gần Bạn */}
@@ -210,7 +212,7 @@ export function HomeScreen() {
             </View>
 
             <TouchableOpacity
-              onPress={() => router.push('/search')}
+              onPress={() => router.push('/nearby-venues' as any)}
               style={styles.seeAllButton}
               activeOpacity={0.75}
             >

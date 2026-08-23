@@ -7,7 +7,7 @@ import { useMatchmakingList } from '../../../features/matchmaking/model/useMatch
 
 export function MatchInvitations() {
   const router = useRouter();
-  const { rooms } = useMatchmakingList();
+  const { rooms, loading } = useMatchmakingList();
 
   return (
     <View style={styles.section}>
@@ -20,13 +20,17 @@ export function MatchInvitations() {
           <View>
             <View style={styles.titleWithBadge}>
               <Text style={styles.sectionTitle}>Ghép Kèo Thể Thao</Text>
-              <View style={styles.liveBadge}>
-                <View style={styles.livePulseDot} />
-                <Text style={styles.liveText}>LIVE</Text>
-              </View>
+              {rooms.length > 0 ? (
+                <View style={styles.liveBadge}>
+                  <View style={styles.livePulseDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              ) : null}
             </View>
             <Text style={styles.sectionSub}>
-              🔥 {rooms.length} trận đấu tìm đối thủ đang diễn ra!
+              {rooms.length > 0
+                ? `🔥 ${rooms.length} trận đấu tìm đối thủ đang diễn ra!`
+                : 'Sân chơi ghép cặp & kết nối thể thao'}
             </Text>
           </View>
         </View>
@@ -41,80 +45,104 @@ export function MatchInvitations() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Horizontal Rooms List ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollList}
-        decelerationRate="fast"
-      >
-        {rooms.map((room) => {
-          const isRanked = room.matchType === 'RANKED';
-          return (
-            <TouchableOpacity
-              key={room.id}
-              activeOpacity={0.88}
-              onPress={() => router.push(`/matchmaking/${room.id}` as any)}
-              style={styles.cardContainer}
-            >
-              <View style={styles.cardContent}>
-                {/* Header Badge */}
-                <View style={styles.cardHeader}>
-                  <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
-                    <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-                      {isRanked ? '🏆 Xếp hạng' : '🤝 Giao hữu'}
+      {/* ── Content Body ── */}
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <Text style={styles.loadingText}>Đang tải danh sách kèo đấu...</Text>
+        </View>
+      ) : rooms.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <View style={styles.emptyIconCircle}>
+            <MaterialIcons name="sports-soccer" size={26} color={COLORS.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>Hiện tại chưa có kèo đấu nào</Text>
+          <Text style={styles.emptySub}>
+            Chưa có trận đấu nào đang tìm đối thủ. Hãy quay lại sau nhé!
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyActionBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push('/matchmaking/create' as any)}
+          >
+            <MaterialIcons name="add" size={16} color={COLORS.white} />
+            <Text style={styles.emptyActionBtnText}>Tạo kèo ngay</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollList}
+          decelerationRate="fast"
+        >
+          {rooms.map((room) => {
+            const isRanked = room.matchType === 'RANKED';
+            return (
+              <TouchableOpacity
+                key={room.id}
+                activeOpacity={0.88}
+                onPress={() => router.push(`/matchmaking/${room.id}` as any)}
+                style={styles.cardContainer}
+              >
+                <View style={styles.cardContent}>
+                  {/* Header Badge */}
+                  <View style={styles.cardHeader}>
+                    <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
+                      <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
+                        {isRanked ? '🏆 Xếp hạng' : '🤝 Giao hữu'}
+                      </Text>
+                    </View>
+                    {room.balanceLabel && (
+                      <Text style={styles.balanceText}>{room.balanceLabel}</Text>
+                    )}
+                  </View>
+
+                  {/* Host Club & Elo */}
+                  <View style={styles.clubInfo}>
+                    <Text style={styles.clubName} numberOfLines={1}>
+                      {room.hostClub.name}
+                    </Text>
+                    <View style={styles.eloRow}>
+                      <View style={styles.levelTag}>
+                        <Text style={styles.levelText}>{room.hostClub.levelLabel}</Text>
+                      </View>
+                      <Text style={styles.eloText}>{room.hostClub.clubElo} Elo</Text>
+                      <Text style={styles.crpText}>• {room.hostClub.crp} CRP</Text>
+                    </View>
+                  </View>
+
+                  {/* Time & Venue */}
+                  <View style={styles.detailRow}>
+                    <MaterialIcons name="location-on" size={13} color={COLORS.onSurfaceVariant} />
+                    <Text style={styles.detailText} numberOfLines={1}>
+                      {room.booking.facilityName}
                     </Text>
                   </View>
-                  {room.balanceLabel && (
-                    <Text style={styles.balanceText}>{room.balanceLabel}</Text>
-                  )}
-                </View>
+                  <View style={styles.detailRow}>
+                    <MaterialIcons name="schedule" size={13} color={COLORS.onSurfaceVariant} />
+                    <Text style={styles.detailText}>
+                      {room.booking.date} • {room.booking.startTime}
+                    </Text>
+                  </View>
 
-                {/* Host Club & Elo */}
-                <View style={styles.clubInfo}>
-                  <Text style={styles.clubName} numberOfLines={1}>
-                    {room.hostClub.name}
-                  </Text>
-                  <View style={styles.eloRow}>
-                    <View style={styles.levelTag}>
-                      <Text style={styles.levelText}>{room.hostClub.levelLabel}</Text>
-                    </View>
-                    <Text style={styles.eloText}>{room.hostClub.clubElo} Elo</Text>
-                    <Text style={styles.crpText}>• {room.hostClub.crp} CRP</Text>
+                  {/* Fee Split */}
+                  <View style={styles.feeBox}>
+                    <Text style={styles.feeLabel}>B trả ({room.guestSharePercent}%):</Text>
+                    <Text style={styles.feeValue}>
+                      ~{room.guestShareAmount.toLocaleString('vi-VN')}đ
+                    </Text>
+                  </View>
+
+                  <View style={styles.joinBtn}>
+                    <Text style={styles.joinBtnText}>Xem & Ghép kèo</Text>
+                    <MaterialIcons name="arrow-forward" size={14} color={COLORS.white} />
                   </View>
                 </View>
-
-                {/* Time & Venue */}
-                <View style={styles.detailRow}>
-                  <MaterialIcons name="location-on" size={13} color={COLORS.onSurfaceVariant} />
-                  <Text style={styles.detailText} numberOfLines={1}>
-                    {room.booking.facilityName}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <MaterialIcons name="schedule" size={13} color={COLORS.onSurfaceVariant} />
-                  <Text style={styles.detailText}>
-                    {room.booking.date} • {room.booking.startTime}
-                  </Text>
-                </View>
-
-                {/* Fee Split */}
-                <View style={styles.feeBox}>
-                  <Text style={styles.feeLabel}>B trả ({room.guestSharePercent}%):</Text>
-                  <Text style={styles.feeValue}>
-                    ~{room.guestShareAmount.toLocaleString('vi-VN')}đ
-                  </Text>
-                </View>
-
-                <View style={styles.joinBtn}>
-                  <Text style={styles.joinBtnText}>Xem & Ghép kèo</Text>
-                  <MaterialIcons name="arrow-forward" size={14} color={COLORS.white} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -330,5 +358,66 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '700',
     fontSize: 12,
+  },
+  loadingBox: {
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.onSurfaceVariant,
+  },
+  emptyBox: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    gap: 6,
+    marginVertical: 4,
+  },
+  emptyIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.primaryOpacity10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+    textAlign: 'center',
+  },
+  emptySub: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
+    maxWidth: 260,
+    lineHeight: 17,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    marginTop: 6,
+  },
+  emptyActionBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });
