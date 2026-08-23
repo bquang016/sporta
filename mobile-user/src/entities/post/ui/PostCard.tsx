@@ -4,6 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Post, ClubInfoData } from '../model/post.types';
 import { MatchCardAttachment } from './MatchCardAttachment';
 import { VenuePromoAttachment } from './VenuePromoAttachment';
+import { VoucherPostAttachment } from '../../../features/voucher/ui/VoucherPostAttachment';
 import { PostImageViewerModal } from './PostImageViewerModal';
 import { REACTION_MAP } from '../index';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
@@ -46,7 +47,10 @@ export const PostCard = React.memo(({
               activeOpacity={0.8}
               onPress={() => onClubPress && onClubPress(post.clubInfo!)}
             >
-              <Image source={{ uri: post.clubInfo.avatarUrl }} style={styles.clubAvatar} />
+              <Image 
+                source={post.clubInfo.avatarUrl ? { uri: post.clubInfo.avatarUrl } : require('../../../../assets/logo/club/699x699__1_-removebg-preview.png')} 
+                style={styles.clubAvatar} 
+              />
             </TouchableOpacity>
 
             {/* User Avatar Overlapping on Bottom-Right */}
@@ -55,13 +59,19 @@ export const PostCard = React.memo(({
               onPress={() => onUserPress && onUserPress(post.author.id)}
               style={styles.userOverlappingTouch}
             >
-              <Image source={{ uri: post.author.avatar }} style={styles.userOverlappingAvatar} />
+              <Image 
+                source={post.author.avatar ? { uri: post.author.avatar } : require('../../../../assets/player/player_699x699.png')} 
+                style={styles.userOverlappingAvatar} 
+              />
             </TouchableOpacity>
           </View>
         ) : (
           /* Standard Single Avatar */
           <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress && onUserPress(post.author.id)}>
-            <Image source={{ uri: post.author.avatar }} style={styles.singleAvatar} />
+            <Image 
+              source={post.author.avatar ? { uri: post.author.avatar } : require('../../../../assets/player/player_699x699.png')} 
+              style={styles.singleAvatar} 
+            />
           </TouchableOpacity>
         )}
 
@@ -157,6 +167,13 @@ export const PostCard = React.memo(({
       {/* 3.2 Venue Promo Attachment */}
       {post.venuePromoAttachment ? (
         <VenuePromoAttachment data={post.venuePromoAttachment} />
+      ) : null}
+
+      {/* 3.3 Voucher Attachment */}
+      {post.voucher ? (
+        <View style={{ paddingHorizontal: 16 }}>
+          <VoucherPostAttachment voucher={post.voucher} />
+        </View>
       ) : null}
 
       {/* ── 4. Media Images ── */}

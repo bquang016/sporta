@@ -168,11 +168,19 @@ export function useLogin() {
       if (Platform.OS === 'web') {
         localStorage.setItem('userEmail', email);
         localStorage.setItem('userName', realFullName);
-        if (realAvatar) localStorage.setItem('userAvatar', realAvatar);
+        if (realAvatar) {
+          localStorage.setItem('userAvatar', realAvatar);
+        } else {
+          localStorage.removeItem('userAvatar');
+        }
       } else {
         await SecureStore.setItemAsync('userEmail', email);
         await SecureStore.setItemAsync('userName', realFullName);
-        if (realAvatar) await SecureStore.setItemAsync('userAvatar', realAvatar);
+        if (realAvatar) {
+          await SecureStore.setItemAsync('userAvatar', realAvatar);
+        } else {
+          await SecureStore.deleteItemAsync('userAvatar');
+        }
       }
       router.replace('/(tabs)');
     } catch (error: any) {

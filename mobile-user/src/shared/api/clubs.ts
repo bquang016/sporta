@@ -121,6 +121,17 @@ export const closePollApi = async (pollId: number): Promise<any> => {
   return requestApi(`/clubs/polls/${pollId}/close`, { method: 'POST' });
 };
 
+export const reopenPollApi = async (pollId: number): Promise<any> => {
+  return requestApi(`/clubs/polls/${pollId}/reopen`, { method: 'POST' });
+};
+
+export const saveMatchmadeTeamsApi = async (pollId: number, teams: { teamA: string[]; teamB: string[]; teamAPlayers?: any[]; teamBPlayers?: any[]; teamATotalElo?: number; teamBTotalElo?: number }): Promise<any> => {
+  return requestApi(`/clubs/polls/${pollId}/matchmake`, {
+    method: 'POST',
+    body: JSON.stringify(teams),
+  });
+};
+
 export const deletePollApi = async (pollId: number): Promise<void> => {
   return requestApi(`/clubs/polls/${pollId}`, { method: 'DELETE' });
 };

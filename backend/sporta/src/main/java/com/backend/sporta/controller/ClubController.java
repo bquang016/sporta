@@ -162,6 +162,18 @@ public class ClubController {
         return ResponseEntity.ok(clubPollService.closePoll(pollId, getCurrentUserEmail()));
     }
 
+    @PostMapping("/polls/{pollId}/reopen")
+    public ResponseEntity<ClubPollResponse> reopenPoll(@PathVariable Long pollId) {
+        return ResponseEntity.ok(clubPollService.reopenPoll(pollId, getCurrentUserEmail()));
+    }
+
+    @PostMapping("/polls/{pollId}/matchmake")
+    public ResponseEntity<ClubPollResponse> saveMatchmadeTeams(
+            @PathVariable Long pollId,
+            @RequestBody ClubPollResponse.MatchmadeTeamsResponse request) {
+        return ResponseEntity.ok(clubPollService.saveMatchmadeTeams(pollId, request, getCurrentUserEmail()));
+    }
+
     @DeleteMapping("/polls/{pollId}")
     public ResponseEntity<Void> deletePoll(@PathVariable Long pollId) {
         clubPollService.deletePoll(pollId, getCurrentUserEmail());

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { generateTimes, type SlotStatus, type BookingSlot, type Facility } from '../components/mockData';
 import { scheduleService } from '../services/scheduleService';
 import { courtService } from '../../venue/services/courtService';
@@ -7,6 +8,11 @@ import { useToast } from '../../../components/ui/Toast';
 
 export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => {
   const { showToast } = useToast();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  
+
 
   // ─── STATE QUẢN LÝ DỮ LIỆU LỊCH ĐẶT THỰC TẾ ───────────────────
   const [slots, setSlots] = useState<BookingSlot[]>([]);
@@ -118,11 +124,57 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     skillLevel?: string;
     ticketSessionId?: string;
     bookingId?: string;
+    bookingCode?: string;
     isManual?: boolean;
     bookedSlots?: number;
     maxSlots?: number;
     pricePerTicket?: number;
   } | null>(null);
+
+  // Tự động mở Modal Chi tiết lịch đặt khi click từ Thông báo (Deep Linking)
+  useEffect(() => {
+    const targetBookingId = searchParams.get('bookingId');
+    if (!targetBookingId) return;
+
+    const loadTargetBooking = async () => {
+      try {
+        const booking = await scheduleService.getBookingById(targetBookingId);
+        if (!booking) return;
+
+        if (booking.details && booking.details.length > 0) {
+          const detail = booking.details[0];
+          if (detail.bookingDate) {
+            setDate(new Date(detail.bookingDate));
+          }
+
+          setSelectedBookingDetail({
+            facility: {
+              id: detail.courtId || '',
+              name: detail.courtName || 'Sân bóng',
+              type: detail.courtType || 'Sân tiêu chuẩn',
+              pricePerHour: detail.price || 0,
+            },
+            customerName: booking.customerName || booking.playerName || 'Khách đặt qua App',
+            startTime: detail.startTime || '00:00',
+            endTime: detail.endTime || '00:00',
+            status: 'booked',
+            slotIds: [],
+            price: booking.finalPrice || booking.totalPrice || detail.price || 0,
+            bookingId: booking.id,
+            bookingCode: booking.bookingCode,
+            isManual: booking.isManual,
+          });
+          setIsDetailModalOpen(true);
+        }
+      } catch (e) {
+        console.error('Lỗi khi mở chi tiết đơn đặt sân từ thông báo:', e);
+      } finally {
+        setSearchParams({}, { replace: true });
+      }
+    };
+
+    loadTargetBooking();
+  }, [searchParams]);
 
   const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
 

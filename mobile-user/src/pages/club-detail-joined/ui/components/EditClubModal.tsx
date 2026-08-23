@@ -51,6 +51,7 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
   const { updateClub } = useClubs();
   const { showAlert } = useAlert();
 
+  const [name, setName] = useState(club?.name || '');
   const [description, setDescription] = useState(club?.description || '');
   const [area, setArea] = useState(club?.area || '');
   const [ward, setWard] = useState('');
@@ -117,6 +118,7 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
 
   useEffect(() => {
     if (club) {
+      setName(club.name || '');
       setDescription(club.description || '');
       const rawArea = club.area || '';
       if (rawArea.includes(',')) {
@@ -192,6 +194,7 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
     setIsSubmitting(true);
     try {
       await updateClub(club.id, {
+        name: name.trim(),
         description: description.trim(),
         area: finalArea.trim(),
         maxMembers: numMax,
@@ -273,13 +276,16 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
 
             {/* Form Fields */}
             <View style={styles.formContainer}>
-              {/* Club Name (Read-only notice) */}
+              {/* Club Name */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Tên câu lạc bộ</Text>
-                <View style={styles.readOnlyInput}>
-                  <Text style={styles.readOnlyText}>{club?.name}</Text>
-                  <MaterialIcons name="lock" size={16} color={COLORS.onSurfaceVariant} />
-                </View>
+                <TextInput
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Nhập tên câu lạc bộ..."
+                  placeholderTextColor={COLORS.outline}
+                />
               </View>
 
               {/* Description */}

@@ -10,6 +10,7 @@ interface BookingHistoryCardProps {
   onPressCard: (booking: BookingItem) => void;
   onPressShowQR: (booking: BookingItem) => void;
   onPressCancel: (booking: BookingItem) => void;
+  onPressReview?: (booking: BookingItem) => void;
 }
 
 export function BookingHistoryCard({
@@ -17,6 +18,7 @@ export function BookingHistoryCard({
   onPressCard,
   onPressShowQR,
   onPressCancel,
+  onPressReview,
 }: BookingHistoryCardProps) {
   const detail = booking.details?.[0];
   const effectiveStatus = getEffectiveBookingStatus(booking);
@@ -131,21 +133,39 @@ export function BookingHistoryCard({
         )}
 
         {isCompleted && (
-          <TouchableOpacity 
-            style={[styles.btnSecondary, { flex: 1 }]}
-            activeOpacity={0.8}
-            onPress={() => onPressCard(booking)}
-          >
-            <MaterialIcons name="receipt-long" size={16} color={COLORS.primary} />
-            <Text 
-              style={[styles.btnSecondaryText, { color: COLORS.primary }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
+          <>
+            <TouchableOpacity 
+              style={[styles.btnSecondary, { flex: 1 }]}
+              activeOpacity={0.8}
+              onPress={() => onPressCard(booking)}
             >
-              Xem chi tiết đơn
-            </Text>
-          </TouchableOpacity>
+              <MaterialIcons name="receipt-long" size={16} color={COLORS.primary} />
+              <Text 
+                style={[styles.btnSecondaryText, { color: COLORS.primary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
+                Chi tiết
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.btnPrimary, { flex: 1 }]}
+              activeOpacity={0.8}
+              onPress={() => onPressReview ? onPressReview(booking) : onPressCard(booking)}
+            >
+              <MaterialIcons name="rate-review" size={16} color={COLORS.white} />
+              <Text 
+                style={styles.btnPrimaryText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
+                Đánh giá sân
+              </Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {isCancelled && (

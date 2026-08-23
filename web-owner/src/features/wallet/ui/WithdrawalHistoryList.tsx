@@ -61,9 +61,9 @@ export const WithdrawalHistoryList: React.FC<Props> = ({ withdrawals, loading })
                   <span>{w.adminNote}</span>
                 </p>
               )}
-              {w.status === 'COMPLETED' && w.transferProofUrl && (
+              {w.status === 'COMPLETED' && (w as any).transferProofUrl && (
                 <div className="mt-3">
-                  <a href={w.transferProofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-emerald hover:text-emerald-700 hover:underline bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 transition-colors">
+                  <a href={(w as any).transferProofUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-emerald hover:text-emerald-700 hover:underline bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 transition-colors">
                     <CheckCircle size={14} /> Xem biên lai
                   </a>
                 </div>

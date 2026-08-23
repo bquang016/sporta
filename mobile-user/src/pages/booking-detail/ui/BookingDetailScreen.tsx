@@ -107,6 +107,8 @@ export function BookingDetailScreen() {
         venueName: venue.name,
         venueLocation: venue.location,
         venuePhone: venue.ownerPhone ?? '',
+        venueImage: venue.coverImage ?? '',
+        venueSport: venue.sportName || 'Thể thao',
         bookingDate: selectedDate.toISOString().split('T')[0],
         slotsParam,
         totalPrice: String(totalPrice),

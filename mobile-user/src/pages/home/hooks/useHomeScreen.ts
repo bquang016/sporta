@@ -2,7 +2,9 @@ import { useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useFacilities } from '../../../entities/facility';
+import { useQueryClient } from '@tanstack/react-query';
+import { useFacilities, Facility, RecommendedVenue } from '../../../entities/facility';
+import { fetchRecommendedVenues } from '../../../entities/facility/api/facilityApi';
 import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessions';
 import { clubStore } from '../../../entities/club';
 import { useAlert } from '../../../shared/contexts/AlertContext';
@@ -10,11 +12,52 @@ import { getBaseUrl } from '../../../shared/api/config';
 
 export function useHomeScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { showAlert, showConfirm } = useAlert();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('Khách');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const { facilities, loading: facilitiesLoading, error: facilitiesError } = useFacilities();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [recommendedVenues, setRecommendedVenues] = useState<RecommendedVenue[]>([]);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedError, setRecommendedError] = useState<string | null>(null);
+
+  const fetchRecommendations = useCallback(async () => {
+    try {
+      setRecommendedLoading(true);
+      setRecommendedError(null);
+      let lat = 21.0285;
+      let lng = 105.8542;
+      try {
+        const Location = require('expo-location');
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc && loc.coords) {
+            lat = loc.coords.latitude;
+            lng = loc.coords.longitude;
+          }
+        }
+      } catch (_) {}
+
+      const data = await fetchRecommendedVenues({ lat, lng, limit: 6 });
+      setRecommendedVenues(data || []);
+    } catch (e: any) {
+      console.log('Error fetching recommendations:', e);
+      setRecommendedError(e.message || 'Lỗi tải gợi ý sân');
+    } finally {
+      setRecommendedLoading(false);
+    }
+  }, []);
+
+  const {
+    facilities,
+    loading: facilitiesLoading,
+    error: facilitiesError,
+    refetch: refetchFacilities,
+  } = useFacilities();
+
   const {
     sessions: ticketSessions,
     loading: ticketSessionsLoading,
@@ -32,9 +75,9 @@ export function useHomeScreen() {
         name = localStorage.getItem('userName') || '';
         avatar = localStorage.getItem('userAvatar') || '';
       } else {
-        token = await SecureStore.getItemAsync('accessToken') || '';
-        name = await SecureStore.getItemAsync('userName') || '';
-        avatar = await SecureStore.getItemAsync('userAvatar') || '';
+        token = (await SecureStore.getItemAsync('accessToken')) || '';
+        name = (await SecureStore.getItemAsync('userName')) || '';
+        avatar = (await SecureStore.getItemAsync('userAvatar')) || '';
       }
 
       if (token) {
@@ -44,9 +87,9 @@ export function useHomeScreen() {
 
         try {
           const response = await fetch(`${getBaseUrl()}/auth/ping`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
           });
-          
+
           if (response.status === 403) {
             const errorData = await response.json().catch(() => ({}));
             if (errorData.message && errorData.message.includes('đã bị khóa')) {
@@ -91,24 +134,36 @@ export function useHomeScreen() {
           try {
             const { usersApi } = require('../../../shared/api/users');
             const profile = await usersApi.getProfile();
-            if (profile && profile.fullName) {
-              setUserName(profile.fullName);
-              if (profile.avatarUrl) {
-                setUserAvatar(profile.avatarUrl);
+            if (profile) {
+              if (profile.fullName) {
+                setUserName(profile.fullName);
+                if (Platform.OS === 'web') {
+                  localStorage.setItem('userName', profile.fullName);
+                } else {
+                  await SecureStore.setItemAsync('userName', profile.fullName);
+                }
               }
+
+              const currentAvatar = profile.avatarUrl || null;
+              setUserAvatar(currentAvatar);
               if (Platform.OS === 'web') {
-                localStorage.setItem('userName', profile.fullName);
-                if (profile.avatarUrl) localStorage.setItem('userAvatar', profile.avatarUrl);
+                if (currentAvatar) {
+                  localStorage.setItem('userAvatar', currentAvatar);
+                } else {
+                  localStorage.removeItem('userAvatar');
+                }
               } else {
-                await SecureStore.setItemAsync('userName', profile.fullName);
-                if (profile.avatarUrl) await SecureStore.setItemAsync('userAvatar', profile.avatarUrl);
+                if (currentAvatar) {
+                  await SecureStore.setItemAsync('userAvatar', currentAvatar);
+                } else {
+                  await SecureStore.deleteItemAsync('userAvatar');
+                }
               }
             }
           } catch (profileErr) {
             console.log('Profile sync on Home warning:', profileErr);
           }
         } catch (e) {
-          // Tránh xóa token khi gặp lỗi mạng (ví dụ mất kết nối tạm thời)
           console.log('checkAuth ping network error, keeping local session');
         }
       } else {
@@ -127,10 +182,45 @@ export function useHomeScreen() {
     useCallback(() => {
       checkAuth();
       refetchTicketSessions();
-    }, [refetchTicketSessions])
+      fetchRecommendations();
+    }, [refetchTicketSessions, fetchRecommendations])
   );
 
-  const handleFacilityPress = (id: string) => router.push(`/booking/${id}`);
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.allSettled([
+        checkAuth(),
+        refetchFacilities(),
+        refetchTicketSessions(),
+        fetchRecommendations(),
+        queryClient.invalidateQueries({ queryKey: ['systemVoucherBanners'] }),
+        queryClient.invalidateQueries({ queryKey: ['wallet_balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['myVouchers'] }),
+      ]);
+    } catch (e) {
+      console.log('Error refreshing home screen:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [selectedFacilityForModal, setSelectedFacilityForModal] = useState<Facility | null>(null);
+  const [isVenueModalVisible, setIsVenueModalVisible] = useState(false);
+
+  const handleFacilityPress = (id: string) => {
+    const venueIdStr = String(id);
+    const found = facilities.find(f => String(f.id) === venueIdStr) || null;
+    setSelectedVenueId(venueIdStr);
+    setSelectedFacilityForModal(found);
+    setIsVenueModalVisible(true);
+  };
+
+  const handleCloseVenueModal = () => {
+    setIsVenueModalVisible(false);
+  };
+
   const handleLoginPress = () => router.push('/(auth)/login');
   const handleRegisterPress = () => router.push('/(auth)/register');
 
@@ -187,10 +277,19 @@ export function useHomeScreen() {
     facilities,
     facilitiesLoading,
     facilitiesError,
+    recommendedVenues,
+    recommendedLoading,
+    recommendedError,
     ticketSessions,
     ticketSessionsLoading,
     ticketSessionsError,
+    refreshing,
+    onRefresh,
     handleFacilityPress,
+    selectedVenueId,
+    selectedFacilityForModal,
+    isVenueModalVisible,
+    handleCloseVenueModal,
     handleLoginPress,
     handleRegisterPress,
     handleAvatarPress,

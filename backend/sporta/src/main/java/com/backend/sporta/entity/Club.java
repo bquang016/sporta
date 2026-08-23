@@ -47,6 +47,18 @@ public class Club {
     @Builder.Default
     private Integer elo = 1000;
 
+    @Column(name = "crp")
+    @Builder.Default
+    private Integer crp = 0;
+
+    @Column(name = "ranked_wins")
+    @Builder.Default
+    private Integer rankedWins = 0;
+
+    @Column(name = "final_matches")
+    @Builder.Default
+    private Integer finalMatches = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sport_id", nullable = false)
     private Sport sport;

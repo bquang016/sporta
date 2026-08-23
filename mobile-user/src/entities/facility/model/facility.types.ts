@@ -22,6 +22,20 @@ export interface VenueResponse {
   maxPrice?: number;
   sportName?: string | null;
   district?: string | null;
+  // Điểm đánh giá (cache từ bảng venue_reviews)
+  averageRating?: number;
+  totalReviews?: number;
+}
+
+// ─── Recommended Venue (AI Matching) ──────────────────────────────────────────
+
+export interface RecommendedVenue extends VenueResponse {
+  matchScore: number; // 0 - 100
+  recommendationReason: string;
+  reasonType: 'SPORT' | 'DISTANCE' | 'PRICE' | 'POPULARITY' | 'HISTORY';
+  distanceKm?: number | null;
+  pastBookingCount?: number;
+  availableSlotsCount?: number;
 }
 
 // ─── CourtPriceRule ───────────────────────────────────────────────────────────

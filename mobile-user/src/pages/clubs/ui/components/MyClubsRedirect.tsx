@@ -17,21 +17,23 @@ export function MyClubsRedirect({ joinedCount, onPress }: MyClubsRedirectProps) 
     >
       <View style={styles.myClubsLeft}>
         <View style={styles.myClubsIconContainer}>
-          <MaterialIcons name="shield" size={22} color={COLORS.primary} />
+          <MaterialIcons name="groups" size={24} color={COLORS.primary} />
         </View>
         <View style={styles.textContainer}>
           <View style={styles.titleRow}>
             <Text style={styles.myClubsTitle}>Câu lạc bộ của tôi</Text>
             {joinedCount > 0 && (
               <View style={styles.countBadge}>
-                <Text style={styles.countText}>{joinedCount}</Text>
+                <Text style={styles.countText}>{joinedCount} đã tham gia</Text>
               </View>
             )}
           </View>
-          <Text style={styles.myClubsSub}>Xem danh sách câu lạc bộ bạn đã tham gia</Text>
+          <Text style={styles.myClubsSub}>Quản lý câu lạc bộ và lịch sinh hoạt của bạn</Text>
         </View>
       </View>
-      <MaterialIcons name="chevron-right" size={24} color={COLORS.primary} />
+      <View style={styles.arrowCircle}>
+        <MaterialIcons name="chevron-right" size={20} color={COLORS.primary} />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -44,12 +46,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.primaryOpacity15,
-    borderRadius: BORDER_RADIUS.lg, // 16px radius per spec
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
   myClubsLeft: {
@@ -61,7 +63,7 @@ const styles = StyleSheet.create({
   myClubsIconContainer: {
     width: 44,
     height: 44,
-    borderRadius: BORDER_RADIUS.full, // Circular 9999px icon enclosure per spec
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.primaryOpacity10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -73,6 +75,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs + 2,
+    flexWrap: 'wrap',
   },
   myClubsTitle: {
     ...TYPOGRAPHY.titleMd,
@@ -82,21 +85,29 @@ const styles = StyleSheet.create({
     color: COLORS.onSurface,
   },
   countBadge: {
-    backgroundColor: COLORS.secondaryContainer,
+    backgroundColor: COLORS.primaryOpacity12,
     borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.base,
-    paddingVertical: 1,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
   },
   countText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.onSecondaryContainer,
+    color: COLORS.primary,
   },
   myClubsSub: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 12,
     color: COLORS.onSurfaceVariant,
     marginTop: 2,
+  },
+  arrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity08,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

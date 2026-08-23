@@ -132,15 +132,14 @@ export function MyClubsScreen() {
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
             Câu lạc bộ của tôi
           </Text>
-          <Button
-            variant="primary"
-            size="sm"
-            icon="add"
-            title="Tạo CLB"
-            textStyle={styles.createBtnText}
-            style={styles.createBtn}
+          <TouchableOpacity 
+            style={styles.createHeaderBtn}
+            activeOpacity={0.8}
             onPress={() => router.push('/create-club')}
-          />
+          >
+            <MaterialIcons name="add" size={18} color={COLORS.primary} />
+            <Text style={styles.createHeaderBtnText}>Tạo CLB</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -278,17 +277,20 @@ const styles = StyleSheet.create({
   headerPlaceholder: {
     width: 40,
   },
-  createBtn: {
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: 0,
-    height: 36,
-    borderRadius: BORDER_RADIUS.md, // 12px radius for Primary CTAs per spec
-    backgroundColor: COLORS.secondaryContainer, // Athletic Yellow per spec
+  createHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.sm + 4,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryOpacity10,
+    gap: 4,
   },
-  createBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSecondaryContainer, // Deep Emerald contrast text
+  createHeaderBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 13,
     fontWeight: '700',
+    color: COLORS.primary,
   },
   scrollList: {
     padding: SPACING.marginMobile,

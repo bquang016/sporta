@@ -10,6 +10,8 @@ import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.User;
 import com.backend.sporta.entity.Venue;
 import com.backend.sporta.enums.BookingStatus;
+import com.backend.sporta.enums.NotificationType;
+import com.backend.sporta.enums.Role;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.BookingDetailRepository;
 import com.backend.sporta.repository.BookingRepository;
@@ -49,6 +51,12 @@ public class BookingService {
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    private VoucherService voucherService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     // ─── Create Booking ────────────────────────────────────────────────────────
 
@@ -117,21 +125,55 @@ public class BookingService {
 
         booking.setDetails(details);
         booking.setTotalPrice(totalPrice);
-        booking.setFinalPrice(totalPrice); // Chưa tính discount
+        booking.setFinalPrice(totalPrice); // Default final price before discount
+        booking.setDiscountAmount(0.0);
+        
+        booking = bookingRepository.save(booking); // Save first to get ID for booking_voucher
 
-        booking = bookingRepository.save(booking);
+        // Apply vouchers if provided
+        if ((request.getOwnerVoucherCode() != null && !request.getOwnerVoucherCode().isEmpty()) || 
+            (request.getSystemVoucherCode() != null && !request.getSystemVoucherCode().isEmpty())) {
+            
+            com.backend.sporta.dto.ApplyVoucherResponse voucherResp = voucherService.commitApplyVouchers(
+                request.getOwnerVoucherCode(), 
+                request.getSystemVoucherCode(), 
+                venue.getId(), 
+                totalPrice, 
+                booking, 
+                user.getId()
+            );
+            
+            booking.setFinalPrice(voucherResp.getFinalPrice());
+            booking.setDiscountAmount(voucherResp.getTotalDiscount());
+            booking = bookingRepository.save(booking);
+        }
 
         BookingResponse response = mapToResponse(booking);
 
-        // Publish event if payment is auto success (e.g. DEV method)
-        if (booking.getStatus() == BookingStatus.CONFIRMED) {
-            eventPublisher.publishEvent(new com.backend.sporta.event.BookingPaidEvent(
-                    this,
-                    booking.getId(),
-                    Math.round(totalPrice),
-                    booking.getVenue().getId(),
-                    booking.getVenue().getOwner().getId()
-            ));
+        // Create notifications and publish event if booking is confirmed or completed (e.g. DEV method)
+        if (booking.getStatus() == BookingStatus.CONFIRMED || booking.getStatus() == BookingStatus.COMPLETED) {
+            try {
+                if (booking.getVenue() != null && booking.getVenue().getOwner() != null) {
+                    eventPublisher.publishEvent(new com.backend.sporta.event.BookingPaidEvent(
+                            this,
+                            booking.getId(),
+                            Math.round(totalPrice),
+                            booking.getVenue().getId(),
+                            booking.getVenue().getOwner().getId()
+                    ));
+                }
+            } catch (Exception e) {}
+
+            try {
+                notificationService.createNotification(
+                        user.getId(),
+                        user.getRole(),
+                        "Đặt sân thành công! ⚽",
+                        "Đơn đặt sân tại " + venue.getName() + " (Mã: " + booking.getBookingCode() + ") đã được xác nhận thành công.",
+                        NotificationType.BOOKING_SUCCESS,
+                        booking.getId().toString()
+                );
+            } catch (Exception e) {}
         }
 
         // Generate PayOS link if needed
@@ -160,7 +202,16 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy đơn đặt sân", 404));
 
-        if (!booking.getUser().getEmail().equals(userEmail)) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        boolean isCustomer = booking.getUser() != null && booking.getUser().getId().equals(user.getId());
+        boolean isOwner = booking.getVenue() != null && booking.getVenue().getOwner() != null 
+                && booking.getVenue().getOwner().getUser() != null 
+                && booking.getVenue().getOwner().getUser().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() == Role.ADMIN || user.getRole() == Role.SUPER_ADMIN;
+
+        if (!isCustomer && !isOwner && !isAdmin) {
             throw new CustomException("Bạn không có quyền xem đơn đặt sân này", 403);
         }
 
@@ -182,13 +233,30 @@ public class BookingService {
         bookingRepository.save(booking);
 
         // Publish event for Owner Wallet
-        eventPublisher.publishEvent(new com.backend.sporta.event.BookingPaidEvent(
-                this,
-                booking.getId(),
-                Math.round(booking.getFinalPrice()),
-                booking.getVenue().getId(),
-                booking.getVenue().getOwner().getId()
-        ));
+        try {
+            if (booking.getVenue() != null && booking.getVenue().getOwner() != null) {
+                eventPublisher.publishEvent(new com.backend.sporta.event.BookingPaidEvent(
+                        this,
+                        booking.getId(),
+                        Math.round(booking.getFinalPrice()),
+                        booking.getVenue().getId(),
+                        booking.getVenue().getOwner().getId()
+                ));
+            }
+        } catch (Exception e) {}
+
+        try {
+            if (booking.getUser() != null) {
+                notificationService.createNotification(
+                        booking.getUser().getId(),
+                        booking.getUser().getRole(),
+                        "Đặt sân thành công! ⚽",
+                        "Đơn đặt sân tại " + (booking.getVenue() != null ? booking.getVenue().getName() : "sân") + " (Mã: " + booking.getBookingCode() + ") đã được xác nhận thành công.",
+                        NotificationType.BOOKING_SUCCESS,
+                        booking.getId().toString()
+                );
+            }
+        } catch (Exception e) {}
     }
 
     // ─── My Bookings ───────────────────────────────────────────────────────────
@@ -317,5 +385,8 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
+        
+        // Restore voucher if eligible
+        voucherService.restoreVoucherOnCancel(booking);
     }
 }

@@ -18,8 +18,8 @@ import java.util.UUID;
 public class Booking {
 
     @Id
-    @GeneratedValue
-    @Column(name = "id", updatable = false, nullable = false, columnDefinition = "UUID")
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -42,6 +42,9 @@ public class Booking {
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<BookingDetail> details;
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<BookingVoucher> appliedVouchers;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

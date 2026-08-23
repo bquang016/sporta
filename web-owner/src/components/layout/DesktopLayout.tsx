@@ -5,6 +5,7 @@ import { getLoggedInUser } from '../../utils/auth';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { ContractsListModal } from '../../features/profile/components/ContractsListModal';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
+import { useOwnerNotifications, type NotificationItem } from '../../features/notifications';
 import logoHorizontal from '../../assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoSvg from '../../assets/logo/light/logo-main_40x40px_small.svg';
 
@@ -14,9 +15,29 @@ const PAGE_TITLES: Record<string, string> = {
   '/scan': 'Quét mã QR',
   '/operations': 'Quản lý vận hành',
   '/wallet': 'Ví của tôi',
+  '/vouchers': 'Mã khuyến mãi',
   '/profile': 'Hồ sơ tài khoản',
   '/settings': 'Cài đặt hệ thống',
 };
+
+function formatTimeAgo(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (diffSec < 60) return 'Vừa xong';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + ' phút trước';
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return diffHours + ' giờ trước';
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return diffDays + ' ngày trước';
+    return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+  } catch {
+    return '';
+  }
+}
 
 export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -25,25 +46,33 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isContractsListModalOpen, setIsContractsListModalOpen] = useState(false);
 
   const { isOnline, latency } = useSystemStatus(10000);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useOwnerNotifications(12000);
 
   const loggedInUser = getLoggedInUser();
   const userEmail = loggedInUser?.email || 'owner@sporta.vn';
   const userInitials = userEmail.substring(0, 2).toUpperCase();
-  
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Đơn đặt sân mới', desc: 'Khách Nguyễn Văn Hùng vừa đặt Sân Q7-1', time: 'Vừa xong', unread: true },
-    { id: 2, title: 'Check-in thành công', desc: 'Khách Trần Anh Tuấn đã quét QR tại Sân TB-2', time: '10 phút trước', unread: true },
-    { id: 3, title: 'Yêu cầu hỗ trợ', desc: 'Có phản hồi mới về cơ sở vật chất từ khách hàng', time: '1 giờ trước', unread: true },
-  ]);
 
-  const handleMarkAllAsRead = () => {
-    setUnreadNotifications(0);
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  const handleNotificationClick = (n: NotificationItem) => {
+    if (!(n.isRead ?? n.read)) {
+      markAsRead(n.id);
+    }
+    setIsNotificationsOpen(false);
+
+    if (n.type.startsWith('BOOKING_') || n.type === 'OWNER_NEW_BOOKING') {
+      if (n.referenceId) {
+        navigate(`/matrix?bookingId=${n.referenceId}`);
+      } else {
+        navigate('/matrix');
+      }
+    } else if (n.type.startsWith('WALLET_')) {
+      navigate('/wallet');
+    } else if (n.type.startsWith('VOUCHER_')) {
+      navigate('/vouchers');
+    }
   };
 
   const formattedDate = new Date().toLocaleDateString('vi-VN', {
@@ -88,6 +117,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <NavItem to="/scan" icon="scan" label="Quét mã QR" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/wallet" icon="wallet" label="Ví của tôi" isCollapsed={isSidebarCollapsed} />
+          <NavItem to="/vouchers" icon="voucher" label="Mã khuyến mãi" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/settings" icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
         </nav>
         
@@ -113,7 +143,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
         }`}
       >
         {/* Top Header — dynamic title & Sidebar Toggle */}
-        <header className="h-16 bg-white border-b border-surface-variant flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
+        <header className="h-16 bg-white border-b border-surface-variant flex items-center justify-between px-8 sticky top-0 z-50 shadow-sm">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -165,10 +195,12 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                     setIsNotificationsOpen(!isNotificationsOpen);
                     setIsProfileOpen(false);
                   }}
-                  className={`w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-outline hover:text-brand-emerald hover:bg-slate-55/40 transition-colors relative focus:outline-none ${isNotificationsOpen ? 'text-brand-emerald ring-2 ring-brand-emerald/20 bg-slate-100' : ''}`}
+                  className={`w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-outline hover:text-brand-emerald hover:bg-slate-100 transition-all relative focus:outline-none ${isNotificationsOpen ? 'text-brand-emerald ring-2 ring-brand-emerald/30 bg-emerald-50/50' : ''}`}
                 >
-                  {unreadNotifications > 0 && (
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-brand-yellow rounded-full"></span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] bg-red-500 text-white font-extrabold text-[10px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm animate-pulse">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                   )}
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -178,40 +210,89 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                 {/* Dropdown Menu */}
                 {isNotificationsOpen && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setIsNotificationsOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-40 overflow-hidden">
-                      <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Thông báo</span>
-                        {unreadNotifications > 0 && (
+                    <div className="fixed inset-0 z-[100]" onClick={() => setIsNotificationsOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-88 bg-white border border-slate-200/80 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] z-[101] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                      <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Thông báo</span>
+                          {unreadCount > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                              {unreadCount} mới
+                            </span>
+                          )}
+                        </div>
+                        {unreadCount > 0 && (
                           <button 
-                            onClick={handleMarkAllAsRead}
-                            className="text-[10px] font-black text-brand-emerald hover:text-emerald-950 uppercase tracking-widest cursor-pointer"
+                            onClick={() => markAllAsRead()}
+                            className="text-[11px] font-bold text-brand-emerald hover:text-emerald-800 transition-colors cursor-pointer"
                           >
                             Đọc tất cả
                           </button>
                         )}
                       </div>
-                      <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-50 matrix-scroll">
-                        {notifications.map(n => (
-                          <div 
-                            key={n.id} 
-                            onClick={() => {
-                              setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item));
-                              setUnreadNotifications(prev => Math.max(0, prev - (n.unread ? 1 : 0)));
-                            }}
-                            className={`p-3.5 hover:bg-slate-50 cursor-pointer transition-colors flex gap-2.5 items-start ${n.unread ? 'bg-slate-50/40' : ''}`}
-                          >
-                            <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.unread ? 'bg-brand-yellow' : 'bg-transparent'}`} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-slate-800">{n.title}</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{n.desc}</p>
-                              <span className="text-[9px] text-slate-400 font-bold block mt-1">{n.time}</span>
+                      
+                      <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 matrix-scroll">
+                        {notifications.length > 0 ? (
+                          notifications.map(n => {
+                            const isUnread = !(n.isRead ?? n.read);
+                            return (
+                              <div 
+                                key={n.id} 
+                                onClick={() => handleNotificationClick(n)}
+                                className={`p-3.5 cursor-pointer transition-all flex gap-3 items-start ${
+                                  isUnread 
+                                    ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-l-3 border-brand-emerald' 
+                                    : 'bg-white hover:bg-slate-50 opacity-70'
+                                }`}
+                              >
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm ${
+                                  n.type.startsWith('BOOKING_') || n.type === 'OWNER_NEW_BOOKING' 
+                                    ? 'bg-emerald-500' 
+                                    : n.type.startsWith('WALLET_') 
+                                    ? 'bg-amber-500' 
+                                    : 'bg-blue-500'
+                                }`}>
+                                  {n.type.startsWith('BOOKING_') || n.type === 'OWNER_NEW_BOOKING' ? '⚽' : n.type.startsWith('WALLET_') ? '💵' : '📢'}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className={`text-xs truncate ${isUnread ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
+                                      {n.title}
+                                    </p>
+                                    {isUnread && (
+                                      <span className="w-2 h-2 rounded-full bg-brand-emerald flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className={`text-[11px] mt-0.5 leading-relaxed line-clamp-2 ${isUnread ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
+                                    {n.content}
+                                  </p>
+                                  <span className="text-[9px] text-slate-400 font-bold block mt-1">
+                                    {formatTimeAgo(n.createdAt)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="py-8 text-center px-4">
+                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                              🔕
                             </div>
+                            <p className="text-xs font-bold text-slate-600">Chưa có thông báo nào</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Các thông báo mới từ hệ thống sẽ hiển thị tại đây</p>
                           </div>
-                        ))}
+                        )}
                       </div>
-                      <div className="p-3 border-t border-slate-100 text-center">
-                        <button className="text-[10px] font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider cursor-pointer">Xem tất cả hoạt động</button>
+                      <div className="p-2.5 border-t border-slate-100 bg-slate-50/40 text-center">
+                        <button 
+                          onClick={() => {
+                            setIsNotificationsOpen(false);
+                            navigate('/matrix');
+                          }}
+                          className="text-[10px] font-bold text-slate-500 hover:text-brand-emerald uppercase tracking-wider transition-colors cursor-pointer"
+                        >
+                          Xem lịch đặt sân →
+                        </button>
                       </div>
                     </div>
                   </>
@@ -233,8 +314,8 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                 {/* Profile Menu Dropdown (Admin text removed) */}
                 {isProfileOpen && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-40 overflow-hidden">
+                    <div className="fixed inset-0 z-[100]" onClick={() => setIsProfileOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.18)] z-[101] overflow-hidden">
                       <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-brand-emerald text-white font-bold flex items-center justify-center text-lg shadow-sm">
                           {userInitials}
@@ -427,6 +508,12 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
     case 'wallet':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
+    case 'voucher':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+        </svg>
+      );
     default:
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
   }

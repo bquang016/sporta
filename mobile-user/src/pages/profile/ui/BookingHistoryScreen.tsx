@@ -19,8 +19,13 @@ import { useAlert } from '../../../shared/contexts/AlertContext';
 import { BookingTab, BookingFilterTabs } from './components/booking-history/BookingFilterTabs';
 import { BookingHistoryCard } from './components/booking-history/BookingHistoryCard';
 import { BookingQrModal } from './components/booking-history/BookingQrModal';
+import { WriteReviewSheet } from '../../../features/venue-rating';
 
-export function BookingHistoryScreen() {
+interface BookingHistoryScreenProps {
+  showHeader?: boolean;
+}
+
+export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreenProps) {
   const router = useRouter();
   const { showAlert } = useAlert();
 
@@ -32,6 +37,7 @@ export function BookingHistoryScreen() {
   const [selectedQRBooking, setSelectedQRBooking] = useState<BookingItem | null>(null);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState<BookingItem | null>(null);
   const [cancelSuccessBooking, setCancelSuccessBooking] = useState<BookingItem | null>(null);
+  const [selectedReviewBooking, setSelectedReviewBooking] = useState<BookingItem | null>(null);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -115,20 +121,22 @@ export function BookingHistoryScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* Header */}
-      <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backBtn} 
-            activeOpacity={0.7} 
-            onPress={() => router.back()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Lịch Sử Đặt Sân</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </SafeAreaView>
+      {/* Header (optional) */}
+      {showHeader && (
+        <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backBtn} 
+              activeOpacity={0.7} 
+              onPress={() => router.back()}
+            >
+              <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Lịch Sử Đặt Sân</Text>
+            <View style={{ width: 40 }} />
+          </View>
+        </SafeAreaView>
+      )}
 
       {/* Reusable Filter Tabs Component */}
       <BookingFilterTabs 
@@ -163,6 +171,7 @@ export function BookingHistoryScreen() {
               onPressCard={handleCardPress}
               onPressShowQR={(item) => setSelectedQRBooking(item)}
               onPressCancel={(item) => setSelectedCancelBooking(item)}
+              onPressReview={(item) => setSelectedReviewBooking(item)}
             />
           ))
         )}
@@ -199,6 +208,18 @@ export function BookingHistoryScreen() {
         icon="check-circle"
         iconColor={COLORS.primary}
         onConfirm={() => setCancelSuccessBooking(null)}
+      />
+
+      {/* Review Modal */}
+      <WriteReviewSheet
+        visible={!!selectedReviewBooking}
+        venueId={selectedReviewBooking?.venueId || null}
+        venueName={selectedReviewBooking?.venueName}
+        onClose={() => setSelectedReviewBooking(null)}
+        onSuccess={() => {
+          setSelectedReviewBooking(null);
+          showAlert('Thành công', 'Đánh giá của bạn đã được đăng thành công!');
+        }}
       />
     </View>
   );

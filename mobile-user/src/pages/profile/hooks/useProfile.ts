@@ -30,8 +30,12 @@ export function useProfile() {
         try {
           const profile = await usersApi.getProfile();
           setProfileData(profile);
-        } catch (apiError) {
+        } catch (apiError: any) {
           console.error("Failed to fetch profile", apiError);
+          if (apiError?.status === 401) {
+            setIsAuthenticated(false);
+            setProfileData(null);
+          }
         }
       } else {
         setIsAuthenticated(false);
@@ -75,10 +79,12 @@ export function useProfile() {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('userName');
         localStorage.removeItem('userEmail');
+        localStorage.removeItem('userAvatar');
       } else {
         await SecureStore.deleteItemAsync('accessToken');
         await SecureStore.deleteItemAsync('userName');
         await SecureStore.deleteItemAsync('userEmail');
+        await SecureStore.deleteItemAsync('userAvatar');
       }
       setIsAuthenticated(false);
       setProfileData(null);

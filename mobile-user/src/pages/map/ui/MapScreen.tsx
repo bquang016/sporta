@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { VenueDetailModal } from '../../../features/venue-detail';
 import {
   useMapFacilities,
   HANOI_COORDINATE,
@@ -162,16 +163,35 @@ export function MapScreen() {
     mapRef.current?.animateToRegion(newRegion, 300);
   }, [region]);
 
+  const lastMarkerPressTime = useRef<number>(0);
+
+  const handleVenuePress = useCallback(
+    (venueId: string) => {
+      lastMarkerPressTime.current = Date.now();
+      handleSelectVenue(venueId);
+    },
+    [handleSelectVenue]
+  );
+
   const handleClosePopup = useCallback(() => {
+    if (Date.now() - lastMarkerPressTime.current < 400) return;
     handleSelectVenue(null);
     Keyboard.dismiss();
   }, [handleSelectVenue]);
 
+  const [modalVenueId, setModalVenueId] = useState<string | null>(null);
+  const [isVenueModalVisible, setIsVenueModalVisible] = useState(false);
+
   const router = useRouter();
 
   const handleBook = useCallback((venueId: string) => {
-    router.push(`/booking/${venueId}`);
-  }, [router]);
+    setModalVenueId(venueId);
+    setIsVenueModalVisible(true);
+  }, []);
+
+  const handleCloseVenueModal = useCallback(() => {
+    setIsVenueModalVisible(false);
+  }, []);
 
   const handleDirections = useCallback(
     (venue: { latitude: number; longitude: number; name: string }) => {
@@ -265,7 +285,7 @@ export function MapScreen() {
                   key={item.data.id}
                   venue={item.data}
                   isActive={selectedVenue?.id === item.data.id}
-                  onPress={handleSelectVenue}
+                  onPress={handleVenuePress}
                 />
               );
             } else {
@@ -372,6 +392,14 @@ export function MapScreen() {
           />
         )}
       </View>
+
+      {/* Floating Venue Detail Modal (60fps) */}
+      <VenueDetailModal
+        visible={isVenueModalVisible}
+        venueId={modalVenueId}
+        onClose={handleCloseVenueModal}
+        onBookNow={(venueId) => router.push(`/booking/${venueId}`)}
+      />
     </View>
   );
 }

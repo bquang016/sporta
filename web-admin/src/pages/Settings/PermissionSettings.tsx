@@ -31,6 +31,12 @@ const PERMISSION_GROUPS = [
     ]
   },
   {
+    groupName: 'QUẢN LÝ HỖ TRỢ & CSKH',
+    features: [
+      { key: 'MANAGE_TICKETS', name: 'Quản lý yêu cầu hỗ trợ', desc: 'Quyền xem, duyệt hoặc từ chối các yêu cầu hỗ trợ (tickets) từ người dùng' }
+    ]
+  },
+  {
     groupName: 'QUẢN LÝ GIAO DỊCH',
     features: [
       { key: 'MANAGE_TRANSACTIONS', name: 'Quản lý đặt sân & giao dịch', desc: 'Xem danh sách đặt sân, lịch sử giao dịch và can thiệp hoàn tiền' },

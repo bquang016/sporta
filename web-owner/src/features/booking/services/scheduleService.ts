@@ -75,6 +75,14 @@ export const scheduleService = {
     return handleResponse(res, 'Không thể hủy đơn đặt sân');
   },
 
+  async getBookingById(bookingId: string): Promise<any> {
+    const res = await fetch(`${BASE_URL}/bookings/${bookingId}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Không thể tải thông tin đơn đặt sân');
+  },
+
   async cancelTicketSession(sessionId: string): Promise<any> {
     const res = await fetch(`${BASE_URL}/owner/ticket-sessions/${sessionId}/cancel`, {
       method: 'POST',

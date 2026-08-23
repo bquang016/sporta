@@ -19,6 +19,7 @@ export * from './form/RadioGroup';
 export * from './form/Switch';
 export * from './form/DatePicker';
 export * from './form/TimePicker';
+export * from './form/DateTimePicker';
 export * from './form/FileUpload';
 export * from './form/ImageUpload';
 

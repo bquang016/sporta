@@ -121,6 +121,16 @@ public class Venue {
     @Builder.Default
     private Double maxPrice = 0.0;
 
+    /** Điểm đánh giá trung bình (cache — cập nhật realtime sau mỗi review) */
+    @Column(name = "average_rating")
+    @Builder.Default
+    private Double averageRating = 0.0;
+
+    /** Tổng số đánh giá (cache) */
+    @Column(name = "total_reviews")
+    @Builder.Default
+    private Integer totalReviews = 0;
+
     public Double getMinPrice() {
         return minPrice != null ? minPrice : 0.0;
     }

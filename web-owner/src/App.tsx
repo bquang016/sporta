@@ -15,6 +15,8 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { useIsMobile } from './hooks/useIsMobile'
 import { WalletPage } from './features/wallet'
+import { VoucherListPage } from './features/voucher/pages/VoucherListPage'
+import { VoucherFormPage } from './features/voucher/pages/VoucherFormPage'
 
 function App() {
   const isMobile = useIsMobile();
@@ -41,6 +43,9 @@ function App() {
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/vouchers" element={<VoucherListPage />} />
+        <Route path="/vouchers/create" element={<VoucherFormPage />} />
+        <Route path="/vouchers/:id/edit" element={<VoucherFormPage />} />
       </Route>
 
       {/* Catch-all */}
