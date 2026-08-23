@@ -102,6 +102,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   const [quickBookingData, setQuickBookingData] = useState({
     facilityId: '',
     customerName: '',
+    customerPhone: '',
     startTime: '08:00',
     endTime: '09:30',
     status: 'booked' as SlotStatus,
@@ -114,6 +115,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   const [selectedBookingDetail, setSelectedBookingDetail] = useState<{
     facility: Facility;
     customerName: string;
+    customerPhone?: string;
     startTime: string;
     endTime: string;
     status: SlotStatus;
@@ -155,6 +157,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
               pricePerHour: detail.price || 0,
             },
             customerName: booking.customerName || booking.playerName || 'Khách đặt qua App',
+            customerPhone: booking.customerPhone || booking.playerPhone,
             startTime: detail.startTime || '00:00',
             endTime: detail.endTime || '00:00',
             status: 'booked',
@@ -228,6 +231,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         status: s.status as SlotStatus,
         price: s.price,
         customerName: s.customerName,
+        customerPhone: s.customerPhone,
         bookingType: s.status === 'matchmaking' ? 'matchmaking' : 'regular',
         ticketSessionId: s.ticketSessionId,
         bookingId: s.bookingId,
@@ -261,8 +265,10 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       endTime: string;
       status: SlotStatus;
       customerName?: string;
+      customerPhone?: string;
       slotCount: number;
       ticketSessionId?: string;
+      bookingId?: string;
       isManual?: boolean;
     }[] = [];
     let current: {
@@ -270,8 +276,10 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       endTime: string;
       status: SlotStatus;
       customerName?: string;
+      customerPhone?: string;
       slotCount: number;
       ticketSessionId?: string;
+      bookingId?: string;
       isManual?: boolean;
     } | null = null;
 
@@ -279,6 +287,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       const slot = getSlot(facilityId, time);
       const status = slot?.status || 'available';
       const name = slot?.customerName;
+      const phone = slot?.customerPhone;
       const tSessionId = slot?.ticketSessionId;
       const isManual = slot?.isManual;
 
@@ -290,15 +299,16 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         continue;
       }
 
-      const matchesSearch = !searchTerm || (name && name.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = !searchTerm || (name && name.toLowerCase().includes(searchTerm.toLowerCase())) || (phone && phone.includes(searchTerm));
 
-      // Gom nhóm: Cùng trạng thái, cùng khách hàng (nếu là booking thường), hoặc cùng ca xé vé
-      // Tuyệt đối không gộp các ca đặt thủ công (isManual === true)
+      // Gom nhóm: Cùng trạng thái, cùng khách hàng, hoặc cùng ca xé vé, hoặc cùng bookingId
       const isSameGroup = current && 
         current.status === status && 
-        !isManual &&
-        !current.isManual &&
-        (status === 'matchmaking' ? current.ticketSessionId === tSessionId : current.customerName === name);
+        (
+          (status === 'matchmaking' && current.ticketSessionId === tSessionId) ||
+          (status !== 'matchmaking' && slot?.bookingId && current.bookingId && current.bookingId === slot.bookingId) ||
+          (status !== 'matchmaking' && (!slot?.bookingId || !current.bookingId) && current.customerName === name && current.customerPhone === phone)
+        );
 
       if (isSameGroup && current) {
         current.endTime = time;
@@ -311,9 +321,11 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
           startTime: time, 
           endTime: time, 
           status, 
-          customerName: matchesSearch ? name : undefined, 
+          customerName: matchesSearch ? name : undefined,
+          customerPhone: phone,
           slotCount: 1,
           ticketSessionId: tSessionId,
+          bookingId: slot?.bookingId,
           isManual
         };
       }
@@ -352,7 +364,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
 
       if (slot.status === 'booked') {
         bookedCount++;
-        totalRevenue += (facility.price * (shiftMinutes / 60));
+        totalRevenue += facility.price;
       } else if (slot.status === 'pending') {
         pendingCount++;
       } else if (slot.status === 'maintenance') {
@@ -454,6 +466,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       setQuickBookingData({
         facilityId,
         customerName: '',
+        customerPhone: '',
         startTime: time,
         endTime: endT,
         status: 'booked',
@@ -480,8 +493,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
       });
 
       if (block) {
-        const durationHours = (block.slotCount * shiftMinutes) / 60;
-        const totalPrice = facility.pricePerHour * durationHours;
+        const totalPrice = facility.pricePerHour * block.slotCount;
 
         const startIdx = times.indexOf(block.startTime);
         const endIdx = times.indexOf(block.endTime);
@@ -508,6 +520,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         setSelectedBookingDetail({
           facility,
           customerName: status === 'matchmaking' ? 'Ca xé vé ghép cặp' : (block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : 'Khách lẻ')),
+          customerPhone: block.customerPhone,
           startTime: block.startTime,
           endTime: actualEndTime,
           status: block.status,
@@ -662,7 +675,8 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
         paymentMethod: 'manual',
         status: 'CONFIRMED',
         isManual: true,
-        customerName: 'CHỦ SÂN SPORTA'
+        customerName: quickBookingData.customerName || 'Khách đặt trực tiếp',
+        customerPhone: quickBookingData.customerPhone || undefined
       });
 
       showToast('success', 'Đặt sân thủ công thành công!');
@@ -704,47 +718,52 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     }
   };
 
-  const isBlockStart = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string): boolean => {
+  const isBlockStart = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string, _bookingId?: string, customerPhone?: string): boolean => {
     if (status === 'available') return false;
     const slot = getSlot(facilityId, time);
-    if (slot?.isManual) return true; // Lịch đặt thủ công luôn bắt đầu block mới
-
+    
     const idx = times.indexOf(time);
     if (idx === 0) return true;
     const prevTime = times[idx - 1];
     const prevSlot = getSlot(facilityId, prevTime);
     if (!prevSlot) return true;
-    if (prevSlot.isManual) return true; // Không gộp với lịch đặt thủ công trước đó
 
     if (status === 'matchmaking') {
       return prevSlot.status !== status || prevSlot.ticketSessionId !== ticketSessionId;
     }
-    return prevSlot.status !== status || prevSlot.customerName !== customerName;
+    
+    if (slot?.bookingId && prevSlot.bookingId) {
+      return prevSlot.status !== status || prevSlot.bookingId !== slot.bookingId;
+    }
+    
+    return prevSlot.status !== status || prevSlot.customerName !== customerName || prevSlot.customerPhone !== customerPhone;
   };
 
-  const getBlockSpan = (facilityId: string, timeIndex: number, status: SlotStatus, customerName?: string, ticketSessionId?: string): number => {
+  const getBlockSpan = (facilityId: string, timeIndex: number, status: SlotStatus, customerName?: string, ticketSessionId?: string, _bookingId?: string, customerPhone?: string): number => {
     const slot = getSlot(facilityId, times[timeIndex]);
-    if (slot?.isManual) return 1; // Lịch đặt thủ công có độ rộng mặc định là 1 ca
-
+    
     let count = 1;
     for (let i = timeIndex + 1; i < times.length; i++) {
       const nextSlot = getSlot(facilityId, times[i]);
       if (!nextSlot || nextSlot.status !== status) break;
-      if (nextSlot.isManual) break; // Gặp lịch đặt thủ công thì dừng lại không gộp tiếp
       
       if (status === 'matchmaking') {
         if (nextSlot.ticketSessionId !== ticketSessionId) break;
       } else {
-        if (nextSlot.customerName !== customerName) break;
+        if (slot?.bookingId && nextSlot.bookingId) {
+          if (nextSlot.bookingId !== slot.bookingId) break;
+        } else {
+          if (nextSlot.customerName !== customerName || nextSlot.customerPhone !== customerPhone) break;
+        }
       }
       count++;
     }
     return count;
   };
 
-  const isInsideBlock = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string): boolean => {
+  const isInsideBlock = (facilityId: string, time: string, status: SlotStatus, customerName?: string, ticketSessionId?: string, bookingId?: string, customerPhone?: string): boolean => {
     if (status === 'available') return false;
-    return !isBlockStart(facilityId, time, status, customerName, ticketSessionId);
+    return !isBlockStart(facilityId, time, status, customerName, ticketSessionId, bookingId, customerPhone);
   };
 
   const handleConfirmDeposit = () => {

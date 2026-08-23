@@ -238,6 +238,7 @@ public class VenueService {
                 String sportLevel = null;
                 Double pricePerTicket = null;
                 String customerName = null;
+                String customerPhone = null;
 
                 // Kiểm tra xem slot có thuộc ca xé vé không
                 TicketSession matchedSession = null;
@@ -274,11 +275,13 @@ public class VenueService {
                         }
                         if (bd.getBooking().getIsManual() != null && bd.getBooking().getIsManual()) {
                             customerName = bd.getBooking().getCustomerName();
+                            customerPhone = bd.getBooking().getCustomerPhone();
                             if (customerName == null || customerName.isEmpty()) {
                                 customerName = "Đặt thủ công";
                             }
                         } else if (bd.getBooking().getUser() != null) {
                             customerName = bd.getBooking().getUser().getFullName();
+                            customerPhone = bd.getBooking().getUser().getPhoneNumber();
                         } else {
                             customerName = "Khách vãng lai";
                         }
@@ -339,6 +342,7 @@ public class VenueService {
                         .sportLevel(sportLevel)
                         .pricePerTicket(pricePerTicket)
                         .customerName(customerName)
+                        .customerPhone(customerPhone)
                         .build());
 
                 slotTime = slotTime.plusMinutes(shiftMinutes);
