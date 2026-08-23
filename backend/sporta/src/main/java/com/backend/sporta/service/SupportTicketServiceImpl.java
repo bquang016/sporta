@@ -7,7 +7,10 @@ import com.backend.sporta.dto.SupportTicketResponse;
 import com.backend.sporta.entity.SupportTicket;
 import com.backend.sporta.entity.User;
 import com.backend.sporta.enums.SupportTicketStatus;
+import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.NotificationType;
 import com.backend.sporta.repository.SupportTicketRepository;
+import com.backend.sporta.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,8 @@ import java.util.stream.Collectors;
 public class SupportTicketServiceImpl implements SupportTicketService {
 
     private final SupportTicketRepository supportTicketRepository;
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -37,6 +42,24 @@ public class SupportTicketServiceImpl implements SupportTicketService {
                 .build();
 
         SupportTicket saved = supportTicketRepository.save(ticket);
+
+        try {
+            List<User> admins = userRepository.findByRoleIn(List.of(com.backend.sporta.enums.Role.ADMIN, com.backend.sporta.enums.Role.SUPER_ADMIN));
+            String senderName = (user.getFullName() != null && !user.getFullName().trim().isEmpty()) ? user.getFullName() : user.getEmail();
+            for (User admin : admins) {
+                notificationService.createNotification(
+                        admin.getId(),
+                        admin.getRole() != null ? admin.getRole() : Role.ADMIN,
+                        "Yêu cầu hỗ trợ mới! 📩",
+                        "Mã " + saved.getTicketCode() + ": " + saved.getTitle() + " từ người dùng " + senderName + ".",
+                        NotificationType.ADMIN_NEW_SUPPORT_TICKET,
+                        saved.getId().toString()
+                );
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return mapToResponse(saved);
     }
 
@@ -99,6 +122,24 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         ticket.setProcessedBy(adminEmail != null ? adminEmail : "Admin");
 
         SupportTicket updated = supportTicketRepository.save(ticket);
+
+        try {
+            if (ticket.getUser() != null) {
+                String note = (ticket.getAdminNote() != null && !ticket.getAdminNote().trim().isEmpty()) ? (" Ghi chú: " + ticket.getAdminNote()) : "";
+                String statusText = ticket.getStatus() != null ? ticket.getStatus().getLabel() : "Đang xử lý";
+                notificationService.createNotification(
+                        ticket.getUser().getId(),
+                        ticket.getUser().getRole() != null ? ticket.getUser().getRole() : Role.PLAYER,
+                        "Cập nhật yêu cầu hỗ trợ! 💬",
+                        "Yêu cầu hỗ trợ " + ticket.getTicketCode() + " (" + ticket.getTitle() + ") đã được chuyển sang: " + statusText + "." + note,
+                        NotificationType.TICKET_REPLIED,
+                        ticket.getId().toString()
+                );
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return mapToResponse(updated);
     }
 

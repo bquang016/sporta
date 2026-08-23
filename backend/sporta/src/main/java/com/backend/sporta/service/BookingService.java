@@ -202,7 +202,16 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy đơn đặt sân", 404));
 
-        if (!booking.getUser().getEmail().equals(userEmail)) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        boolean isCustomer = booking.getUser() != null && booking.getUser().getId().equals(user.getId());
+        boolean isOwner = booking.getVenue() != null && booking.getVenue().getOwner() != null 
+                && booking.getVenue().getOwner().getUser() != null 
+                && booking.getVenue().getOwner().getUser().getId().equals(user.getId());
+        boolean isAdmin = user.getRole() == Role.ADMIN || user.getRole() == Role.SUPER_ADMIN;
+
+        if (!isCustomer && !isOwner && !isAdmin) {
             throw new CustomException("Bạn không có quyền xem đơn đặt sân này", 403);
         }
 

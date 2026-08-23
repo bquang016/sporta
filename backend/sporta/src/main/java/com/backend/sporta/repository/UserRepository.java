@@ -24,5 +24,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.isDeleted IS NULL OR u.isDeleted = false ORDER BY u.createdAt DESC")
     List<User> findAllActiveOrderByCreatedAtDesc();
 
+    List<User> findByRoleIn(List<Role> roles);
     List<User> findAllByOrderByCreatedAtDesc();
 }

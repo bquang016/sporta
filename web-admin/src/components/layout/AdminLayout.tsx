@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useAdminNotifications } from '@/hooks/useAdminNotifications';
+import type { NotificationItem } from '@/types/notification.types';
 import logoHorizontal from '@/assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoSvg from '@/assets/logo/light/logo-main_40x40px_small.svg';
 
@@ -22,16 +24,43 @@ interface AdminLayoutProps {
     children: (currentTab: string) => React.ReactNode;
 }
 
+function formatTimeAgo(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (diffSec < 60) return 'Vừa xong';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + ' phút trước';
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return diffHours + ' giờ trước';
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return diffDays + ' ngày trước';
+    return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+  } catch {
+    return '';
+  }
+}
+
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const [currentTab, setCurrentTab] = useState<string>("dashboard");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get('tab') || 'dashboard';
+
+  const setCurrentTab = (tab: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    });
+  };
   const pageTitle = PAGE_TITLES[currentTab] || 'Sporta Admin';
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  // Mock system status instead of using hooks that don't exist yet
+  // Mock system status
   const isOnline = true;
   const latency = 12;
 
@@ -42,16 +71,26 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const userEmail = role === 'SUPER_ADMIN' ? 'superadmin@sporta.vn' : 'admin@sporta.vn';
   const userInitials = role === 'SUPER_ADMIN' ? 'SA' : 'AD';
-  
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Yêu cầu duyệt sân', desc: 'Sân Q7-1 vừa đăng ký mới', time: 'Vừa xong', unread: true },
-    { id: 2, title: 'Tài khoản bị khóa', desc: 'Hệ thống tự động khóa user vi phạm', time: '10 phút trước', unread: true },
-    { id: 3, title: 'Cập nhật hệ thống', desc: 'Bản vá bảo mật đã được áp dụng', time: '1 giờ trước', unread: true },
-  ]);
 
-  const handleMarkAllAsRead = () => {
-    setUnreadNotifications(0);
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useAdminNotifications(12000);
+
+  const handleNotificationClick = (n: NotificationItem) => {
+    if (!(n.isRead ?? n.read)) {
+      markAsRead(n.id);
+    }
+    setIsNotificationsOpen(false);
+
+    if (n.type.includes('VENUE')) {
+      setCurrentTab('facilities');
+    } else if (n.type.includes('WITHDRAWAL') || n.type.includes('RECONCIL')) {
+      setCurrentTab('reconciliations');
+    } else if (n.type.includes('TICKET') || n.type.includes('SUPPORT')) {
+      setCurrentTab('tickets');
+    } else if (n.type.includes('BOOKING')) {
+      setCurrentTab('transactions');
+    } else if (n.type.includes('USER') || n.type.includes('OWNER')) {
+      setCurrentTab('users');
+    }
   };
 
   const formattedDate = new Date().toLocaleDateString('vi-VN', {
@@ -145,7 +184,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         }`}
       >
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-surface-variant flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
+        <header className="h-16 bg-white border-b border-surface-variant flex items-center justify-between px-8 sticky top-0 z-50 shadow-sm">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -197,10 +236,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     setIsNotificationsOpen(!isNotificationsOpen);
                     setIsProfileOpen(false);
                   }}
-                  className={`w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-outline hover:text-brand-emerald hover:bg-slate-55/40 transition-colors relative focus:outline-none ${isNotificationsOpen ? 'text-brand-emerald ring-2 ring-brand-emerald/20 bg-slate-100' : ''}`}
+                  className={`w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-outline hover:text-brand-emerald hover:bg-slate-100 transition-all relative focus:outline-none ${isNotificationsOpen ? 'text-brand-emerald ring-2 ring-brand-emerald/30 bg-emerald-50/50' : ''}`}
                 >
-                  {unreadNotifications > 0 && (
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-brand-yellow rounded-full"></span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] bg-red-500 text-white font-extrabold text-[10px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm animate-pulse">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                   )}
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -210,40 +251,91 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 {/* Dropdown Menu */}
                 {isNotificationsOpen && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setIsNotificationsOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-40 overflow-hidden">
-                      <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Thông báo</span>
-                        {unreadNotifications > 0 && (
+                    <div className="fixed inset-0 z-[100]" onClick={() => setIsNotificationsOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-88 bg-white border border-slate-200/80 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] z-[101] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                      <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Thông báo hệ thống</span>
+                          {unreadCount > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                              {unreadCount} mới
+                            </span>
+                          )}
+                        </div>
+                        {unreadCount > 0 && (
                           <button 
-                            onClick={handleMarkAllAsRead}
-                            className="text-[10px] font-black text-brand-emerald hover:text-emerald-950 uppercase tracking-widest cursor-pointer"
+                            onClick={() => markAllAsRead()}
+                            className="text-[11px] font-bold text-brand-emerald hover:text-emerald-800 transition-colors cursor-pointer"
                           >
                             Đọc tất cả
                           </button>
                         )}
                       </div>
-                      <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-50 matrix-scroll">
-                        {notifications.map(n => (
-                          <div 
-                            key={n.id} 
-                            onClick={() => {
-                              setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item));
-                              setUnreadNotifications(prev => Math.max(0, prev - (n.unread ? 1 : 0)));
-                            }}
-                            className={`p-3.5 hover:bg-slate-50 cursor-pointer transition-colors flex gap-2.5 items-start ${n.unread ? 'bg-slate-50/40' : ''}`}
-                          >
-                            <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.unread ? 'bg-brand-yellow' : 'bg-transparent'}`} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-slate-800">{n.title}</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{n.desc}</p>
-                              <span className="text-[9px] text-slate-400 font-bold block mt-1">{n.time}</span>
+                      
+                      <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 matrix-scroll">
+                        {notifications.length > 0 ? (
+                          notifications.map(n => {
+                            const isUnread = !(n.isRead ?? n.read);
+                            return (
+                              <div 
+                                key={n.id} 
+                                onClick={() => handleNotificationClick(n)}
+                                className={`p-3.5 cursor-pointer transition-all flex gap-3 items-start ${
+                                  isUnread 
+                                    ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-l-3 border-brand-emerald' 
+                                    : 'bg-white hover:bg-slate-50 opacity-70'
+                                }`}
+                              >
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm ${
+                                  n.type.includes('VENUE') 
+                                    ? 'bg-purple-500' 
+                                    : n.type.includes('WITHDRAWAL') || n.type.includes('WALLET')
+                                    ? 'bg-amber-500' 
+                                    : n.type.includes('BOOKING')
+                                    ? 'bg-emerald-500'
+                                    : 'bg-blue-500'
+                                }`}>
+                                  {n.type.includes('VENUE') ? '🏟️' : n.type.includes('WITHDRAWAL') ? '💳' : n.type.includes('BOOKING') ? '⚽' : '📢'}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className={`text-xs truncate ${isUnread ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
+                                      {n.title}
+                                    </p>
+                                    {isUnread && (
+                                      <span className="w-2 h-2 rounded-full bg-brand-emerald flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className={`text-[11px] mt-0.5 leading-relaxed line-clamp-2 ${isUnread ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
+                                    {n.content}
+                                  </p>
+                                  <span className="text-[9px] text-slate-400 font-bold block mt-1">
+                                    {formatTimeAgo(n.createdAt)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="py-8 text-center px-4">
+                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                              🔕
                             </div>
+                            <p className="text-xs font-bold text-slate-600">Chưa có thông báo nào</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Các thông báo mới từ hệ thống sẽ hiển thị tại đây</p>
                           </div>
-                        ))}
+                        )}
                       </div>
-                      <div className="p-3 border-t border-slate-100 text-center">
-                        <button className="text-[10px] font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider cursor-pointer">Xem tất cả hoạt động</button>
+                      <div className="p-2.5 border-t border-slate-100 bg-slate-50/40 text-center">
+                        <button 
+                          onClick={() => {
+                            setIsNotificationsOpen(false);
+                            setCurrentTab('facilities');
+                          }}
+                          className="text-[10px] font-bold text-slate-500 hover:text-brand-emerald uppercase tracking-wider transition-colors cursor-pointer"
+                        >
+                          Kiểm duyệt sân →
+                        </button>
                       </div>
                     </div>
                   </>
@@ -265,8 +357,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 {/* Profile Menu Dropdown */}
                 {isProfileOpen && (
                   <>
-                    <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] z-40 overflow-hidden">
+                    <div className="fixed inset-0 z-[100]" onClick={() => setIsProfileOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200/80 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.18)] z-[101] overflow-hidden">
                       <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-brand-emerald text-white font-bold flex items-center justify-center text-lg shadow-sm">
                           {userInitials}
