@@ -17,6 +17,7 @@ import { useIsMobile } from './hooks/useIsMobile'
 import { WalletPage } from './features/wallet'
 import { VoucherListPage } from './features/voucher/pages/VoucherListPage'
 import { VoucherFormPage } from './features/voucher/pages/VoucherFormPage'
+import { NotificationCenterPage } from './features/notifications'
 
 function App() {
   const isMobile = useIsMobile();
@@ -33,6 +34,7 @@ function App() {
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Home />} />
+        <Route path="/notifications" element={<NotificationCenterPage />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/scan" element={<ScanPage />} />
         <Route path="/operations" element={

@@ -30,7 +30,15 @@ interface NotificationsModalProps {
   onSelectNotification?: (item: NotificationVM) => void;
 }
 
-type NotifFilter = 'ALL' | 'MATCHES' | 'BOOKINGS';
+type NotifFilter = 'ALL' | 'MATCHES' | 'BOOKINGS' | 'SUPPORT';
+
+const stripEmojis = (str?: string) => {
+  if (!str) return '';
+  return str
+    .replace(/[😀-🙏🌀-🗿🚀-🛿🇠-🇿☀-⛿✀-➿🤀-🧿🀘-🃵🈀-🉰⎈-⑓⃐-⃿️⚽]/gu, '')
+    .replace(/[⚽🎟️💬📩💵📍⚠️]/g, '')
+    .trim();
+};
 
 function formatTimeAgo(dateStr: string): string {
   if (!dateStr) return '';
@@ -195,7 +203,24 @@ function NotificationsModalContent({
         } else {
           router.push('/matchmaking' as any);
         }
-      } else if (item.type.startsWith('TICKET_')) {
+      } else if (
+        item.type === 'TICKET_REPLIED' || 
+        item.type === 'ADMIN_NEW_SUPPORT_TICKET' || 
+        item.type.startsWith('SUPPORT_') || 
+        item.type.includes('SUPPORT_TICKET')
+      ) {
+        // Yêu cầu hỗ trợ -> Đến Trung tâm trợ giúp (tab tickets)
+        router.push({
+          pathname: '/profile/help' as any,
+          params: { tab: 'tickets' },
+        });
+      } else if (
+        item.type === 'TICKET_PURCHASE_SUCCESS' || 
+        item.type === 'TICKET_CHECKIN_SUCCESS' || 
+        item.type === 'TICKET_SESSION_CANCELLED' || 
+        item.type.startsWith('TICKET_')
+      ) {
+        // Vé thể thao (Vé lượt / Vé ca ghép) -> Đến Vé của tôi
         router.push('/my-tickets' as any);
       } else if (item.type.startsWith('CLUB_')) {
         if (item.referenceId) {
@@ -213,12 +238,24 @@ function NotificationsModalContent({
     }, 250);
   };
 
+  const isSupportNotif = (type: string) => 
+    type === 'TICKET_REPLIED' || 
+    type === 'ADMIN_NEW_SUPPORT_TICKET' || 
+    type.startsWith('SUPPORT_') || 
+    type.includes('SUPPORT_TICKET');
+
   const filteredNotifs = useMemo(() => {
     if (activeFilter === 'MATCHES') {
       return notifications.filter((n) => n.type.startsWith('MATCH_'));
     }
     if (activeFilter === 'BOOKINGS') {
-      return notifications.filter((n) => n.type.startsWith('BOOKING_') || n.type.startsWith('TICKET_'));
+      return notifications.filter((n) => 
+        n.type.startsWith('BOOKING_') || 
+        (n.type.startsWith('TICKET_') && !isSupportNotif(n.type))
+      );
+    }
+    if (activeFilter === 'SUPPORT') {
+      return notifications.filter((n) => isSupportNotif(n.type));
     }
     return notifications;
   }, [notifications, activeFilter]);
@@ -227,7 +264,11 @@ function NotificationsModalContent({
   const allCount = notifications.length;
   const matchesCount = useMemo(() => notifications.filter((n) => n.type.startsWith('MATCH_')).length, [notifications]);
   const bookingsCount = useMemo(
-    () => notifications.filter((n) => n.type.startsWith('BOOKING_') || n.type.startsWith('TICKET_')).length,
+    () => notifications.filter((n) => n.type.startsWith('BOOKING_') || (n.type.startsWith('TICKET_') && !isSupportNotif(n.type))).length,
+    [notifications]
+  );
+  const supportCount = useMemo(
+    () => notifications.filter((n) => isSupportNotif(n.type)).length,
     [notifications]
   );
 
@@ -241,8 +282,16 @@ function NotificationsModalContent({
     } else if (type.startsWith('BOOKING_')) {
       bgColor = '#3B82F6';
       iconName = 'calendar-outline';
+    } else if (
+      type === 'TICKET_REPLIED' || 
+      type === 'ADMIN_NEW_SUPPORT_TICKET' || 
+      type.startsWith('SUPPORT_') || 
+      type.includes('SUPPORT_TICKET')
+    ) {
+      bgColor = '#F59E0B'; // Màu vàng hổ phách cho hỗ trợ
+      iconName = 'chatbubble-ellipses-outline'; // Icon chat / trợ giúp
     } else if (type.startsWith('TICKET_')) {
-      bgColor = '#8B5CF6';
+      bgColor = '#8B5CF6'; // Màu tím cho vé thể thao
       iconName = 'ticket-outline';
     } else if (type.startsWith('CLUB_')) {
       bgColor = '#F59E0B';
@@ -319,35 +368,51 @@ function NotificationsModalContent({
 
           {/* Filter Chips */}
           <View style={styles.filterRow}>
-            <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'ALL' && styles.filterChipActive]}
-              activeOpacity={0.8}
-              onPress={() => setActiveFilter('ALL')}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterScrollContent}
             >
-              <Text style={[styles.filterText, activeFilter === 'ALL' && styles.filterTextActive]}>
-                Tất cả ({allCount})
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'ALL' && styles.filterChipActive]}
+                activeOpacity={0.8}
+                onPress={() => setActiveFilter('ALL')}
+              >
+                <Text style={[styles.filterText, activeFilter === 'ALL' && styles.filterTextActive]}>
+                  Tất cả ({allCount})
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'MATCHES' && styles.filterChipActive]}
-              activeOpacity={0.8}
-              onPress={() => setActiveFilter('MATCHES')}
-            >
-              <Text style={[styles.filterText, activeFilter === 'MATCHES' && styles.filterTextActive]}>
-                Ghép kèo ({matchesCount})
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'MATCHES' && styles.filterChipActive]}
+                activeOpacity={0.8}
+                onPress={() => setActiveFilter('MATCHES')}
+              >
+                <Text style={[styles.filterText, activeFilter === 'MATCHES' && styles.filterTextActive]}>
+                  Ghép kèo ({matchesCount})
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.filterChip, activeFilter === 'BOOKINGS' && styles.filterChipActive]}
-              activeOpacity={0.8}
-              onPress={() => setActiveFilter('BOOKINGS')}
-            >
-              <Text style={[styles.filterText, activeFilter === 'BOOKINGS' && styles.filterTextActive]}>
-                Đặt sân ({bookingsCount})
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'BOOKINGS' && styles.filterChipActive]}
+                activeOpacity={0.8}
+                onPress={() => setActiveFilter('BOOKINGS')}
+              >
+                <Text style={[styles.filterText, activeFilter === 'BOOKINGS' && styles.filterTextActive]}>
+                  Đặt sân & Vé ({bookingsCount})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterChip, activeFilter === 'SUPPORT' && styles.filterChipActive]}
+                activeOpacity={0.8}
+                onPress={() => setActiveFilter('SUPPORT')}
+              >
+                <Text style={[styles.filterText, activeFilter === 'SUPPORT' && styles.filterTextActive]}>
+                  Hỗ trợ ({supportCount})
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
 
           {/* Content Area */}
@@ -397,7 +462,7 @@ function NotificationsModalContent({
                           ]}
                           numberOfLines={1}
                         >
-                          {item.title}
+                          {stripEmojis(item.title)}
                         </Text>
                         <Text style={[styles.cardTime, (item.isRead ?? item.read) && styles.cardTimeRead]}>
                           {formatTimeAgo(item.createdAt)}
@@ -411,7 +476,7 @@ function NotificationsModalContent({
                         ]}
                         numberOfLines={2}
                       >
-                        {item.content}
+                        {stripEmojis(item.content)}
                       </Text>
                     </View>
 
@@ -435,6 +500,8 @@ function NotificationsModalContent({
                     ? 'Các lời mời, cập nhật ghép kèo sẽ xuất hiện tại đây.'
                     : activeFilter === 'BOOKINGS'
                     ? 'Thông tin đặt sân & vé lượt của bạn sẽ hiển thị tại đây.'
+                    : activeFilter === 'SUPPORT'
+                    ? 'Các thông báo và phản hồi yêu cầu hỗ trợ (ticket) của bạn sẽ hiển thị tại đây.'
                     : 'Tất cả các thông báo mới của bạn sẽ hiển thị tại đây.'}
                 </Text>
               </View>
@@ -527,9 +594,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING.marginMobile,
     marginBottom: SPACING.sm,
+  },
+  filterScrollContent: {
+    paddingHorizontal: SPACING.marginMobile,
     gap: 8,
   },
   filterChip: {

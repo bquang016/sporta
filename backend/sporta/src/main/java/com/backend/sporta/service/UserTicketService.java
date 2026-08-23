@@ -154,7 +154,7 @@ public class UserTicketService {
             notificationService.createNotification(
                     user.getId(),
                     user.getRole() != null ? user.getRole() : Role.PLAYER,
-                    "Mua vé thành công! 🎟️",
+                    "Mua vé thành công",
                     String.format("Bạn đã mua %d vé tại ca %s (%s, %s). Mã vé: %s.",
                             quantity, timeStr, courtName, venueName, shortCode),
                     NotificationType.TICKET_PURCHASE_SUCCESS,
@@ -168,7 +168,7 @@ public class UserTicketService {
                 notificationService.createNotification(
                         ownerUserId,
                         Role.OWNER,
-                        "Khách mua vé ca ghép! 🎟️",
+                        "Khách mua vé ca ghép",
                         String.format("Khách hàng %s vừa mua %d vé tại ca ghép %s (%s - %s).",
                                 buyerName, quantity, timeStr, courtName, venueName),
                         NotificationType.OWNER_TICKET_BOUGHT,

@@ -9,6 +9,7 @@ import logoHorizontal from '../../assets/logo/light/logo-horizontal_1600x400px.s
 import logoSvg from '../../assets/logo/light/logo-main_40x40px_small.svg';
 
 const PAGE_TITLES: Record<string, string> = {
+  '/notifications': 'Trung Tâm Thông Báo',
   '/': 'Bảng điều khiển',
   '/matrix': 'Quản lý lịch',
   '/scan': 'Quét mã QR',
@@ -37,6 +38,43 @@ function formatTimeAgo(dateStr: string): string {
     return '';
   }
 }
+
+const renderDropdownIcon = (type: string) => {
+  if (type.startsWith('BOOKING_') || type === 'OWNER_NEW_BOOKING') {
+    return (
+      <div className="w-8 h-8 rounded-2xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    );
+  }
+  if (type.startsWith('WALLET_') || type.includes('WITHDRAWAL') || type.includes('RECONCIL')) {
+    return (
+      <div className="w-8 h-8 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+    );
+  }
+  if (type.startsWith('TICKET_') || type.includes('SUPPORT')) {
+    return (
+      <div className="w-8 h-8 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-2xl bg-emerald-50 border border-emerald-200 text-brand-emerald flex items-center justify-center shrink-0 shadow-2xs">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    </div>
+  );
+};
 
 export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -111,6 +149,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
         {/* Navigation Items */}
         <nav className={`flex-1 py-8 space-y-2 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}>
           <NavItem to="/" icon="home" label="Bảng điều khiển" isCollapsed={isSidebarCollapsed} />
+          <NavItem to="/notifications" icon="bell" label="Trung tâm thông báo" isCollapsed={isSidebarCollapsed} badge={unreadCount} />
           <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/scan" icon="scan" label="Quét mã QR" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
@@ -243,15 +282,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                                     : 'bg-white hover:bg-slate-50 opacity-70'
                                 }`}
                               >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm ${
-                                  n.type.startsWith('BOOKING_') || n.type === 'OWNER_NEW_BOOKING' 
-                                    ? 'bg-emerald-500' 
-                                    : n.type.startsWith('WALLET_') 
-                                    ? 'bg-amber-500' 
-                                    : 'bg-blue-500'
-                                }`}>
-                                  {n.type.startsWith('BOOKING_') || n.type === 'OWNER_NEW_BOOKING' ? '⚽' : n.type.startsWith('WALLET_') ? '💵' : '📢'}
-                                </div>
+                                {renderDropdownIcon(n.type)}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-1">
                                     <p className={`text-xs truncate ${isUnread ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
@@ -273,8 +304,10 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
                           })
                         ) : (
                           <div className="py-8 text-center px-4">
-                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">
-                              🔕
+                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
                             </div>
                             <p className="text-xs font-bold text-slate-600">Chưa có thông báo nào</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">Các thông báo mới từ hệ thống sẽ hiển thị tại đây</p>
@@ -432,26 +465,38 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const NavItem = ({ to, icon, label, isCollapsed }: { to: string, icon: string, label: string, isCollapsed: boolean }) => {
+const NavItem = ({ to, icon, label, isCollapsed, badge }: { to: string, icon: string, label: string, isCollapsed: boolean, badge?: number }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
   const content = (
     <Link 
       to={to} 
-      className={`flex items-center rounded-xl transition-all duration-300 ${
-        isCollapsed ? 'justify-center p-3 w-12 mx-auto' : 'gap-3 px-4 py-3'
+      className={`flex items-center justify-between rounded-xl transition-all duration-300 cursor-pointer ${
+        isCollapsed ? 'justify-center p-3 w-12 mx-auto relative' : 'gap-3 px-3.5 py-2.5'
       } ${
         isActive 
-          ? 'bg-white/10 text-brand-yellow font-semibold' 
+          ? 'bg-white/15 text-brand-yellow font-bold shadow-xs' 
           : 'text-white/70 hover:bg-white/5 hover:text-white'
       }`}
     >
-      <Icon name={icon} className="w-5 h-5 flex-shrink-0" />
-      {!isCollapsed && (
-        <span className="text-sm whitespace-nowrap overflow-hidden transition-opacity duration-300">
-          {label}
+      <div className="flex items-center gap-3 min-w-0">
+        <Icon name={icon} className="w-5 h-5 flex-shrink-0" />
+        {!isCollapsed && (
+          <span className="text-xs whitespace-nowrap overflow-hidden transition-opacity duration-300 font-bold">
+            {label}
+          </span>
+        )}
+      </div>
+
+      {badge !== undefined && badge > 0 && !isCollapsed && (
+        <span className="bg-rose-500 text-white font-black text-[10px] rounded-full px-1.5 py-0.5 shadow-sm">
+          {badge > 99 ? '99+' : badge}
         </span>
+      )}
+
+      {badge !== undefined && badge > 0 && isCollapsed && (
+        <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-[#003527]" />
       )}
     </Link>
   );
@@ -469,6 +514,13 @@ const NavItem = ({ to, icon, label, isCollapsed }: { to: string, icon: string, l
 
 const Icon = ({ name, className }: { name: string, className?: string }) => {
   switch (name) {
+    case 'bell':
+    case 'notification':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      );
     case 'home':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
     case 'calendar':
