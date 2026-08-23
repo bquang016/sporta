@@ -56,4 +56,8 @@ public class RecommendedVenueResponse {
     private String recommendationReason; // e.g. "✨ Môn bạn chơi nhiều nhất"
     private String reasonType; // "SPORT", "DISTANCE", "PRICE", "POPULARITY", "HISTORY"
     private Integer pastBookingCount; // Số lần đã đặt tại sân này
+
+    // Rating & Reviews
+    private Double averageRating;
+    private Integer totalReviews;
 }

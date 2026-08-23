@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -47,6 +47,15 @@ interface VenueMarkerProps {
 export const VenueMarker = memo(
   ({ venue, isActive, onPress }: VenueMarkerProps) => {
     const sportIcon = getSportIcon(venue.sportName);
+    const [tracksViewChanges, setTracksViewChanges] = useState(true);
+
+    useEffect(() => {
+      setTracksViewChanges(true);
+      const timer = setTimeout(() => {
+        setTracksViewChanges(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }, [isActive]);
 
     return (
       <Marker
@@ -58,19 +67,11 @@ export const VenueMarker = memo(
           }
           onPress(venue.id);
         }}
-        tracksViewChanges={false}
+        tracksViewChanges={tracksViewChanges}
         anchor={{ x: 0.5, y: 1 }}
+        zIndex={isActive ? 99 : 1}
       >
         <View style={styles.pinWrapper}>
-          {/* Pop-up label khi active */}
-          {isActive && (
-            <View style={styles.pinLabel}>
-              <Text style={styles.pinLabelText} numberOfLines={1}>
-                {venue.name}
-              </Text>
-            </View>
-          )}
-
           {/* Pin bubble */}
           <View
             style={[
@@ -82,13 +83,13 @@ export const VenueMarker = memo(
               <MaterialIcons
                 name={sportIcon.name as MaterialIconName}
                 size={18}
-                color={isActive ? COLORS.onPrimary : COLORS.primary}
+                color={isActive ? COLORS.white : COLORS.primary}
               />
             ) : (
               <MaterialCommunityIcons
                 name={sportIcon.name as CommunityIconName}
                 size={18}
-                color={isActive ? COLORS.onPrimary : COLORS.primary}
+                color={isActive ? COLORS.white : COLORS.primary}
               />
             )}
           </View>
@@ -115,8 +116,7 @@ interface ClusterMarkerViewProps {
 
 export const ClusterMarkerView = memo(
   ({ cluster, onPress }: ClusterMarkerViewProps) => {
-    // Kích thước vòng tròn tăng dần theo số lượng
-    const size = cluster.count >= 50 ? 60 : cluster.count >= 20 ? 52 : 44;
+    const size = cluster.count >= 50 ? 56 : cluster.count >= 20 ? 48 : 42;
 
     return (
       <Marker
@@ -144,7 +144,6 @@ export const ClusterMarkerView = memo(
             onPress(cluster);
           }}
         >
-          {/* Outer ring */}
           <View
             style={[
               styles.clusterRing,
@@ -168,37 +167,16 @@ const styles = StyleSheet.create({
   pinWrapper: {
     alignItems: 'center',
   },
-  pinLabel: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.default,
-    paddingHorizontal: SPACING.base,
-    paddingVertical: 3,
-    marginBottom: SPACING.xs,
-    maxWidth: 140,
-    shadowColor: COLORS.shadowBlack,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-  pinLabelText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: 10,
-    color: COLORS.onSurface,
-  },
   pinBubble: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: COLORS.surface,
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.shadowBlack,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
@@ -206,10 +184,12 @@ const styles = StyleSheet.create({
   },
   pinBubbleActive: {
     backgroundColor: COLORS.primary,
-    borderColor: COLORS.secondary,
-    borderWidth: 3,
+    borderColor: COLORS.white,
+    borderWidth: 2.5,
+    transform: [{ scale: 1.15 }],
     shadowColor: COLORS.primary,
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
     elevation: 8,
   },
   pinArrow: {
@@ -217,9 +197,9 @@ const styles = StyleSheet.create({
     height: 0,
     backgroundColor: 'transparent',
     borderStyle: 'solid',
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 9,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: COLORS.primary,
@@ -240,16 +220,16 @@ const styles = StyleSheet.create({
   },
   clusterRing: {
     position: 'absolute',
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: COLORS.secondary,
     backgroundColor: 'transparent',
   },
   clusterCount: {
     fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
     fontWeight: '700' as const,
-    fontSize: 16,
-    color: COLORS.onPrimary,
-    lineHeight: 18,
+    fontSize: 15,
+    color: COLORS.white,
+    lineHeight: 17,
   },
   clusterLabel: {
     fontFamily: TYPOGRAPHY.labelSm.fontFamily,

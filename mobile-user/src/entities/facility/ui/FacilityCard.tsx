@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button } from '../../../shared/ui';
 
 export interface Facility {
   id: string;
@@ -19,6 +18,8 @@ export interface Facility {
   priceCategory?: string;
   latitude?: number | null;
   longitude?: number | null;
+  openingTime?: string | null;
+  closingTime?: string | null;
 }
 
 interface FacilityCardProps {
@@ -29,56 +30,118 @@ interface FacilityCardProps {
 }
 
 export function FacilityCard({ facility, style, onPress, onBookPress }: FacilityCardProps) {
-  const isWarning = facility.statusType === 'warning';
-  
+  const isWarning = facility.statusType === 'warning' || facility.status === 'Đóng cửa';
+  const hasRating = facility.rating != null && facility.rating > 0;
+
   return (
-    <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={[styles.card, style]}
+      onPress={onPress}
+      activeOpacity={0.92}
+    >
+      {/* ── Image & Overlay Badges ── */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: facility.imageUrl }} style={styles.image} resizeMode="cover" />
-        
-        {/* Status Badge sang trọng không dùng emoji */}
-        <View style={styles.badgeContainer}>
-          <View style={[styles.statusDot, { backgroundColor: isWarning ? COLORS.error : '#10B981' }]} />
-          <Text style={[styles.badgeText, { color: isWarning ? COLORS.errorText : COLORS.primary }]}>
+        <Image
+          source={{
+            uri:
+              facility.imageUrl ||
+              'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+          }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+
+        {/* Top Left: Sport Name */}
+        {facility.sport ? (
+          <View style={styles.sportBadge}>
+            <Text style={styles.sportBadgeText}>{facility.sport}</Text>
+          </View>
+        ) : null}
+
+        {/* Top Right: Distance */}
+        {facility.distance && facility.distance !== '-- km' ? (
+          <View style={styles.distanceBadge}>
+            <MaterialIcons name="near-me" size={11} color={COLORS.white} />
+            <Text style={styles.distanceBadgeText}>{facility.distance}</Text>
+          </View>
+        ) : null}
+
+        {/* Bottom Left: Star Rating or Mới */}
+        <View style={styles.ratingBadge}>
+          {hasRating ? (
+            <>
+              <Ionicons name="star" size={11} color="#F59E0B" />
+              <Text style={styles.ratingBadgeText}>{facility.rating.toFixed(1)}</Text>
+            </>
+          ) : (
+            <Text style={styles.newBadgeText}>Mới</Text>
+          )}
+        </View>
+
+        {/* Bottom Right: Status Dot */}
+        <View style={styles.statusBadge}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: isWarning ? COLORS.error : '#10B981' },
+            ]}
+          />
+          <Text
+            style={[
+              styles.statusText,
+              { color: isWarning ? COLORS.errorText : '#065F46' },
+            ]}
+          >
             {facility.status}
           </Text>
         </View>
       </View>
+
+      {/* ── Card Content Body ── */}
       <View style={styles.content}>
-        <View style={styles.headerRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {facility.name}
-          </Text>
-          <View style={styles.ratingContainer}>
-            <MaterialIcons name="star" size={14} color="#D97706" />
-            <Text style={styles.ratingText}>{facility.rating}</Text>
-          </View>
-        </View>
-        
+        <Text style={styles.name} numberOfLines={1}>
+          {facility.name}
+        </Text>
+
+        {/* Location Row */}
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={14} color={COLORS.outline} />
+          <MaterialIcons name="location-on" size={13} color={COLORS.outline} />
           <Text style={styles.locationText} numberOfLines={1}>
-            {facility.location}
+            {facility.location || facility.area || 'Hà Nội'}
           </Text>
         </View>
-        
-        {/* Hiển thị khoảng cách cách bạn ...km */}
-        <View style={styles.distanceRow}>
-          <MaterialIcons name="near-me" size={12} color={COLORS.primary} />
-          <Text style={styles.distanceText}>Cách bạn {facility.distance}</Text>
-        </View>
-        
+
+        {/* Divider */}
+        <View style={styles.cardDivider} />
+
+        {/* Footer: Price & Quick Action */}
         <View style={styles.footerRow}>
-          <Text style={styles.price}>
-            {facility.price}
-            <Text style={styles.priceUnit}>/h</Text>
-          </Text>
-          <Button
-            variant="primary"
-            size="sm"
-            title="Đặt ngay"
-            onPress={onBookPress}
-          />
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceLabel}>Giá từ</Text>
+            <Text style={styles.price}>
+              {facility.price}
+              <Text style={styles.priceUnit}>/h</Text>
+            </Text>
+          </View>
+
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.detailBtn}
+              onPress={onPress}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.detailBtnText}>Chi tiết</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.bookBtn}
+              onPress={onBookPress || onPress}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.bookBtnText}>Đặt ngay</Text>
+              <Ionicons name="arrow-forward" size={12} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -92,118 +155,174 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   imageContainer: {
-    height: 135, // Tỷ lệ chiều cao/chiều rộng cân đối hơn cho card 240
+    height: 140,
     position: 'relative',
-    backgroundColor: COLORS.surfaceVariant,
+    backgroundColor: COLORS.surfaceContainerLow,
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  badgeContainer: {
+  sportBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  sportBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  distanceBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(4, 120, 87, 0.92)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 3,
+  },
+  distanceBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: COLORS.white,
+  },
+  ratingBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: BORDER_RADIUS.full,
-    gap: 6,
-    shadowColor: COLORS.shadowBlack,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    gap: 3,
+  },
+  ratingBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  newBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  statusBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 4,
   },
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
-  badgeText: {
-    ...TYPOGRAPHY.labelSm,
+  statusText: {
+    fontSize: 10,
     fontWeight: '700',
-    fontSize: 11,
   },
   content: {
     padding: SPACING.md,
-    gap: SPACING.xs,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 4,
   },
   name: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
-    fontSize: 16,
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '800',
+    fontSize: 15,
     color: COLORS.onSurface,
-    flex: 1,
-    marginRight: SPACING.xs,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(217, 119, 6, 0.08)', // Container màu hổ phách nhạt
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  ratingText: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: '700',
-    fontSize: 12,
-    color: '#D97706', // Sao vàng hổ phách nổi bật
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  locationText: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 12,
-    color: COLORS.outline,
-  },
-  distanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     marginTop: 2,
   },
-  distanceText: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
+  locationText: {
     fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
+    color: COLORS.outline,
+    flex: 1,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    marginVertical: 6,
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: SPACING.xs,
+  },
+  priceContainer: {
+    gap: 1,
+  },
+  priceLabel: {
+    fontSize: 9.5,
+    color: COLORS.outline,
   },
   price: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontWeight: TYPOGRAPHY.headlineMd.fontWeight,
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '900',
     color: COLORS.primary,
   },
   priceUnit: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '500',
     color: COLORS.outline,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailBtn: {
+    paddingHorizontal: 11,
+    paddingVertical: 6.5,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
+  },
+  detailBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  bookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+  },
+  bookBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });

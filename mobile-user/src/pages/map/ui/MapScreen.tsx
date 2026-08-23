@@ -163,7 +163,18 @@ export function MapScreen() {
     mapRef.current?.animateToRegion(newRegion, 300);
   }, [region]);
 
+  const lastMarkerPressTime = useRef<number>(0);
+
+  const handleVenuePress = useCallback(
+    (venueId: string) => {
+      lastMarkerPressTime.current = Date.now();
+      handleSelectVenue(venueId);
+    },
+    [handleSelectVenue]
+  );
+
   const handleClosePopup = useCallback(() => {
+    if (Date.now() - lastMarkerPressTime.current < 400) return;
     handleSelectVenue(null);
     Keyboard.dismiss();
   }, [handleSelectVenue]);
@@ -274,7 +285,7 @@ export function MapScreen() {
                   key={item.data.id}
                   venue={item.data}
                   isActive={selectedVenue?.id === item.data.id}
-                  onPress={handleSelectVenue}
+                  onPress={handleVenuePress}
                 />
               );
             } else {

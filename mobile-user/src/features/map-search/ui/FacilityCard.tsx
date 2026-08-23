@@ -8,40 +8,23 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button, Badge } from '../../../shared/ui';
 import { MapVenue } from '../../../entities/facility/model/useMapFacilities';
 
 interface MapFacilityCardProps {
   venue: MapVenue;
   onClose: () => void;
   onBook: (venueId: string) => void;
-  onDirections: (venue: MapVenue) => void;
+  onDirections?: (venue: MapVenue) => void;
 }
-
-const StarRating = ({ rating }: { rating: number }) => (
-  <View style={styles.ratingRow}>
-    {[1, 2, 3, 4, 5].map((star) => (
-      <MaterialIcons
-        key={star}
-        name={star <= Math.round(rating) ? 'star' : 'star-border'}
-        size={14}
-        color={COLORS.secondary}
-      />
-    ))}
-    <Text style={styles.ratingNumber}>{rating.toFixed(1)}</Text>
-  </View>
-);
 
 export const MapFacilityCard = memo(
   ({ venue, onClose, onBook, onDirections }: MapFacilityCardProps) => {
     const insets = useSafeAreaInsets();
-    // Offset bottom to avoid bottom tab bar
-    const bottomPosition = Math.max(insets.bottom, 20) + 70;
+    const bottomPosition = Math.max(insets.bottom, 16) + 68;
 
-    // Animation value for slide up
     const translateY = useRef(new Animated.Value(300)).current;
 
     const closeCard = () => {
@@ -55,7 +38,6 @@ export const MapFacilityCard = memo(
     };
 
     useEffect(() => {
-      // Slide up on mount
       translateY.setValue(300);
       Animated.spring(translateY, {
         toValue: 0,
@@ -69,7 +51,6 @@ export const MapFacilityCard = memo(
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          // Only start panning if moving vertically downwards
           return gestureState.dy > 10;
         },
         onPanResponderMove: (_, gestureState) => {
@@ -78,11 +59,9 @@ export const MapFacilityCard = memo(
           }
         },
         onPanResponderRelease: (_, gestureState) => {
-          // If swiped down more than 50px or fast swipe, close it
           if (gestureState.dy > 50 || gestureState.vy > 0.5) {
             closeCard();
           } else {
-            // Spring back
             Animated.spring(translateY, {
               toValue: 0,
               useNativeDriver: true,
@@ -94,12 +73,15 @@ export const MapFacilityCard = memo(
       })
     ).current;
 
+    const formatVND = (price?: number | null) => `${Number(price || 0).toLocaleString('vi-VN')} VND`;
+
     const priceDisplay =
-      venue.minPrice > 0
-        ? venue.maxPrice > venue.minPrice
-          ? `${Math.round(venue.minPrice / 1000)}k – ${Math.round(venue.maxPrice / 1000)}k/h`
-          : `${Math.round(venue.minPrice / 1000)}k/h`
-        : 'Liên hệ';
+      venue.maxPrice > venue.minPrice && venue.maxPrice > 0
+        ? `${formatVND(venue.minPrice)} – ${formatVND(venue.maxPrice)}/h`
+        : `${formatVND(venue.minPrice || 0)}/h`;
+
+    const hasRating = venue.rating != null && venue.rating > 0;
+    const isWarning = venue.status === 'INACTIVE' || venue.status === 'Đóng cửa';
 
     return (
       <Animated.View
@@ -109,84 +91,81 @@ export const MapFacilityCard = memo(
         ]}
         {...panResponder.panHandlers}
       >
-        {/* Drag indicator */}
-        <View style={styles.dragHandle} />
-
         {/* Close button */}
-        <TouchableOpacity style={styles.closeBtn} onPress={closeCard}>
+        <TouchableOpacity style={styles.closeBtn} onPress={closeCard} activeOpacity={0.7}>
           <MaterialIcons name="close" size={18} color={COLORS.onSurfaceVariant} />
         </TouchableOpacity>
 
+        {/* Card Header & Image */}
+        <View style={styles.cardHeader}>
+          <Image
+            source={{
+              uri:
+                venue.coverImage ||
+                'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+            }}
+            style={styles.coverImage}
+            resizeMode="cover"
+          />
+
+          {/* Sport Badge */}
+          {venue.sportName ? (
+            <View style={styles.sportBadge}>
+              <Text style={styles.sportBadgeText}>{venue.sportName}</Text>
+            </View>
+          ) : null}
+
+          {/* Rating Badge */}
+          <View style={styles.ratingBadge}>
+            {hasRating ? (
+              <>
+                <Ionicons name="star" size={11} color="#F59E0B" />
+                <Text style={styles.ratingBadgeText}>{venue.rating.toFixed(1)}</Text>
+              </>
+            ) : (
+              <Text style={styles.newBadgeText}>Mới</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Info Body */}
         <View style={styles.content}>
-          {/* Cover image */}
-          {venue.coverImage ? (
-            <Image
-              source={{ uri: venue.coverImage }}
-              style={styles.coverImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.coverImage, styles.coverPlaceholder]}>
-              <MaterialIcons name="sports" size={32} color={COLORS.outline} />
-            </View>
-          )}
+          <Text style={styles.venueName} numberOfLines={1}>
+            {venue.name}
+          </Text>
 
-          {/* Info section */}
-          <View style={styles.info}>
-            {/* Badge + Rating */}
-            <View style={styles.topRow}>
-              <Badge
-                text={venue.sportName}
-                variant="default"
-                style={styles.sportBadge}
-              />
-              <StarRating rating={venue.rating} />
-            </View>
-
-            {/* Name */}
-            <Text style={styles.venueName} numberOfLines={2}>
-              {venue.name}
+          {/* Location */}
+          <View style={styles.locationRow}>
+            <MaterialIcons name="location-on" size={13} color={COLORS.outline} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {venue.location || 'Hà Nội'}
             </Text>
+          </View>
 
-            {/* Location */}
-            <View style={styles.locationRow}>
-              <MaterialIcons
-                name="location-on"
-                size={13}
-                color={COLORS.outline}
-              />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {venue.location}
-              </Text>
-            </View>
-
-            {/* Price */}
-            <View style={styles.priceRow}>
-              <MaterialIcons
-                name="payments"
-                size={14}
-                color={COLORS.primary}
-              />
-              <Text style={styles.priceLabel}>Giá: </Text>
+          {/* Price & Action Row */}
+          <View style={styles.footerRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.priceLabel}>Giá thuê từ</Text>
               <Text style={styles.priceValue}>{priceDisplay}</Text>
             </View>
 
-            {/* Actions */}
-            <View style={styles.actions}>
-              <Button
-                variant="outline"
-                title="Đường đi"
-                icon="directions"
-                style={styles.actionBtn}
-                onPress={() => onDirections(venue)}
-              />
-              <Button
-                variant="primary"
-                title="Đặt sân ngay"
-                icon="event-available"
-                style={styles.actionBtn}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.detailBtn}
                 onPress={() => onBook(venue.id)}
-              />
+                activeOpacity={0.8}
+              >
+                <Text style={styles.detailBtnText}>Chi tiết</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.bookBtn}
+                onPress={() => onBook(venue.id)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.bookBtnText}>Đặt ngay</Text>
+                <Ionicons name="arrow-forward" size={12} color={COLORS.white} />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -200,120 +179,154 @@ MapFacilityCard.displayName = 'MapFacilityCard';
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: SPACING.marginMobile,
-    right: SPACING.marginMobile,
+    left: SPACING.md,
+    right: SPACING.md,
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    shadowColor: COLORS.shadowBlack,
+    borderRadius: BORDER_RADIUS.xl,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     elevation: 12,
     overflow: 'hidden',
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.outlineVariant,
-    alignSelf: 'center',
-    marginTop: SPACING.base,
-    marginBottom: SPACING.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    zIndex: 100,
   },
   closeBtn: {
     position: 'absolute',
-    top: SPACING.base,
-    right: SPACING.base,
+    top: 10,
+    right: 10,
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.surfaceContainerHigh,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  content: {
-    flexDirection: 'row',
-    padding: SPACING.md,
-    gap: SPACING.sm,
+  cardHeader: {
+    height: 120,
+    position: 'relative',
+    backgroundColor: COLORS.surfaceContainerLow,
   },
   coverImage: {
-    width: 90,
-    height: 100,
-    borderRadius: BORDER_RADIUS.default,
-    backgroundColor: COLORS.surfaceVariant,
-  },
-  coverPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  info: {
-    flex: 1,
-    gap: SPACING.xs,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    width: '100%',
+    height: '100%',
   },
   sportBadge: {
-    paddingHorizontal: SPACING.base,
-    paddingVertical: 2,
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
   },
-  ratingRow: {
+  sportBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  ratingBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    gap: 3,
   },
-  ratingNumber: {
-    fontFamily: TYPOGRAPHY.labelSm.fontFamily,
-    fontWeight: TYPOGRAPHY.labelSm.fontWeight,
-    fontSize: 11,
-    color: COLORS.onSurfaceVariant,
-    marginLeft: 2,
+  ratingBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  newBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  content: {
+    padding: SPACING.md,
+    gap: 4,
   },
   venueName: {
-    fontFamily: TYPOGRAPHY.headlineMd.fontFamily,
-    fontWeight: '700' as const,
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '800',
     fontSize: 15,
     color: COLORS.onSurface,
-    lineHeight: 20,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
+    marginTop: 1,
   },
   locationText: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.outline,
     flex: 1,
   },
-  priceRow: {
+  footerRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 2,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  priceContainer: {
+    gap: 1,
   },
   priceLabel: {
-    fontFamily: TYPOGRAPHY.bodyMd.fontFamily,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
+    fontSize: 9.5,
+    color: COLORS.outline,
   },
   priceValue: {
-    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
-    fontWeight: '700' as const,
-    fontSize: 13,
+    fontSize: 13.5,
+    fontWeight: '900',
     color: COLORS.primary,
   },
-  actions: {
+  actionButtons: {
     flexDirection: 'row',
-    gap: SPACING.base,
-    marginTop: SPACING.xs,
+    alignItems: 'center',
+    gap: 8,
   },
-  actionBtn: {
-    flex: 1,
-    height: 42,
+  detailBtn: {
+    paddingHorizontal: 11,
+    paddingVertical: 6.5,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
+  },
+  detailBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  bookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+  },
+  bookBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });

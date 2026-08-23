@@ -234,6 +234,8 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
                     .recommendationReason(sv.reasonTag)
                     .reasonType(sv.reasonType)
                     .pastBookingCount(sv.pastBookingCount)
+                    .averageRating(v.getAverageRating() != null && v.getAverageRating() > 0 ? v.getAverageRating() : null)
+                    .totalReviews(v.getTotalReviews() != null ? v.getTotalReviews() : 0)
                     .build();
 
             responseList.add(dto);

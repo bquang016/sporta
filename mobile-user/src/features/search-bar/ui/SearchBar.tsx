@@ -6,25 +6,35 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 interface SearchBarProps {
   value?: string;
   onChangeText?: (text: string) => void;
+  onSubmitEditing?: () => void;
   onFilterPress?: () => void;
   onPress?: () => void;
+  onClear?: () => void;
   autoFocus?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
   hasActiveFilter?: boolean;
+  activeFilterCount?: number;
+  showFilterButton?: boolean;
   placeholder?: string;
+  containerStyle?: any;
 }
 
 export function SearchBar({
   value,
   onChangeText,
+  onSubmitEditing,
   onFilterPress,
   onPress,
+  onClear,
   autoFocus = false,
   onFocus,
   onBlur,
   hasActiveFilter = false,
+  activeFilterCount = 0,
+  showFilterButton = true,
   placeholder = 'Tìm sân bóng, kèo đấu, câu lạc bộ...',
+  containerStyle,
 }: SearchBarProps) {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -38,8 +48,15 @@ export function SearchBar({
     if (onBlur) onBlur();
   };
 
+  const handleClear = () => {
+    if (onChangeText) onChangeText('');
+    if (onClear) onClear();
+  };
+
+  const isFilterActive = hasActiveFilter || activeFilterCount > 0;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       <View
         style={[
           styles.searchBarBox,
@@ -52,11 +69,11 @@ export function SearchBar({
           activeOpacity={onPress ? 0.78 : 1}
           onPress={onPress}
         >
-          <View style={styles.searchIconCircle}>
+          <View style={[styles.searchIconCircle, isFocused && styles.searchIconCircleFocused]}>
             <Ionicons
               name="search"
               size={17}
-              color={isFocused ? COLORS.primary : COLORS.onSurfaceVariant}
+              color={isFocused ? COLORS.primary : COLORS.outline}
             />
           </View>
 
@@ -71,26 +88,50 @@ export function SearchBar({
               editable={!onPress}
               onFocus={handleFocus}
               onBlur={handleBlur}
+              onSubmitEditing={onSubmitEditing}
+              returnKeyType="search"
             />
           </View>
-        </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={styles.verticalDivider} />
+          {/* Clear Text Button (when editable and value exists) */}
+          {!onPress && value && value.length > 0 ? (
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={handleClear}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close-circle" size={17} color={COLORS.outline} />
+            </TouchableOpacity>
+          ) : null}
+        </TouchableOpacity>
 
         {/* Filter Trigger Button */}
-        <TouchableOpacity
-          style={[styles.filterBtn, hasActiveFilter && styles.filterBtnActive]}
-          onPress={onFilterPress}
-          activeOpacity={0.75}
-        >
-          <Ionicons
-            name="options-outline"
-            size={18}
-            color={hasActiveFilter ? '#003527' : COLORS.onSurface}
-          />
-          {hasActiveFilter && <View style={styles.filterActiveDot} />}
-        </TouchableOpacity>
+        {showFilterButton && onFilterPress ? (
+          <>
+            <View style={styles.verticalDivider} />
+            <TouchableOpacity
+              style={[
+                styles.filterBtn,
+                isFilterActive && styles.filterBtnActive,
+              ]}
+              onPress={onFilterPress}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name="options-outline"
+                size={18}
+                color={isFilterActive ? COLORS.white : COLORS.onSurface}
+              />
+              {activeFilterCount > 0 ? (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                </View>
+              ) : isFilterActive ? (
+                <View style={styles.filterActiveDot} />
+              ) : null}
+            </TouchableOpacity>
+          </>
+        ) : null}
       </View>
     </View>
   );
@@ -103,21 +144,26 @@ const styles = StyleSheet.create({
   searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderWidth: 1.2,
-    borderColor: COLORS.surfaceContainerHigh,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
     borderRadius: BORDER_RADIUS.full,
-    paddingLeft: SPACING.xs,
-    paddingRight: SPACING.xs,
+    paddingLeft: 6,
+    paddingRight: 6,
     height: 48,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchBarBoxFocused: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.surface,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 3,
   },
   inputTouchArea: {
@@ -125,15 +171,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: '100%',
+    paddingLeft: 4,
   },
   searchIconCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 4,
+    marginRight: 6,
+  },
+  searchIconCircleFocused: {
+    backgroundColor: COLORS.primaryOpacity10,
   },
   inputWrapper: {
     flex: 1,
@@ -149,29 +199,51 @@ const styles = StyleSheet.create({
       web: { outlineStyle: 'none' } as any,
     }),
   },
+  clearBtn: {
+    padding: 6,
+    marginRight: 2,
+  },
   verticalDivider: {
     width: 1,
     height: 20,
-    backgroundColor: COLORS.outlineVariant,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
     marginHorizontal: 4,
-    opacity: 0.6,
   },
   filterBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.surfaceContainerLow,
   },
   filterBtnActive: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.primary,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    backgroundColor: '#EF4444',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.surface,
+  },
+  filterBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: COLORS.white,
   },
   filterActiveDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 5,
+    right: 5,
     width: 7,
     height: 7,
     borderRadius: 3.5,

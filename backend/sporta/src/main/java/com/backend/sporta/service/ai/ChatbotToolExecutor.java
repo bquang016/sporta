@@ -117,7 +117,7 @@ public class ChatbotToolExecutor {
                 map.put("id", v.getId().toString());
                 map.put("name", v.getName());
                 map.put("price", v.getMinPrice());
-                map.put("rating", v.getAverageRating() != null && v.getAverageRating() > 0 ? v.getAverageRating() : 5.0);
+                map.put("rating", v.getAverageRating() != null && v.getAverageRating() > 0 ? v.getAverageRating() : null);
                 map.put("total_reviews", v.getTotalReviews() != null ? v.getTotalReviews() : 0);
                 map.put("image", imageUrl);
                 map.put("subtitle", subtitle);

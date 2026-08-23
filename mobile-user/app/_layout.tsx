@@ -66,6 +66,8 @@ export default function RootLayout() {
           <Stack.Screen name="create-club/index" options={{ headerShown: false }} />
           <Stack.Screen name="club-detail-explore/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="club-detail-joined/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="nearby-venues/index" options={{ headerShown: false }} />
+          <Stack.Screen name="recommended-venues/index" options={{ headerShown: false }} />
         </Stack>
         <ChatbotFAB onPress={() => setIsChatOpen(true)} />
         <ChatbotBottomSheet visible={isChatOpen} onClose={() => setIsChatOpen(false)} />
