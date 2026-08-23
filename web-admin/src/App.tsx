@@ -11,6 +11,7 @@ import { TransactionManagement } from "@/pages/Transactions/TransactionManagemen
 import { ReconciliationManagement } from "@/pages/Reconciliations/ReconciliationManagement";
 import { VoucherManagementPage } from "@/pages/Vouchers/VoucherManagementPage";
 import { SupportTicketManagement } from "@/components/users/SupportTicketManagement";
+import { NotificationCenterPage } from "@/pages/Notifications/NotificationCenterPage";
 
 // A simple wrapper to check auth and permissions
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -42,6 +43,8 @@ function App() {
         return <VoucherManagementPage />;
       case "reconciliations":
         return <ReconciliationManagement />;
+      case "notifications":
+        return <NotificationCenterPage />;
       case "settings":
         return <PermissionSettings />;
       default:

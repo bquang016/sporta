@@ -168,7 +168,7 @@ public class BookingService {
                 notificationService.createNotification(
                         user.getId(),
                         user.getRole(),
-                        "Đặt sân thành công! ⚽",
+                        "Đặt sân thành công",
                         "Đơn đặt sân tại " + venue.getName() + " (Mã: " + booking.getBookingCode() + ") đã được xác nhận thành công.",
                         NotificationType.BOOKING_SUCCESS,
                         booking.getId().toString()
@@ -250,7 +250,7 @@ public class BookingService {
                 notificationService.createNotification(
                         booking.getUser().getId(),
                         booking.getUser().getRole(),
-                        "Đặt sân thành công! ⚽",
+                        "Đặt sân thành công",
                         "Đơn đặt sân tại " + (booking.getVenue() != null ? booking.getVenue().getName() : "sân") + " (Mã: " + booking.getBookingCode() + ") đã được xác nhận thành công.",
                         NotificationType.BOOKING_SUCCESS,
                         booking.getId().toString()

@@ -281,8 +281,10 @@ export const SupportTicketManagement: React.FC = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tổng Yêu Cầu</span>
             <p className="text-2xl font-black text-on-surface tracking-tight">{metrics.total}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-surface-container flex items-center justify-center text-primary font-black text-lg">
-            📩
+          <div className="w-11 h-11 rounded-2xl bg-surface-container flex items-center justify-center text-primary">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
           </div>
         </div>
 
@@ -292,8 +294,10 @@ export const SupportTicketManagement: React.FC = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Mới Tiếp Nhận</span>
             <p className="text-2xl font-black text-sky-900 tracking-tight">{metrics.newCount}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-sky-100/80 flex items-center justify-center text-sky-700 font-black text-lg">
-            ⚡
+          <div className="w-11 h-11 rounded-2xl bg-sky-100/80 flex items-center justify-center text-sky-700">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
           </div>
         </div>
 
@@ -303,8 +307,10 @@ export const SupportTicketManagement: React.FC = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Đang Xử Lý</span>
             <p className="text-2xl font-black text-amber-950 tracking-tight">{metrics.inProgressCount}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-secondary-container/60 flex items-center justify-center text-secondary font-black text-lg">
-            ⏳
+          <div className="w-11 h-11 rounded-2xl bg-secondary-container/60 flex items-center justify-center text-secondary">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
         </div>
 
@@ -314,8 +320,10 @@ export const SupportTicketManagement: React.FC = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Đã Hoàn Tất</span>
             <p className="text-2xl font-black text-emerald-950 tracking-tight">{metrics.resolvedCount}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-100/80 flex items-center justify-center text-brand-emerald font-black text-lg">
-            ✓
+          <div className="w-11 h-11 rounded-2xl bg-emerald-100/80 flex items-center justify-center text-brand-emerald">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
         </div>
       </div>
