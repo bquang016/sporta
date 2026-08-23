@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface OwnerContractRepository extends JpaRepository<OwnerContract, Long> {
     List<OwnerContract> findByOwnerId(UUID ownerId);
+    boolean existsByVenueId(UUID venueId);
 }

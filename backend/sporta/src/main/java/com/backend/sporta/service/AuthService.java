@@ -174,6 +174,17 @@ public class AuthService {
         return otpCode;
     }
 
+    public String sendOtpForContract(SendOtpRequest request) {
+        // Do not check if email exists because the user is already logged in
+        String otpCode = otpService.generateAndSaveOtp(request.getEmail());
+        try {
+            emailService.sendOtpEmail(request.getEmail(), otpCode);
+        } catch(Exception e) {
+            System.err.println("Email send failed: " + e.getMessage());
+        }
+        return otpCode;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  VERIFY OTP
     // ═══════════════════════════════════════════════════════════════════════════
@@ -532,7 +543,7 @@ public class AuthService {
 
         // 6.5 Create OwnerContract
         if (reg.getIsContractSigned() != null && reg.getIsContractSigned()) {
-            String contractCode = "SPOR-CTR-" + java.time.Year.now().getValue() + "-" + owner.getId().toString().substring(0, 8).toUpperCase();
+            String contractCode = "SPOR-CTR-" + java.time.Year.now().getValue() + "-" + venue.getId().toString().substring(0, 8).toUpperCase();
             
             com.backend.sporta.entity.OwnerContract contract = com.backend.sporta.entity.OwnerContract.builder()
                     .owner(owner)
