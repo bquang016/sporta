@@ -28,6 +28,7 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
     private final RecommendationLogRepository recommendationLogRepository;
     private final RecommendationDailyMetricRepository dailyMetricRepository;
     private final RecommendationProperties properties;
+    private final UserSportRepository userSportRepository;
 
     @Override
     @Transactional
@@ -51,8 +52,8 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
             }
         }
 
-        // Analyze user preferences
-        UserPreferenceProfile profile = analyzeUserPreferences(userBookings);
+        // Analyze user preferences (from booking history & registered sport persona)
+        UserPreferenceProfile profile = analyzeUserPreferences(userBookings, currentUser);
 
         // 2. Candidate Filtering with Progressive Radius Expansion (incorporating filterSportId at all stages)
         List<Venue> candidates = fetchCandidateVenues(latitude, longitude, filterSportId, targetLimit);
@@ -444,50 +445,69 @@ public class VenueRecommendationServiceImpl implements VenueRecommendationServic
         return candidates;
     }
 
-    private UserPreferenceProfile analyzeUserPreferences(List<Booking> bookings) {
+    private UserPreferenceProfile analyzeUserPreferences(List<Booking> bookings, User currentUser) {
         UserPreferenceProfile profile = new UserPreferenceProfile();
-        if (bookings == null || bookings.isEmpty()) {
+
+        // 1. If user has booking history, derive primary/secondary sports and average price
+        if (bookings != null && !bookings.isEmpty()) {
+            Map<Long, Integer> sportFreq = new HashMap<>();
+            Map<UUID, Integer> venueFreq = new HashMap<>();
+            double totalPrice = 0.0;
+            int priceCount = 0;
+
+            for (Booking b : bookings) {
+                if (b.getVenue() != null) {
+                    venueFreq.put(b.getVenue().getId(), venueFreq.getOrDefault(b.getVenue().getId(), 0) + 1);
+                    if (b.getVenue().getSport() != null) {
+                        Long sId = b.getVenue().getSport().getId();
+                        sportFreq.put(sId, sportFreq.getOrDefault(sId, 0) + 1);
+                    }
+                }
+                if (b.getFinalPrice() != null && b.getFinalPrice() > 0) {
+                    totalPrice += b.getFinalPrice();
+                    priceCount++;
+                }
+            }
+
+            // Find primary sport from booking frequency
+            Long primarySportId = null;
+            int maxCount = 0;
+            Set<Long> secondarySports = new HashSet<>();
+            for (Map.Entry<Long, Integer> entry : sportFreq.entrySet()) {
+                if (entry.getValue() > maxCount) {
+                    maxCount = entry.getValue();
+                    primarySportId = entry.getKey();
+                }
+                secondarySports.add(entry.getKey());
+            }
+            if (primarySportId != null) {
+                secondarySports.remove(primarySportId);
+            }
+
+            profile.primarySportId = primarySportId;
+            profile.secondarySportIds = secondarySports;
+            profile.avgPrice = (priceCount > 0) ? (totalPrice / priceCount) : 200000.0;
+            profile.venueBookingCounts = venueFreq;
             return profile;
         }
 
-        Map<Long, Integer> sportFreq = new HashMap<>();
-        Map<UUID, Integer> venueFreq = new HashMap<>();
-        double totalPrice = 0.0;
-        int priceCount = 0;
-
-        for (Booking b : bookings) {
-            if (b.getVenue() != null) {
-                venueFreq.put(b.getVenue().getId(), venueFreq.getOrDefault(b.getVenue().getId(), 0) + 1);
-                if (b.getVenue().getSport() != null) {
-                    Long sId = b.getVenue().getSport().getId();
-                    sportFreq.put(sId, sportFreq.getOrDefault(sId, 0) + 1);
+        // 2. If user is brand new (0 bookings) but has registered UserSport persona from onboarding
+        if (currentUser != null) {
+            try {
+                List<UserSport> registeredSports = userSportRepository.findByUserId(currentUser.getId());
+                if (registeredSports != null && !registeredSports.isEmpty()) {
+                    profile.primarySportId = registeredSports.get(0).getSport().getId();
+                    Set<Long> secondarySports = registeredSports.stream()
+                            .skip(1)
+                            .map(us -> us.getSport().getId())
+                            .collect(Collectors.toSet());
+                    profile.secondarySportIds = secondarySports;
                 }
-            }
-            if (b.getFinalPrice() != null && b.getFinalPrice() > 0) {
-                totalPrice += b.getFinalPrice();
-                priceCount++;
+            } catch (Exception e) {
+                log.warn("Lỗi load registered user sports for recommendations: {}", e.getMessage());
             }
         }
 
-        // Find primary sport
-        Long primarySportId = null;
-        int maxCount = 0;
-        Set<Long> secondarySports = new HashSet<>();
-        for (Map.Entry<Long, Integer> entry : sportFreq.entrySet()) {
-            if (entry.getValue() > maxCount) {
-                maxCount = entry.getValue();
-                primarySportId = entry.getKey();
-            }
-            secondarySports.add(entry.getKey());
-        }
-        if (primarySportId != null) {
-            secondarySports.remove(primarySportId);
-        }
-
-        profile.primarySportId = primarySportId;
-        profile.secondarySportIds = secondarySports;
-        profile.avgPrice = (priceCount > 0) ? (totalPrice / priceCount) : 200000.0;
-        profile.venueBookingCounts = venueFreq;
         return profile;
     }
 

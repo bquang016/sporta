@@ -1,14 +1,72 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Animated } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Image,
+  ImageBackground,
+  Dimensions,
+  Animated,
+  PanResponder,
+  FlatList,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Button } from '../../../../shared/ui';
 import { useRegister } from '../hooks/useRegister';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// 5 Curated Sports Hero Backgrounds for Interactive Horizontal Sliding
+const BACKGROUND_CAROUSEL = [
+  {
+    id: '1',
+    image: require('../../../../../assets/auth/tennis_court_cart.jpg'),
+    tag: 'GẶP GỠ & TRANH TÀI',
+    headline: 'MEET. PLAY.\nREPEAT.',
+    subtext: 'Khám phá hàng trăm cụm sân chất lượng, tối ưu khung giờ và gia nhập cộng đồng.',
+  },
+  {
+    id: '2',
+    image: require('../../../../../assets/auth/badminton_court_hero.jpg'),
+    tag: 'CẦU LÔNG ĐỈNH CAO',
+    headline: 'SMASH &\nCONQUER',
+    subtext: 'Tung cú smash bùng nổ, rèn luyện phản xạ và giao lưu cùng các tay vợt phong trào.',
+  },
+  {
+    id: '3',
+    image: require('../../../../../assets/auth/football_stadium_hero.jpg'),
+    tag: 'SÂN CỎ RỰC LỬA',
+    headline: 'CHÁY CÙNG\nĐỒNG ĐỘI',
+    subtext: 'Đặt sân bóng đá nhanh chóng, tìm kèo giao hữu dễ dàng dưới ánh đèn sân vận động.',
+  },
+  {
+    id: '4',
+    image: require('../../../../../assets/auth/pickleball_court_hero.jpg'),
+    tag: 'SÔI ĐỘNG PICKLEBALL',
+    headline: 'RALLY\nTOGETHER',
+    subtext: 'Bùng nổ đam mê cùng môn thể thao phát triển nhanh nhất, gắn kết niềm vui sau giờ làm.',
+  },
+  {
+    id: '5',
+    image: require('../../../../../assets/auth/sport_auth_hero.jpg'),
+    tag: 'TÌM BẠN CHƠI THỂ THAO',
+    headline: 'PLAY BEYOND\nTHE GAME',
+    subtext: 'Kết nối vận động viên gần bạn, lên lịch thi đấu và tận hưởng từng trận cầu đỉnh cao.',
+  },
+];
+
 // Standard 4-color Google G SVG Logo
-function GoogleLogo({ size = 20 }: { size?: number }) {
+function GoogleLogo({ size = 18 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path
@@ -31,8 +89,8 @@ function GoogleLogo({ size = 20 }: { size?: number }) {
   );
 }
 
-// Standard Facebook SVG Logo
-function FacebookLogo({ size = 20 }: { size?: number }) {
+// Official Facebook Blue Vector Logo
+function FacebookLogo({ size = 18 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path
@@ -65,395 +123,951 @@ export function RegisterScreen() {
     handleRegister,
     handleGoogleRegister,
     router,
-    isPromoVisible,
-    setIsPromoVisible,
-    isExpanded,
-    pan,
-    panResponder,
   } = useRegister();
-  const { showAlert } = useAlert();
 
-  const logoImg = require('../../../../../assets/logo/logo-horizontal_1600x400.png');
+  const { showAlert } = useAlert();
+  const logoImg = require('../../../../../assets/logo/logo-main_699x699.png');
+
+  // Interactive Carousel State
+  const [activeSlide, setActiveSlide] = useState(0);
+  const carouselRef = useRef<FlatList>(null);
+
+  // Modal Expand/Collapse Animated Progress (0 = Fully Open, 1 = Collapsed)
+  const modalProgress = useRef(new Animated.Value(0)).current;
+  const isCollapsedRef = useRef(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Direct 60 FPS Spring Animation Toggle
+  const toggleModal = useCallback((collapse: boolean) => {
+    isCollapsedRef.current = collapse;
+    setIsCollapsed(collapse);
+    Animated.spring(modalProgress, {
+      toValue: collapse ? 1 : 0,
+      damping: 18,
+      stiffness: 170,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  }, [modalProgress]);
+
+  // Full-Modal Swipe Down PanResponder (Works anywhere on the modal)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.1;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0 && !isCollapsedRef.current) {
+          const progress = Math.min(Math.max(gestureState.dy / (SCREEN_HEIGHT * 0.7), 0), 1);
+          modalProgress.setValue(progress);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 70 || gestureState.vy > 0.4) {
+          toggleModal(true);
+        } else {
+          toggleModal(false);
+        }
+      },
+    })
+  ).current;
+
+  // Sync active slide index from horizontal carousel
+  const handleCarouselScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = Math.round(event.nativeEvent.contentOffset.x / (slideSize || SCREEN_WIDTH));
+    if (index >= 0 && index < BACKGROUND_CAROUSEL.length) {
+      setActiveSlide(index);
+    }
+  }, []);
+
+  const scrollToSlide = (index: number) => {
+    setActiveSlide(index);
+    carouselRef.current?.scrollToIndex({ index, animated: true });
+  };
+
+  // Interpolations for 60 FPS Native Transforms
+  const sheetTranslateY = modalProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, SCREEN_HEIGHT * 0.84],
+  });
+
+  const sheetRotate = modalProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '3.8deg'],
+  });
+
+  const sheetScale = modalProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.93],
+  });
+
+  const sheetOpacity = modalProgress.interpolate({
+    inputRange: [0, 0.75, 1],
+    outputRange: [1, 0.85, 0],
+  });
+
+  // Quick Action Dock Animation
+  const dockTranslateY = modalProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [140, 0],
+  });
+
+  const dockOpacity = modalProgress.interpolate({
+    inputRange: [0, 0.35, 1],
+    outputRange: [0, 0.15, 1],
+  });
+
+  const currentBg = BACKGROUND_CAROUSEL[activeSlide] || BACKGROUND_CAROUSEL[0];
+
+  const getPasswordStrength = () => {
+    if (!password) return { label: '', color: '#E8ECF0', width: '0%' };
+    if (password.length < 6) return { label: 'Tối thiểu 6 ký tự', color: '#BA1A1A', width: '25%' };
+    const hasLetters = /[a-zA-Z]/.test(password);
+    const hasNumbers = /[0-9]/.test(password);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(password);
+
+    if (hasLetters && hasNumbers && hasSpecial && password.length >= 8) {
+      return { label: 'Rất an toàn', color: '#064E3B', width: '100%' };
+    }
+    if (hasLetters && hasNumbers) {
+      return { label: 'Mức độ khá', color: '#B45309', width: '65%' };
+    }
+    return { label: 'Mức độ cơ bản', color: '#BA1A1A', width: '40%' };
+  };
+
+  const strength = getPasswordStrength();
+  const isMatching = confirmPassword.length > 0 && password === confirmPassword;
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <View style={styles.topBar}>
-        <TouchableOpacity 
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} 
-          style={styles.backHomeButton}
-          activeOpacity={0.7}
+    <View style={styles.screenContainer}>
+      {/* ========================================================
+          HORIZONTAL SLIDING BACKGROUND CAROUSEL
+         ======================================================== */}
+      <View style={StyleSheet.absoluteFill}>
+        <FlatList
+          ref={carouselRef}
+          data={BACKGROUND_CAROUSEL}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleCarouselScroll}
+          decelerationRate="fast"
+          style={StyleSheet.absoluteFill}
+          renderItem={({ item }) => (
+            <View style={styles.carouselSlideItem}>
+              <ImageBackground
+                source={item.image}
+                style={styles.fullBgImage}
+                resizeMode="cover"
+              >
+                <LinearGradient
+                  colors={['rgba(0, 33, 23, 0.3)', 'rgba(0, 33, 23, 0.6)', 'rgba(6, 78, 59, 0.95)']}
+                  style={styles.fullBgGradient}
+                />
+              </ImageBackground>
+            </View>
+          )}
+        />
+
+        {/* Global Floating Top Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+            <Text style={styles.backButtonText}>Trang chủ</Text>
+          </TouchableOpacity>
+
+          {/* Toggle Explore/Collapse Button */}
+          <TouchableOpacity
+            onPress={() => toggleModal(!isCollapsed)}
+            style={styles.explorePillBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={isCollapsed ? 'create-outline' : 'images-outline'}
+              size={14}
+              color="#FFFFFF"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.explorePillText}>
+              {isCollapsed ? 'Mở đăng ký' : 'Ngắm ảnh'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Inspiring Hero Story Text */}
+        <View style={styles.carouselStoryBox} pointerEvents="box-none">
+          <View style={styles.sportBadge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.sportBadgeText}>{currentBg.tag}</Text>
+          </View>
+          <Text style={styles.heroHeadline}>{currentBg.headline}</Text>
+          <Text style={styles.heroSubtext}>{currentBg.subtext}</Text>
+
+          {/* Carousel Indicator Dots */}
+          <View style={styles.carouselDotsRow}>
+            {BACKGROUND_CAROUSEL.map((item, idx) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => scrollToSlide(idx)}
+                activeOpacity={0.8}
+                style={[
+                  styles.dot,
+                  activeSlide === idx ? styles.dotActive : styles.dotInactive,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* ========================================================
+            NEAT QUICK ACTION DOCK (Appears when sheet is collapsed)
+           ======================================================== */}
+        <Animated.View
+          pointerEvents={isCollapsed ? 'auto' : 'none'}
+          style={[
+            styles.quickActionDock,
+            {
+              transform: [{ translateY: dockTranslateY }],
+              opacity: dockOpacity,
+            },
+          ]}
         >
-          <MaterialCommunityIcons name="home-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
-          <Text style={styles.backHomeText}>Quay lại trang chủ</Text>
-        </TouchableOpacity>
+          {/* Row 1: Primary Auth Actions (Đăng ký & Đăng nhập) */}
+          <View style={styles.dockRowPrimary}>
+            <TouchableOpacity
+              style={styles.dockPrimaryButton}
+              onPress={() => toggleModal(false)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="person-add-outline" size={16} color="#064E3B" />
+              <Text style={styles.dockPrimaryText}>Đăng ký ngay</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dockSecondaryButton}
+              onPress={() => router.push('/(auth)/login')}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="email-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.dockSecondaryText}>Đăng nhập</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Row 2: Compact Social Logins (Google & Facebook) */}
+          <View style={styles.dockRowSocial}>
+            <TouchableOpacity
+              style={styles.dockSocialPill}
+              onPress={handleGoogleRegister}
+              activeOpacity={0.85}
+            >
+              <GoogleLogo size={18} />
+              <Text style={styles.dockSocialText}>Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dockSocialPill}
+              onPress={handleGoogleRegister}
+              activeOpacity={0.85}
+            >
+              <FacebookLogo size={18} />
+              <Text style={styles.dockSocialText}>Facebook</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      {/* ========================================================
+          ANIMATED FLOATING MODAL SHEET (With Full-Modal Swipe Down)
+         ======================================================== */}
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.modalSheetAnimatedWrapper,
+          {
+            transform: [
+              { translateY: sheetTranslateY },
+              { rotate: sheetRotate },
+              { scale: sheetScale },
+            ],
+            opacity: sheetOpacity,
+          },
+        ]}
       >
-        {/* Brand Logo */}
-        <View style={styles.logoWrapper}>
-          <Image source={logoImg} style={styles.logoImage} resizeMode="contain" />
-        </View>
-
-        {/* Header Title */}
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.title}>Đăng ký tài khoản</Text>
-          <Text style={styles.subtitle}>Tạo tài khoản mới để bắt đầu khám phá sân thể thao cùng Sporta</Text>
-        </View>
-
-        {/* Register Form fields */}
-        <View style={styles.formContainer}>
-          <Text style={styles.label}>Email</Text>
-          <View style={[styles.inputContainer, isFocusedEmail && styles.inputContainerFocused]}>
-            <MaterialCommunityIcons name="email-outline" size={20} color={isFocusedEmail ? COLORS.primary : COLORS.outline} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nhập địa chỉ email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor={COLORS.outline}
-              onFocus={() => setIsFocusedEmail(true)}
-              onBlur={() => setIsFocusedEmail(false)}
-            />
-          </View>
-
-          <Text style={styles.label}>Mật khẩu</Text>
-          <View style={[styles.inputContainer, isFocusedPassword && styles.inputContainerFocused]}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color={isFocusedPassword ? COLORS.primary : COLORS.outline} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nhập mật khẩu"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              placeholderTextColor={COLORS.outline}
-              onFocus={() => setIsFocusedPassword(true)}
-              onBlur={() => setIsFocusedPassword(false)}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.outline} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>Nhập lại mật khẩu</Text>
-          <View style={[styles.inputContainer, isFocusedConfirm && styles.inputContainerFocused]}>
-            <MaterialCommunityIcons name="lock-outline" size={20} color={isFocusedConfirm ? COLORS.primary : COLORS.outline} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Xác nhận mật khẩu"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              placeholderTextColor={COLORS.outline}
-              onFocus={() => setIsFocusedConfirm(true)}
-              onBlur={() => setIsFocusedConfirm(false)}
-            />
-            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-              <MaterialCommunityIcons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.outline} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.submitContainer}>
-            <Button 
-              title="Đăng ký"
-              variant="primary"
-              size="lg"
-              loading={loading}
-              onPress={handleRegister}
-              style={styles.registerBtn}
-            />
-          </View>
-        </View>
-
-        {/* Hoặc đăng ký với */}
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>Hoặc đăng ký với</Text>
-          <View style={styles.divider} />
-        </View>
-
-        {/* Nút đăng ký Google/Facebook */}
-        <View style={styles.socialContainer}>
-          <Button 
-            variant="outline"
-            style={styles.socialButton}
-            onPress={handleGoogleRegister}
-            icon={<GoogleLogo size={18} />}
-            title="Google"
-            textStyle={styles.socialBtnText}
-          />
-          <Button 
-            variant="outline"
-            style={styles.socialButton}
-            onPress={() => showAlert('Thông báo', 'Tính năng đăng ký qua Facebook đang được phát triển.')}
-            icon={<FacebookLogo size={18} />}
-            title="Facebook"
-            textStyle={styles.socialBtnText}
-          />
-        </View>
-
-        {/* Redirection link back to login */}
-        <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>Đã có tài khoản? </Text>
-          <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-            <Text style={styles.footerLink}>Đăng nhập</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      {/* Floating Interactive Partner Promo */}
-      {isPromoVisible && (
-        <Animated.View 
-          style={[
-            styles.floatingPromoContainer, 
-            { paddingRight: isExpanded ? 40 : 6 },
-            { transform: [{ translateX: pan.x }, { translateY: pan.y }] }
-          ]}
-          {...panResponder.panHandlers}
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <TouchableOpacity 
-            style={styles.floatingPromoContent}
-            activeOpacity={0.8}
-            onPress={() => router.push('/partner-intro')}
+          <ScrollView
+            style={styles.sheetScrollView}
+            contentContainerStyle={styles.sheetScrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
           >
-            <View style={[styles.promoIconContainer, !isExpanded && { marginRight: 0 }]}>
-              <MaterialCommunityIcons name="handshake" size={22} color={COLORS.primary} />
+            {/* Top Pull-down handle bar */}
+            <View style={styles.dragHandleContainer}>
+              <View style={styles.dragHandleBar} />
+              <TouchableOpacity
+                onPress={() => toggleModal(true)}
+                style={styles.collapseHintButton}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.collapseHintText}>Vuốt xuống bất kỳ đâu để khám phá</Text>
+                <Ionicons name="chevron-down" size={14} color="#8A929A" />
+              </TouchableOpacity>
             </View>
-            {isExpanded && (
-              <View style={styles.promoTextContainer}>
-                <Text style={styles.promoTitle}>Hợp tác Sporta?</Text>
-                <Text style={styles.promoSubtitle}>Đăng ký làm chủ sân</Text>
+
+            {/* Top Brand Header */}
+            <View style={styles.sheetHeader}>
+              <View style={styles.brandLogoRow}>
+                <Image source={logoImg} style={styles.brandLogoImage} resizeMode="contain" />
+                <Text style={styles.brandTitleText}>Sporta</Text>
               </View>
-            )}
-          </TouchableOpacity>
-          
-          {isExpanded && (
-            <TouchableOpacity 
-              style={styles.promoCloseButton}
-              onPress={() => setIsPromoVisible(false)}
-            >
-              <MaterialCommunityIcons name="close" size={16} color={COLORS.onSurfaceVariant} />
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      )}
-    </KeyboardAvoidingView>
+              <Text style={styles.welcomeTitle}>Tạo tài khoản mới</Text>
+              <Text style={styles.welcomeSubtitle}>
+                Trở thành thành viên Sporta để mở khóa trọn bộ tiện ích đặt sân và kết nối thể thao.
+              </Text>
+            </View>
+
+            {/* Form Inputs Container */}
+            <View style={styles.formContainer}>
+              {/* Email Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    isFocusedEmail && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="email-outline"
+                    size={20}
+                    color={isFocusedEmail ? '#064E3B' : '#8A929A'}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="name@example.com"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholderTextColor="#9AA1A9"
+                    onFocus={() => setIsFocusedEmail(true)}
+                    onBlur={() => setIsFocusedEmail(false)}
+                  />
+                  {email.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setEmail('')}
+                      style={styles.iconButton}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#B4BCC4" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Password Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Mật khẩu</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    isFocusedPassword && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="lock-outline"
+                    size={20}
+                    color={isFocusedPassword ? '#064E3B' : '#8A929A'}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Tối thiểu 6 ký tự"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    placeholderTextColor="#9AA1A9"
+                    onFocus={() => setIsFocusedPassword(true)}
+                    onBlur={() => setIsFocusedPassword(false)}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.iconButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#8A929A"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Password Strength Indicator */}
+                {password.length > 0 && (
+                  <View style={styles.strengthContainer}>
+                    <View style={styles.strengthBarBg}>
+                      <View
+                        style={[
+                          styles.strengthBarFill,
+                          { width: strength.width as any, backgroundColor: strength.color },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.strengthLabel, { color: strength.color }]}>
+                      {strength.label}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Confirm Password Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Xác nhận mật khẩu</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    isFocusedConfirm && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="lock-check-outline"
+                    size={20}
+                    color={isFocusedConfirm ? '#064E3B' : '#8A929A'}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Nhập lại mật khẩu"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                    placeholderTextColor="#9AA1A9"
+                    onFocus={() => setIsFocusedConfirm(true)}
+                    onBlur={() => setIsFocusedConfirm(false)}
+                  />
+                  {isMatching && (
+                    <Ionicons name="checkmark-circle" size={20} color="#064E3B" style={{ marginRight: 6 }} />
+                  )}
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.iconButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#8A929A"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Primary Register CTA Button */}
+              <TouchableOpacity
+                style={[styles.primaryPillButton, loading && styles.btnDisabled]}
+                onPress={handleRegister}
+                disabled={loading}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.primaryPillButtonText}>
+                  {loading ? 'Đang gửi mã OTP...' : 'Đăng ký tài khoản'}
+                </Text>
+                {!loading && <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+              </TouchableOpacity>
+            </View>
+
+            {/* Split Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerLabel}>Hoặc đăng ký nhanh với</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social Authentication Pill Buttons (Google & Facebook) */}
+            <View style={styles.socialRow}>
+              <TouchableOpacity
+                style={styles.socialPillButton}
+                onPress={handleGoogleRegister}
+                activeOpacity={0.8}
+              >
+                <GoogleLogo size={18} />
+                <Text style={styles.socialPillText}>Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.socialPillButton}
+                onPress={handleGoogleRegister}
+                activeOpacity={0.8}
+              >
+                <FacebookLogo size={18} />
+                <Text style={styles.socialPillText}>Facebook</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Redirection Link back to Login */}
+            <View style={styles.footerRow}>
+              <Text style={styles.footerPromptText}>Đã có tài khoản Sporta? </Text>
+              <TouchableOpacity
+                onPress={() => router.replace('/(auth)/login')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.footerHighlightLink}>Đăng nhập</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#064E3B',
   },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingHorizontal: SPACING.marginMobile,
-    backgroundColor: 'transparent',
-    zIndex: 10,
+  carouselSlideItem: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
   },
-  backHomeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: COLORS.primaryOpacity15,
-  },
-  backHomeText: {
-    color: COLORS.primary,
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: 20,
-    paddingBottom: 110,
-  },
-  logoWrapper: {
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-    height: 48,
-  },
-  logoImage: {
-    width: 190,
+  fullBgImage: {
+    width: '100%',
     height: '100%',
   },
-  headerTextContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
+  fullBgGradient: {
+    flex: 1,
   },
-  title: {
-    ...TYPOGRAPHY.headlineLgMobile,
-    color: COLORS.onSurface,
-    textAlign: 'center',
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.sm,
-    lineHeight: 18,
-  },
-  formContainer: {
-    marginBottom: SPACING.md,
-  },
-  label: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
-    marginBottom: SPACING.xs,
-    fontWeight: '700',
-  },
-  inputContainer: {
+  topBar: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 28,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB', // Default light border
-    borderRadius: 16, // Bo tròn 16px sang trọng
-    paddingHorizontal: SPACING.md,
-    height: 54, // Tăng chiều cao lên 54 cho thoải mái
-    marginBottom: SPACING.md,
-    backgroundColor: '#F9FAFB', // Background hơi xám nhẹ cao cấp
+    justifyContent: 'space-between',
+    zIndex: 20,
   },
-  inputContainerFocused: {
-    borderColor: COLORS.primary, // Viền màu ngọc bích đậm khi focus
-    backgroundColor: COLORS.white, // Nền trắng nổi bật
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  explorePillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  explorePillText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  carouselStoryBox: {
+    position: 'absolute',
+    bottom: 160,
+    left: 24,
+    right: 24,
+    alignItems: 'flex-start',
+  },
+  sportBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  badgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FED01B',
+    marginRight: 6,
+  },
+  sportBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  heroHeadline: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '900',
+    lineHeight: 36,
+    letterSpacing: -0.7,
+    marginBottom: 8,
+  },
+  heroSubtext: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13.5,
+    lineHeight: 19,
+    maxWidth: 320,
+    marginBottom: 14,
+  },
+  carouselDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dot: {
+    height: 4,
+    borderRadius: 2,
+  },
+  dotActive: {
+    width: 22,
+    backgroundColor: '#FED01B',
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  quickActionDock: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 36 : 20,
+    left: 18,
+    right: 18,
+    backgroundColor: 'rgba(6, 40, 31, 0.75)',
+    borderRadius: 24,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    gap: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dockRowPrimary: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  dockPrimaryButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dockPrimaryText: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#064E3B',
+  },
+  dockSecondaryButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  dockSecondaryText: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dockRowSocial: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  dockSocialPill: {
+    flex: 1,
+    height: 40,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  dockSocialText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modalSheetAnimatedWrapper: {
+    position: 'absolute',
+    top: 96,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 14,
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  sheetScrollView: {
+    flex: 1,
+  },
+  sheetScrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: 48,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  dragHandleBar: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D4DCDE',
+    marginBottom: 6,
+  },
+  collapseHintButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  collapseHintText: {
+    fontSize: 11.5,
+    color: '#8A929A',
+    fontWeight: '600',
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  brandLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  brandLogoImage: {
+    width: 30,
+    height: 30,
+  },
+  brandTitleText: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#064E3B',
+    letterSpacing: -0.5,
+  },
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#151C27',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  welcomeSubtitle: {
+    fontSize: 13.5,
+    color: '#5C6460',
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: 8,
+  },
+  formContainer: {
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#191C20',
+    marginBottom: 6,
+    letterSpacing: 0.1,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 16,
+    height: 52,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8ECF0',
+  },
+  inputWrapperFocused: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#064E3B',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
     elevation: 2,
   },
   inputIcon: {
-    marginRight: SPACING.sm,
+    marginRight: 10,
   },
-  input: {
+  textInput: {
     flex: 1,
-    ...TYPOGRAPHY.bodyLg,
-    color: COLORS.onSurface,
+    fontSize: 15,
+    color: '#151C27',
+    paddingVertical: 0,
     ...Platform.select({
       web: { outlineStyle: 'none' } as any,
     }),
   },
-  submitContainer: {
-    marginTop: SPACING.sm,
+  iconButton: {
+    padding: 4,
   },
-  registerBtn: {
-    height: 50,
-    borderRadius: 16, // Bo tròn nút 16px
-  },
-  footerContainer: {
+  strengthContainer: {
     flexDirection: 'row',
-    marginTop: SPACING.lg,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  strengthBarBg: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#E8ECF0',
+    borderRadius: BORDER_RADIUS.full,
+    overflow: 'hidden',
+  },
+  strengthBarFill: {
+    height: '100%',
+    borderRadius: BORDER_RADIUS.full,
+  },
+  strengthLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  primaryPillButton: {
+    height: 52,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#064E3B',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
+    marginTop: 8,
   },
-  footerText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+  btnDisabled: {
+    opacity: 0.65,
   },
-  footerLink: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+  primaryPillButtonText: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: SPACING.lg,
+    marginVertical: 18,
   },
-  divider: {
+  dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.outlineVariant,
+    backgroundColor: '#E8ECF0',
   },
-  dividerText: {
-    marginHorizontal: SPACING.base,
-    color: COLORS.outline,
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '700',
+  dividerLabel: {
+    marginHorizontal: 12,
+    color: '#8A929A',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  socialContainer: {
+  socialRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    gap: 12,
+    marginBottom: 20,
   },
-  socialButton: {
-    flex: 0.48,
-    height: 50,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    backgroundColor: COLORS.white,
-  },
-  socialBtnText: {
-    color: COLORS.onSurface,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  floatingPromoContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 40 : 30,
-    right: 20,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 6,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
+  socialPillButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#F5F7FA',
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    zIndex: 100,
-  },
-  floatingPromoContent: {
+    borderColor: '#E8ECF0',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  promoIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primaryOpacity15,
+  socialPillText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#151C27',
+  },
+  footerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginBottom: 20,
   },
-  promoTextContainer: {
-    justifyContent: 'center',
+  footerPromptText: {
+    fontSize: 13.5,
+    color: '#5C6460',
   },
-  promoTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+  footerHighlightLink: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#064E3B',
   },
-  promoSubtitle: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
-  },
-  promoCloseButton: {
-    position: 'absolute',
-    top: 14,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.surfaceVariant,
-    alignItems: 'center',
-    justifyContent: 'center',
-  }
 });
+
+
+
