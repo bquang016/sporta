@@ -475,6 +475,8 @@ export function LoginScreen() {
                     placeholderTextColor="#9AA1A9"
                     onFocus={() => setIsFocusedPassword(true)}
                     onBlur={() => setIsFocusedPassword(false)}
+                    onSubmitEditing={handleLogin}
+                    returnKeyType="go"
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
@@ -504,6 +506,8 @@ export function LoginScreen() {
                 onPress={handleLogin}
                 disabled={loading}
                 activeOpacity={0.88}
+                accessibilityRole="button"
+                accessibilityLabel="Đăng nhập"
               >
                 <Text style={styles.primaryPillButtonText}>
                   {loading ? 'Đang xác thực...' : 'Đăng nhập'}

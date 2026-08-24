@@ -17,4 +17,11 @@ backend/*.war
 
 # Environment files
 .env
-**/.env
+**/.env
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/allure-results/
+/playwright/.cache/
+/playwright/.cache/*

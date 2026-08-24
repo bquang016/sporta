@@ -82,6 +82,9 @@ export function Button({
       style={buttonStyles}
       disabled={isButtonDisabled}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isButtonDisabled }}
+      aria-disabled={isButtonDisabled}
       {...rest}
     >
       {loading ? (

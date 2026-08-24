@@ -216,14 +216,14 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
     Keyboard.dismiss();
 
     if (cardType === 'match_room' || cardType === 'partner') {
-      handleClose();
+      onClose();
       if (id && id !== 'all' && !id.startsWith('u')) {
         router.push(`/matchmaking/${id}` as any);
       } else {
         router.push('/matchmaking' as any);
       }
     } else if (cardType === 'club') {
-      handleClose();
+      onClose();
       if (id) {
         router.push(`/club-detail-explore/${id}` as any);
       } else {
@@ -232,7 +232,7 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
     } else {
       // Default: Venue
       if (action === 'book') {
-        handleClose();
+        onClose();
         if (id) {
           router.push(`/booking/${id}` as any);
         }

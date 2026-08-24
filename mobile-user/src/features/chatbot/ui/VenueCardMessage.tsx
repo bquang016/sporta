@@ -40,13 +40,7 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
   const badge = getBadgeInfo();
 
   return (
-    <TouchableOpacity
-      style={styles.cardContainer}
-      onPress={() => onActionPress(card.id, card.type, 'detail')}
-      activeOpacity={0.92}
-      accessibilityRole="button"
-      accessibilityLabel={`Xem chi tiết ${card.name}`}
-    >
+    <View style={styles.cardContainer}>
       {/* ── Card Image Header ── */}
       {card.image ? (
         <View style={styles.imageWrapper}>
@@ -121,6 +115,8 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
               style={styles.detailButton}
               onPress={() => onActionPress(card.id, card.type, 'detail')}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Xem chi tiết sân"
             >
               <Ionicons name="information-circle-outline" size={14} color={COLORS.primary} style={{ marginRight: 4 }} />
               <Text style={styles.detailButtonText}>Xem chi tiết</Text>
@@ -131,6 +127,8 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
               style={styles.bookButton}
               onPress={() => onActionPress(card.id, card.type, 'book')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Đặt sân ngay"
             >
               <Text style={styles.bookButtonText}>Đặt sân ngay</Text>
               <Ionicons name="arrow-forward" size={13} color={COLORS.onSecondary} style={{ marginLeft: 3 }} />
@@ -160,7 +158,7 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
           </TouchableOpacity>
         ) : null}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 

@@ -202,6 +202,9 @@ export function BookingMatrix({
                     return (
                       <TouchableOpacity
                         key={`${court.id}-${time}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Slot ${court.name} ${time}`}
+                        testID={`slot-${court.id}-${time}`}
                         style={[
                           styles.slotCell,
                           { backgroundColor: bgColor },
