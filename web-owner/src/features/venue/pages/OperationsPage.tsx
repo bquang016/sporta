@@ -73,7 +73,15 @@ export const OperationsPage = () => {
 
     activeVenue, activeVenueId, activeCourts, filteredVenues, draftVenues, deleteVenueDraft,
     actionRequiredBookings, todayRevenue, totalBookingsCount, avgOccupancy,
+    totalVenueSlots, totalBookedSlots,
     activeCount, maintCount, closedCount, totalOpCourts,
+
+    // Statistics API states
+    statistics, isLoadingStats,
+    dateRangePreset, setDateRangePreset,
+    customFromDate, setCustomFromDate,
+    customToDate, setCustomToDate,
+    refreshStatistics,
 
     formatVND, hourDropdownOptions, opDropdownOptions,
     getCourtOpStatus, getCourtDetails,
@@ -314,10 +322,21 @@ export const OperationsPage = () => {
                   todayRevenue={todayRevenue}
                   totalBookingsCount={totalBookingsCount}
                   avgOccupancy={avgOccupancy}
+                  totalVenueSlots={totalVenueSlots}
+                  totalBookedSlots={totalBookedSlots}
                   activeCount={activeCount}
                   maintCount={maintCount}
                   closedCount={closedCount}
                   totalOpCourts={totalOpCourts}
+                  statistics={statistics}
+                  isLoadingStats={isLoadingStats}
+                  dateRangePreset={dateRangePreset}
+                  setDateRangePreset={setDateRangePreset}
+                  customFromDate={customFromDate}
+                  setCustomFromDate={setCustomFromDate}
+                  customToDate={customToDate}
+                  setCustomToDate={setCustomToDate}
+                  onRefresh={refreshStatistics}
                   getCourtOpStatus={getCourtOpStatus}
                   getCourtDetails={getCourtDetails}
                   formatVND={formatVND}
@@ -486,17 +505,28 @@ export const OperationsPage = () => {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-hidden mt-6">
+                <div className="flex-1 overflow-y-auto matrix-scroll mt-6 pr-1">
                   {activeTab === 'overview' ? (
                     <OperationsOverviewTab
                       activeCourts={activeCourts}
                       todayRevenue={todayRevenue}
                       totalBookingsCount={totalBookingsCount}
                       avgOccupancy={avgOccupancy}
+                      totalVenueSlots={totalVenueSlots}
+                      totalBookedSlots={totalBookedSlots}
                       activeCount={activeCount}
                       maintCount={maintCount}
                       closedCount={closedCount}
                       totalOpCourts={totalOpCourts}
+                      statistics={statistics}
+                      isLoadingStats={isLoadingStats}
+                      dateRangePreset={dateRangePreset}
+                      setDateRangePreset={setDateRangePreset}
+                      customFromDate={customFromDate}
+                      setCustomFromDate={setCustomFromDate}
+                      customToDate={customToDate}
+                      setCustomToDate={setCustomToDate}
+                      onRefresh={refreshStatistics}
                       getCourtOpStatus={getCourtOpStatus}
                       getCourtDetails={getCourtDetails}
                       formatVND={formatVND}

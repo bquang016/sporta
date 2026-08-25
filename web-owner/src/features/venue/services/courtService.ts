@@ -1,4 +1,4 @@
-import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse, VenueDraftRequest } from '../types';
+import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse, VenueDraftRequest, VenueStatisticsResponse } from '../types';
 
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const BASE_URL = `http://${host}:8387/api/v1`;
@@ -177,5 +177,18 @@ export const courtService = {
       body: JSON.stringify(rules),
     });
     return handleResponse(res, 'Lỗi khi lưu cấu hình giá chi tiết của sân');
+  },
+
+  async getVenueStatistics(venueId: string, from?: string, to?: string): Promise<VenueStatisticsResponse> {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+
+    const res = await fetch(`${BASE_URL}/owner/venues/${venueId}/statistics${queryString}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Không thể lấy dữ liệu thống kê vận hành của cụm sân');
   }
 };
