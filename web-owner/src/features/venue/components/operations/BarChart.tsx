@@ -11,6 +11,9 @@ interface BarChartProps {
     liveStatus: string;
     occupancy: number;
     performanceRevenue: number;
+    bookedSlots?: number;
+    totalSlots?: number;
+    bookingCount?: number;
     isMaintenance: boolean;
   };
   formatVND: (n: number) => string;
@@ -93,12 +96,17 @@ export const BarChart = ({ courts, getCourtOpStatus, getCourtDetails, formatVND,
                   <div className={`
                     absolute bottom-full mb-2 opacity-0 group-hover:opacity-100
                     transition-opacity bg-slate-900/95 text-white font-black
-                    px-2.5 py-1.5 rounded-xl shadow-lg pointer-events-none whitespace-nowrap z-50
+                    px-3 py-2 rounded-xl shadow-lg pointer-events-none whitespace-nowrap z-50
                     ${isMobile ? 'text-[8px]' : 'text-[9px]'}
                   `}>
-                    <div className="font-black">{details.name}</div>
-                    <div className="text-white/70 font-bold">{formatVND(details.performanceRevenue)}</div>
-                    <div className="text-white/60 font-bold">Lấp đầy: {details.occupancy}%</div>
+                    <div className="font-black text-emerald-400">{details.name}</div>
+                    <div className="text-white font-bold">{formatVND(details.performanceRevenue)}</div>
+                    <div className="text-slate-300 font-bold">Lấp đầy: <span className="text-amber-300">{details.occupancy}%</span></div>
+                    {details.bookedSlots !== undefined && details.totalSlots !== undefined && (
+                      <div className="text-slate-400 text-[8px] font-semibold">
+                        Đã đặt: {details.bookedSlots}/{details.totalSlots} ca
+                      </div>
+                    )}
                     {/* Tooltip arrow */}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900/95" />
                   </div>

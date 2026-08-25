@@ -21,6 +21,7 @@ export interface WalletTransactionResponse {
   id: string;
   walletType: 'USER' | 'OWNER';
   transactionType: 'TOP_UP' | 'BOOKING_PAYMENT' | 'BOOKING_REFUND' | 'BOOKING_EARNING' | 'COMMISSION_DEDUCT' | 'WITHDRAWAL';
+  amount?: number;
   balanceBefore: number;
   balanceAfter: number;
   referenceId?: string;

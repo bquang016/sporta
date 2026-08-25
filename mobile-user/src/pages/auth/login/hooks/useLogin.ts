@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Platform, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
@@ -14,64 +14,8 @@ export function useLogin() {
   const [isFocusedEmail, setIsFocusedEmail] = useState(false);
   const [isFocusedPassword, setIsFocusedPassword] = useState(false);
   
-  // Trạng thái cho banner Hợp tác Sporta nổi
-  const [isPromoVisible, setIsPromoVisible] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(true);
-  const { showAlert, showConfirm } = useAlert();
+  const { showAlert } = useAlert();
   const router = useRouter();
-
-  const isExpandedRef = useRef(isExpanded);
-
-  useEffect(() => {
-    isExpandedRef.current = isExpanded;
-  }, [isExpanded]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIsExpanded(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Xử lý kéo thả cho Banner nổi
-  const pan = useRef(new Animated.ValueXY()).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (e, gestureState) => {
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-      },
-      onPanResponderGrant: () => {
-        pan.setOffset({
-          x: (pan.x as any)._value,
-          y: (pan.y as any)._value
-        });
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-        const screenWidth = Dimensions.get('window').width;
-        const containerWidth = isExpandedRef.current ? 180 : 52;
-        const leftX = -(screenWidth - 40 - containerWidth);
-        const currentX = (pan.x as any)._value;
-        const currentY = (pan.y as any)._value;
-        const midPoint = leftX / 2;
-
-        const targetX = currentX < midPoint ? leftX : 0;
-
-        Animated.spring(pan, {
-          toValue: { x: targetX, y: currentY },
-          useNativeDriver: false,
-          friction: 6,
-          tension: 40,
-        }).start();
-      }
-    })
-  ).current;
 
   // Google Sign-In setup
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
@@ -103,8 +47,8 @@ export function useLogin() {
             registrationToken: response.registrationToken,
             email: response.email,
             password: dummyPassword,
-            fullName: response.fullName
-          }
+            fullName: response.fullName,
+          },
         });
       } else {
         if (Platform.OS === 'web') {
@@ -131,7 +75,8 @@ export function useLogin() {
   };
 
   const handleLogin = async () => {
-    if (!email || !email.includes('@')) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
       showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
@@ -142,8 +87,8 @@ export function useLogin() {
 
     setLoading(true);
     try {
-      const response = await loginApi(email, password);
-      let realFullName = email.split('@')[0];
+      const response = await loginApi(trimmedEmail, password);
+      let realFullName = trimmedEmail.split('@')[0];
       realFullName = realFullName.charAt(0).toUpperCase() + realFullName.slice(1);
       let realAvatar: string | null = null;
 
@@ -166,7 +111,7 @@ export function useLogin() {
       }
       
       if (Platform.OS === 'web') {
-        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userEmail', trimmedEmail);
         localStorage.setItem('userName', realFullName);
         if (realAvatar) {
           localStorage.setItem('userAvatar', realAvatar);
@@ -174,7 +119,7 @@ export function useLogin() {
           localStorage.removeItem('userAvatar');
         }
       } else {
-        await SecureStore.setItemAsync('userEmail', email);
+        await SecureStore.setItemAsync('userEmail', trimmedEmail);
         await SecureStore.setItemAsync('userName', realFullName);
         if (realAvatar) {
           await SecureStore.setItemAsync('userAvatar', realAvatar);
@@ -202,11 +147,6 @@ export function useLogin() {
     setIsFocusedEmail,
     isFocusedPassword,
     setIsFocusedPassword,
-    isPromoVisible,
-    setIsPromoVisible,
-    isExpanded,
-    pan,
-    panResponder,
     handleGoogleLogin,
     handleLogin,
     router,
