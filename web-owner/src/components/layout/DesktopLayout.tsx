@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/matrix': 'Quản lý lịch',
   '/scan': 'Quét mã QR',
   '/operations': 'Quản lý vận hành',
+  '/pricing': 'Định giá AI & Dự báo',
   '/wallet': 'Ví của tôi',
   '/vouchers': 'Mã khuyến mãi',
   '/profile': 'Hồ sơ tài khoản',
@@ -155,6 +156,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/scan" icon="scan" label="Quét mã QR" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
+          <NavItem to="/pricing" icon="sparkles" label="Định giá AI & Dự báo" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/wallet" icon="wallet" label="Ví của tôi" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/vouchers" icon="voucher" label="Mã khuyến mãi" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/settings" icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
@@ -552,6 +554,8 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>;
     case 'facility':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>;
+    case 'sparkles':
+      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
     case 'venue':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
     case 'dot':

@@ -5,6 +5,7 @@ import { DesktopDashboardPage } from './features/dashboard/pages/DesktopDashboar
 import { MatrixPage } from './features/booking/pages/MatrixPage'
 import { ScanPage } from './features/scan/pages/ScanPage'
 import { OperationsPage } from './features/venue/pages/OperationsPage'
+import { DynamicPricingPage } from './features/venue/pages/DynamicPricingPage'
 import { OperationsProvider } from './hooks/useOperationsState'
 import { ProfilePage } from './features/profile/pages/ProfilePage'
 import { SettingsPage } from './features/settings/pages/SettingsPage'
@@ -40,6 +41,11 @@ function App() {
         <Route path="/operations" element={
           <OperationsProvider>
             <OperationsPage />
+          </OperationsProvider>
+        } />
+        <Route path="/pricing" element={
+          <OperationsProvider>
+            <DynamicPricingPage />
           </OperationsProvider>
         } />
         <Route path="/wallet" element={<WalletPage />} />
