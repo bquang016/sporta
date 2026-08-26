@@ -1,29 +1,81 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Image,
+  ImageBackground,
+  Dimensions,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Button } from '../../../../shared/ui';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DEFAULT_PLAYER_AVATAR = require('../../../../../assets/player/player_699x699.png');
 
 export function PersonalInfoScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
 
-  const [fullName, setFullName] = useState(typeof initialFullName === 'string' ? initialFullName : '');
-  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [fullName, setFullName] = useState(
+    typeof initialFullName === 'string' ? initialFullName : ''
+  );
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(new Date(2000, 0, 1));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
+  const [isFocusedName, setIsFocusedName] = useState(false);
+
+  const heroBg = require('../../../../../assets/auth/sport_auth_hero.jpg');
+
+  const handlePickAvatar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert('Quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.log('Pick avatar error:', e);
+    }
+  };
 
   const handleNext = () => {
-    if (!fullName.trim() || !dateOfBirth) {
-      showAlert('Thiếu thông tin', 'Vui lòng nhập đầy đủ họ tên và ngày sinh.');
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
+      showAlert('Thiếu thông tin', 'Vui lòng nhập họ và tên của bạn.');
+      return;
+    }
+    if (!dateOfBirth) {
+      showAlert('Thiếu thông tin', 'Vui lòng chọn ngày sinh của bạn.');
       return;
     }
 
-    const formattedDob = `${dateOfBirth.getFullYear()}-${(dateOfBirth.getMonth() + 1).toString().padStart(2, '0')}-${dateOfBirth.getDate().toString().padStart(2, '0')}`;
+    const formattedDob = `${dateOfBirth.getFullYear()}-${(dateOfBirth.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${dateOfBirth.getDate().toString().padStart(2, '0')}`;
 
     router.push({
       pathname: '/(auth)/sport-level',
@@ -31,10 +83,11 @@ export function PersonalInfoScreen() {
         registrationToken,
         email,
         password,
-        fullName,
+        fullName: trimmedName,
         dateOfBirth: formattedDob,
-        gender
-      }
+        gender,
+        avatarUri: avatarUri || '',
+      },
     });
   };
 
@@ -53,270 +106,569 @@ export function PersonalInfoScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sporta</Text>
-      </View>
-
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: '50%' }]} />
-        </View>
-        <View style={styles.progressTextContainer}>
-          <Text style={styles.progressTextLeft}>BƯỚC 1 TRÊN 2</Text>
-          <Text style={styles.progressTextRight}>50% Hoàn tất</Text>
-        </View>
-      </View>
-
-      <View style={styles.content}>
-        <Text style={styles.title}>Thông tin cá nhân</Text>
-        <Text style={styles.subtitle}>
-          Chào mừng bạn! Hãy cho chúng tôi biết một chút về bạn để cá nhân hóa trải nghiệm tập luyện.
-        </Text>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Họ và tên</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ví dụ: Nguyễn Văn A"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholderTextColor={COLORS.outline}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Ngày sinh</Text>
-          <TouchableOpacity 
-            style={styles.dateInputContainer} 
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
+    <KeyboardAvoidingView
+      style={styles.screenContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
+        <View style={styles.responsiveWrapper}>
+          {/* ========================================================
+              TOP HERO SECTION: Lush sports backdrop
+             ======================================================== */}
+          <ImageBackground
+            source={heroBg}
+            style={styles.heroSection}
+            resizeMode="cover"
           >
-            <Text style={[styles.dateInputText, !dateOfBirth && { color: COLORS.outline }]}>
-              {dateOfBirth ? formatDate(dateOfBirth) : 'DD/MM/YYYY'}
-            </Text>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={20} color={COLORS.outline} />
-          </TouchableOpacity>
-          
-          {showDatePicker && (
-            <DateTimePicker
-              value={dateOfBirth || new Date(2000, 0, 1)}
-              mode="date"
-              display="default"
-              onChange={onChangeDate}
-              maximumDate={new Date()}
-            />
-          )}
-        </View>
+            <LinearGradient
+              colors={['rgba(0, 33, 23, 0.4)', 'rgba(0, 33, 23, 0.75)', '#064E3B']}
+              style={styles.heroGradient}
+            >
+              {/* Top Navigation Bar */}
+              <View style={styles.topBar}>
+                <TouchableOpacity
+                  onPress={() => (router.canGoBack() ? router.back() : router.replace('/(auth)/login'))}
+                  style={styles.backButton}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+                  <Text style={styles.backButtonText}>Quay lại</Text>
+                </TouchableOpacity>
+              </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Giới tính</Text>
-          <View style={styles.genderContainer}>
-            <TouchableOpacity 
-              style={[styles.genderOption, gender === 'MALE' && styles.genderOptionActive]}
-              onPress={() => setGender('MALE')}
+              {/* Hero Banner Slogan */}
+              <View style={styles.heroCenter}>
+                <View style={styles.sportBadge}>
+                  <Text style={styles.sportBadgeText}>BƯỚC 1 / 3: HỒ SƠ CƠ BẢN</Text>
+                </View>
+                <Text style={styles.heroHeadline}>SET UP YOUR{'\n'}PROFILE</Text>
+              </View>
+            </LinearGradient>
+          </ImageBackground>
+
+          {/* ========================================================
+              CURVED WHITE SHEET: Form Inputs Container
+             ======================================================== */}
+          <View style={styles.sheetContainer}>
+            {/* Step Progress Indicator */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '33.3%' }]} />
+              </View>
+              <View style={styles.progressTextRow}>
+                <Text style={styles.progressTextLeft}>BƯỚC 1 / 3: THÔNG TIN CÁ NHÂN</Text>
+                <Text style={styles.progressTextRight}>33% Hoàn tất</Text>
+              </View>
+            </View>
+
+            {/* Avatar Selector with Aura Ring */}
+            <View style={styles.avatarSection}>
+              <TouchableOpacity
+                style={styles.avatarWrapper}
+                onPress={handlePickAvatar}
+                activeOpacity={0.85}
+              >
+                <View style={styles.avatarAura} />
+                <Image
+                  source={avatarUri ? { uri: avatarUri } : DEFAULT_PLAYER_AVATAR}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.avatarHint}>Chạm để chọn ảnh đại diện (Tùy chọn)</Text>
+            </View>
+
+            {/* Form Inputs Container */}
+            <View style={styles.formContainer}>
+              {/* Full Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Họ và tên <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    isFocusedName && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="account-outline"
+                    size={20}
+                    color={isFocusedName ? '#064E3B' : '#8A929A'}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Ví dụ: Nguyễn Văn A"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    autoCapitalize="words"
+                    placeholderTextColor="#9AA1A9"
+                    onFocus={() => setIsFocusedName(true)}
+                    onBlur={() => setIsFocusedName(false)}
+                  />
+                </View>
+              </View>
+
+              {/* Date of Birth */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Ngày sinh <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.dateInputWrapper}
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.dateLeftRow}>
+                    <MaterialCommunityIcons
+                      name="calendar-month-outline"
+                      size={20}
+                      color="#064E3B"
+                      style={styles.inputIcon}
+                    />
+                    <Text style={styles.dateInputText}>
+                      {dateOfBirth ? formatDate(dateOfBirth) : 'DD/MM/YYYY'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={18} color="#8A929A" />
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={dateOfBirth || new Date(2000, 0, 1)}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onChangeDate}
+                    maximumDate={new Date()}
+                  />
+                )}
+              </View>
+
+              {/* Gender Segmented Chips */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Giới tính <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View style={styles.genderRow}>
+                  <TouchableOpacity
+                    style={[styles.genderPill, gender === 'MALE' && styles.genderPillActive]}
+                    onPress={() => setGender('MALE')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="gender-male"
+                      size={18}
+                      color={gender === 'MALE' ? '#FFFFFF' : '#5C6460'}
+                    />
+                    <Text style={[styles.genderText, gender === 'MALE' && styles.genderTextActive]}>
+                      Nam
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.genderPill, gender === 'FEMALE' && styles.genderPillActive]}
+                    onPress={() => setGender('FEMALE')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="gender-female"
+                      size={18}
+                      color={gender === 'FEMALE' ? '#FFFFFF' : '#5C6460'}
+                    />
+                    <Text style={[styles.genderText, gender === 'FEMALE' && styles.genderTextActive]}>
+                      Nữ
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.genderPill, gender === 'OTHER' && styles.genderPillActive]}
+                    onPress={() => setGender('OTHER')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="gender-non-binary"
+                      size={18}
+                      color={gender === 'OTHER' ? '#FFFFFF' : '#5C6460'}
+                    />
+                    <Text style={[styles.genderText, gender === 'OTHER' && styles.genderTextActive]}>
+                      Khác
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Security Notice Card */}
+              <View style={styles.securityCard}>
+                <View style={styles.securityIconBox}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#064E3B" />
+                </View>
+                <View style={styles.securityTextContainer}>
+                  <Text style={styles.securityTitle}>Bảo mật thông tin cá nhân</Text>
+                  <Text style={styles.securityDesc}>
+                    Dữ liệu cá nhân được mã hóa và chỉ dùng để tối ưu hóa trải nghiệm thể thao của bạn.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Primary Submit CTA Button */}
+            <TouchableOpacity
+              style={styles.primaryPillButton}
+              onPress={handleNext}
+              activeOpacity={0.88}
             >
-              <Text style={[styles.genderText, gender === 'MALE' && styles.genderTextActive]}>Nam</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.genderOption, gender === 'FEMALE' && styles.genderOptionActive]}
-              onPress={() => setGender('FEMALE')}
-            >
-              <Text style={[styles.genderText, gender === 'FEMALE' && styles.genderTextActive]}>Nữ</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.genderOption, gender === 'OTHER' && styles.genderOptionActive]}
-              onPress={() => setGender('OTHER')}
-            >
-              <Text style={[styles.genderText, gender === 'OTHER' && styles.genderTextActive]}>Khác</Text>
+              <Text style={styles.primaryPillButtonText}>Tiếp tục sang Hồ sơ thể thao</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.securityInfo}>
-          <View style={styles.securityIconContainer}>
-            <MaterialCommunityIcons name="lock-outline" size={24} color={COLORS.onPrimary} />
-          </View>
-          <View style={styles.securityTextContainer}>
-            <Text style={styles.securityTitle}>Bảo mật thông tin</Text>
-            <Text style={styles.securityDesc}>
-              Thông tin của bạn được mã hóa và chỉ dùng để đề xuất các hoạt động thể thao phù hợp.
-            </Text>
-          </View>
-        </View>
-
-      </View>
-      <View style={styles.footer}>
-        <Button 
-          title="Tiếp tục"
-          variant="primary"
-          size="lg"
-          onPress={handleNext}
-          icon={<MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.onSecondary} />}
-          iconPosition="right"
-        />
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#064E3B',
   },
-  header: {
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#064E3B',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  responsiveWrapper: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    minHeight: '100%',
+  },
+  heroSection: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#064E3B',
+  },
+  heroGradient: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 48 : 24,
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingBottom: 44,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: SPACING.marginMobile,
-    paddingBottom: SPACING.sm,
-    zIndex: 10,
+    justifyContent: 'space-between',
   },
   backButton: {
-    padding: SPACING.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  headerTitle: {
-    ...TYPOGRAPHY.headlineLgMobile,
-    color: COLORS.primary,
-    marginLeft: SPACING.sm,
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 2,
+  },
+  heroCenter: {
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  sportBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  sportBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  heroHeadline: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 26,
+    letterSpacing: -0.5,
+  },
+  sheetContainer: {
+    marginTop: -32,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   progressContainer: {
-    paddingHorizontal: SPACING.marginMobile,
-    marginBottom: SPACING.md,
+    marginBottom: 20,
+    width: '100%',
   },
   progressBar: {
     height: 4,
-    backgroundColor: COLORS.outlineVariant,
-    borderRadius: 2,
-    marginBottom: SPACING.base,
+    backgroundColor: '#E8ECF0',
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: 6,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 2,
+    backgroundColor: '#064E3B',
+    borderRadius: BORDER_RADIUS.full,
   },
-  progressTextContainer: {
+  progressTextRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   progressTextLeft: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#064E3B',
+    letterSpacing: 0.3,
   },
   progressTextRight: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.primary,
+    fontSize: 11,
+    color: '#8A929A',
+    fontWeight: '600',
   },
-  content: {
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatarWrapper: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    position: 'relative',
+    borderWidth: 3,
+    borderColor: '#064E3B',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  avatarAura: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 52,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 46,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#064E3B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarHint: {
+    fontSize: 12,
+    color: '#5C6460',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  formContainer: {
+    marginBottom: 20,
+    width: '100%',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#191C20',
+    marginBottom: 6,
+    letterSpacing: 0.1,
+  },
+  requiredStar: {
+    color: '#BA1A1A',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 16,
+    height: 52,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8ECF0',
+  },
+  inputWrapperFocused: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#064E3B',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  textInput: {
     flex: 1,
-    paddingHorizontal: SPACING.marginMobile,
+    fontSize: 15,
+    color: '#151C27',
+    paddingVertical: 0,
+    ...Platform.select({
+      web: { outlineStyle: 'none' } as any,
+    }),
   },
-  title: {
-    ...TYPOGRAPHY.headlineLg,
-    color: COLORS.onSurface,
-    marginBottom: SPACING.base,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: SPACING.lg,
-  },
-  formGroup: {
-    marginBottom: SPACING.md,
-  },
-  label: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
-    marginBottom: SPACING.base,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
-    height: 50,
-    paddingHorizontal: SPACING.md,
-    ...TYPOGRAPHY.bodyLg,
-    color: COLORS.onSurface,
-    backgroundColor: COLORS.surface,
-  },
-  dateInputContainer: {
+  dateInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
-    height: 50,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#F5F7FA',
+    borderRadius: 16,
+    height: 52,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8ECF0',
+  },
+  dateLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dateInputText: {
-    ...TYPOGRAPHY.bodyLg,
-    color: COLORS.onSurface,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#151C27',
   },
-  genderContainer: {
+  genderRow: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 16,
+    padding: 4,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
   },
-  genderOption: {
+  genderPill: {
     flex: 1,
-    height: 45,
-    justifyContent: 'center',
+    height: 44,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
   },
-  genderOptionActive: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.default - 2,
+  genderPillActive: {
+    backgroundColor: '#064E3B',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   genderText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#5C6460',
   },
   genderTextActive: {
-    color: COLORS.onPrimary,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-  securityInfo: {
+  securityCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primaryOpacity10,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.default,
-    marginTop: SPACING.base,
+    backgroundColor: '#F0F5F2',
+    padding: 14,
+    borderRadius: 16,
     alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#D4E2D9',
+    marginTop: 4,
   },
-  securityIconContainer: {
-    backgroundColor: COLORS.primary,
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
+  securityIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
   securityTextContainer: {
     flex: 1,
   },
   securityTitle: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#064E3B',
+    marginBottom: 2,
   },
   securityDesc: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.primary,
-    lineHeight: 16,
+    fontSize: 11.5,
+    color: '#5C6460',
+    lineHeight: 15,
   },
-  footer: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingBottom: SPACING.xl,
-    paddingTop: SPACING.base,
+  primaryPillButton: {
+    width: '100%',
+    height: 52,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#064E3B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryPillButtonText: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
 });
+

@@ -50,7 +50,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
                 notificationService.createNotification(
                         admin.getId(),
                         admin.getRole() != null ? admin.getRole() : Role.ADMIN,
-                        "Yêu cầu hỗ trợ mới! 📩",
+                        "Yêu cầu hỗ trợ mới",
                         "Mã " + saved.getTicketCode() + ": " + saved.getTitle() + " từ người dùng " + senderName + ".",
                         NotificationType.ADMIN_NEW_SUPPORT_TICKET,
                         saved.getId().toString()
@@ -130,7 +130,7 @@ public class SupportTicketServiceImpl implements SupportTicketService {
                 notificationService.createNotification(
                         ticket.getUser().getId(),
                         ticket.getUser().getRole() != null ? ticket.getUser().getRole() : Role.PLAYER,
-                        "Cập nhật yêu cầu hỗ trợ! 💬",
+                        "Cập nhật yêu cầu hỗ trợ",
                         "Yêu cầu hỗ trợ " + ticket.getTicketCode() + " (" + ticket.getTitle() + ") đã được chuyển sang: " + statusText + "." + note,
                         NotificationType.TICKET_REPLIED,
                         ticket.getId().toString()

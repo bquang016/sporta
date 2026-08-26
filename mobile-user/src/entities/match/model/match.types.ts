@@ -21,12 +21,15 @@ export interface ClubSummaryVM {
   sportId: string;
   sportName: string;
   logoUrl?: string;
+  avatarUrl?: string;
   activeMemberCount: number;
   isEligibleForMatchmaking: boolean; // >= 8 active members
   clubElo: number;
   levelLabel: string; // 'Yếu' | 'TBY' | 'TB' | 'TBK' | 'Khá'
   crp: number;
   rankingPosition?: number;
+  userStatus?: string; // 'ADMIN' | 'SUB_LEADER' | 'MEMBER'
+  isLeaderOrSubLeader?: boolean;
 }
 
 export interface BookingSummaryVM {

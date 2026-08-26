@@ -1,69 +1,43 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Image,
+  ImageBackground,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
-import { Button } from '../../../../shared/ui';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
+
+const DEFAULT_PLAYER_AVATAR = require('../../../../../assets/player/player_699x699.png');
 
 export function PersonalInfoScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
 
-  const [fullName, setFullName] = useState(typeof initialFullName === 'string' ? initialFullName : '');
-  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [fullName, setFullName] = useState(
+    typeof initialFullName === 'string' ? initialFullName : ''
+  );
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(new Date(2000, 0, 1));
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
+  const [dateInputText, setDateInputText] = useState('01/01/2000');
+  const [isFocusedName, setIsFocusedName] = useState(false);
+  const [isFocusedDate, setIsFocusedDate] = useState(false);
 
-  // Custom Datepicker state
-  const [dateInputText, setDateInputText] = useState('');
-  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
-  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
-
-  const handleNext = () => {
-    if (!fullName.trim()) {
-      showAlert('Thiếu thông tin', 'Vui lòng nhập họ và tên.');
-      return;
-    }
-    
-    if (!dateInputText) {
-      showAlert('Thiếu thông tin', 'Vui lòng nhập ngày sinh.');
-      return;
-    }
-
-    if (!dateOfBirth) {
-      showAlert('Ngày sinh không hợp lệ', 'Vui lòng nhập ngày sinh đúng định dạng DD/MM/YYYY (Ví dụ: 18/06/2000).');
-      return;
-    }
-
-    const formattedDob = `${dateOfBirth.getFullYear()}-${(dateOfBirth.getMonth() + 1).toString().padStart(2, '0')}-${dateOfBirth.getDate().toString().padStart(2, '0')}`;
-
-    router.push({
-      pathname: '/(auth)/sport-level',
-      params: {
-        registrationToken,
-        email,
-        password,
-        fullName,
-        dateOfBirth: formattedDob,
-        gender
-      }
-    });
-  };
-
-  const formatDate = (date: Date) => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
+  const heroBg = require('../../../../../assets/auth/sport_auth_hero.jpg');
 
   const handleDateTextChange = (text: string) => {
-    // Only allow numbers and slashes
     let cleaned = text.replace(/[^0-9/]/g, '');
-    
-    // Auto format: DD/MM/YYYY
+
     if (cleaned.length > dateInputText.length) {
       if (cleaned.length === 2 || cleaned.length === 5) {
         cleaned += '/';
@@ -73,28 +47,35 @@ export function PersonalInfoScreen() {
         cleaned = cleaned.slice(0, 5) + '/' + cleaned.slice(5);
       }
     }
-    
-    // Cap length to 10
+
     if (cleaned.length > 10) {
       cleaned = cleaned.slice(0, 10);
     }
-    
+
     setDateInputText(cleaned);
 
-    // Validate and update dateOfBirth if valid
     if (cleaned.length === 10) {
       const parts = cleaned.split('/');
       if (parts.length === 3) {
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10);
         const year = parseInt(parts[2], 10);
-        
-        if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= new Date().getFullYear()) {
+
+        if (
+          day >= 1 &&
+          day <= 31 &&
+          month >= 1 &&
+          month <= 12 &&
+          year >= 1920 &&
+          year <= new Date().getFullYear()
+        ) {
           const testDate = new Date(year, month - 1, day);
-          if (testDate.getFullYear() === year && testDate.getMonth() === month - 1 && testDate.getDate() === day) {
+          if (
+            testDate.getFullYear() === year &&
+            testDate.getMonth() === month - 1 &&
+            testDate.getDate() === day
+          ) {
             setDateOfBirth(testDate);
-            setCalendarYear(year);
-            setCalendarMonth(month - 1);
             return;
           }
         }
@@ -103,655 +84,553 @@ export function PersonalInfoScreen() {
     setDateOfBirth(null);
   };
 
-  const handleSelectDay = (year: number, month: number, day: number) => {
-    const selected = new Date(year, month, day);
-    setDateOfBirth(selected);
-    setDateInputText(formatDate(selected));
-    setShowCustomCalendar(false);
-  };
-
-  const months = [
-    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
-  ];
-
-  const years: number[] = [];
-  const currentYear = new Date().getFullYear();
-  for (let y = currentYear; y >= currentYear - 100; y--) {
-    years.push(y);
-  }
-
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (year: number, month: number) => {
-    return new Date(year, month, 1).getDay();
-  };
-
-  const handlePrevMonth = () => {
-    if (calendarMonth === 0) {
-      setCalendarMonth(11);
-      setCalendarYear(calendarYear - 1);
-    } else {
-      setCalendarMonth(calendarMonth - 1);
+  const handleNext = () => {
+    if (!fullName.trim()) {
+      showAlert('Thiếu thông tin', 'Vui lòng nhập họ và tên.');
+      return;
     }
-  };
-
-  const handleNextMonth = () => {
-    if (calendarMonth === 11) {
-      setCalendarMonth(0);
-      setCalendarYear(calendarYear + 1);
-    } else {
-      setCalendarMonth(calendarMonth + 1);
-    }
-  };
-
-  const generateDaysArray = () => {
-    const firstDayIndex = getFirstDayOfMonth(calendarYear, calendarMonth);
-    const totalDays = getDaysInMonth(calendarYear, calendarMonth);
-    const prevMonthTotalDays = getDaysInMonth(calendarYear, calendarMonth - 1);
-
-    const days = [];
-
-    // Fill previous month's trailing days
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push({
-        day: prevMonthTotalDays - i,
-        month: calendarMonth === 0 ? 11 : calendarMonth - 1,
-        year: calendarMonth === 0 ? calendarYear - 1 : calendarYear,
-        isCurrentMonth: false,
-      });
+    if (!dateOfBirth) {
+      showAlert(
+        'Ngày sinh không hợp lệ',
+        'Vui lòng nhập ngày sinh đúng định dạng DD/MM/YYYY.'
+      );
+      return;
     }
 
-    // Fill current month's days
-    for (let i = 1; i <= totalDays; i++) {
-      days.push({
-        day: i,
-        month: calendarMonth,
-        year: calendarYear,
-        isCurrentMonth: true,
-      });
-    }
+    const formattedDob = `${dateOfBirth.getFullYear()}-${(dateOfBirth.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${dateOfBirth.getDate().toString().padStart(2, '0')}`;
 
-    // Fill next month's leading days to complete the grid (42 items)
-    const remainingDays = 42 - days.length;
-    for (let i = 1; i <= remainingDays; i++) {
-      days.push({
-        day: i,
-        month: calendarMonth === 11 ? 0 : calendarMonth + 1,
-        year: calendarMonth === 11 ? calendarYear + 1 : calendarYear,
-        isCurrentMonth: false,
-      });
-    }
-
-    return days;
+    router.push({
+      pathname: '/(auth)/sport-level',
+      params: {
+        registrationToken,
+        email,
+        password,
+        fullName,
+        dateOfBirth: formattedDob,
+        gender,
+      },
+    });
   };
-
-  const daysArray = generateDaysArray();
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.responsiveWrapper}>
-        <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/login')} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sporta</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.screenContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
+        <View style={styles.responsiveWrapper}>
+          {/* ========================================================
+              TOP HERO SECTION: Lush sports backdrop
+             ======================================================== */}
+          <ImageBackground
+            source={heroBg}
+            style={styles.heroSection}
+            resizeMode="cover"
+          >
+            <LinearGradient
+              colors={['rgba(0, 33, 23, 0.4)', 'rgba(0, 33, 23, 0.75)', '#064E3B']}
+              style={styles.heroGradient}
+            >
+              {/* Top Navigation Bar */}
+              <View style={styles.topBar}>
+                <TouchableOpacity
+                  onPress={() => (router.canGoBack() ? router.back() : router.replace('/(auth)/login'))}
+                  style={styles.backButton}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+                  <Text style={styles.backButtonText}>Quay lại</Text>
+                </TouchableOpacity>
+              </View>
 
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: '50%' }]} />
-        </View>
-        <View style={styles.progressTextContainer}>
-          <Text style={styles.progressTextLeft}>BƯỚC 1 TRÊN 2</Text>
-          <Text style={styles.progressTextRight}>50% Hoàn tất</Text>
-        </View>
-      </View>
+              {/* Hero Banner Slogan */}
+              <View style={styles.heroCenter}>
+                <View style={styles.sportBadge}>
+                  <Text style={styles.sportBadgeText}>BƯỚC 1 / 3: HỒ SƠ CƠ BẢN</Text>
+                </View>
+                <Text style={styles.heroHeadline}>SET UP YOUR{'\n'}PROFILE</Text>
+              </View>
+            </LinearGradient>
+          </ImageBackground>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Thông tin cá nhân</Text>
-        <Text style={styles.subtitle}>
-          Chào mừng bạn! Hãy cho chúng tôi biết một chút về bạn để cá nhân hóa trải nghiệm tập luyện.
-        </Text>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Họ và tên</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ví dụ: Nguyễn Văn A"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholderTextColor={COLORS.onSurfaceVariant}
-          />
-        </View>
-
-        <View style={styles.formGroupDate}>
-          <Text style={styles.label}>Ngày sinh</Text>
-          <View style={styles.dateInputWrapper}>
-            <View style={styles.dateInputContainer}>
-              <TextInput
-                style={styles.dateTextInput}
-                placeholder="DD/MM/YYYY"
-                placeholderTextColor={COLORS.onSurfaceVariant}
-                value={dateInputText}
-                onChangeText={handleDateTextChange}
-                keyboardType="numeric"
-              />
-              <TouchableOpacity 
-                onPress={() => setShowCustomCalendar(prev => !prev)}
-                style={styles.calendarIconButton}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons name="calendar-blank-outline" size={20} color={COLORS.primary} />
-              </TouchableOpacity>
+          {/* ========================================================
+              CURVED WHITE SHEET: Form Inputs Container
+             ======================================================== */}
+          <View style={styles.sheetContainer}>
+            {/* Step Progress Indicator */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '33.3%' }]} />
+              </View>
+              <View style={styles.progressTextRow}>
+                <Text style={styles.progressTextLeft}>BƯỚC 1 / 3: THÔNG TIN CÁ NHÂN</Text>
+                <Text style={styles.progressTextRight}>33% Hoàn tất</Text>
+              </View>
             </View>
 
-            {showCustomCalendar && (
-              <>
-                <TouchableOpacity 
-                  style={styles.calendarBackdrop} 
-                  activeOpacity={1} 
-                  onPress={() => setShowCustomCalendar(false)} 
+            {/* Avatar Placeholder / Selector */}
+            <View style={styles.avatarSection}>
+              <View style={styles.avatarWrapper}>
+                <View style={styles.avatarAura} />
+                <Image
+                  source={DEFAULT_PLAYER_AVATAR}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
                 />
-                <View style={styles.calendarDropdown}>
-                  <View style={styles.calendarHeader}>
-                    <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
-                      <MaterialCommunityIcons name="chevron-left" size={20} color={COLORS.primary} />
-                    </TouchableOpacity>
-                    
-                    <View style={styles.selectorsContainer}>
-                      <select 
-                        value={calendarMonth} 
-                        onChange={(e) => setCalendarMonth(Number(e.target.value))}
-                        style={{
-                          fontFamily: 'HankenGrotesk-SemiBold, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: COLORS.primary,
-                          border: `1px solid ${COLORS.outlineVariant}`,
-                          borderRadius: `${BORDER_RADIUS.default}px`,
-                          padding: '4px 8px',
-                          marginRight: '8px',
-                          backgroundColor: COLORS.surface,
-                          outline: 'none',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {months.map((m, idx) => (
-                          <option key={idx} value={idx}>{m}</option>
-                        ))}
-                      </select>
+              </View>
+              <Text style={styles.avatarHint}>Ảnh đại diện Sporta</Text>
+            </View>
 
-                      <select 
-                        value={calendarYear} 
-                        onChange={(e) => setCalendarYear(Number(e.target.value))}
-                        style={{
-                          fontFamily: 'HankenGrotesk-SemiBold, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: COLORS.primary,
-                          border: `1px solid ${COLORS.outlineVariant}`,
-                          borderRadius: `${BORDER_RADIUS.default}px`,
-                          padding: '4px 8px',
-                          backgroundColor: COLORS.surface,
-                          outline: 'none',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {years.map((y) => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </View>
-
-                    <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
-                      <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.primary} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.weekdaysContainer}>
-                    {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d, idx) => (
-                      <Text key={idx} style={styles.weekdayText}>{d}</Text>
-                    ))}
-                  </View>
-
-                  <View style={styles.daysGrid}>
-                    {daysArray.map((item, idx) => {
-                      const isSelected = dateOfBirth && 
-                        dateOfBirth.getDate() === item.day && 
-                        dateOfBirth.getMonth() === item.month && 
-                        dateOfBirth.getFullYear() === item.year;
-                      
-                      const isToday = new Date().getDate() === item.day &&
-                        new Date().getMonth() === item.month &&
-                        new Date().getFullYear() === item.year;
-
-                      return (
-                        <TouchableOpacity
-                          key={idx}
-                          style={[
-                            styles.dayCell,
-                            !item.isCurrentMonth && styles.dayCellOutside,
-                            isSelected && styles.dayCellSelected,
-                          ]}
-                          onPress={() => handleSelectDay(item.year, item.month, item.day)}
-                        >
-                          <Text style={[
-                            styles.dayText,
-                            !item.isCurrentMonth && styles.dayTextOutside,
-                            isSelected && styles.dayTextSelected,
-                            isToday && !isSelected && styles.dayTextToday,
-                          ]}>
-                            {item.day}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  <View style={styles.calendarFooter}>
-                    <TouchableOpacity 
-                      style={styles.footerButton} 
-                      onPress={() => {
-                        const today = new Date();
-                        setDateOfBirth(today);
-                        setDateInputText(formatDate(today));
-                        setCalendarYear(today.getFullYear());
-                        setCalendarMonth(today.getMonth());
-                        setShowCustomCalendar(false);
-                      }}
-                    >
-                      <Text style={styles.footerButtonText}>Hôm nay</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.footerButton, { marginLeft: 10 }]} 
-                      onPress={() => setShowCustomCalendar(false)}
-                    >
-                      <Text style={[styles.footerButtonText, { color: COLORS.onSurfaceVariant }]}>Hủy</Text>
-                    </TouchableOpacity>
-                  </View>
+            {/* Form Inputs */}
+            <View style={styles.formContainer}>
+              {/* Full Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Họ và tên <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    isFocusedName && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="account-outline"
+                    size={20}
+                    color={isFocusedName ? '#064E3B' : '#8A929A'}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Ví dụ: Nguyễn Văn A"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholderTextColor="#9AA1A9"
+                    onFocus={() => setIsFocusedName(true)}
+                    onBlur={() => setIsFocusedName(false)}
+                  />
                 </View>
-              </>
-            )}
+              </View>
+
+              {/* Date of Birth */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Ngày sinh (DD/MM/YYYY) <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    isFocusedDate && styles.inputWrapperFocused,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="calendar-month-outline"
+                    size={20}
+                    color={isFocusedDate ? '#064E3B' : '#8A929A'}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="DD/MM/YYYY"
+                    placeholderTextColor="#9AA1A9"
+                    value={dateInputText}
+                    onChangeText={handleDateTextChange}
+                    onFocus={() => setIsFocusedDate(true)}
+                    onBlur={() => setIsFocusedDate(false)}
+                  />
+                </View>
+              </View>
+
+              {/* Gender Segmented Chips */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Giới tính <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View style={styles.genderRow}>
+                  <TouchableOpacity
+                    style={[styles.genderPill, gender === 'MALE' && styles.genderPillActive]}
+                    onPress={() => setGender('MALE')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="gender-male"
+                      size={18}
+                      color={gender === 'MALE' ? '#FFFFFF' : '#5C6460'}
+                    />
+                    <Text style={[styles.genderText, gender === 'MALE' && styles.genderTextActive]}>
+                      Nam
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.genderPill, gender === 'FEMALE' && styles.genderPillActive]}
+                    onPress={() => setGender('FEMALE')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="gender-female"
+                      size={18}
+                      color={gender === 'FEMALE' ? '#FFFFFF' : '#5C6460'}
+                    />
+                    <Text style={[styles.genderText, gender === 'FEMALE' && styles.genderTextActive]}>
+                      Nữ
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.genderPill, gender === 'OTHER' && styles.genderPillActive]}
+                    onPress={() => setGender('OTHER')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="gender-non-binary"
+                      size={18}
+                      color={gender === 'OTHER' ? '#FFFFFF' : '#5C6460'}
+                    />
+                    <Text style={[styles.genderText, gender === 'OTHER' && styles.genderTextActive]}>
+                      Khác
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Security Card */}
+              <View style={styles.securityCard}>
+                <View style={styles.securityIconBox}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#064E3B" />
+                </View>
+                <View style={styles.securityTextContainer}>
+                  <Text style={styles.securityTitle}>Bảo mật thông tin cá nhân</Text>
+                  <Text style={styles.securityDesc}>
+                    Dữ liệu cá nhân được mã hóa an toàn và chỉ phục vụ việc cá nhân hóa hoạt động thể thao.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Primary Submit CTA Button */}
+            <TouchableOpacity
+              style={styles.primaryPillButton}
+              onPress={handleNext}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.primaryPillButtonText}>Tiếp tục sang Hồ sơ thể thao</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Giới tính</Text>
-          <View style={styles.genderContainer}>
-            <TouchableOpacity 
-              style={[styles.genderOption, gender === 'MALE' && styles.genderOptionActive]}
-              onPress={() => setGender('MALE')}
-            >
-              <Text style={[styles.genderText, gender === 'MALE' && styles.genderTextActive]}>Nam</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.genderOption, gender === 'FEMALE' && styles.genderOptionActive]}
-              onPress={() => setGender('FEMALE')}
-            >
-              <Text style={[styles.genderText, gender === 'FEMALE' && styles.genderTextActive]}>Nữ</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.genderOption, gender === 'OTHER' && styles.genderOptionActive]}
-              onPress={() => setGender('OTHER')}
-            >
-              <Text style={[styles.genderText, gender === 'OTHER' && styles.genderTextActive]}>Khác</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.securityInfo}>
-          <View style={styles.securityIconContainer}>
-            <MaterialCommunityIcons name="lock-outline" size={24} color={COLORS.surface} />
-          </View>
-          <View style={styles.securityTextContainer}>
-            <Text style={styles.securityTitle}>Bảo mật thông tin</Text>
-            <Text style={styles.securityDesc}>
-              Thông tin của bạn được mã hóa và chỉ dùng để đề xuất các hoạt động thể thao phù hợp.
-            </Text>
-          </View>
-        </View>
-
-      </View>
-      <View style={styles.footer}>
-        <Button 
-          title="Tiếp tục"
-          variant="primary"
-          size="lg"
-          onPress={handleNext}
-          icon={<MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.onSecondary} />}
-          iconPosition="right"
-        />
-      </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#064E3B',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#064E3B',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   responsiveWrapper: {
-    flex: 1,
     width: '100%',
-    ...Platform.select({
-      web: {
-        maxWidth: 480,
-        alignSelf: 'center',
-        backgroundColor: COLORS.surface,
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-        borderColor: COLORS.outlineVariant,
-        boxShadow: '0px 0px 20px rgba(0,0,0,0.05)',
-      } as any,
-    }),
+    maxWidth: 480,
+    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    minHeight: '100%',
   },
-  header: {
+  heroSection: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#064E3B',
+  },
+  heroGradient: {
+    flex: 1,
+    paddingTop: 32,
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingBottom: 44,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    zIndex: 10,
+    justifyContent: 'space-between',
   },
   backButton: {
-    padding: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  headerTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 20,
-    color: COLORS.primary,
-    marginLeft: 15,
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 2,
+  },
+  heroCenter: {
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  sportBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  sportBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  heroHeadline: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 26,
+    letterSpacing: -0.5,
+  },
+  sheetContainer: {
+    marginTop: -32,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   progressContainer: {
-    paddingHorizontal: 24,
     marginBottom: 20,
+    width: '100%',
   },
   progressBar: {
     height: 4,
-    backgroundColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.sm,
-    marginBottom: 8,
+    backgroundColor: '#E8ECF0',
+    borderRadius: BORDER_RADIUS.full,
+    marginBottom: 6,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#064E3B',
+    borderRadius: BORDER_RADIUS.full,
   },
-  progressTextContainer: {
+  progressTextRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   progressTextLeft: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#064E3B',
+    letterSpacing: 0.3,
   },
   progressTextRight: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.primary,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    zIndex: 2,
-  },
-  title: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.onSurface,
-    marginBottom: 10,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: 30,
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  formGroupDate: {
-    marginBottom: 20,
-    zIndex: 100,
-    ...Platform.select({
-      android: {
-        elevation: 10,
-      },
-    }),
-  },
-  label: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
-    height: 50,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    color: COLORS.onSurface,
-    ...Platform.select({
-      web: {
-        outlineStyle: 'none',
-      } as any,
-    }),
-  },
-  dateInputWrapper: {
-    position: 'relative',
-    zIndex: 20,
-  },
-  dateInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
-    height: 50,
-    paddingHorizontal: 15,
-    backgroundColor: COLORS.surface,
-  },
-  dateTextInput: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.onSurface,
-    height: '100%',
-    padding: 0,
-    ...Platform.select({
-      web: {
-        outlineStyle: 'none',
-      } as any,
-    }),
-  },
-  calendarIconButton: {
-    padding: SPACING.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calendarBackdrop: {
-    ...Platform.select({
-      web: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 999,
-      } as any,
-      default: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 999,
-      }
-    })
-  },
-  calendarDropdown: {
-    position: 'absolute',
-    top: 55,
-    left: '50%',
-    marginLeft: -160,
-    width: 320,
-    maxWidth: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    padding: SPACING.md,
-    zIndex: 1000,
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
-      } as any,
-    }),
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  selectorsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  navButton: {
-    padding: 5,
-  },
-  weekdaysContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.base,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
-    paddingBottom: SPACING.xs,
-  },
-  weekdayText: {
-    width: '14.28%',
-    textAlign: 'center',
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
+    fontSize: 11,
+    color: '#8A929A',
     fontWeight: '600',
   },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    justifyContent: 'center',
+  avatarSection: {
     alignItems: 'center',
-    borderRadius: BORDER_RADIUS.default,
-    marginVertical: 2,
+    marginBottom: 24,
   },
-  dayCellOutside: {
-    opacity: 0.4,
+  avatarWrapper: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    position: 'relative',
+    borderWidth: 3,
+    borderColor: '#064E3B',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  dayCellSelected: {
-    backgroundColor: COLORS.primary,
+  avatarAura: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 52,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
   },
-  dayText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 14,
-    color: COLORS.onSurface,
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 46,
   },
-  dayTextOutside: {
-    color: COLORS.onSurfaceVariant,
+  avatarHint: {
+    fontSize: 12,
+    color: '#5C6460',
+    marginTop: 8,
+    fontWeight: '500',
   },
-  dayTextSelected: {
-    color: COLORS.onPrimary,
-    fontWeight: 'bold',
+  formContainer: {
+    marginBottom: 20,
+    width: '100%',
   },
-  dayTextToday: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
+  inputGroup: {
+    marginBottom: 16,
   },
-  calendarFooter: {
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#191C20',
+    marginBottom: 6,
+    letterSpacing: 0.1,
+  },
+  requiredStar: {
+    color: '#BA1A1A',
+  },
+  inputWrapper: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.outlineVariant,
-    paddingTop: SPACING.sm,
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 16,
+    height: 52,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8ECF0',
   },
-  footerButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: BORDER_RADIUS.default,
+  inputWrapperFocused: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#064E3B',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  footerButtonText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
+  inputIcon: {
+    marginRight: 10,
   },
-  genderContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
-    overflow: 'hidden',
-  },
-  genderOption: {
+  textInput: {
     flex: 1,
-    height: 45,
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 15,
+    color: '#151C27',
+    paddingVertical: 0,
+    ...Platform.select({
+      web: { outlineStyle: 'none' } as any,
+    }),
   },
-  genderOptionActive: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.default,
+  genderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 16,
+    padding: 4,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
+  },
+  genderPill: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
+  },
+  genderPillActive: {
+    backgroundColor: '#064E3B',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   genderText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#5C6460',
   },
   genderTextActive: {
-    color: COLORS.onPrimary,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-  securityInfo: {
+  securityCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.secondaryContainer,
-    padding: 15,
-    borderRadius: BORDER_RADIUS.default,
-    marginTop: 10,
+    backgroundColor: '#F0F5F2',
+    padding: 14,
+    borderRadius: 16,
     alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#D4E2D9',
+    marginTop: 4,
   },
-  securityIconContainer: {
-    backgroundColor: COLORS.primary,
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
+  securityIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
   },
   securityTextContainer: {
     flex: 1,
   },
   securityTitle: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#064E3B',
+    marginBottom: 2,
   },
   securityDesc: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
-    lineHeight: 16,
+    fontSize: 11.5,
+    color: '#5C6460',
+    lineHeight: 15,
   },
-  footer: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingBottom: SPACING.xl,
-    paddingTop: SPACING.base,
-    zIndex: 1,
+  primaryPillButton: {
+    width: '100%',
+    height: 52,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#064E3B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryPillButtonText: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
 });
+

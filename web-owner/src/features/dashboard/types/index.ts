@@ -21,6 +21,7 @@ export interface Booking {
   id: string;
   pitchName: string;
   complexId: Exclude<ComplexId, 'all'>;
+  date?: string;
   time: string;
   customerName: string;
   phone: string;

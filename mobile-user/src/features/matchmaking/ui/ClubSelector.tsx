@@ -21,7 +21,9 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
       <View style={styles.clubList}>
         {clubs.map((club) => {
           const isSelected = selectedClubId === club.id;
-          const isEligible = club.activeMemberCount >= 8;
+          const isLeaderOrSub = club.isLeaderOrSubLeader ?? (club.userStatus === 'ADMIN' || club.userStatus === 'SUB_LEADER' || !club.userStatus);
+          const isMemberCountEligible = club.activeMemberCount >= 8;
+          const isEligible = isLeaderOrSub && isMemberCountEligible;
 
           return (
             <TouchableOpacity
@@ -37,7 +39,7 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
             >
               <View style={styles.clubHeader}>
                 <View style={[styles.avatar, isSelected && styles.avatarSelected]}>
-                  <Text style={styles.avatarText}>{club.name.charAt(4) || 'C'}</Text>
+                  <Text style={styles.avatarText}>{club.name.charAt(0) || 'C'}</Text>
                 </View>
 
                 <View style={styles.clubInfo}>
@@ -52,7 +54,14 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
                 )}
               </View>
 
-              {!isEligible ? (
+              {!isLeaderOrSub ? (
+                <View style={styles.warningBox}>
+                  <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                  <Text style={[styles.warningText, { color: '#991B1B' }]}>
+                    Chỉ Trưởng nhóm / Phó nhóm mới có quyền đại diện CLB tạo bài ghép trận.
+                  </Text>
+                </View>
+              ) : !isMemberCountEligible ? (
                 <View style={styles.warningBox}>
                   <Ionicons name="alert-circle" size={16} color="#D97706" />
                   <Text style={styles.warningText}>

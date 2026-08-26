@@ -15,6 +15,7 @@ import java.util.UUID;
 @Repository
 public interface VenueRepository extends JpaRepository<Venue, UUID>, JpaSpecificationExecutor<Venue> {
     List<Venue> findByOwnerUserEmail(String email);
+    List<Venue> findByOwnerId(UUID ownerId);
     List<Venue> findByStatusAndApprovalStatus(VenueStatus status, ApprovalStatus approvalStatus);
     List<Venue> findByStatusAndApprovalStatusAndSportId(VenueStatus status, ApprovalStatus approvalStatus, Long sportId);
 

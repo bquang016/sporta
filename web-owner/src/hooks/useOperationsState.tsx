@@ -88,63 +88,12 @@ export const OperationsProvider = ({ children }: { children: React.ReactNode }) 
         setSelectedVenueIdState(fetchedVenues[0].id);
       }
 
-      // Generate or load mock bookings
+      // Load bookings from storage or default to empty
       const savedBookings = localStorage.getItem('simulatedBookings');
       if (savedBookings) {
         setBookings(JSON.parse(savedBookings));
       } else {
-        // Generate mock bookings based on fetched courts
-        const initialBookings: SimulatedBooking[] = [];
-        const customers = [
-          { name: 'Nguyễn Văn Hùng', phone: '0912345678' },
-          { name: 'Trần Anh Tuấn', phone: '0987654321' },
-          { name: 'Lê Minh Quốc', phone: '0933445566' },
-          { name: 'Phạm Thanh Sơn', phone: '0977889900' },
-          { name: 'Hoàng Ngọc Lâm', phone: '0901234567' },
-          { name: 'Vũ Đức Thịnh', phone: '0944556677' },
-        ];
-        
-        const timeSlots = [
-          '17:00 - 18:30',
-          '18:30 - 20:00',
-          '20:00 - 21:30',
-          '08:00 - 09:30',
-        ];
-
-        // Format dates: Tomorrow, Day after tomorrow, and next week
-        const dates: string[] = [];
-        for (let i = 1; i <= 5; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          dates.push(d.toLocaleDateString('vi-VN'));
-        }
-
-        let bookingCounter = 1001;
-
-        fetchedCourts.forEach((court) => {
-          // Generate 2-3 bookings per court
-          const numBookings = Math.floor(Math.random() * 2) + 2;
-          for (let j = 0; j < numBookings; j++) {
-            const customer = customers[Math.floor(Math.random() * customers.length)];
-            const timeSlot = timeSlots[Math.floor(Math.random() * timeSlots.length)];
-            const dateStr = dates[Math.floor(Math.random() * dates.length)];
-            
-            initialBookings.push({
-              id: `BK${bookingCounter++}`,
-              courtId: court.id,
-              courtName: court.name,
-              customerName: customer.name,
-              phoneNumber: customer.phone,
-              date: dateStr,
-              time: timeSlot,
-              price: court.price,
-              status: 'CONFIRMED',
-            });
-          }
-        });
-
-        setBookings(initialBookings);
-        localStorage.setItem('simulatedBookings', JSON.stringify(initialBookings));
+        setBookings([]);
       }
       setError(null);
     } catch (err: any) {

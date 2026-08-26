@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Platform, Animated, PanResponder, LayoutAnimation, Dimensions } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
@@ -20,62 +20,6 @@ export function useRegister() {
   const [isFocusedConfirm, setIsFocusedConfirm] = useState(false);
 
   const router = useRouter();
-
-  // Trạng thái cho banner Hợp tác Sporta nổi
-  const [isPromoVisible, setIsPromoVisible] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(true);
-  const isExpandedRef = useRef(true);
-
-  useEffect(() => {
-    isExpandedRef.current = isExpanded;
-  }, [isExpanded]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIsExpanded(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Xử lý kéo thả cho Banner nổi
-  const pan = useRef(new Animated.ValueXY()).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (e, gestureState) => {
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-      },
-      onPanResponderGrant: () => {
-        pan.setOffset({
-          x: (pan.x as any)._value,
-          y: (pan.y as any)._value
-        });
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-        const screenWidth = Dimensions.get('window').width;
-        const containerWidth = isExpandedRef.current ? 180 : 52;
-        const leftX = -(screenWidth - 40 - containerWidth);
-        const currentX = (pan.x as any)._value;
-        const currentY = (pan.y as any)._value;
-        const midPoint = leftX / 2;
-
-        const targetX = currentX < midPoint ? leftX : 0;
-
-        Animated.spring(pan, {
-          toValue: { x: targetX, y: currentY },
-          useNativeDriver: false,
-          friction: 6,
-          tension: 40,
-        }).start();
-      }
-    })
-  ).current;
 
   // Google Sign-In setup
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
@@ -98,29 +42,29 @@ export function useRegister() {
   const handleBackendGoogleLogin = async (idToken: string) => {
     setLoading(true);
     try {
-      const response = await googleLoginApi(idToken);
-      if (response.isNewUser) {
+      const res = await googleLoginApi(idToken);
+      if (res.isNewUser) {
         const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
         router.push({
           pathname: '/(auth)/personal-info',
           params: {
-            registrationToken: response.registrationToken,
-            email: response.email,
+            registrationToken: res.registrationToken,
+            email: res.email,
             password: dummyPassword,
-            fullName: response.fullName
-          }
+            fullName: res.fullName,
+          },
         });
       } else {
         if (Platform.OS === 'web') {
-          localStorage.setItem('accessToken', response.accessToken);
-          localStorage.setItem('userEmail', response.email);
-          localStorage.setItem('userName', response.fullName);
+          localStorage.setItem('accessToken', res.accessToken);
+          localStorage.setItem('userEmail', res.email);
+          localStorage.setItem('userName', res.fullName);
         } else {
-          await SecureStore.setItemAsync('accessToken', response.accessToken);
-          await SecureStore.setItemAsync('userEmail', response.email);
-          await SecureStore.setItemAsync('userName', response.fullName);
+          await SecureStore.setItemAsync('accessToken', res.accessToken);
+          await SecureStore.setItemAsync('userEmail', res.email);
+          await SecureStore.setItemAsync('userName', res.fullName);
         }
-        showAlert('Thành công', response.message, () => router.replace('/(tabs)'));
+        showAlert('Thành công', res.message, () => router.replace('/(tabs)'));
       }
     } catch (error: any) {
       console.error(error);
@@ -135,12 +79,13 @@ export function useRegister() {
   };
 
   const handleRegister = async () => {
-    if (!email || !email.includes('@')) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
       showAlert('Lỗi', 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
-    if (!password) {
-      showAlert('Lỗi', 'Vui lòng nhập mật khẩu.');
+    if (!password || password.length < 6) {
+      showAlert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự.');
       return;
     }
     if (password !== confirmPassword) {
@@ -150,19 +95,19 @@ export function useRegister() {
 
     setLoading(true);
     try {
-      const response = await sendOtp(email);
-      if (response.otp) {
-        showAlert('Thành công', `Mã OTP (Test) của bạn là: ${response.otp}`, () => {
-          router.push({ 
-            pathname: '/(auth)/otp-verify', 
-            params: { email, password } 
+      const res = await sendOtp(trimmedEmail);
+      if (res.otp) {
+        showAlert('Mã OTP', `Mã OTP của bạn là: ${res.otp}`, () => {
+          router.push({
+            pathname: '/(auth)/otp-verify',
+            params: { email: trimmedEmail, password },
           });
         });
       } else {
-        showAlert('Thành công', 'Đã gửi mã OTP. Vui lòng kiểm tra email của bạn.', () => {
-          router.push({ 
-            pathname: '/(auth)/otp-verify', 
-            params: { email, password } 
+        showAlert('Thành công', 'Đã gửi mã OTP đến email của bạn.', () => {
+          router.push({
+            pathname: '/(auth)/otp-verify',
+            params: { email: trimmedEmail, password },
           });
         });
       }
@@ -194,10 +139,5 @@ export function useRegister() {
     handleRegister,
     handleGoogleRegister,
     router,
-    isPromoVisible,
-    setIsPromoVisible,
-    isExpanded,
-    pan,
-    panResponder,
   };
 }

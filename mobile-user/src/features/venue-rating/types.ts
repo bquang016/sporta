@@ -28,6 +28,7 @@ export interface VenueReviewPageResponse {
   avgServiceScore: number;
   canReview: boolean | null;
   hasReviewed: boolean | null;
+  myReview?: VenueReviewItem | null;
 }
 
 export interface CreateReviewPayload {

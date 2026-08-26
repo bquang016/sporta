@@ -20,12 +20,19 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+    private String stripEmojis(String text) {
+        if (text == null) return null;
+        return text.replaceAll("[\\p{So}\\p{Cn}\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u26FF\\u2700-\\u27BF]", "").trim();
+    }
+
 
     private final NotificationRepository notificationRepository;
     private final DeviceTokenRepository deviceTokenRepository;
 
     @Transactional
     public void createNotification(Long recipientId, Role role, String title, String content, NotificationType type, String referenceId) {
+        title = stripEmojis(title);
+        content = stripEmojis(content);
         Notification notification = Notification.builder()
                 .recipientId(recipientId)
                 .recipientRole(role != null ? role : Role.PLAYER)

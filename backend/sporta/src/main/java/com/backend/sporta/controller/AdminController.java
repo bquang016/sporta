@@ -408,4 +408,23 @@ public class AdminController {
         venueService.rejectRevision(id, reason.trim());
         return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu thay đổi thành công."));
     }
+
+    @Autowired
+    private com.backend.sporta.service.AdminDashboardService adminDashboardService;
+
+    @Autowired
+    private com.backend.sporta.service.AdminTransactionService adminTransactionService;
+
+    @GetMapping("/dashboard/overview")
+    public ResponseEntity<com.backend.sporta.dto.AdminDashboardResponse> getAdminDashboardOverview(
+            @RequestParam(value = "timeFilter", required = false, defaultValue = "this_month") String timeFilter) {
+        com.backend.sporta.dto.AdminDashboardResponse response = adminDashboardService.getDashboardOverview(timeFilter);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<List<com.backend.sporta.dto.AdminTransactionResponse>> getAdminTransactions() {
+        List<com.backend.sporta.dto.AdminTransactionResponse> response = adminTransactionService.getAdminTransactions();
+        return ResponseEntity.ok(response);
+    }
 }

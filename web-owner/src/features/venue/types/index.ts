@@ -135,3 +135,33 @@ export interface VenueDraftRequest {
   surchargeDescription?: string;
   courts?: CourtDraftDto[];
 }
+
+export interface CourtStatisticsDto {
+  courtId: string;
+  courtName: string;
+  courtStatus: 'ACTIVE' | 'MAINTENANCE';
+  price: number;
+  totalSlots: number;
+  bookedSlots: number;
+  occupancyRate: number;
+  revenue: number;
+  bookingCount: number;
+}
+
+export interface VenueStatisticsResponse {
+  venueId: string;
+  venueName: string;
+  fromDate: string;
+  toDate: string;
+  totalRevenue: number;
+  totalBookings: number;
+  totalVenueSlots: number;
+  totalBookedSlots: number;
+  averageOccupancy: number;
+  activeCourtsCount: number;
+  maintenanceCourtsCount: number;
+  totalCourtsCount: number;
+  courtStats: CourtStatisticsDto[];
+}
+
+export type DateRangePreset = 'today' | '7days' | '30days' | 'custom';

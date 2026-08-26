@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button, ConfirmModal } from '../../../shared/ui';
@@ -30,11 +30,18 @@ export type HelpTab = 'faq' | 'contact' | 'tickets';
 
 export function HelpCenterScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { showAlert, showConfirm } = useAlert();
   const insets = useSafeAreaInsets();
   const modalTopPadding = Platform.OS === 'ios' ? (insets.top > 0 ? insets.top : 47) : insets.top;
 
-  const [activeTab, setActiveTab] = useState<HelpTab>('faq');
+  const [activeTab, setActiveTab] = useState<HelpTab>(params.tab === 'tickets' ? 'tickets' : 'faq');
+
+  useEffect(() => {
+    if (params.tab === 'tickets') {
+      setActiveTab('tickets');
+    }
+  }, [params.tab]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Support Tickets State

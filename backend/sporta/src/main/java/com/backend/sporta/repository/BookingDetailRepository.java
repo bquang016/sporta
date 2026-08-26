@@ -34,4 +34,16 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, UU
             @Param("courtId") UUID courtId,
             @Param("date") LocalDate date,
             @Param("startTime") LocalTime startTime);
+
+    @Query("SELECT d FROM BookingDetail d " +
+           "JOIN FETCH d.court c " +
+           "JOIN FETCH d.booking b " +
+           "WHERE c.venue.id = :venueId " +
+           "AND d.bookingDate BETWEEN :fromDate AND :toDate " +
+           "AND b.status IN :statuses")
+    List<BookingDetail> findValidBookingDetailsInDateRange(
+            @Param("venueId") UUID venueId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("statuses") List<BookingStatus> statuses);
 }

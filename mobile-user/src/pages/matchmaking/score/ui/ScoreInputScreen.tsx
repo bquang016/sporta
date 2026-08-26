@@ -16,6 +16,38 @@ import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchm
 import { ScoreInputForm } from '../../../../features/matchmaking/ui/ScoreInputForm';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 
+function isMatchTimeStarted(dateStr?: string, startTimeStr?: string): boolean {
+  if (!dateStr || !startTimeStr) return true;
+  try {
+    const timeParts = startTimeStr.split(':');
+    const hours = parseInt(timeParts[0], 10) || 0;
+    const minutes = parseInt(timeParts[1], 10) || 0;
+
+    const numbers = dateStr.match(/\d+/g);
+    if (!numbers || numbers.length < 3) return true;
+
+    let year = 0;
+    let month = 0;
+    let day = 0;
+    if (numbers[0].length === 4) {
+      year = parseInt(numbers[0], 10);
+      month = parseInt(numbers[1], 10) - 1;
+      day = parseInt(numbers[2], 10);
+    } else if (numbers[2].length === 4) {
+      day = parseInt(numbers[0], 10);
+      month = parseInt(numbers[1], 10) - 1;
+      year = parseInt(numbers[2], 10);
+    } else {
+      return true;
+    }
+
+    const matchStart = new Date(year, month, day, hours, minutes);
+    return new Date().getTime() >= matchStart.getTime();
+  } catch {
+    return true;
+  }
+}
+
 export function ScoreInputScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -143,7 +175,15 @@ export function ScoreInputScreen() {
 
           {/* Form Nhập tỷ số - CHỈ CHỦ ROOM (BÊN A) ĐƯỢC NHẬP */}
           {room.status === 'MATCHED' && !submission && (
-            room.permissions?.canEnterScore ? (
+            !isMatchTimeStarted(room.booking.date, room.booking.startTime) ? (
+              <View style={styles.confirmCard}>
+                <Ionicons name="time-outline" size={36} color="#D97706" />
+                <Text style={styles.confirmTitle}>CHƯA ĐẾN GIỜ THI ĐẤU</Text>
+                <Text style={styles.confirmSub}>
+                  Trận đấu diễn ra vào lúc <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.booking.date} • {room.booking.startTime}</Text>. Bạn chỉ có thể cập nhật tỷ số sau khi trận đấu bắt đầu.
+                </Text>
+              </View>
+            ) : room.permissions?.canEnterScore ? (
               <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} />
             ) : (
               <View style={styles.confirmCard}>
