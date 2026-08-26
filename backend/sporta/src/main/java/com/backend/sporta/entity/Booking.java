@@ -58,6 +58,9 @@ public class Booking {
     @Column(name = "customer_name")
     private String customerName;
 
+    @Column(name = "customer_phone", length = 20)
+    private String customerPhone;
+
     /** Mã đặt sân định danh hiển thị cho người dùng, e.g. "SP-A3K9-X2" */
     @Column(name = "booking_code", nullable = false, unique = true, length = 20)
     private String bookingCode;

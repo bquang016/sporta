@@ -36,6 +36,7 @@ export interface ApiSlotResponse {
   sportLevel?: string;
   pricePerTicket?: number;
   customerName?: string;
+  customerPhone?: string;
 }
 
 export const scheduleService = {
@@ -58,6 +59,7 @@ export const scheduleService = {
     status?: 'CONFIRMED' | 'PENDING';
     isManual?: boolean;
     customerName?: string;
+    customerPhone?: string;
   }): Promise<any> {
     const res = await fetch(`${BASE_URL}/bookings`, {
       method: 'POST',

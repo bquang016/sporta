@@ -22,4 +22,5 @@ public class SlotResponse {
     private String sportLevel;
     private Double pricePerTicket;
     private String customerName;
+    private String customerPhone;
 }

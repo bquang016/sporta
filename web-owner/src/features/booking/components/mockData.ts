@@ -10,6 +10,7 @@ export interface BookingSlot {
   time: string; // Format: "HH:mm"
   status: SlotStatus;
   customerName?: string;
+  customerPhone?: string;
   bookingId?: string;
   isManual?: boolean;
   bookingType?: 'regular' | 'matchmaking';

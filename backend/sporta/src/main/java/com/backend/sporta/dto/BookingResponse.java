@@ -33,6 +33,7 @@ public class BookingResponse {
 
     private String playerName;
     private String playerEmail;
+    private String playerPhone;
 
     private String checkoutUrl;
     private Long orderCode;

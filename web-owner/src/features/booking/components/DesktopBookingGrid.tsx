@@ -303,11 +303,11 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                   const status = slot?.status || 'available';
                   const isHourBorder = time.endsWith(':00');
 
-                  if (isInsideBlock(facility.id, time, status, slot?.customerName, slot?.ticketSessionId)) {
+                  if (isInsideBlock(facility.id, time, status, slot?.customerName, slot?.ticketSessionId, slot?.bookingId, slot?.customerPhone)) {
                     return null;
                   }
 
-                  const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName, slot?.ticketSessionId) : 1;
+                  const span = status !== 'available' ? getBlockSpan(facility.id, colIdx, status, slot?.customerName, slot?.ticketSessionId, slot?.bookingId, slot?.customerPhone) : 1;
                   const isPast = isPastSlot(date, time);
                   const isLocked = status === 'locked' || (status === 'available' && isPast);
 
@@ -333,7 +333,7 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                       className={`h-13 p-0 border-b border-slate-200/70 transition-all cursor-pointer ${
                         isHourBorder ? 'border-l-2 border-l-slate-400/80' : ''
                       } ${status === 'available' ? 'border-r border-r-slate-350' : ''} ${
-                        isPast ? 'opacity-60 pointer-events-none select-none' : ''
+                        isPast ? 'opacity-60' : ''
                       }`}
                     >
                       {status === 'available' ? (
@@ -423,12 +423,28 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                 {formatPrice(slots.find(s => s.facilityId === quickBookingData.facilityId && s.time === quickBookingData.startTime)?.price || 0)} / ca
               </div>
             </div>
-            <div>
-              <div className="flex h-10 items-center">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-brand-emerald text-[10px] font-black uppercase tracking-wider select-none">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  CHỦ SÂN SPORTA
-                </span>
+            <div className="col-span-2 mt-2">
+              <div className="h-[1px] w-full bg-slate-100 mb-4"></div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Thông tin khách hàng (Tùy chọn)</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Tên khách hàng"
+                    value={quickBookingData.customerName}
+                    onChange={(e) => setQuickBookingData({...quickBookingData, customerName: e.target.value})}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald h-10"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Số điện thoại"
+                    value={quickBookingData.customerPhone}
+                    onChange={(e) => setQuickBookingData({...quickBookingData, customerPhone: e.target.value})}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald h-10"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -458,7 +474,23 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                 {selectedBookingDetail.status === 'maintenance' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" /></svg>}
               </div>
               <div>
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{selectedBookingDetail.customerName}</h4>
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                  {selectedBookingDetail.customerName}
+                  {selectedBookingDetail.customerPhone ? (
+                    <a href={`tel:${selectedBookingDetail.customerPhone}`} className="text-xs font-bold text-slate-500 lowercase flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 hover:bg-slate-200 hover:text-brand-emerald transition-colors">
+                      <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      {selectedBookingDetail.customerPhone}
+                    </a>
+                  ) : (
+                    !selectedBookingDetail.isManual && (
+                      <span className="text-xs font-bold text-slate-400 lowercase flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 italic">
+                        Chưa cập nhật SĐT
+                      </span>
+                    )
+                  )}
+                </h4>
                 <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md mt-1 inline-block uppercase tracking-wider ${
                   selectedBookingDetail.status === 'booked' ? 'bg-emerald-100 text-emerald-800' :
                   selectedBookingDetail.status === 'pending' ? 'bg-amber-100 text-amber-800' :
@@ -482,7 +514,14 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="font-semibold text-slate-400">Thời gian</span>
-                <span className="font-black text-brand-emerald">{selectedBookingDetail.startTime} – {selectedBookingDetail.endTime}</span>
+                <div className="text-right flex flex-col items-end">
+                  <span className="font-black text-brand-emerald">{selectedBookingDetail.startTime} – {selectedBookingDetail.endTime}</span>
+                  {selectedBookingDetail.status !== 'maintenance' && selectedBookingDetail.status !== 'matchmaking' && (
+                    <span className="text-[10px] font-bold text-slate-400 mt-0.5 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {selectedBookingDetail.slotIds.length} ca x {shiftMinutes}p
+                    </span>
+                  )}
+                </div>
               </div>
               
               {selectedBookingDetail.status === 'matchmaking' ? (
@@ -508,13 +547,13 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
               ) : (
                 <>
                   <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                    <span className="font-semibold text-slate-400">Giá thuê</span>
-                    <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.facility.pricePerHour)}/h</span>
+                    <span className="font-semibold text-slate-400">Đơn giá / ca</span>
+                    <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.price / Math.max(1, selectedBookingDetail.slotIds.length))}</span>
                   </div>
                   {selectedBookingDetail.status !== 'maintenance' && (
-                    <div className="flex justify-between items-center py-2">
-                      <span className="font-semibold text-slate-400">Tổng tạm tính</span>
-                      <span className="font-black text-slate-800 text-sm">{formatPrice(selectedBookingDetail.price)}</span>
+                    <div className="flex justify-between items-center py-2 bg-emerald-50/50 px-3 -mx-3 rounded-xl border border-emerald-100/50 mt-1">
+                      <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Tổng cộng</span>
+                      <span className="font-black text-brand-emerald text-base">{formatPrice(selectedBookingDetail.price)}</span>
                     </div>
                   )}
                 </>

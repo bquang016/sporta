@@ -86,6 +86,7 @@ public class BookingService {
                 .status("payos".equals(request.getPaymentMethod()) ? BookingStatus.PENDING : (request.getStatus() != null ? request.getStatus() : BookingStatus.CONFIRMED))
                 .isManual(request.getIsManual() != null ? request.getIsManual() : false)
                 .customerName(request.getCustomerName())
+                .customerPhone(request.getCustomerPhone())
                 .build();
 
         // Sắp xếp các slot theo courtId để tránh deadlock khi có nhiều court cần lock
@@ -332,8 +333,9 @@ public class BookingService {
                 .details(detailResponses)
                 .paymentMethod(booking.getPaymentMethod())
                 .status(booking.getStatus())
-                .playerName(booking.getUser().getFullName())
+                .playerName(booking.getIsManual() != null && booking.getIsManual() ? booking.getCustomerName() : booking.getUser().getFullName())
                 .playerEmail(booking.getUser().getEmail())
+                .playerPhone(booking.getIsManual() != null && booking.getIsManual() ? booking.getCustomerPhone() : booking.getUser().getPhoneNumber())
                 .createdAt(booking.getCreatedAt())
                 .build();
     }
