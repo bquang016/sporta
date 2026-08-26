@@ -33,3 +33,5 @@ dist/
 build/
 .expo/
 .turbo/
+# Playwright
+/playwright/.auth/
