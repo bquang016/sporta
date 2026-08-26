@@ -75,19 +75,28 @@ export function BookingMatrix({
     return map;
   }, [slots]);
 
-  const startHour = useMemo(() => {
-    if (!times.length) return 5;
-    const [h] = times[0].split(':').map(Number);
-    return h;
+  const slotDurationMinutes = useMemo(() => {
+    if (times.length < 2) return 30; // default fallback
+    const [h1, m1] = times[0].split(':').map(Number);
+    const [h2, m2] = times[1].split(':').map(Number);
+    return (h2 - h1) * 60 + (m2 - m1);
   }, [times]);
 
   const redLinePosition = useMemo(() => {
-    if (!isToday(selectedDate)) return null;
+    if (!isToday(selectedDate) || times.length === 0) return null;
+    
     const nowH = currentTime.getHours();
     const nowM = currentTime.getMinutes();
-    if (nowH < startHour) return null;
-    return ((nowH - startHour) * 60 + nowM) * (SLOT_WIDTH / 30);
-  }, [currentTime, selectedDate, startHour]);
+    const [startH, startM] = times[0].split(':').map(Number);
+    
+    const elapsedMinutes = (nowH - startH) * 60 + (nowM - startM);
+    if (elapsedMinutes < 0) return null;
+    
+    // Hide if current time is past the end of the last slot
+    if (elapsedMinutes > times.length * slotDurationMinutes) return null;
+    
+    return elapsedMinutes * (SLOT_WIDTH / slotDurationMinutes);
+  }, [currentTime, selectedDate, times, slotDurationMinutes]);
 
   useEffect(() => {
     if (times.length > 0 && redLinePosition !== null && scrollViewRef.current && !hasScrolled) {
