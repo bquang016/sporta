@@ -44,6 +44,9 @@ public class BookingService {
     private CourtRepository courtRepository;
 
     @Autowired
+    private com.backend.sporta.repository.CourtPriceRuleRepository courtPriceRuleRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -90,9 +93,10 @@ public class BookingService {
                 .build();
 
         // Sắp xếp các slot theo courtId để tránh deadlock khi có nhiều court cần lock
-        request.getSlots().sort(java.util.Comparator.comparing(BookingSlotRequest::getCourtId));
+        List<BookingSlotRequest> sortedSlots = new ArrayList<>(request.getSlots());
+        sortedSlots.sort(java.util.Comparator.comparing(BookingSlotRequest::getCourtId));
 
-        for (BookingSlotRequest slot : request.getSlots()) {
+        for (BookingSlotRequest slot : sortedSlots) {
             Court court = courtRepository.findByIdWithLock(slot.getCourtId())
                     .orElseThrow(() -> new CustomException("Không tìm thấy sân " + slot.getCourtId(), 404));
 
@@ -110,7 +114,9 @@ public class BookingService {
                     409);
             }
 
-            double price = court.getPrice(); // TODO: có thể tính theo rules nếu cần
+            List<com.backend.sporta.entity.CourtPriceRule> rules = courtPriceRuleRepository.findByCourtId(court.getId());
+            double price = com.backend.sporta.util.CourtPricingCalculationHelper.calculateSlotPrice(
+                    court.getPrice(), rules, slot.getBookingDate(), slot.getStartTime());
             totalPrice += price;
 
             BookingDetail detail = BookingDetail.builder()

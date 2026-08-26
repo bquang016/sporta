@@ -292,41 +292,9 @@ public class VenueService {
                     status = "available";
                 }
 
-                // Tính giá: ưu tiên SHIFT rule trước
-                double price = court.getPrice();
-
-                // 1. Áp SHIFT rule (giá tùy chỉnh theo ca giờ)
-                boolean shiftApplied = false;
-                for (CourtPriceRule rule : rules) {
-                    if (rule.getRuleType() == PriceRuleType.SHIFT
-                            && rule.getStartTime() != null
-                            && rule.getEndTime() != null
-                            && rule.getCustomPrice() != null
-                            && !currentSlot.isBefore(rule.getStartTime())
-                            && currentSlot.isBefore(rule.getEndTime())) {
-                        price = rule.getCustomPrice();
-                        shiftApplied = true;
-                        break;
-                    }
-                }
-
-                // 2. Áp DAY_OF_WEEK modifier lên trên price hiện tại
-                for (CourtPriceRule rule : rules) {
-                    if (rule.getRuleType() == PriceRuleType.DAY_OF_WEEK
-                            && rule.getDayOfWeek() != null
-                            && rule.getDayOfWeek() == dayOfWeekValue) {
-                        if (rule.getPercentageModifier() != null) {
-                            price = price * rule.getPercentageModifier();
-                        }
-                        if (rule.getFixedModifier() != null) {
-                            price = price + rule.getFixedModifier();
-                        }
-                        break;
-                    }
-                }
-
-                // Làm tròn giá về hàng nghìn
-                price = Math.round(price / 1000.0) * 1000.0;
+                // Tính giá phân tầng theo CourtPriceRule qua Helper dùng chung
+                double price = com.backend.sporta.util.CourtPricingCalculationHelper.calculateSlotPrice(
+                        court.getPrice(), rules, dayOfWeekValue, currentSlot);
 
                 result.add(SlotResponse.builder()
                         .courtId(court.getId())

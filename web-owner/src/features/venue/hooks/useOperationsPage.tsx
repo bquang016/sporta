@@ -44,7 +44,7 @@ export const useOperationsPage = () => {
 
   // Local UI States
   const [mobileScreen, setMobileScreen] = useState<'list' | 'detail'>('list');
-  const [activeTab, setActiveTab] = useState<'facilities' | 'overview' | 'tickets'>('facilities');
+  const [activeTab, setActiveTab] = useState<'facilities' | 'overview' | 'tickets' | 'pricing'>('facilities');
   const [searchQuery, setSearchQuery] = useState('');
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

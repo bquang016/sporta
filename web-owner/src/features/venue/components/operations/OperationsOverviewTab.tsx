@@ -63,7 +63,7 @@ export const OperationsOverviewTab = ({
   getCourtOpStatus,
   getCourtDetails,
   formatVND,
-  isMobile = false
+  isMobile: _isMobile = false
 }: OperationsOverviewTabProps) => {
   const [sortField, setSortField] = useState<'occupancy' | 'revenue' | 'name' | 'bookedSlots'>('occupancy');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
