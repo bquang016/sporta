@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import type { ComplexId, PitchStatus, ChartPeriod, Pitch, Booking, Activity } from '../types';
+import { useState, useEffect, useMemo } from 'react';
+import type { ComplexId, PitchStatus, ChartPeriod, Pitch, Booking, Activity, Complex, ChartData } from '../types';
 import {
   COMPLEXES,
   MOBILE_COMPLEXES,
@@ -10,6 +10,9 @@ import {
   MOBILE_INITIAL_ACTIVITIES,
   DESKTOP_REVENUE_CHART_DATA,
   MOBILE_REVENUE_CHART_DATA,
+  fetchDashboardOverviewApi,
+  updateCourtStatusApi,
+  checkInTicketApi,
 } from '../services/dashboardService';
 
 interface UseDashboardProps {
@@ -17,18 +20,29 @@ interface UseDashboardProps {
 }
 
 export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
-  // ═══ RESOLVE INITIAL DATA ═══
-  const listComplexes = isMobile ? MOBILE_COMPLEXES : COMPLEXES;
+  // ═══ RESOLVE INITIAL FALLBACK DATA ═══
+  const fallbackComplexes = isMobile ? MOBILE_COMPLEXES : COMPLEXES;
   const initialBookings = isMobile ? MOBILE_INITIAL_BOOKINGS : DESKTOP_INITIAL_BOOKINGS;
   const initialActivities = isMobile ? MOBILE_INITIAL_ACTIVITIES : DESKTOP_INITIAL_ACTIVITIES;
-  const revenueChartData = isMobile ? MOBILE_REVENUE_CHART_DATA : DESKTOP_REVENUE_CHART_DATA;
+  const fallbackChartData = (isMobile ? MOBILE_REVENUE_CHART_DATA : DESKTOP_REVENUE_CHART_DATA)['all']['day'];
 
   // ═══ STATES ═══
+  const [listComplexes, setListComplexes] = useState<Complex[]>(fallbackComplexes);
   const [selectedComplex, setSelectedComplex] = useState<ComplexId>('all');
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('day');
   const [pitches, setPitches] = useState<Pitch[]>(INITIAL_PITCHES);
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [activities, setActivities] = useState<Activity[]>(initialActivities);
+  const [chartData, setChartData] = useState<ChartData>(fallbackChartData);
+  const [apiStats, setApiStats] = useState<{
+    revenue: number;
+    revenueK: number;
+    occupancy: number;
+    pendingCount: number;
+    activeRatio: string;
+  } | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
   const [hoveredDataIndex, setHoveredDataIndex] = useState<number | null>(null);
 
   // States for manual status editing
@@ -47,6 +61,46 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
   const [ticketCode, setTicketCode] = useState('');
   const [scanMessage, setScanMessage] = useState<{ text: string; success: boolean } | null>(null);
 
+  // ═══ FETCH REAL DASHBOARD DATA FROM BACKEND ═══
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    fetchDashboardOverviewApi(selectedComplex, chartPeriod)
+      .then((data) => {
+        if (isMounted && data) {
+          if (data.listComplexes && data.listComplexes.length > 0) {
+            setListComplexes(data.listComplexes);
+          }
+          if (data.pitches && data.pitches.length > 0) {
+            setPitches(data.pitches);
+          }
+          if (data.bookings) {
+            setBookings(data.bookings);
+          }
+          if (data.activities && data.activities.length > 0) {
+            setActivities(data.activities);
+          }
+          if (data.chartData && data.chartData.labels) {
+            setChartData(data.chartData);
+          }
+          if (data.stats) {
+            setApiStats(data.stats);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Backend overview fetch failed, utilizing client state fallback:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedComplex, chartPeriod]);
+
   // ═══ MEMOS ═══
   const currentPitches = useMemo(() => {
     if (selectedComplex === 'all') return pitches;
@@ -59,6 +113,8 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
   }, [bookings, selectedComplex]);
 
   const stats = useMemo(() => {
+    if (apiStats) return apiStats;
+
     const activePitchesCount = currentPitches.filter(p => p.status !== 'maintenance').length;
     const busyPitchesCount = currentPitches.filter(p => p.status === 'busy').length;
     const totalPitchesCount = currentPitches.length;
@@ -87,25 +143,20 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
       pendingCount: pendingCheckinCount,
       activeRatio: `${activePitchesCount}/${totalPitchesCount}`
     };
-  }, [currentPitches, currentBookings, selectedComplex]);
-
-  const chartData = useMemo(() => {
-    return revenueChartData[selectedComplex][chartPeriod];
-  }, [revenueChartData, selectedComplex, chartPeriod]);
+  }, [apiStats, currentPitches, currentBookings, selectedComplex]);
 
   // SVG Chart points calculation
-  // Mobile canvas width = 320, height = 100, paddingX = 25, paddingY = 12
-  // Desktop canvas width = 500, height = 180, paddingX = 40, paddingY = 20
   const svgWidth = isMobile ? 320 : 500;
   const svgHeight = isMobile ? 100 : 180;
   const paddingX = isMobile ? 25 : 40;
   const paddingY = isMobile ? 12 : 20;
 
   const chartPoints = useMemo(() => {
-    const maxVal = Math.max(...chartData.values, isMobile ? 10 : 1000);
-    const stepX = (svgWidth - paddingX * 2) / (chartData.values.length - 1);
+    const values = chartData.values || [0];
+    const maxVal = Math.max(...values, isMobile ? 10 : 1000);
+    const stepX = (svgWidth - paddingX * 2) / Math.max(1, values.length - 1);
 
-    return chartData.values.map((val, idx) => {
+    return values.map((val, idx) => {
       const x = paddingX + idx * stepX;
       const y = svgHeight - paddingY - (val / maxVal) * (svgHeight - paddingY * 2);
       return { x, y, value: val };
@@ -146,11 +197,17 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
     setIsConfirmModalOpen(true);
   };
 
-  const handleConfirmStatusChange = () => {
+  const handleConfirmStatusChange = async () => {
     if (!selectedPitchToEdit || !pendingStatusToApply) return;
 
+    const pitchId = selectedPitchToEdit.id;
+    const targetStatus = pendingStatusToApply;
+
+    // Call backend API
+    await updateCourtStatusApi(pitchId, targetStatus);
+
     setPitches(prev => prev.map(p => {
-      if (p.id !== selectedPitchToEdit.id) return p;
+      if (p.id !== pitchId) return p;
 
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -160,13 +217,13 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
         id: `a-${Date.now()}`,
         time: timeStr,
         message: isMobile
-          ? `Mobile: Đổi trạng thái ${p.name} -> ${statusMap[pendingStatusToApply]}`
-          : `${p.name} vừa chuyển sang trạng thái: ${statusMap[pendingStatusToApply]}`,
+          ? `Mobile: Đổi trạng thái ${p.name} -> ${statusMap[targetStatus]}`
+          : `${p.name} vừa chuyển sang trạng thái: ${statusMap[targetStatus]}`,
         type: 'status-change'
       };
       setActivities(prevAct => [newAct, ...prevAct]);
 
-      return { ...p, status: pendingStatusToApply };
+      return { ...p, status: targetStatus };
     }));
 
     setSelectedPitchToEdit(null);
@@ -174,9 +231,11 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
     setIsConfirmModalOpen(false);
   };
 
-  const handleCheckinDirect = (bookingId: string) => {
+  const handleCheckinDirect = async (bookingId: string) => {
     const booking = bookings.find(b => b.id === bookingId);
     if (!booking) return;
+
+    await checkInTicketApi(bookingId);
 
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'checked-in' } : b));
 
@@ -201,10 +260,12 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
     setScanStatus('idle');
     setScannedResult('');
 
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsScanning(false);
       const pendingBooking = bookings.find(b => b.status === 'pending-checkin');
       if (pendingBooking) {
+        await checkInTicketApi(pendingBooking.id);
+
         setScanStatus('success');
         setScannedResult(pendingBooking.customerName);
         
@@ -226,16 +287,18 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
   };
 
   // Quick Ticket Code Check-in Form Submission (Desktop)
-  const handleQuickCheckin = (e: React.FormEvent) => {
+  const handleQuickCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticketCode.trim()) return;
 
     setIsScanning(true);
     setScanMessage(null);
 
+    const code = ticketCode.trim().toUpperCase();
+    await checkInTicketApi(code);
+
     setTimeout(() => {
       setIsScanning(false);
-      const code = ticketCode.trim().toUpperCase();
       const bookingIndex = bookings.findIndex(b => b.id.toUpperCase().includes(code) || code === 'SP-2026' || code === 'CHECKIN');
       
       if (bookingIndex !== -1 || code.startsWith('SP-') || code.length >= 3) {
@@ -269,9 +332,9 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
   const handleSimulateDesktopQR = () => {
     setTicketCode('b-1');
     setIsScanning(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsScanning(false);
-      handleCheckinDirect('b-1');
+      await handleCheckinDirect('b-1');
       setScanMessage({ text: 'Giả lập check-in mã vé b-1 (Nguyễn Văn Hùng) thành công!', success: true });
       setTicketCode('');
     }, 1000);
@@ -285,8 +348,8 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
       id: `a-${Date.now()}`,
       time: timeStr,
       message: isMobile
-        ? `Chuyển cụm sân đang xem` // In MobileHome, selectedComplex change is not logged in activities, only in Desktop. Let's align or write cleaner logic.
-        : `Chuyển cụm sân đang xem sang: ${listComplexes.find(c => c.id === val)?.name}`,
+        ? `Chuyển cụm sân đang xem`
+        : `Chuyển cụm sân đang xem sang: ${listComplexes.find(c => c.id === val)?.name || val}`,
       type: 'system'
     };
     if (!isMobile) {
@@ -304,8 +367,8 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
     hoveredDataIndex,
     setHoveredDataIndex,
     activities,
+    isLoading,
 
-    
     // Calculated
     currentPitches,
     currentBookings,

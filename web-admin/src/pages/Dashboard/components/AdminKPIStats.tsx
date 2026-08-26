@@ -5,7 +5,8 @@ export interface DashboardMetric {
   label: string;
   value: string;
   change: string;
-  isPositive: boolean;
+  isPositive?: boolean;
+  positive?: boolean;
   tooltip?: string;
 }
 
@@ -51,10 +52,24 @@ export const AdminKPIStats = ({ metrics }: AdminKPIStatsProps) => {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 w-full">
       {metrics.map((metric, idx) => {
         const style = STYLES[idx % STYLES.length];
-        
+        const isPos = metric.isPositive ?? metric.positive ?? true;
+        const isWarning = metric.change?.includes('Cần xử lý');
+
+        let badgeStyle = 'text-emerald-700 bg-emerald-50/80 border-emerald-200/60';
+        let dotStyle = 'bg-emerald-500';
+
+        if (isWarning) {
+          badgeStyle = 'text-amber-700 bg-amber-50/90 border-amber-200/80';
+          dotStyle = 'bg-amber-500';
+        } else if (!isPos) {
+          badgeStyle = 'text-rose-700 bg-rose-50/80 border-rose-200/60';
+          dotStyle = 'bg-rose-500';
+        }
+
         return (
-          <Card key={idx} className="p-6 border-none shadow-[0_4px_16px_rgba(0,0,0,0.02)] hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-32 relative overflow-hidden group">
+          <Card key={idx} className="p-6 border-none shadow-[0_4px_16px_rgba(0,0,0,0.02)] hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between h-36 relative overflow-hidden group">
             <div className={`absolute top-0 right-0 -mr-4 -mt-4 w-20 h-20 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500 ${style.bgBlur}`}></div>
+            
             <div className="flex justify-between items-start z-10">
               <div className="flex items-center gap-1.5">
                 <h3 className="text-[10px] font-extrabold text-outline uppercase tracking-wider">{metric.label}</h3>
@@ -72,16 +87,17 @@ export const AdminKPIStats = ({ metrics }: AdminKPIStatsProps) => {
                 </svg>
               </div>
             </div>
+
             <div className="z-10 mt-2">
               <p className="text-2xl font-black text-slate-800 tracking-tight">
                 {metric.value}
               </p>
-              <p className={`text-[10px] font-bold mt-1 flex items-center gap-1 ${metric.isPositive ? 'text-emerald-600' : 'text-error'}`}>
-                {metric.isPositive && (
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping mr-1"></span>
-                )}
-                {metric.change}
-              </p>
+              <div className="mt-2 flex items-center">
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${badgeStyle}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${dotStyle}`}></span>
+                  {metric.change}
+                </span>
+              </div>
             </div>
           </Card>
         );

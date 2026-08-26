@@ -27,4 +27,5 @@ public class VenueReviewPageResponse {
     /** Có thể review không (cho user đang đăng nhập) */
     private Boolean canReview;
     private Boolean hasReviewed;
+    private VenueReviewResponse myReview;
 }

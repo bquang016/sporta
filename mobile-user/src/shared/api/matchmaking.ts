@@ -95,18 +95,22 @@ export class MatchmakingApiRepository {
     const clubs = await apiFetch<any[]>(`/clubs/my${params}`, { method: 'GET' }, true);
     return (clubs || []).map((c) => {
       const count = c.members ?? c.activeMemberCount ?? c.memberCount ?? 1;
+      const isLeaderOrSub = c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER';
       return {
         id: String(c.id),
         name: c.name,
-        sportId: c.sport ? String(c.sport.id) : '1',
-        sportName: c.sport ? c.sport.name : 'Bóng đá',
+        sportId: c.sport ? String(c.sport.id) : (c.sportId ? String(c.sportId) : '1'),
+        sportName: c.sport ? (typeof c.sport === 'string' ? c.sport : c.sport.name) : (c.sportName || 'Bóng đá'),
         logoUrl: c.avatarImage,
+        avatarUrl: c.avatarImage,
         activeMemberCount: count,
-        isEligibleForMatchmaking: count >= 1,
+        isEligibleForMatchmaking: count >= 1 && isLeaderOrSub,
         clubElo: c.elo || 1000,
         levelLabel: c.levelLabel || 'TB',
         crp: c.crp || 0,
         rankingPosition: c.rankingPosition,
+        userStatus: c.userStatus,
+        isLeaderOrSubLeader: isLeaderOrSub,
       };
     });
   }

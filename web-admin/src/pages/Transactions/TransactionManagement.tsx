@@ -273,6 +273,8 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   }
 ];
 
+import { getAdminTransactions } from '@/api/adminTransactionApi';
+
 // Items per page
 const PAGE_SIZE = 6;
 
@@ -281,7 +283,28 @@ export const TransactionManagement: React.FC = () => {
   
   // Data State
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    getAdminTransactions()
+      .then((data) => {
+        if (isMounted && data && data.length > 0) {
+          setTransactions(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Using client fallback transactions list:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // Filtering states
   const [searchQuery, setSearchQuery] = useState<string>('');
