@@ -39,12 +39,11 @@ public class VenueReviewController {
             @PathVariable UUID venueId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        // Lấy email nếu có auth (optional — không ném lỗi khi anonymous)
         String userEmail = null;
         try {
-            Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            if (principal instanceof String email && !email.equals("anonymousUser")) {
-                userEmail = email;
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null && !auth.getName().equals("anonymousUser")) {
+                userEmail = auth.getName();
             }
         } catch (Exception ignored) { }
 

@@ -44,19 +44,21 @@ public class ReviewServiceImpl implements ReviewService {
             throw new RuntimeException("Bạn chỉ có thể đánh giá sau khi đã hoàn thành buổi chơi tại cụm sân này.");
         }
 
-        // Kiểm tra đã review chưa (1 user chỉ review 1 lần / venue)
-        boolean alreadyReviewed = reviewRepository.findByVenueIdAndUserId(venue.getId(), user.getId()).isPresent();
-        if (alreadyReviewed) {
-            throw new RuntimeException("Bạn đã đánh giá cụm sân này rồi. Mỗi người chỉ được đánh giá 1 lần.");
+        // Kiểm tra đã review chưa (Nếu đã review thì cập nhật bài đánh giá cũ)
+        java.util.Optional<VenueReview> existingOpt = reviewRepository.findFirstByVenueIdAndUserIdAndIsDeletedFalseOrderByCreatedAtDesc(venue.getId(), user.getId());
+        VenueReview review;
+        if (existingOpt.isPresent()) {
+            review = existingOpt.get();
+            review.setRating(request.getRating());
+            review.setComment(request.getComment());
+        } else {
+            review = VenueReview.builder()
+                    .venue(venue)
+                    .user(user)
+                    .rating(request.getRating())
+                    .comment(request.getComment())
+                    .build();
         }
-
-        // Lưu review
-        VenueReview review = VenueReview.builder()
-                .venue(venue)
-                .user(user)
-                .rating(request.getRating())
-                .comment(request.getComment())
-                .build();
         VenueReview saved = reviewRepository.save(review);
 
         // Cập nhật điểm trung bình trên Venue
@@ -91,19 +93,20 @@ public class ReviewServiceImpl implements ReviewService {
         double avgLighting = calcLightingScore(avg);
         double avgService  = calcServiceScore(avg);
 
-        // Thông tin canReview / hasReviewed nếu có user
+        // Thông tin canReview / hasReviewed / myReview nếu có user
         Boolean canReview = null;
         Boolean hasReviewed = null;
+        VenueReviewResponse myReview = null;
         if (userEmail != null && !userEmail.isBlank()) {
             User user = userRepository.findByEmail(userEmail).orElse(null);
             if (user != null) {
-                hasReviewed = reviewRepository.findByVenueIdAndUserId(venueId, user.getId()).isPresent();
-                if (!hasReviewed) {
-                    canReview = bookingRepository.existsByUserIdAndVenueIdAndStatus(
-                            user.getId(), venueId, BookingStatus.COMPLETED);
-                } else {
-                    canReview = false;
+                java.util.Optional<VenueReview> userRevOpt = reviewRepository.findFirstByVenueIdAndUserIdAndIsDeletedFalseOrderByCreatedAtDesc(venueId, user.getId());
+                hasReviewed = userRevOpt.isPresent();
+                if (hasReviewed) {
+                    myReview = mapToResponse(userRevOpt.get());
                 }
+                canReview = bookingRepository.existsByUserIdAndVenueIdAndStatus(
+                        user.getId(), venueId, BookingStatus.COMPLETED);
             }
         }
 
@@ -119,6 +122,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .avgServiceScore(avgService)
                 .canReview(canReview)
                 .hasReviewed(hasReviewed)
+                .myReview(myReview)
                 .build();
     }
 
@@ -163,9 +167,6 @@ public class ReviewServiceImpl implements ReviewService {
     public boolean canUserReview(UUID venueId, String userEmail) {
         User user = userRepository.findByEmail(userEmail).orElse(null);
         if (user == null) return false;
-
-        boolean hasReviewed = reviewRepository.findByVenueIdAndUserId(venueId, user.getId()).isPresent();
-        if (hasReviewed) return false;
 
         return bookingRepository.existsByUserIdAndVenueIdAndStatus(
                 user.getId(), venueId, BookingStatus.COMPLETED);

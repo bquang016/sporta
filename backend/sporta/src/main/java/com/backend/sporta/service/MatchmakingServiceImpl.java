@@ -85,8 +85,17 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
     private boolean isClubAdmin(Long clubId, Long userId) {
         Optional<ClubMember> member = clubMemberRepository.findByClubIdAndUserId(clubId, userId);
-        if (member.isEmpty()) return false;
+        if (member.isEmpty()) {
+            Club club = clubRepository.findById(clubId).orElse(null);
+            if (club != null && club.getCreator() != null && club.getCreator().getId().equals(userId)) {
+                return true;
+            }
+            return false;
+        }
         ClubMember m = member.get();
+        if (m.getClub() != null && m.getClub().getCreator() != null && m.getClub().getCreator().getId().equals(userId)) {
+            return true;
+        }
         return m.getStatus() == ClubMemberStatus.APPROVED &&
                (m.getRole() == ClubMemberRole.ADMIN || m.getRole() == ClubMemberRole.SUB_LEADER);
     }
@@ -206,7 +215,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin CLB", 404));
 
         if (!isClubAdmin(hostClub.getId(), user.getId())) {
-            throw new CustomException("Bạn không có quyền đại diện cho CLB này", 403);
+            throw new CustomException("Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB tạo phòng ghép trận.", 403);
         }
 
         if (!clubEloService.isEligibleForMatchmaking(hostClub.getId())) {
@@ -356,7 +365,14 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy CLB xin ghép", 404));
 
         if (!isClubAdmin(applicantClub.getId(), user.getId())) {
-            throw new CustomException("Bạn không có quyền đại diện cho CLB xin ghép này", 403);
+            throw new CustomException("Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB gửi yêu cầu ghép trận.", 403);
+        }
+
+        if (room.getHostClub() != null && room.getHostClub().getSport() != null && applicantClub.getSport() != null) {
+            if (!room.getHostClub().getSport().getId().equals(applicantClub.getSport().getId())) {
+                throw new CustomException("CLB xin ghép khác môn thể thao với CLB phòng ghép trận (Môn thể thao bài đăng: "
+                        + room.getHostClub().getSport().getName() + ", Môn thể thao CLB bạn: " + applicantClub.getSport().getName() + ")", 400);
+            }
         }
 
         if (applicantClub.getId().equals(room.getHostClub().getId())) {
@@ -547,6 +563,11 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         if (!isClubAdmin(match.getHostClub().getId(), user.getId())) {
             throw new CustomException("Chỉ chủ/quản lý CLB Host mới được nhập tỷ số", 403);
+        }
+
+        LocalDateTime startTime = getBookingStartTime(match.getBooking());
+        if (startTime != null && LocalDateTime.now().isBefore(startTime)) {
+            throw new CustomException("Chưa đến giờ thi đấu của trận đấu. Vui lòng đợi đến giờ đá để cập nhật tỷ số.", 400);
         }
 
         if (match.getStatus() == MatchStatus.RESULT_FINAL) {

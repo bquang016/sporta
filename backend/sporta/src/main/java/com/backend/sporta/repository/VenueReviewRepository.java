@@ -14,8 +14,8 @@ import java.util.UUID;
 @Repository
 public interface VenueReviewRepository extends JpaRepository<VenueReview, UUID> {
 
-    /** Lấy review của 1 user cho 1 venue (để kiểm tra đã review chưa) */
-    Optional<VenueReview> findByVenueIdAndUserId(UUID venueId, Long userId);
+    /** Lấy review mới nhất của 1 user cho 1 venue */
+    Optional<VenueReview> findFirstByVenueIdAndUserIdAndIsDeletedFalseOrderByCreatedAtDesc(UUID venueId, Long userId);
 
     /** Danh sách review hiển thị của venue (phân trang, chỉ lấy chưa bị xóa) */
     Page<VenueReview> findByVenueIdAndIsDeletedFalseOrderByCreatedAtDesc(UUID venueId, Pageable pageable);
