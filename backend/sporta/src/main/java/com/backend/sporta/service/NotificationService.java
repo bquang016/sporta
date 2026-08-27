@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -25,9 +27,9 @@ public class NotificationService {
         return text.replaceAll("[\\p{So}\\p{Cn}\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u26FF\\u2700-\\u27BF]", "").trim();
     }
 
-
     private final NotificationRepository notificationRepository;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final FcmService fcmService;
 
     @Transactional
     public void createNotification(Long recipientId, Role role, String title, String content, NotificationType type, String referenceId) {
@@ -43,7 +45,19 @@ public class NotificationService {
                 .isRead(false)
                 .createdAt(LocalDateTime.now())
                 .build();
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+
+        // Gửi Firebase FCM Push Notification bất đồng bộ
+        Map<String, String> dataPayload = new HashMap<>();
+        if (type != null) {
+            dataPayload.put("type", type.name());
+        }
+        if (referenceId != null) {
+            dataPayload.put("referenceId", referenceId);
+        }
+        dataPayload.put("notificationId", String.valueOf(saved.getId()));
+
+        fcmService.sendPushToUser(recipientId, title, content, dataPayload);
     }
 
     public Page<NotificationDTO> getUserNotifications(Long recipientId, Pageable pageable) {

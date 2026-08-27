@@ -23,6 +23,13 @@ WebBrowser.maybeCompleteAuthSession();
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+import { usePushNotifications } from '../src/shared/hooks/usePushNotifications';
+
+function PushNotificationManager() {
+  usePushNotifications();
+  return null;
+}
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     'HankenGrotesk-Regular': HankenGrotesk_400Regular,
@@ -60,6 +67,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AlertProvider>
+        <PushNotificationManager />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
