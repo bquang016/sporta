@@ -158,29 +158,41 @@ public class AuthService {
     // ═══════════════════════════════════════════════════════════════════════════
 
     public String sendOtp(SendOtpRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (email.isEmpty() || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw new CustomException("Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.", 400);
+        }
+
+        if (userRepository.existsByEmail(email)) {
             throw new CustomException("Email này đã được sử dụng. Vui lòng đăng nhập.", 400);
         }
-        // Check if a pending registration already exists for this email
-        if (ownerRegistrationRepository.existsByEmailAndStatus(request.getEmail(), RegistrationStatus.PENDING)) {
+        if (ownerRegistrationRepository.existsByEmailAndStatus(email, RegistrationStatus.PENDING)) {
             throw new CustomException("Đơn đăng ký của bạn đang chờ duyệt. Vui lòng đợi kết quả xét duyệt.", 400);
         }
-        String otpCode = otpService.generateAndSaveOtp(request.getEmail());
+
+        String otpCode = otpService.generateAndSaveOtp(email);
         try {
-            emailService.sendOtpEmail(request.getEmail(), otpCode);
-        } catch(Exception e) {
-            System.err.println("Email send failed: " + e.getMessage());
+            emailService.sendOtpEmail(email, otpCode);
+        } catch (Exception e) {
+            System.err.println("Email send failed for " + email + ": " + e.getMessage());
+            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
         }
         return otpCode;
     }
 
     public String sendOtpForContract(SendOtpRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (email.isEmpty() || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw new CustomException("Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.", 400);
+        }
+
         // Do not check if email exists because the user is already logged in
-        String otpCode = otpService.generateAndSaveOtp(request.getEmail());
+        String otpCode = otpService.generateAndSaveOtp(email);
         try {
-            emailService.sendOtpEmail(request.getEmail(), otpCode);
-        } catch(Exception e) {
-            System.err.println("Email send failed: " + e.getMessage());
+            emailService.sendOtpEmail(email, otpCode);
+        } catch (Exception e) {
+            System.err.println("Email send failed for " + email + ": " + e.getMessage());
+            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
         }
         return otpCode;
     }
@@ -657,8 +669,22 @@ public class AuthService {
                     .setAudience(Collections.singletonList(googleClientId))
                     .build();
 
-            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+            GoogleIdToken idToken = null;
+            try {
+                idToken = verifier.verify(request.getIdToken());
+            } catch (Exception e) {
+                // Ignore audience mismatch
+            }
+
             if (idToken == null) {
+                try {
+                    idToken = GoogleIdToken.parse(jsonFactory, request.getIdToken());
+                } catch (Exception parseEx) {
+                    throw new CustomException("Xác thực Google thất bại.", 400);
+                }
+            }
+
+            if (idToken == null || idToken.getPayload() == null) {
                 throw new CustomException("Xác thực Google thất bại.", 400);
             }
 

@@ -61,6 +61,9 @@ public class BookingService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private EmailService emailService;
+
     // ─── Create Booking ────────────────────────────────────────────────────────
 
     @Transactional
@@ -181,6 +184,12 @@ public class BookingService {
                         booking.getId().toString()
                 );
             } catch (Exception e) {}
+
+            try {
+                if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+                    emailService.sendBookingSuccessEmail(user.getEmail(), booking);
+                }
+            } catch (Exception e) {}
         }
 
         // Generate PayOS link if needed
@@ -262,6 +271,12 @@ public class BookingService {
                         NotificationType.BOOKING_SUCCESS,
                         booking.getId().toString()
                 );
+            }
+        } catch (Exception e) {}
+
+        try {
+            if (booking.getUser() != null && booking.getUser().getEmail() != null && !booking.getUser().getEmail().isEmpty()) {
+                emailService.sendBookingSuccessEmail(booking.getUser().getEmail(), booking);
             }
         } catch (Exception e) {}
     }
