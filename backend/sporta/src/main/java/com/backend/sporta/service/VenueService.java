@@ -162,6 +162,19 @@ public class VenueService {
             }
         }
 
+        Double minPrice = venue.getMinPrice();
+        Double maxPrice = venue.getMaxPrice();
+        if ((minPrice == null || minPrice <= 0) && venue.getId() != null) {
+            Double calcMin = courtRepository.findMinPriceByVenueIdAndStatusActive(venue.getId());
+            Double calcMax = courtRepository.findMaxPriceByVenueIdAndStatusActive(venue.getId());
+            if (calcMin != null && calcMin > 0) {
+                minPrice = calcMin;
+            }
+            if (calcMax != null && calcMax > 0) {
+                maxPrice = calcMax;
+            }
+        }
+
         return VenueDetailResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -179,8 +192,8 @@ public class VenueService {
                 .surchargeDescription(venue.getSurchargeDescription())
                 .status(venue.getStatus())
                 .approvalStatus(venue.getApprovalStatus())
-                .minPrice(venue.getMinPrice())
-                .maxPrice(venue.getMaxPrice())
+                .minPrice(minPrice != null ? minPrice : 0.0)
+                .maxPrice(maxPrice != null ? maxPrice : 0.0)
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .ownerPhone(ownerPhone)
                 .courts(courtPublicList)
@@ -1020,6 +1033,19 @@ public class VenueService {
             }
         }
 
+        Double minPrice = venue.getMinPrice();
+        Double maxPrice = venue.getMaxPrice();
+        if ((minPrice == null || minPrice <= 0) && venue.getId() != null) {
+            Double calcMin = courtRepository.findMinPriceByVenueIdAndStatusActive(venue.getId());
+            Double calcMax = courtRepository.findMaxPriceByVenueIdAndStatusActive(venue.getId());
+            if (calcMin != null && calcMin > 0) {
+                minPrice = calcMin;
+            }
+            if (calcMax != null && calcMax > 0) {
+                maxPrice = calcMax;
+            }
+        }
+
         return VenueResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -1042,8 +1068,8 @@ public class VenueService {
                 .status(venue.getStatus())
                 .approvalStatus(venue.getApprovalStatus())
                 .hasPendingRevision(hasPendingRevision)
-                .minPrice(venue.getMinPrice())
-                .maxPrice(venue.getMaxPrice())
+                .minPrice(minPrice != null ? minPrice : 0.0)
+                .maxPrice(maxPrice != null ? maxPrice : 0.0)
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .averageRating(venue.getAverageRating())
                 .totalReviews(venue.getTotalReviews())
