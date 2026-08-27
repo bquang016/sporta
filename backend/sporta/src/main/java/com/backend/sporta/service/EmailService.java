@@ -15,42 +15,30 @@ public class EmailService {
 
     public void sendOtpEmail(String toEmail, String otpCode) {
         try {
-            // TẠM THỜI MOCK GỬI EMAIL ĐỂ TRÁNH LỖI GMAIL POLICY
-            System.out.println("\n=================================================");
-            System.out.println("🔔 [MOCK EMAIL] XÁC THỰC TÀI KHOẢN");
-            System.out.println("Gửi đến: " + toEmail);
-            System.out.println("Mã OTP của bạn là: " + otpCode);
-            System.out.println("=================================================\n");
-            
-            /* CỐT CODE GỐC (Dùng khi triển khai thật)
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom("shethongthethao@gmail.com", "SPORTA");
             helper.setTo(toEmail);
-            helper.setSubject("SPORTA - Xác thực tài khoản của bạn");
+            helper.setSubject("SPORTA - Mã OTP xác thực của bạn");
 
             String htmlContent = "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>"
-                    +
-                    "<h2 style='text-align: center; color: #4CAF50;'>SPORTA</h2>" +
-                    "<h3 style='text-align: center;'>XÁC THỰC TÀI KHOẢN CỦA BẠN</h3>" +
-                    "<p>Xin chào Bạn,</p>" +
-                    "<p>Cảm ơn bạn đã tham gia Sporta! Để hoàn tất việc đăng ký và bảo mật tài khoản, vui lòng sử dụng mã OTP dưới đây:</p>"
-                    +
-                    "<div style='background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 5px; font-size: 24px; letter-spacing: 5px; font-weight: bold;'>"
-                    +
-                    otpCode +
-                    "</div>" +
-                    "<p>Mã OTP này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>" +
-                    "<hr style='border-top: 1px solid #eee;' />" +
-                    "<p style='text-align: center; font-size: 12px; color: #888;'>© 2024 Sporta, Inc. Tất cả quyền được bảo lưu.</p>"
-                    +
-                    "</div>";
+                    + "<h2 style='text-align: center; color: #4CAF50;'>SPORTA</h2>"
+                    + "<h3 style='text-align: center;'>XÁC THỰC TÀI KHOẢN CỦA BẠN</h3>"
+                    + "<p>Xin chào Bạn,</p>"
+                    + "<p>Cảm ơn bạn đã tham gia Sporta! Để hoàn tất việc xác thực, vui lòng sử dụng mã OTP dưới đây:</p>"
+                    + "<div style='background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 5px; font-size: 28px; letter-spacing: 5px; font-weight: bold; color: #111827;'>"
+                    + otpCode
+                    + "</div>"
+                    + "<p style='margin-top: 15px;'>Mã OTP này có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>"
+                    + "<hr style='border-top: 1px solid #eee; margin-top: 20px;' />"
+                    + "<p style='text-align: center; font-size: 12px; color: #888;'>© 2026 Sporta, Inc. Tất cả quyền được bảo lưu.</p>"
+                    + "</div>";
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
-            */
         } catch (Exception e) {
-            throw new RuntimeException("Failed to send OTP email", e);
+            throw new RuntimeException("Failed to send OTP email: " + e.getMessage(), e);
         }
     }
 
@@ -60,17 +48,10 @@ public class EmailService {
      */
     public void sendAccountApprovedEmail(String toEmail, String temporaryPassword) {
         try {
-            // TẠM THỜI MOCK GỬI EMAIL ĐỂ TRÁNH LỖI GMAIL POLICY
-            System.out.println("\n=================================================");
-            System.out.println("🎉 [MOCK EMAIL] TÀI KHOẢN ĐÃ ĐƯỢC KÍCH HOẠT");
-            System.out.println("Gửi đến: " + toEmail);
-            System.out.println("Mật khẩu tạm thời: " + temporaryPassword);
-            System.out.println("=================================================\n");
-            
-            /* CỐT CODE GỐC (Dùng khi triển khai thật)
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom("shethongthethao@gmail.com", "SPORTA Admin");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Tài khoản của bạn đã được kích hoạt 🎉");
 
@@ -111,9 +92,8 @@ public class EmailService {
 
             helper.setText(htmlContent, true);
             mailSender.send(message);
-            */
         } catch (Exception e) {
-            throw new RuntimeException("Failed to send account approved email", e);
+            throw new RuntimeException("Failed to send account approved email: " + e.getMessage(), e);
         }
     }
 }

@@ -95,22 +95,13 @@ export function useRegister() {
 
     setLoading(true);
     try {
-      const res = await sendOtp(trimmedEmail);
-      if (res.otp) {
-        showAlert('Mã OTP', `Mã OTP của bạn là: ${res.otp}`, () => {
-          router.push({
-            pathname: '/(auth)/otp-verify',
-            params: { email: trimmedEmail, password },
-          });
+      await sendOtp(trimmedEmail);
+      showAlert('Thành công', 'Đã gửi mã OTP đến email của bạn. Vui lòng kiểm tra hộp thư.', () => {
+        router.push({
+          pathname: '/(auth)/otp-verify',
+          params: { email: trimmedEmail, password },
         });
-      } else {
-        showAlert('Thành công', 'Đã gửi mã OTP đến email của bạn.', () => {
-          router.push({
-            pathname: '/(auth)/otp-verify',
-            params: { email: trimmedEmail, password },
-          });
-        });
-      }
+      });
     } catch (error: any) {
       showAlert('Lỗi', error.message || 'Email này đã tồn tại hoặc có lỗi xảy ra.');
     } finally {
