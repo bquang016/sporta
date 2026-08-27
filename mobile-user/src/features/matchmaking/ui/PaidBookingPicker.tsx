@@ -8,9 +8,10 @@ interface PaidBookingPickerProps {
   bookings: BookingSummaryVM[];
   selectedBookingId?: string;
   onSelectBooking: (booking: BookingSummaryVM) => void;
+  selectedSportName?: string;
 }
 
-export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking }: PaidBookingPickerProps) {
+export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking, selectedSportName }: PaidBookingPickerProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Chọn sân đã đặt (PAID)</Text>
@@ -21,9 +22,15 @@ export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking
       {bookings.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="calendar-outline" size={32} color={COLORS.primary} />
-          <Text style={styles.emptyTitle}>Bạn chưa có đơn đặt sân (CONFIRMED) nào</Text>
+          <Text style={styles.emptyTitle}>
+            {selectedSportName
+              ? `Chưa có đơn đặt sân môn ${selectedSportName} (CONFIRMED) nào`
+              : 'Bạn chưa có đơn đặt sân (CONFIRMED) nào'}
+          </Text>
           <Text style={styles.emptySub}>
-            Để tạo bài đăng tìm đối thủ ghép trận, bạn cần tìm sân và hoàn tất thanh toán trước.
+            {selectedSportName
+              ? `Hệ thống tự động lọc các sân môn ${selectedSportName}. Chuyển sang CLB môn khác hoặc đặt sân ${selectedSportName} trước.`
+              : 'Để tạo bài đăng tìm đối thủ ghép trận, bạn cần tìm sân và hoàn tất thanh toán trước.'}
           </Text>
         </View>
       ) : (

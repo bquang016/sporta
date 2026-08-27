@@ -313,6 +313,8 @@ public class BookingService {
         }
 
         Venue venue = booking.getVenue();
+        Long sportId = (venue != null && venue.getSport() != null) ? venue.getSport().getId() : null;
+        String sportName = (venue != null && venue.getSport() != null) ? venue.getSport().getName() : null;
         
         List<BookingDetailResponse> detailResponses = booking.getDetails().stream().map(d -> 
             BookingDetailResponse.builder()
@@ -333,6 +335,8 @@ public class BookingService {
                 .venueName(venue.getName())
                 .venueLocation(venue.getLocation())
                 .venuePhone(venue.getOwner() != null ? venue.getOwner().getPhoneNumber() : null)
+                .sportId(sportId)
+                .sportName(sportName)
                 .totalPrice(booking.getTotalPrice())
                 .discountAmount(booking.getDiscountAmount())
                 .finalPrice(booking.getFinalPrice())

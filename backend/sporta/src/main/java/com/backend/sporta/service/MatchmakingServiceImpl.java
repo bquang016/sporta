@@ -222,6 +222,14 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             throw new CustomException("CLB phải có ít nhất " + config.getMinActiveClubMembers() + " thành viên ACTIVE để tạo room ghép trận", 400);
         }
 
+        if (hostClub.getSport() != null && booking.getVenue() != null && booking.getVenue().getSport() != null) {
+            if (!hostClub.getSport().getId().equals(booking.getVenue().getSport().getId())) {
+                throw new CustomException("CLB " + hostClub.getName() + " (" + hostClub.getSport().getName()
+                        + ") không cùng môn thể thao với sân đấu đã đặt ("
+                        + booking.getVenue().getSport().getName() + ")", 400);
+            }
+        }
+
         LocalDateTime startTime = getBookingStartTime(booking);
         LocalDateTime joinDeadline = startTime.minusMinutes(config.getJoinCutoffMinutes());
 

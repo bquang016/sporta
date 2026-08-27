@@ -22,6 +22,8 @@ public class BookingResponse {
     private String venueName;
     private String venueLocation;
     private String venuePhone;       // Số điện thoại chủ sân
+    private Long sportId;
+    private String sportName;
 
     private Double totalPrice;
     private Double discountAmount;
