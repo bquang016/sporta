@@ -166,10 +166,10 @@ public class AuthService {
         if (userRepository.existsByEmail(email)) {
             throw new CustomException("Email này đã được sử dụng. Vui lòng đăng nhập.", 400);
         }
-        // Check if a pending registration already exists for this email
         if (ownerRegistrationRepository.existsByEmailAndStatus(email, RegistrationStatus.PENDING)) {
             throw new CustomException("Đơn đăng ký của bạn đang chờ duyệt. Vui lòng đợi kết quả xét duyệt.", 400);
         }
+
         String otpCode = otpService.generateAndSaveOtp(email);
         try {
             emailService.sendOtpEmail(email, otpCode);

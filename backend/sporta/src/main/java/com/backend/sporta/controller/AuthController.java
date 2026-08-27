@@ -11,6 +11,7 @@ import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
 import com.backend.sporta.dto.RegisterOwnerResponse;
 import com.backend.sporta.service.AuthService;
+import com.backend.sporta.service.EmailService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
