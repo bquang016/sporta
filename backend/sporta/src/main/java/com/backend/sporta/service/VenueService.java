@@ -39,6 +39,8 @@ import com.backend.sporta.entity.VenuePolicy;
 import com.backend.sporta.entity.OwnerContract;
 import com.backend.sporta.repository.CourtPriceRuleRepository;
 import com.backend.sporta.repository.OwnerContractRepository;
+import com.backend.sporta.dto.VenuePolicyResponse;
+import com.backend.sporta.repository.VenuePolicyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,6 +89,9 @@ public class VenueService {
 
     @Autowired
     private TicketSessionRepository ticketSessionRepository;
+
+    @Autowired
+    private VenuePolicyRepository venuePolicyRepository;
 
     public List<VenueResponse> getVenuesByOwnerEmail(String email) {
         return venueRepository.findByOwnerUserEmail(email).stream()
@@ -175,6 +180,20 @@ public class VenueService {
             }
         }
 
+        VenuePolicy policy = venue.getVenuePolicy();
+        if (policy == null && venue.getId() != null) {
+            policy = venuePolicyRepository.findByVenueId(venue.getId()).orElse(null);
+        }
+
+        VenuePolicyResponse policyResponse = null;
+        if (policy != null) {
+            policyResponse = VenuePolicyResponse.builder()
+                    .freeCancellationHours(policy.getFreeCancellationHours())
+                    .lateCancellationRefundRate(policy.getLateCancellationRefundRate())
+                    .rainRescheduleAllowed(policy.getRainRescheduleAllowed())
+                    .build();
+        }
+
         return VenueDetailResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -199,6 +218,7 @@ public class VenueService {
                 .courts(courtPublicList)
                 .averageRating(venue.getAverageRating())
                 .totalReviews(venue.getTotalReviews())
+                .policy(policyResponse)
                 .build();
     }
 
@@ -1046,6 +1066,20 @@ public class VenueService {
             }
         }
 
+        VenuePolicy policy = venue.getVenuePolicy();
+        if (policy == null && venue.getId() != null) {
+            policy = venuePolicyRepository.findByVenueId(venue.getId()).orElse(null);
+        }
+
+        VenuePolicyResponse policyResponse = null;
+        if (policy != null) {
+            policyResponse = VenuePolicyResponse.builder()
+                    .freeCancellationHours(policy.getFreeCancellationHours())
+                    .lateCancellationRefundRate(policy.getLateCancellationRefundRate())
+                    .rainRescheduleAllowed(policy.getRainRescheduleAllowed())
+                    .build();
+        }
+
         return VenueResponse.builder()
                 .id(venue.getId())
                 .name(venue.getName())
@@ -1073,6 +1107,7 @@ public class VenueService {
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .averageRating(venue.getAverageRating())
                 .totalReviews(venue.getTotalReviews())
+                .policy(policyResponse)
                 .build();
     }
 

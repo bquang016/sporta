@@ -51,4 +51,7 @@ public class VenueResponse {
     // Điểm đánh giá (cache từ bảng venue_reviews)
     private Double averageRating;
     private Integer totalReviews;
+
+    // Chính sách hoàn / hủy sân
+    private VenuePolicyResponse policy;
 }
