@@ -55,6 +55,9 @@ public class BookingService {
     private NotificationService notificationService;
 
     @Autowired
+    private EmailService emailService;
+
+    @Autowired
     @org.springframework.context.annotation.Lazy
     private UserWalletService userWalletService;
 
@@ -209,6 +212,12 @@ public class BookingService {
                         NotificationType.BOOKING_SUCCESS,
                         booking.getId().toString()
                 ));
+            } catch (Exception ignored) {}
+
+            try {
+                if (booking.getUser() != null && booking.getUser().getEmail() != null && !booking.getUser().getEmail().isEmpty()) {
+                    emailService.sendBookingSuccessEmail(booking.getUser().getEmail(), booking);
+                }
             } catch (Exception ignored) {}
         }
 
@@ -660,6 +669,8 @@ public class BookingService {
         }
 
         Venue venue = booking.getVenue();
+        Long sportId = (venue != null && venue.getSport() != null) ? venue.getSport().getId() : null;
+        String sportName = (venue != null && venue.getSport() != null) ? venue.getSport().getName() : null;
         
         List<BookingDetailResponse> detailResponses = booking.getDetails().stream().map(d -> 
             BookingDetailResponse.builder()
@@ -680,6 +691,8 @@ public class BookingService {
                 .venueName(venue != null ? venue.getName() : null)
                 .venueLocation(venue != null ? venue.getLocation() : null)
                 .venuePhone(venue != null && venue.getOwner() != null ? venue.getOwner().getPhoneNumber() : null)
+                .sportId(sportId)
+                .sportName(sportName)
                 .totalPrice(booking.getTotalPrice())
                 .discountAmount(booking.getDiscountAmount())
                 .finalPrice(booking.getFinalPrice())

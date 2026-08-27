@@ -129,12 +129,8 @@ export function OtpVerifyScreen() {
     try {
       setCanResend(false);
       setCountdown(60);
-      const response = await sendOtp(email as string);
-      if (response.otp) {
-        showAlert('Thành công', `Đã gửi lại mã OTP. Mã OTP của bạn là: ${response.otp}`);
-      } else {
-        showAlert('Thành công', 'Đã gửi lại mã OTP qua email.');
-      }
+      await sendOtp(email as string);
+      showAlert('Thành công', 'Đã gửi lại mã OTP qua email. Vui lòng kiểm tra hộp thư.');
     } catch (error: any) {
       setCanResend(true);
       showAlert('Lỗi', error.message || 'Không thể gửi lại mã OTP.');
