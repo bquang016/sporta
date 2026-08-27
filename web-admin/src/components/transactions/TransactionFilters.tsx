@@ -1,5 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/Button';
+import { Dropdown, type DropdownOption } from '@/components/ui/Dropdown';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface TransactionFiltersProps {
   searchQuery: string;
@@ -30,25 +32,42 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
 }) => {
   const hasActiveFilters = searchQuery || selectedCluster || selectedStatus || startDate || endDate;
 
+  // Options for Cụm sân dropdown
+  const clusterOptions: DropdownOption[] = [
+    { value: '', label: 'Tất cả cụm sân' },
+    ...uniqueClusters.map(c => ({ value: c, label: c }))
+  ];
+
+  // Options for Trạng thái dropdown
+  const statusOptions: DropdownOption[] = [
+    { value: '', label: 'Tất cả trạng thái' },
+    { value: 'SUCCESS', label: 'Thành công' },
+    { value: 'REFUNDING', label: 'Đang hoàn tiền' },
+    { value: 'REFUNDED', label: 'Đã hoàn tiền' },
+    { value: 'FAILED', label: 'Thất bại' },
+    { value: 'PENDING', label: 'Đang chờ' }
+  ];
+
   return (
-    <div className="p-4 border-b border-outline-variant/10 bg-slate-50/50 flex-shrink-0">
-      <div className="flex flex-wrap gap-3 items-end">
+    <div className="p-5 border-b border-slate-200/80 bg-slate-50/70 flex-shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end">
         
-        {/* Input Tìm kiếm */}
-        <div className="flex-1 min-w-[200px] space-y-1">
-          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Tìm kiếm nhanh</label>
+        {/* Input Tìm kiếm (4 cols) */}
+        <div className="lg:col-span-4 space-y-1">
+          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider pl-0.5">Tìm kiếm nhanh</label>
           <div className="relative">
             <input
               type="text"
-              placeholder="Mã TRX, khách hàng, sân..."
+              placeholder="Mã TRX, khách hàng, số điện thoại, sân..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-4 py-2 w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold text-on-surface placeholder:text-slate-400 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 transition-all pr-10"
+              className="px-3.5 py-2.5 w-full bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald transition-all pr-9 shadow-2xs"
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -58,62 +77,64 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           </div>
         </div>
 
-        {/* Select Cụm sân */}
-        <div className="w-52 space-y-1">
-          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Cụm sân</label>
-          <select
+        {/* Dropdown Cụm sân (3 cols) */}
+        <div className="lg:col-span-3 space-y-1">
+          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider pl-0.5">Cụm sân</label>
+          <Dropdown
+            options={clusterOptions}
             value={selectedCluster}
-            onChange={(e) => setSelectedCluster(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-brand-emerald cursor-pointer"
-          >
-            <option value="">Tất cả cụm sân</option>
-            {uniqueClusters.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            onChange={setSelectedCluster}
+            placeholder="Tất cả cụm sân"
+            className="w-full shadow-2xs"
+          />
         </div>
 
-        {/* Select Trạng thái */}
-        <div className="w-40 space-y-1">
-          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Trạng thái</label>
-          <select
+        {/* Dropdown Trạng thái (2 cols) */}
+        <div className="lg:col-span-2 space-y-1">
+          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider pl-0.5">Trạng thái</label>
+          <Dropdown
+            options={statusOptions}
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-brand-emerald cursor-pointer"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="SUCCESS">Thành công</option>
-            <option value="REFUNDING">Đang hoàn tiền</option>
-            <option value="REFUNDED">Đã hoàn tiền</option>
-            <option value="FAILED">Thất bại</option>
-          </select>
+            onChange={setSelectedStatus}
+            placeholder="Tất cả trạng thái"
+            className="w-full shadow-2xs"
+          />
         </div>
 
-        {/* Lọc Khoảng Ngày */}
-        <div className="flex gap-2 items-center">
-          <div className="w-32 space-y-1">
-            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Từ ngày chơi</label>
-            <input
-              type="date"
+        {/* DatePicker Khoảng Ngày (3 cols) */}
+        <div className="lg:col-span-3 flex gap-2 items-end">
+          <div className="flex-1 space-y-1">
+            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider pl-0.5">Từ ngày</label>
+            <DatePicker
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-brand-emerald cursor-pointer"
+              placeholder="Từ ngày"
+              className="shadow-2xs"
             />
           </div>
-          <span className="text-slate-400 text-xs font-bold pt-5">đến</span>
-          <div className="w-32 space-y-1">
-            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Đến ngày chơi</label>
-            <input
-              type="date"
+          <div className="flex-1 space-y-1">
+            <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider pl-0.5">Đến ngày</label>
+            <DatePicker
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-brand-emerald cursor-pointer"
+              placeholder="Đến ngày"
+              className="shadow-2xs"
             />
           </div>
         </div>
 
-        {/* Nút Xóa Lọc */}
-        {hasActiveFilters && (
+      </div>
+
+      {/* Nút Xóa Lọc Active Filter Bar */}
+      {hasActiveFilters && (
+        <div className="mt-3.5 pt-3 border-t border-slate-200/60 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <span>Đang lọc theo:</span>
+            {searchQuery && <span className="bg-emerald-50 text-brand-emerald px-2 py-0.5 rounded-md font-bold text-[11px]">Từ khóa: "{searchQuery}"</span>}
+            {selectedCluster && <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold text-[11px]">{selectedCluster}</span>}
+            {selectedStatus && <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold text-[11px]">{selectedStatus}</span>}
+            {(startDate || endDate) && <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-bold text-[11px]">{startDate || '...'} → {endDate || '...'}</span>}
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -124,12 +145,12 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
               setStartDate('');
               setEndDate('');
             }}
-            className="text-xs font-bold text-slate-500 hover:text-slate-800 border-slate-200 py-2 hover:bg-slate-100 flex-shrink-0"
+            className="text-xs font-bold text-red-600 hover:text-red-800 hover:bg-red-50 py-1 px-3 border border-red-200/60"
           >
             Xóa tất cả bộ lọc
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

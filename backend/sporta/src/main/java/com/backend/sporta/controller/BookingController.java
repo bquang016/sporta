@@ -1,6 +1,9 @@
 package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.BookingResponse;
+import com.backend.sporta.dto.CancelBookingRequest;
+import com.backend.sporta.dto.CancelBookingResponse;
+import com.backend.sporta.dto.CancellationPreviewResponse;
 import com.backend.sporta.dto.CreateBookingRequest;
 import com.backend.sporta.service.BookingService;
 import jakarta.validation.Valid;
@@ -54,13 +57,27 @@ public class BookingController {
     }
 
     /**
+     * GET /api/v1/bookings/{id}/cancellation-preview
+     * Xem trước chính sách và số tiền hoàn vào ví trước khi hủy.
+     */
+    @GetMapping("/{id}/cancellation-preview")
+    public ResponseEntity<CancellationPreviewResponse> getCancellationPreview(@PathVariable UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        CancellationPreviewResponse response = bookingService.getCancellationPreview(id, email);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * POST /api/v1/bookings/{id}/cancel
-     * Hủy đặt sân. Chủ sân chỉ được hủy nếu là đặt thủ công/ offline.
+     * Hủy đặt sân và tự động hoàn tiền vào ví Sporta.
      */
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<?> cancelBooking(@PathVariable UUID id) {
+    public ResponseEntity<CancelBookingResponse> cancelBooking(
+            @PathVariable UUID id,
+            @RequestBody(required = false) CancelBookingRequest request
+    ) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        bookingService.cancelBooking(id, email);
-        return ResponseEntity.ok(java.util.Map.of("message", "Hủy đặt sân thành công"));
+        CancelBookingResponse response = bookingService.cancelBookingWithRefund(id, request, email);
+        return ResponseEntity.ok(response);
     }
 }

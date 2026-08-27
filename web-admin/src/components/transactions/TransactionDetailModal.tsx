@@ -2,8 +2,8 @@ import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 
-type PaymentMethod = 'MOMO' | 'VNPAY' | 'BANK_TRANSFER';
-type TransactionStatus = 'SUCCESS' | 'FAILED' | 'REFUNDING' | 'REFUNDED';
+type PaymentMethod = 'MOMO' | 'VNPAY' | 'BANK_TRANSFER' | 'PAYOS' | 'WALLET' | 'DEV' | 'CASH' | string;
+type TransactionStatus = 'SUCCESS' | 'FAILED' | 'REFUNDING' | 'REFUNDED' | 'PENDING';
 
 interface Transaction {
   id: string;
@@ -16,6 +16,10 @@ interface Transaction {
   bookingDate: string;
   bookingSlot: string;
   amount: number;
+  commissionAmount?: number;
+  ownerAmount?: number;
+  refundAmount?: number;
+  refundRate?: number;
   paymentMethod: PaymentMethod;
   status: TransactionStatus;
   createdAt: string;
@@ -48,6 +52,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 }) => {
   if (!selectedTx) return null;
 
+  const commission = selectedTx.commissionAmount ?? Math.round(selectedTx.amount * 0.10);
+  const ownerEarn = selectedTx.ownerAmount ?? (selectedTx.amount - commission);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -57,7 +64,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-1 select-none">
-            {selectedTx.updatedAt && `Cập nhật cuối: ${new Date(selectedTx.updatedAt).toLocaleString('vi-VN')}`}
+            {selectedTx.createdAt && `Tạo lúc: ${new Date(selectedTx.createdAt).toLocaleString('vi-VN')}`}
           </div>
           
           <div className="flex gap-2">
@@ -120,7 +127,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 <p className="text-xs font-semibold text-slate-500">Sân cụ thể: <span className="font-bold text-slate-800">{selectedTx.courtName}</span></p>
                 <p className="text-xs font-semibold text-slate-500">Môn thể thao: <span className="font-bold text-brand-emerald">{selectedTx.sportType}</span></p>
                 <p className="text-xs font-semibold text-slate-500">Khung giờ đặt: <span className="font-bold text-slate-800">{selectedTx.bookingSlot}</span></p>
-                <p className="text-xs font-semibold text-slate-500">Ngày chơi bóng: <span className="font-bold text-slate-800">{new Date(selectedTx.bookingDate).toLocaleDateString('vi-VN')}</span></p>
+                <p className="text-xs font-semibold text-slate-500">Ngày chơi bóng: <span className="font-bold text-slate-800">{selectedTx.bookingDate}</span></p>
               </div>
             </div>
           </div>
@@ -128,7 +135,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           {/* Right Column: Financial details & timeline */}
           <div className="space-y-4">
             <div>
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Chi tiết giao dịch</h4>
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Chi tiết tài chính & Phân bổ</h4>
               <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-500">Mã giao dịch:</span>
@@ -138,12 +145,26 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   <span className="text-xs font-bold text-slate-500">Phương thức:</span>
                   <span>{getPaymentMethodBadge(selectedTx.paymentMethod)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-500">Giá trị thanh toán:</span>
+                <div className="flex justify-between items-center border-t border-slate-200/50 pt-2">
+                  <span className="text-xs font-bold text-slate-500">Tổng thanh toán:</span>
                   <span className="font-black text-slate-800 text-sm">{formatCurrency(selectedTx.amount)}</span>
                 </div>
+                <div className="flex justify-between items-center bg-amber-50/60 p-2.5 rounded-xl border border-amber-100">
+                  <span className="text-xs font-black text-amber-800">Hoa hồng Sporta (10%):</span>
+                  <span className="font-black text-amber-600 text-sm">+{formatCurrency(commission)}</span>
+                </div>
+                <div className="flex justify-between items-center bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100">
+                  <span className="text-xs font-black text-emerald-800">Chủ sân thực nhận (90%):</span>
+                  <span className="font-black text-emerald-700 text-sm">{formatCurrency(ownerEarn)}</span>
+                </div>
+                {selectedTx.refundAmount != null && selectedTx.refundAmount > 0 && (
+                  <div className="flex justify-between items-center bg-red-50 p-2.5 rounded-xl border border-red-100">
+                    <span className="text-xs font-black text-red-800">Tiền hoàn cho khách ({selectedTx.refundRate || 0}%):</span>
+                    <span className="font-black text-red-600 text-sm">-{formatCurrency(selectedTx.refundAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center border-t border-slate-200/50 pt-2">
-                  <span className="text-xs font-bold text-slate-500">Trạng thái hiện tại:</span>
+                  <span className="text-xs font-bold text-slate-500">Trạng thái:</span>
                   <span>{getStatusBadge(selectedTx.status)}</span>
                 </div>
               </div>
@@ -154,7 +175,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               <div>
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ghi chú & Lịch sử giải quyết</h4>
                 <div className="bg-red-50/30 border border-dashed border-red-100 rounded-2xl p-4 space-y-2">
-                  <p className="text-xs font-bold text-red-800">Lịch sử sự vụ:</p>
+                  <p className="text-xs font-bold text-red-800">Lý do / Ghi chú:</p>
                   <p className="text-xs text-slate-600 leading-normal font-semibold">
                     {selectedTx.reason}
                   </p>

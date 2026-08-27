@@ -26,16 +26,63 @@ export interface BookingItem {
   status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED';
   paymentStatus?: 'PAID' | 'UNPAID';
   paymentMethod: string;
+  refundAmount?: number;
+  refundRate?: number;
+  cancellationReason?: string;
+  cancelledAt?: string;
   createdAt?: string;
   details?: BookingDetailItem[];
+}
+
+export interface CancellationPreviewData {
+  bookingId: string;
+  bookingCode: string;
+  venueName: string;
+  courtName: string;
+  startTime: string;
+  hoursRemaining: number;
+  originalPrice: number;
+  finalPaidPrice: number;
+  refundRate: number;
+  refundAmount: number;
+  cancellationFee: number;
+  policyDescription: string;
+  isEligibleForRefund: boolean;
+  refundDestination: string;
+  isGracePeriod?: boolean;
+  graceMinutesRemaining?: number;
+}
+
+export interface CancelBookingResponseData {
+  success: boolean;
+  bookingId: string;
+  bookingCode: string;
+  status: string;
+  refundAmount: number;
+  refundRate: number;
+  cancellationFee: number;
+  userWalletBalance: number;
+  message: string;
+  cancelledAt?: string;
 }
 
 export const getMyBookingsApi = async (): Promise<BookingItem[]> => {
   return requestApi('/bookings/my', { method: 'GET' });
 };
 
-export const cancelBookingApi = async (id: string): Promise<any> => {
-  return requestApi(`/bookings/${id}/cancel`, { method: 'POST' });
+export const getCancellationPreviewApi = async (id: string): Promise<CancellationPreviewData> => {
+  return requestApi(`/bookings/${id}/cancellation-preview`, { method: 'GET' });
+};
+
+export const cancelBookingApi = async (
+  id: string,
+  reason?: string,
+  note?: string
+): Promise<CancelBookingResponseData> => {
+  return requestApi(`/bookings/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, note })
+  });
 };
 
 export const getEffectiveBookingStatus = (booking: BookingItem): 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED' => {
@@ -58,5 +105,3 @@ export const getEffectiveBookingStatus = (booking: BookingItem): 'CONFIRMED' | '
 
   return booking.status;
 };
-
-

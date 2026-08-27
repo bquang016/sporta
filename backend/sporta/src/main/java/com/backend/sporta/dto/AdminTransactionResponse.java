@@ -20,6 +20,10 @@ public class AdminTransactionResponse {
     private String bookingDate;
     private String bookingSlot;
     private double amount;
+    private double commissionAmount;
+    private double ownerAmount;
+    private double refundAmount;
+    private Integer refundRate;
     private String paymentMethod;
     private String status;
     private String createdAt;

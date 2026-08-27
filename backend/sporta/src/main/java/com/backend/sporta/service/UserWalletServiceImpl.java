@@ -244,6 +244,45 @@ public class UserWalletServiceImpl implements UserWalletService {
         return mapBookingToResponse(booking);
     }
 
+    // ─── Credit Booking Refund ──────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public long creditBookingRefund(Long userId, UUID bookingId, Long refundAmount, String bookingCode, int refundRate) {
+        if (refundAmount <= 0) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+            UserWallet wallet = getOrCreateWallet(user);
+            return wallet.getBalance();
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+        UserWallet wallet = getOrCreateWallet(user);
+
+        long balanceBefore = wallet.getBalance();
+        long balanceAfter = balanceBefore + refundAmount;
+        wallet.setBalance(balanceAfter);
+        userWalletRepository.save(wallet);
+
+        // Ghi log giao dịch ví
+        WalletTransaction txn = WalletTransaction.builder()
+                .walletType(WalletType.USER)
+                .userId(userId)
+                .transactionType(WalletTransactionType.BOOKING_REFUND)
+                .amount(refundAmount)
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .referenceId(bookingId)
+                .description("Hoàn tiền hủy đơn đặt sân - " + bookingCode + " (Hoàn " + refundRate + "%)")
+                .build();
+        walletTransactionRepository.save(txn);
+
+        log.info("Booking refund credited to user wallet: userId={}, bookingId={}, amount={}, newBalance={}",
+                userId, bookingId, refundAmount, balanceAfter);
+
+        return balanceAfter;
+    }
+
     // ─── Transaction History ────────────────────────────────────────────────────
 
     @Override

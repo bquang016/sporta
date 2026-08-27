@@ -222,14 +222,12 @@ export const MatrixPage = () => {
           viewMode === 'grid' ? (
             <DesktopBookingGrid venueId={selectedVenueId} refreshCounter={refreshCounter} />
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-visible">
-              <BookingCardView 
-                isMobile={false} 
-                venueId={selectedVenueId} 
-                refreshCounter={refreshCounter} 
-                onRefresh={() => setRefreshCounter(prev => prev + 1)} 
-              />
-            </div>
+            <BookingCardView 
+              isMobile={false} 
+              venueId={selectedVenueId} 
+              refreshCounter={refreshCounter} 
+              onRefresh={() => setRefreshCounter(prev => prev + 1)} 
+            />
           )
         ) : (
           <div className="bg-white border border-slate-150 p-16 rounded-3xl text-center font-bold text-slate-400 text-xs">

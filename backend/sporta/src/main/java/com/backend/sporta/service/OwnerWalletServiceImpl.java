@@ -115,6 +115,47 @@ public class OwnerWalletServiceImpl implements OwnerWalletService {
                 ownerId, bookingId, earning, commission);
     }
 
+    // ─── Debit Booking Refund ───────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void debitBookingRefund(UUID ownerId, UUID bookingId, Long refundAmount, String bookingCode, int refundRate) {
+        if (refundAmount <= 0) return;
+
+        Owner owner = ownerRepository.findById(ownerId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
+
+        OwnerWallet wallet = getOrCreateWallet(owner);
+
+        // Khấu trừ phần doanh thu và hoàn trả phần hoa hồng tương ứng
+        long refundCommission = Math.round(refundAmount * commissionRate);
+        long refundEarning = refundAmount - refundCommission;
+
+        long balanceBefore = wallet.getBalance();
+        long balanceAfter = Math.max(0L, balanceBefore - refundEarning);
+
+        wallet.setBalance(balanceAfter);
+        wallet.setTotalEarned(Math.max(0L, wallet.getTotalEarned() - refundEarning));
+        wallet.setTotalCommission(Math.max(0L, wallet.getTotalCommission() - refundCommission));
+        ownerWalletRepository.save(wallet);
+
+        // Log giao dịch khấu trừ
+        WalletTransaction debitTxn = WalletTransaction.builder()
+                .walletType(WalletType.OWNER)
+                .ownerId(ownerId)
+                .transactionType(WalletTransactionType.BOOKING_REFUND)
+                .amount(refundEarning)
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .referenceId(bookingId)
+                .description("Khấu trừ hoàn tiền đơn đặt sân - " + bookingCode + " (Hoàn " + refundRate + "%)")
+                .build();
+        walletTransactionRepository.save(debitTxn);
+
+        log.info("Owner refund debited: ownerId={}, bookingId={}, debitedEarning={}, newBalance={}",
+                ownerId, bookingId, refundEarning, balanceAfter);
+    }
+
     // ─── Create Withdrawal ──────────────────────────────────────────────────────
 
     @Override
