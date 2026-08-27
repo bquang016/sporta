@@ -70,9 +70,10 @@ export function MatchmakingListScreen() {
 
   const sports = [
     { id: undefined, name: 'Tất cả môn', icon: 'grid-outline' },
-    { id: 'football', name: 'Bóng đá', icon: 'football-outline' },
-    { id: 'badminton', name: 'Cầu lông', icon: 'tennisball-outline' },
-    { id: 'basketball', name: 'Bóng rổ', icon: 'basketball-outline' },
+    { id: '1', name: 'Bóng đá', icon: 'football-outline' },
+    { id: '2', name: 'Cầu lông', icon: 'tennisball-outline' },
+    { id: '3', name: 'Pickleball', icon: 'tennisball-outline' },
+    { id: '4', name: 'Bóng rổ', icon: 'basketball-outline' },
   ];
 
   const matchTypes = [
@@ -87,6 +88,14 @@ export function MatchmakingListScreen() {
     { id: 'NEAREST', label: 'Gần tôi' },
   ];
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -94,7 +103,7 @@ export function MatchmakingListScreen() {
       {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
 

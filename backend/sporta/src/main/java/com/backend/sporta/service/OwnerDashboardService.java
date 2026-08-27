@@ -120,11 +120,22 @@ public class OwnerDashboardService {
 
         List<DashboardBookingDto> bookings = new ArrayList<>();
         double totalRevenue = 0.0;
+        double todayRevenue = 0.0;
         int pendingCheckinCount = 0;
+        LocalDate todayDate = LocalDate.now();
 
         for (Booking b : targetBookings) {
             double amount = b.getFinalPrice() != null ? b.getFinalPrice() : 0.0;
             totalRevenue += amount;
+
+            LocalDate bDate = b.getCreatedAt() != null ? b.getCreatedAt().toLocalDate() : null;
+            if (b.getDetails() != null && !b.getDetails().isEmpty() && b.getDetails().get(0).getBookingDate() != null) {
+                bDate = b.getDetails().get(0).getBookingDate();
+            }
+
+            if (bDate != null && bDate.equals(todayDate)) {
+                todayRevenue += amount;
+            }
 
             String bStatus = b.getStatus() == BookingStatus.COMPLETED ? "checked-in" : "pending-checkin";
             if ("pending-checkin".equals(bStatus)) {
@@ -173,8 +184,8 @@ public class OwnerDashboardService {
                 : 0;
 
         DashboardStatsDto stats = DashboardStatsDto.builder()
-                .revenue(totalRevenue)
-                .revenueK(Math.round(totalRevenue / 1000.0))
+                .revenue(todayRevenue)
+                .revenueK(Math.round(todayRevenue / 1000.0))
                 .occupancy(occupancyRate)
                 .pendingCount(pendingCheckinCount)
                 .activeRatio(String.format("%d/%d", activePitchesCount, totalPitchesCount))

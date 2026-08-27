@@ -79,10 +79,19 @@ export function CreateMatchScreen() {
         setClubs(eligibleClubs || []);
         setBookings(paidBookings || []);
 
-        const firstEligible = (eligibleClubs || []).find((c) => c.isEligibleForMatchmaking);
-        if (firstEligible) setSelectedClub(firstEligible);
+        // Chọn thông minh: Ưu tiên CLB đủ điều kiện VÀ có sẵn lịch đặt sân cùng môn thể thao
+        const clubWithBooking = (eligibleClubs || []).find(
+          (c) => c.isEligibleForMatchmaking && (paidBookings || []).some((b) => String(b.sportId) === String(c.sportId))
+        );
+        const defaultClub = clubWithBooking || (eligibleClubs || []).find((c) => c.isEligibleForMatchmaking) || (eligibleClubs || [])[0];
 
-        if (paidBookings && paidBookings.length > 0) setSelectedBooking(paidBookings[0]);
+        if (defaultClub) {
+          setSelectedClub(defaultClub);
+          const initialAvailable = (paidBookings || []).filter((b) => String(b.sportId) === String(defaultClub.sportId));
+          if (initialAvailable.length > 0) {
+            setSelectedBooking(initialAvailable[0]);
+          }
+        }
       } catch (e) {
         console.error('Error loading create match data:', e);
       } finally {
@@ -91,6 +100,22 @@ export function CreateMatchScreen() {
     }
     loadData();
   }, []);
+
+  // Lọc danh sách lịch đặt sân theo đúng môn thể thao của CLB đại diện được chọn
+  const availableBookings = React.useMemo(() => {
+    if (!selectedClub) return bookings;
+    return bookings.filter((b) => String(b.sportId) === String(selectedClub.sportId));
+  }, [bookings, selectedClub]);
+
+  // Tự động chọn booking phù hợp khi đổi CLB đại diện
+  useEffect(() => {
+    if (selectedClub) {
+      const matchInAvailable = availableBookings.find((b) => b.id === selectedBooking?.id);
+      if (!matchInAvailable) {
+        setSelectedBooking(availableBookings.length > 0 ? availableBookings[0] : undefined);
+      }
+    }
+  }, [selectedClub, availableBookings]);
 
   const handleCreate = async () => {
     if (!selectedClub) {
@@ -103,6 +128,14 @@ export function CreateMatchScreen() {
     }
     if (!selectedBooking) {
       showAlert('Chưa chọn sân', 'Vui lòng chọn lịch sân đã đặt (PAID).', 'warning');
+      return;
+    }
+    if (selectedClub.sportId && selectedBooking.sportId && String(selectedClub.sportId) !== String(selectedBooking.sportId)) {
+      showAlert(
+        'Khác môn thể thao',
+        `CLB ${selectedClub.name} (${selectedClub.sportName}) không cùng môn thể thao với sân đấu đã đặt (${selectedBooking.sportName}).`,
+        'warning'
+      );
       return;
     }
 
@@ -127,6 +160,14 @@ export function CreateMatchScreen() {
 
   const levelOptions = ['Tương đương', 'Yếu', 'TBY', 'TB', 'TBK', 'Khá'];
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/matchmaking');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -134,7 +175,7 @@ export function CreateMatchScreen() {
       {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Tạo Bài Ghép Kèo Nhanh</Text>
@@ -159,9 +200,10 @@ export function CreateMatchScreen() {
 
             {/* Section 2: Choose Booking */}
             <PaidBookingPicker
-              bookings={bookings}
+              bookings={availableBookings}
               selectedBookingId={selectedBooking?.id}
               onSelectBooking={setSelectedBooking}
+              selectedSportName={selectedClub?.sportName}
             />
 
             {/* Section 3: Match Type Selector */}
