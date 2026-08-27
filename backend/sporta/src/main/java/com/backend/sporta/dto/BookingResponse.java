@@ -37,6 +37,11 @@ public class BookingResponse {
     private String playerEmail;
     private String playerPhone;
 
+    private Double refundAmount;
+    private Integer refundRate;
+    private String cancellationReason;
+    private LocalDateTime cancelledAt;
+
     private String checkoutUrl;
     private Long orderCode;
 

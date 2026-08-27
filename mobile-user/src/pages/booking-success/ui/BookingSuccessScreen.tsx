@@ -20,6 +20,8 @@ import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 import { fetchBookingById } from '../../../entities/booking/api/bookingApi';
 import type { BookingResponse } from '../../../entities/booking/model/booking.types';
 import { WriteReviewSheet } from '../../../features/venue-rating';
+import { CancellationPreviewModal } from '../../../features/booking/ui/CancellationPreviewModal';
+import type { CancelBookingResponseData } from '../../../shared/api/bookings';
 
 export function BookingSuccessScreen() {
   const router = useRouter();
@@ -29,8 +31,8 @@ export function BookingSuccessScreen() {
   const isFromHistory = params.fromHistory === 'true';
   const [booking, setBooking] = useState<BookingResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
-  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelSuccessData, setCancelSuccessData] = useState<CancelBookingResponseData | null>(null);
   const [showCopySuccessModal, setShowCopySuccessModal] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -474,16 +476,34 @@ export function BookingSuccessScreen() {
           </View>
         ) : null}
 
-        {/* ── 8. Cancellation Policy (If applicable) ── */}
+        {/* ── 8. Cancellation Policy & Action Card ── */}
         {!isCancelled && activeBooking.status !== 'COMPLETED' ? (
-          <View style={styles.cancelPolicySection}>
+          <View style={styles.cancelPolicyCard}>
+            <View style={styles.cancelPolicyHeader}>
+              <View style={styles.cancelIconCircle}>
+                <Ionicons name="flash" size={17} color="#047857" />
+              </View>
+              <View style={styles.cancelPolicyTextGroup}>
+                <View style={styles.cancelPolicyTitleRow}>
+                  <Text style={styles.cancelPolicyTitle}>Thay đổi kế hoạch?</Text>
+                  <View style={styles.freeGraceTag}>
+                    <Text style={styles.freeGraceTagText}>Miễn phí 100% trong 10p</Text>
+                  </View>
+                </View>
+                <Text style={styles.cancelPolicyDesc}>
+                  Hủy trong vòng <Text style={styles.boldGreenText}>10 phút sau khi đặt</Text> được <Text style={styles.boldGreenText}>hoàn 100% toàn bộ tiền</Text> vào Ví Sporta. Sau thời gian này sẽ áp dụng chính sách của sân.
+                </Text>
+              </View>
+            </View>
+
             <TouchableOpacity 
               style={styles.cancelBookingBtn} 
-              activeOpacity={0.85}
-              onPress={() => setShowCancelConfirmModal(true)}
+              activeOpacity={0.8}
+              onPress={() => setShowCancelModal(true)}
             >
-              <Ionicons name="close-circle-outline" size={17} color={COLORS.error} />
-              <Text style={styles.cancelBookingBtnText}>Yêu cầu hủy đặt sân</Text>
+              <Ionicons name="close-circle-outline" size={18} color="#DC2626" />
+              <Text style={styles.cancelBookingBtnText}>Yêu cầu hủy đặt sân & Hoàn tiền</Text>
+              <Ionicons name="chevron-forward" size={16} color="#DC2626" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           </View>
         ) : null}
@@ -517,37 +537,46 @@ export function BookingSuccessScreen() {
         />
       </View>
 
-      {/* Cancel Confirmation Modal */}
-      <ConfirmModal
-        visible={showCancelConfirmModal}
-        title="Hủy đặt sân"
-        message={`Bạn có chắc chắn muốn hủy đơn đặt sân ${activeBooking.bookingCode} tại "${activeBooking.venueName}" không?\n\nTiền thanh toán sẽ được hoàn lại ví/tài khoản theo đúng chính sách hoàn hủy của sân.`}
-        confirmText="Xác nhận hủy"
-        cancelText="Giữ lại đơn"
-        confirmVariant="primary"
-        icon="warning"
-        iconColor={COLORS.error}
-        onConfirm={() => {
-          setShowCancelConfirmModal(false);
+      {/* Cancellation Preview & Refund Modal */}
+      <CancellationPreviewModal
+        visible={showCancelModal}
+        booking={activeBooking as any}
+        onClose={() => setShowCancelModal(false)}
+        onSuccess={(result) => {
+          setShowCancelModal(false);
           if (booking) {
-            setBooking({ ...booking, status: 'CANCELLED' });
+            setBooking({
+              ...booking,
+              status: 'CANCELLED',
+              refundAmount: result.refundAmount,
+              refundRate: result.refundRate,
+              cancelledAt: result.cancelledAt,
+            });
           }
-          setShowCancelSuccessModal(true);
+          setCancelSuccessData(result);
         }}
-        onCancel={() => setShowCancelConfirmModal(false)}
       />
 
       {/* Cancel Success Modal */}
       <ConfirmModal
-        visible={showCancelSuccessModal}
+        visible={!!cancelSuccessData}
         title="Hủy đặt sân thành công"
-        message={`Đơn đặt sân ${activeBooking.bookingCode} tại "${activeBooking.venueName}" đã được cập nhật sang trạng thái Đã Hủy.\n\nTiền sẽ được tự động hoàn lại ví/tài khoản của bạn.`}
-        confirmText="Đã hiểu"
+        message={
+          cancelSuccessData?.refundAmount && cancelSuccessData.refundAmount > 0
+            ? `${cancelSuccessData.message}\n\nSố dư ví Sporta hiện tại: ${cancelSuccessData.userWalletBalance?.toLocaleString('vi-VN')} đ`
+            : cancelSuccessData?.message || 'Đơn đặt sân đã được hủy thành công.'
+        }
+        confirmText="Xem Ví Sporta"
+        cancelText="Đóng"
         confirmVariant="primary"
         icon="check-circle"
         iconColor={COLORS.primary}
         onConfirm={() => {
-          setShowCancelSuccessModal(false);
+          setCancelSuccessData(null);
+          router.push('/wallet' as any);
+        }}
+        onCancel={() => {
+          setCancelSuccessData(null);
           router.replace('/(tabs)');
         }}
       />
@@ -1016,23 +1045,107 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 
-  /* Cancellation Section */
-  cancelPolicySection: {
-    alignItems: 'center',
+  /* Cancellation Section Card */
+  cancelPolicyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: SPACING.sm,
     marginTop: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#DC2626',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0px 3px 10px rgba(220, 38, 38, 0.06)',
+      } as any,
+    }),
+  },
+  cancelPolicyHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  cancelIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  cancelPolicyTextGroup: {
+    flex: 1,
+  },
+  cancelPolicyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  cancelPolicyTitle: {
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 13.5,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: COLORS.onSurface,
+  },
+  freeGraceTag: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 0.5,
+    borderColor: '#86EFAC',
+  },
+  freeGraceTagText: {
+    fontSize: 10,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  boldGreenText: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#047857',
+  },
+  cancelPolicyDesc: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    fontFamily: 'HankenGrotesk-Regular',
+    color: '#64748B',
+    lineHeight: 17,
   },
   cancelBookingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginTop: 2,
   },
   cancelBookingBtnText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 12.5,
-    color: COLORS.error,
-    fontWeight: '700',
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontFamily: 'HankenGrotesk-Bold',
+    color: '#DC2626',
+    fontWeight: '800',
   },
 
   /* Review Prompt Card */

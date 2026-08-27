@@ -92,6 +92,15 @@ export function BookingHistoryCard({
           <Text style={styles.totalPriceLabel}>Tổng tiền:</Text>
           <Text style={styles.totalPriceValue}>{formatCurrency(booking.finalPrice)}</Text>
         </View>
+
+        {isCancelled && booking.refundAmount !== undefined && booking.refundAmount > 0 && (
+          <View style={styles.refundedRow}>
+            <MaterialIcons name="account-balance-wallet" size={14} color="#10B981" />
+            <Text style={styles.refundedText}>
+              Đã hoàn {formatCurrency(booking.refundAmount)} vào ví Sporta
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Actions Row */}
@@ -302,6 +311,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: COLORS.primary,
+  },
+  refundedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  refundedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#047857',
   },
   cardActions: {
     flexDirection: 'row',

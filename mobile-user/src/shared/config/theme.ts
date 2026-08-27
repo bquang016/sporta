@@ -165,6 +165,13 @@ export const TYPOGRAPHY = {
     fontWeight: '600' as const,
     lineHeight: 24,
   },
+  titleSm: {
+    fontFamily: 'HankenGrotesk-SemiBold',
+    fontSize: 14,
+    fontWeight: '600' as const,
+    lineHeight: 20,
+    letterSpacing: 0.1,
+  },
   bodyLg: {
     fontFamily: 'HankenGrotesk-Regular',
     fontSize: 16,

@@ -44,6 +44,11 @@ export interface BookingResponse {
   checkoutUrl?: string;
   orderCode?: number;
   
+  refundAmount?: number;
+  refundRate?: number;
+  cancellationReason?: string;
+  cancelledAt?: string;
+
   createdAt: string;
 }
 

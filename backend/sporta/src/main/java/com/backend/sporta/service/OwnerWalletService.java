@@ -23,6 +23,11 @@ public interface OwnerWalletService {
     void creditEarning(UUID ownerId, UUID bookingId, Long paidAmount);
 
     /**
+     * Khấu trừ doanh thu của Owner khi booking bị hủy và hoàn tiền cho khách.
+     */
+    void debitBookingRefund(UUID ownerId, UUID bookingId, Long refundAmount, String bookingCode, int refundRate);
+
+    /**
      * Tạo yêu cầu rút tiền (Owner).
      */
     WithdrawalResponse createWithdrawal(String ownerEmail, CreateWithdrawalRequest request);

@@ -29,4 +29,13 @@ public class CreateBookingRequest {
 
     /** Mã voucher hệ thống (nullable — do admin tạo) */
     private String systemVoucherCode;
+
+    /** Mã voucher tổng quát (nullable) */
+    private String voucherCode;
+
+    public String getVoucherCode() {
+        if (voucherCode != null && !voucherCode.isBlank()) return voucherCode;
+        if (ownerVoucherCode != null && !ownerVoucherCode.isBlank()) return ownerVoucherCode;
+        return systemVoucherCode;
+    }
 }

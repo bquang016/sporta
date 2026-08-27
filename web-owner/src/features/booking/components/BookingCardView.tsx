@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../components/ui/Modal';
+import { Dropdown } from '../../../components/ui/Dropdown';
 import { useBookingMatrix } from '../hooks/useBookingMatrix';
 import { formatPrice, type SlotStatus } from './mockData';
 import { getSportLevelLabel } from '../../venue/hooks/useTicketSessions';
-import { Copy, Check, Users, Award, Ticket, Clock } from 'lucide-react';
 import { ticketService } from '../../venue/services/ticketService';
+import { 
+  Copy, 
+  Check, 
+  Users, 
+  Award, 
+  Tag, 
+  Ticket, 
+  Clock, 
+  Plus, 
+  Search,
+  Phone,
+  Layers,
+  Calendar,
+  AlertCircle
+} from 'lucide-react';
 
 interface BookingCardViewProps {
   isMobile: boolean;
@@ -23,6 +38,25 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
     slots,
     filteredFacilities,
     shiftMinutes,
+    sportName,
+    closingTime,
+    searchTerm,
+    setSearchTerm,
+    currentDate,
+    handlePrevDay,
+    handleNextDay,
+    handleToday,
+    showKpis,
+    setShowKpis,
+    kpis,
+    isBookingModalOpen,
+    setIsBookingModalOpen,
+    quickBookingData,
+    setQuickBookingData,
+    shiftOptions,
+    selectedShiftId,
+    handleShiftChange,
+    handleQuickBookingSubmit,
     selectedBookingDetail,
     setSelectedBookingDetail,
     isDetailModalOpen,
@@ -45,7 +79,7 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
     
     for (const slot of facilitySlots) {
       const status = slot.status;
-      if (status === 'available') {
+      if (status === 'available' || status === 'locked') {
         if (current) {
           allBlocks.push(current);
           current = null;
@@ -54,15 +88,18 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
       }
       
       const name = slot.customerName;
+      const phone = slot.customerPhone;
       const tSessionId = slot.ticketSessionId;
       const isManual = slot.isManual;
       
-      // Determine if it should group with the current block (manual slots are never grouped)
+      // Determine if it should group with the current block (manual slots are grouped if same bookingId or same customer & phone)
       const isSameGroup = current &&
         current.status === status &&
-        !isManual &&
-        !current.isManual &&
-        (status === 'matchmaking' ? current.ticketSessionId === tSessionId : current.customerName === name);
+        (
+          (status === 'matchmaking' && current.ticketSessionId === tSessionId) ||
+          (status !== 'matchmaking' && slot.bookingId && current.bookingId && current.bookingId === slot.bookingId) ||
+          (status !== 'matchmaking' && (!slot.bookingId || !current.bookingId) && current.customerName === name && current.customerPhone === phone && current.isManual === isManual)
+        );
         
       if (isSameGroup && current) {
         current.endTime = slot.time;
@@ -80,6 +117,7 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
           endTime: slot.time,
           status,
           customerName: name,
+          customerPhone: phone,
           slotCount: 1,
           slotIds: [slot.id],
           ticketSessionId: tSessionId,
@@ -99,6 +137,16 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
   
   // Sort blocks chronologically by start time
   allBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  // Filter blocks by search term
+  const displayedBlocks = searchTerm
+    ? allBlocks.filter(b => 
+        (b.facilityName && b.facilityName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (b.customerName && b.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (b.customerPhone && b.customerPhone.includes(searchTerm)) ||
+        (b.status === 'matchmaking' && 'xé vé ghép cặp'.includes(searchTerm.toLowerCase()))
+      )
+    : allBlocks;
 
   const getStatusDetails = (status: SlotStatus, isManual?: boolean) => {
     switch (status) {
@@ -199,6 +247,7 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
         pricePerHour: block.facilityPrice
       },
       customerName: block.status === 'matchmaking' ? 'Ca xé vé ghép cặp' : (block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì' : 'Khách lẻ')),
+      customerPhone: block.customerPhone,
       startTime: block.startTime,
       endTime: actualEndTime,
       status: block.status,
@@ -222,105 +271,387 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
     if (onRefresh) onRefresh();
   };
 
-  if (loading && allBlocks.length === 0) {
-    return (
-      <div className="flex justify-center items-center py-24 select-none">
-        <div className="w-8 h-8 border-4 border-brand-emerald border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (allBlocks.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 select-none">
-        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <p className="text-sm font-black text-slate-500">Hôm nay không có lịch đặt sân nào</p>
-        <p className="text-xs text-slate-400 mt-1">Các sân đều trống hoặc chưa được cập nhật</p>
-      </div>
-    );
-  }
+  const onQuickBookingFormSubmit = async (e: React.FormEvent) => {
+    await handleQuickBookingSubmit(e);
+    if (onRefresh) onRefresh();
+  };
 
   return (
-    <div className="w-full">
-      <div className={`grid gap-4 ${isMobile ? 'px-4 pb-28 grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-        {allBlocks.map((block, idx) => {
-          const details = getStatusDetails(block.status, block.isManual);
-          const durationMins = block.slotCount * shiftMinutes;
-          const hours = Math.floor(durationMins / 60);
-          const mins = durationMins % 60;
-          const durationStr = hours > 0 ? `${hours}h${mins > 0 ? mins : ''}` : `${mins} phút`;
-          const totalPrice = block.status === 'matchmaking' 
-            ? (block.pricePerTicket || 0)
-            : (block.facilityPrice * (durationMins / 60));
-
-          return (
-            <div
-              key={idx}
-              onClick={() => handleCardClick(block)}
-              className={`bg-white rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] p-4 border-l-4 ${details.accent} hover:shadow-lg hover:border-slate-350 transition-all duration-200 cursor-pointer flex flex-col justify-between group`}
-            >
-              <div>
-                {/* Header card */}
-                <div className="flex items-start justify-between gap-3 mb-3.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${details.iconBg} shadow-sm`}>
-                      {getStatusIcon(block.status, block.isManual)}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-black text-slate-800 truncate group-hover:text-brand-emerald transition-colors">
-                        {block.status === 'matchmaking' ? 'Ca xé vé ghép cặp' : (block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì Sân' : 'Khách lẻ'))}
-                      </h4>
-                      <span className="text-[10px] text-slate-400 font-bold">
-                        {block.facilityName}
-                        {block.status === 'matchmaking' && ` • ${block.bookedSlots || 0}/${block.maxSlots || 10} người`}
-                      </span>
-                    </div>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold border ${details.bg} flex-shrink-0`}>
-                    {details.label}
-                  </span>
-                </div>
-
-                {/* Body info */}
-                <div className="space-y-1.5 border-t border-slate-100 pt-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400 font-semibold">Khung giờ</span>
-                    <span className="text-brand-emerald font-black">{block.startTime} – {block.endTime}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400 font-semibold">Thời lượng</span>
-                    <span className="text-slate-700 font-bold">{durationStr}</span>
-                  </div>
-                  {block.status !== 'maintenance' && (
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-semibold">
-                        {block.status === 'matchmaking' ? 'Giá vé' : 'Thành tiền'}
-                      </span>
-                      <span className="text-slate-800 font-black">{formatPrice(totalPrice)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Card Footer */}
-              <div className="mt-4 pt-2.5 border-t border-slate-50 flex justify-end">
-                <span className="text-[10px] font-bold text-brand-emerald hover:text-emerald-950 flex items-center gap-1 transition-colors">
-                  Xem chi tiết lịch
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+    <div className="w-full flex flex-col gap-5 min-h-0 select-none">
+      {/* ─── 1. THẺ THỐNG KÊ KPI CARDS (DESKTOP & MOBILE) ─────────── */}
+      {!isMobile ? (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] transition-all duration-300 overflow-hidden">
+          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-4 select-none">
+            {showKpis ? (
+              <h3 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-brand-emerald animate-pulse"></span>
+                Báo cáo hiệu suất hoạt động hôm nay
+              </h3>
+            ) : (
+              <div className="flex items-center gap-6 text-xs text-slate-500 font-bold">
+                <span className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-brand-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                   </svg>
+                  Tỷ lệ lấp đầy: <span className="text-slate-800 font-black">{kpis.occupancyRate}%</span>
+                </span>
+                <span className="w-px h-3.5 bg-slate-200"></span>
+                <span className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Doanh thu hôm nay: <span className="text-slate-800 font-black">{formatPrice(kpis.totalRevenue)}</span>
+                </span>
+                <span className="w-px h-3.5 bg-slate-200"></span>
+                <span className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H9m1.414-1.414A2 2 0 1114 3.586V5h-3.586M9 11h6m-6 4h6" />
+                  </svg>
+                  Lượt đặt sân: <span className="text-slate-800 font-black">{kpis.bookingBlockCount} lượt</span>
+                </span>
+                <span className="w-px h-3.5 bg-slate-200"></span>
+                <span className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  Sân hoạt động: <span className="text-slate-800 font-black">{kpis.activeCourtsText} sân</span>
                 </span>
               </div>
+            )}
+            <button 
+              onClick={() => setShowKpis(!showKpis)}
+              className="flex items-center gap-1.5 text-xs font-black text-brand-emerald hover:text-emerald-950 transition-colors focus:outline-none cursor-pointer"
+            >
+              <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${showKpis ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+              {showKpis ? 'Thu gọn thống kê' : 'Chi tiết thống kê'}
+            </button>
+          </div>
+
+          <div 
+            className={`transition-all duration-500 ease-in-out overflow-hidden ${
+              showKpis ? 'max-h-[300px] opacity-100 border-t border-slate-100 p-5 bg-slate-50/30' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tỷ lệ lấp đầy</span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-brand-emerald">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-800">{kpis.occupancyRate}%</div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden">
+                    <div className="bg-brand-emerald h-full rounded-full" style={{ width: `${kpis.occupancyRate}%` }}></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Doanh thu hôm nay</span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-800">{formatPrice(kpis.totalRevenue)}</div>
+                  <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-2">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                    Tăng 12% so với hôm qua
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng lượt đặt</span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H9m1.414-1.414A2 2 0 1114 3.586V5h-3.586M9 11h6m-6 4h6" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-800">{kpis.bookingBlockCount} lượt</div>
+                  <span className="text-[10px] text-slate-400 font-medium block mt-2">Đã tối ưu hóa lịch trống</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sân hoạt động</span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-800">{kpis.activeCourtsText} sân</div>
+                  <span className="text-[10px] text-slate-400 font-medium block mt-2">Sẵn sàng phục vụ khách</span>
+                </div>
+              </div>
             </div>
-          );
-        })}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border-b border-slate-100 p-4 shadow-xs select-none flex justify-between items-center text-xs text-slate-500 font-bold mx-4 rounded-2xl">
+          <span className="flex items-center gap-1">
+            Tỷ lệ: <span className="text-slate-800 font-black">{kpis.occupancyRate}%</span>
+          </span>
+          <span className="w-px h-3 bg-slate-200"></span>
+          <span className="flex items-center gap-1">
+            Doanh thu: <span className="text-brand-emerald font-black">{formatPrice(kpis.totalRevenue)}</span>
+          </span>
+          <span className="w-px h-3 bg-slate-200"></span>
+          <span className="flex items-center gap-1">
+            Sân: <span className="text-slate-800 font-black">{kpis.activeCourtsText}</span>
+          </span>
+        </div>
+      )}
+
+      {/* ─── 2. THANH BỘ LỌC & NÚT ĐẶT SÂN NHANH ─────────────────── */}
+      <div className={`bg-white p-4 rounded-2xl border border-slate-200/85 shadow-[0_4px_18px_rgba(0,0,0,0.02)] flex flex-wrap items-center justify-between gap-4 ${isMobile ? 'mx-4' : ''}`}>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Ô Tìm kiếm sân hoặc khách */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-450 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm sân hoặc khách đặt..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald w-64 transition-all font-sans"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-600 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Chọn ngày & Nút đặt nhanh */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+            <button onClick={handlePrevDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <button onClick={handleToday} className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border-x border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
+              {currentDate}
+            </button>
+            <button onClick={handleNextDay} className="px-3 py-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+
+          <button
+            onClick={() => setIsBookingModalOpen(true)}
+            className="flex items-center gap-1.5 bg-brand-emerald text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-emerald-950 hover:shadow-md active:scale-95 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            Đặt sân nhanh
+          </button>
+        </div>
       </div>
 
-      {/* ─── MODAL: CHI TIẾT ĐẶT SÂN ─────────────────────────────── */}
+      {/* ─── 3. DANH SÁCH THẺ ĐẶT SÂN (CARD VIEW) ────────────────── */}
+      {loading && displayedBlocks.length === 0 ? (
+        <div className="flex justify-center items-center py-24 select-none bg-white rounded-2xl border border-slate-200/80">
+          <div className="w-8 h-8 border-4 border-brand-emerald border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : displayedBlocks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 select-none p-6 text-center">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+            <Calendar className="w-8 h-8" />
+          </div>
+          <p className="text-sm font-black text-slate-700">
+            {searchTerm ? 'Không tìm thấy lịch đặt nào khớp với tìm kiếm' : 'Không có lịch đặt sân nào trong ngày này'}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            {searchTerm ? 'Vui lòng thử từ khóa tìm kiếm khác' : 'Các sân đều đang trống hoặc chưa được đặt'}
+          </p>
+          <button
+            onClick={() => setIsBookingModalOpen(true)}
+            className="mt-4 px-4 py-2 bg-brand-emerald text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            Đặt sân ngay
+          </button>
+        </div>
+      ) : (
+        <div className={`grid gap-4 ${isMobile ? 'px-4 pb-28 grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+          {displayedBlocks.map((block, idx) => {
+            const details = getStatusDetails(block.status, block.isManual);
+            const durationMins = block.slotCount * shiftMinutes;
+            const hours = Math.floor(durationMins / 60);
+            const mins = durationMins % 60;
+            const durationStr = hours > 0 ? `${hours}h${mins > 0 ? mins : ''}` : `${mins} phút`;
+            const totalPrice = block.status === 'matchmaking' 
+              ? (block.pricePerTicket || 0)
+              : (block.facilityPrice * (durationMins / 60));
+
+            return (
+              <div
+                key={idx}
+                onClick={() => handleCardClick(block)}
+                className={`bg-white rounded-2xl border border-slate-200/80 shadow-[0_4px_16px_rgba(0,0,0,0.02)] p-4 border-l-4 ${details.accent} hover:shadow-lg hover:border-slate-350 transition-all duration-200 cursor-pointer flex flex-col justify-between group`}
+              >
+                <div>
+                  {/* Header card */}
+                  <div className="flex items-start justify-between gap-3 mb-3.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${details.iconBg} shadow-sm`}>
+                        {getStatusIcon(block.status, block.isManual)}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black text-slate-800 truncate group-hover:text-brand-emerald transition-colors">
+                          {block.status === 'matchmaking' ? 'Ca xé vé ghép cặp' : (block.customerName || (block.status === 'maintenance' ? 'Lịch Bảo Trì Sân' : 'Khách lẻ'))}
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-bold">
+                          {block.facilityName}
+                          {block.status === 'matchmaking' && ` • ${block.bookedSlots || 0}/${block.maxSlots || 10} người`}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold border ${details.bg} flex-shrink-0`}>
+                      {details.label}
+                    </span>
+                  </div>
+
+                  {/* Body info */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-semibold">Khung giờ</span>
+                      <span className="text-brand-emerald font-black">{block.startTime} – {block.endTime}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-semibold">Thời lượng</span>
+                      <span className="text-slate-700 font-bold">{durationStr}</span>
+                    </div>
+                    {block.customerPhone && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-semibold">Liên hệ</span>
+                        <span className="text-slate-700 font-bold flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          {block.customerPhone}
+                        </span>
+                      </div>
+                    )}
+                    {block.status !== 'maintenance' && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400 font-semibold">
+                          {block.status === 'matchmaking' ? 'Giá vé' : 'Thành tiền'}
+                        </span>
+                        <span className="text-slate-800 font-black">{formatPrice(totalPrice)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Footer */}
+                <div className="mt-4 pt-2.5 border-t border-slate-50 flex justify-end">
+                  <span className="text-[10px] font-bold text-brand-emerald hover:text-emerald-950 flex items-center gap-1 transition-colors">
+                    Xem chi tiết lịch
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ─── 4. MODAL: ĐẶT SÂN NHANH ───────────────────────────────── */}
+      <Modal isOpen={isBookingModalOpen} onClose={() => setIsBookingModalOpen(false)} title="Đặt sân bóng nhanh" maxWidth="md">
+        <form onSubmit={onQuickBookingFormSubmit} className="space-y-4 font-sans select-none">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn Sân</label>
+            <Dropdown
+              options={filteredFacilities.map(f => ({
+                value: f.id,
+                label: `${f.name} (${formatPrice(f.pricePerHour)}/h)`
+              }))}
+              value={quickBookingData.facilityId}
+              onChange={(val) => setQuickBookingData({...quickBookingData, facilityId: val})}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn ca chơi</label>
+            {shiftOptions.length > 0 ? (
+              <Dropdown
+                options={shiftOptions}
+                value={selectedShiftId}
+                onChange={handleShiftChange}
+                className="w-full text-xs font-medium font-sans"
+              />
+            ) : (
+              <div className="text-xs text-red-500 font-bold border border-red-200 bg-red-50 p-3 rounded-xl">
+                Không còn ca trống nào trong ngày của sân này.
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Giá sân</label>
+              <div className="px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-xs font-black text-slate-700 flex items-center h-10 select-none">
+                {formatPrice(slots.find(s => s.facilityId === quickBookingData.facilityId && s.time === quickBookingData.startTime)?.price || 0)} / ca
+              </div>
+            </div>
+            <div className="col-span-2 mt-2">
+              <div className="h-[1px] w-full bg-slate-100 mb-4"></div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Thông tin khách hàng (Tùy chọn)</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Tên khách hàng"
+                    value={quickBookingData.customerName}
+                    onChange={(e) => setQuickBookingData({...quickBookingData, customerName: e.target.value})}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald h-10"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Số điện thoại"
+                    value={quickBookingData.customerPhone}
+                    onChange={(e) => setQuickBookingData({...quickBookingData, customerPhone: e.target.value})}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium placeholder-slate-400 focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald h-10"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button type="submit" className="w-full bg-brand-emerald hover:bg-emerald-950 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
+              Xác nhận đặt lịch
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ─── 5. MODAL: CHI TIẾT ĐẶT SÂN ─────────────────────────────── */}
       <Modal isOpen={isDetailModalOpen && !!selectedBookingDetail} onClose={() => setIsDetailModalOpen(false)} title="Thông tin lịch đặt" maxWidth="sm">
         {selectedBookingDetail && (
           <div className="space-y-4 font-sans select-none">
@@ -333,11 +664,23 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
               }`}>
                 {getStatusIcon(selectedBookingDetail.status, selectedBookingDetail.isManual)}
               </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-800">
+              <div className="min-w-0">
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2 flex-wrap">
                   {selectedBookingDetail.customerName}
+                  {selectedBookingDetail.customerPhone ? (
+                    <a href={`tel:${selectedBookingDetail.customerPhone}`} className="text-xs font-bold text-slate-500 lowercase flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 hover:bg-slate-200 hover:text-brand-emerald transition-colors">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      {selectedBookingDetail.customerPhone}
+                    </a>
+                  ) : (
+                    !selectedBookingDetail.isManual && (
+                      <span className="text-xs font-bold text-slate-400 lowercase flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 italic">
+                        Chưa cập nhật SĐT
+                      </span>
+                    )
+                  )}
                 </h4>
-                <div className="flex gap-2 items-center mt-0.5">
+                <div className="flex gap-2 items-center mt-1">
                   <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[9px] font-extrabold uppercase tracking-wide">
                     {selectedBookingDetail.facility.name}
                   </span>
@@ -350,50 +693,52 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
               </div>
             </div>
 
-            <div className="space-y-2 border border-slate-100 p-3.5 rounded-2xl bg-white shadow-xs">
-              <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                <span className="font-semibold text-slate-400">Khung giờ đặt</span>
-                <span className="font-bold text-slate-800 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  {selectedBookingDetail.startTime} - {selectedBookingDetail.endTime}
-                </span>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="font-semibold text-slate-400">Sân bóng</span>
+                <span className="font-black text-slate-800">{selectedBookingDetail.facility.name}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="font-semibold text-slate-400">Thời gian</span>
+                <div className="text-right flex flex-col items-end">
+                  <span className="font-black text-brand-emerald">{selectedBookingDetail.startTime} – {selectedBookingDetail.endTime}</span>
+                  {selectedBookingDetail.status !== 'maintenance' && selectedBookingDetail.status !== 'matchmaking' && (
+                    <span className="text-[10px] font-bold text-slate-400 mt-0.5 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {selectedBookingDetail.slotIds.length} ca x {shiftMinutes}p
+                    </span>
+                  )}
+                </div>
               </div>
 
               {selectedBookingDetail.status === 'matchmaking' ? (
                 <>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="font-semibold text-slate-400">Trình độ yêu cầu</span>
-                    <span className="font-bold text-indigo-750 flex items-center gap-1">
-                      <Award className="w-3.5 h-3.5 text-indigo-500" />
-                      {getSportLevelLabel(selectedBookingDetail.skillLevel || 'ALL')}
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-400" /> Số lượng vé</span>
+                    <span className="font-black text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                      {selectedBookingDetail.bookedSlots || 0} / {selectedBookingDetail.maxSlots || 10} slots
                     </span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="font-semibold text-slate-400">Số slot đã bán</span>
-                    <span className="font-bold text-slate-800 flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5 text-slate-400" />
-                      {selectedBookingDetail.bookedSlots} / {selectedBookingDetail.maxSlots} người
-                    </span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400 flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-slate-400" /> Trình độ yêu cầu</span>
+                    <span className="font-black text-slate-700">{getSportLevelLabel(selectedBookingDetail.skillLevel || 'ALL')}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="font-semibold text-slate-400">Giá vé / Người</span>
-                    <span className="font-black text-brand-emerald text-sm">
-                      {formatPrice(selectedBookingDetail.pricePerTicket || 0)}
-                    </span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400 flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-slate-400" /> Giá vé/người</span>
+                    <span className="font-black text-brand-emerald text-sm">{formatPrice(selectedBookingDetail.pricePerTicket || 0)}</span>
                   </div>
 
                   <TestTicketsSection sessionId={selectedBookingDetail.ticketSessionId} />
                 </>
               ) : (
                 <>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="font-semibold text-slate-400">Giá thuê sân</span>
-                    <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.facility.pricePerHour)}/h</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                    <span className="font-semibold text-slate-400">Đơn giá / ca</span>
+                    <span className="font-bold text-slate-700">{formatPrice(selectedBookingDetail.price / Math.max(1, selectedBookingDetail.slotIds.length))}</span>
                   </div>
                   {selectedBookingDetail.status !== 'maintenance' && (
-                    <div className="flex justify-between items-center py-2">
-                      <span className="font-semibold text-slate-400">Tổng tạm tính</span>
-                      <span className="font-black text-slate-850 text-sm">{formatPrice(selectedBookingDetail.price)}</span>
+                    <div className="flex justify-between items-center py-2 bg-emerald-50/50 px-3 -mx-3 rounded-xl border border-emerald-100/50 mt-1">
+                      <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Tổng cộng</span>
+                      <span className="font-black text-brand-emerald text-base">{formatPrice(selectedBookingDetail.price)}</span>
                     </div>
                   )}
                 </>
@@ -423,7 +768,7 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
         )}
       </Modal>
 
-      {/* MODAL XÁC NHẬN HỦY */}
+      {/* ─── 6. MODAL: XÁC NHẬN HỦY ───────────────────────────────── */}
       <Modal 
         isOpen={isConfirmCancelOpen} 
         onClose={() => setIsConfirmCancelOpen(false)} 
@@ -455,7 +800,7 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
             </svg>
           </div>
           <h4 className="text-sm font-black text-slate-800 text-center uppercase tracking-tight">Bạn có chắc chắn muốn hủy?</h4>
-          <p className="text-xs text-slate-550 text-center leading-relaxed">
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
             Hành động này sẽ giải phóng khung giờ chơi và không thể hoàn tác. Các bên liên quan sẽ nhận được thông báo.
           </p>
         </div>

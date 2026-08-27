@@ -20,6 +20,9 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     /** Lịch sử đặt sân của user */
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** Lấy tất cả booking sắp xếp mới nhất */
+    List<Booking> findAllByOrderByCreatedAtDesc();
+
 
     /** Tìm theo bookingCode */
     java.util.Optional<Booking> findByBookingCode(String bookingCode);

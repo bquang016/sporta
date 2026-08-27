@@ -15,6 +15,8 @@ import java.util.UUID;
 @Repository
 public interface MatchRoomRepository extends JpaRepository<MatchRoom, UUID> {
 
+    Optional<MatchRoom> findByBookingId(UUID bookingId);
+
     List<MatchRoom> findByBookingIdAndStatusIn(UUID bookingId, List<MatchStatus> statuses);
 
     boolean existsByBookingIdAndStatusIn(UUID bookingId, List<MatchStatus> statuses);

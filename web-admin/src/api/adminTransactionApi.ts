@@ -1,5 +1,5 @@
-export type PaymentMethod = 'MOMO' | 'VNPAY' | 'BANK_TRANSFER';
-export type TransactionStatus = 'SUCCESS' | 'FAILED' | 'REFUNDING' | 'REFUNDED';
+export type PaymentMethod = 'MOMO' | 'VNPAY' | 'BANK_TRANSFER' | 'PAYOS' | 'WALLET' | 'DEV' | 'CASH' | string;
+export type TransactionStatus = 'SUCCESS' | 'FAILED' | 'REFUNDING' | 'REFUNDED' | 'PENDING';
 
 export interface AdminTransaction {
   id: string;
@@ -12,6 +12,10 @@ export interface AdminTransaction {
   bookingDate: string;
   bookingSlot: string;
   amount: number;
+  commissionAmount?: number;
+  ownerAmount?: number;
+  refundAmount?: number;
+  refundRate?: number;
   paymentMethod: PaymentMethod;
   status: TransactionStatus;
   createdAt: string;
