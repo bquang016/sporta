@@ -160,6 +160,14 @@ export function CreateMatchScreen() {
 
   const levelOptions = ['Tương đương', 'Yếu', 'TBY', 'TB', 'TBK', 'Khá'];
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/matchmaking');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -167,7 +175,7 @@ export function CreateMatchScreen() {
       {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Tạo Bài Ghép Kèo Nhanh</Text>

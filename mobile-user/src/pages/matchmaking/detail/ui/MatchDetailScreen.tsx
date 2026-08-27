@@ -297,6 +297,14 @@ export function MatchDetailScreen() {
   const minAmount = Math.round((booking.totalPrice * minSharePercent) / 100);
   const maxAmount = booking.totalPrice - minAmount;
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/matchmaking');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -304,7 +312,7 @@ export function MatchDetailScreen() {
       {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>

@@ -69,7 +69,7 @@ export function ScoreInputScreen() {
     visible: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const showAlert = (
@@ -138,13 +138,21 @@ export function ScoreInputScreen() {
 
   const submission = room.scoreSubmission;
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace((room ? `/matchmaking/${room.id}` : '/matchmaking') as any);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+        <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
           <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bảng Điểm Trận Đấu</Text>
