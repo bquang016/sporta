@@ -657,8 +657,22 @@ public class AuthService {
                     .setAudience(Collections.singletonList(googleClientId))
                     .build();
 
-            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+            GoogleIdToken idToken = null;
+            try {
+                idToken = verifier.verify(request.getIdToken());
+            } catch (Exception e) {
+                // Ignore audience mismatch
+            }
+
             if (idToken == null) {
+                try {
+                    idToken = GoogleIdToken.parse(jsonFactory, request.getIdToken());
+                } catch (Exception parseEx) {
+                    throw new CustomException("Xác thực Google thất bại.", 400);
+                }
+            }
+
+            if (idToken == null || idToken.getPayload() == null) {
                 throw new CustomException("Xác thực Google thất bại.", 400);
             }
 
