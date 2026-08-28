@@ -14,3 +14,29 @@ backend/!mvnw
 backend/!mvnw.cmd
 backend/*.jar
 backend/*.war
+
+# Environment files
+.env
+**/.env
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Playwright & Testing
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Build & Cache
+dist/
+build/
+.expo/
+.turbo/
+# Playwright
+/playwright/.auth/
+
+# Firebase Credentials & Keys
+**/firebase-service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist

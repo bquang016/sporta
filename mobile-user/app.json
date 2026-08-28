@@ -3,13 +3,25 @@
     "name": "mobile-user",
     "slug": "mobile-user",
     "version": "1.0.0",
+    "scheme": "sporta",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sporta.user",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.109569873589-fs4k7g16ql0vg9j6vqj297k67blfvr7l"
+            ]
+          }
+        ]
+      }
     },
     "android": {
+      "package": "com.sporta.user",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -22,7 +34,26 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-asset"
+      "expo-router",
+      "expo-asset",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1890ff",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Sporta cần truy cập vị trí để hiển thị sân gần bạn trên bản đồ."
+        }
+      ]
     ]
   }
 }

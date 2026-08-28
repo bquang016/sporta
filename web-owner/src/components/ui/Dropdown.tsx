@@ -4,6 +4,7 @@ export interface DropdownOption {
   value: string;
   label: string;
   icon?: React.ReactNode;
+  suffix?: React.ReactNode;
 }
 
 interface DropdownProps {
@@ -14,6 +15,7 @@ interface DropdownProps {
   className?: string;
   menuClassName?: string;
   disabled?: boolean;
+  direction?: 'down' | 'up';
 }
 
 export const Dropdown = ({
@@ -23,7 +25,8 @@ export const Dropdown = ({
   placeholder = 'Chọn một tùy chọn',
   className = '',
   menuClassName = '',
-  disabled = false
+  disabled = false,
+  direction = 'down'
 }: DropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -74,7 +77,9 @@ export const Dropdown = ({
       {/* Dropdown Menu */}
       {isOpen && (
         <div 
-          className={`absolute left-0 right-0 z-50 mt-1.5 max-h-60 overflow-y-auto bg-white border border-slate-200/80 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] matrix-scroll focus:outline-none ${menuClassName}`}
+          className={`absolute left-0 right-0 z-50 max-h-60 overflow-y-auto bg-white border border-slate-200/80 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] matrix-scroll focus:outline-none ${
+            direction === 'up' ? 'bottom-full mb-1.5' : 'mt-1.5'
+          } ${menuClassName}`}
         >
           <div className="py-1">
             {options.length === 0 ? (
@@ -95,6 +100,7 @@ export const Dropdown = ({
                   >
                     {option.icon && <span className="flex-shrink-0">{option.icon}</span>}
                     <span className="truncate flex-1">{option.label}</span>
+                    {option.suffix && <span className="flex-shrink-0">{option.suffix}</span>}
                     {isSelected && (
                       <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

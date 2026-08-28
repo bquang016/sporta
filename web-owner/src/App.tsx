@@ -1,31 +1,64 @@
+// Sporta Owner App Routing
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { MobileHome } from './pages/MobileHome'
-import { DesktopHome } from './pages/DesktopHome'
-import { MatrixPage } from './pages/MatrixPage'
-import { ScanPage } from './pages/ScanPage'
-import { FacilityPage } from './pages/FacilityPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { MobileLayout } from './components/layout/MobileLayout'
-import { DesktopLayout } from './components/layout/DesktopLayout'
+import { MobileDashboardPage } from './features/dashboard/pages/MobileDashboardPage'
+import { DesktopDashboardPage } from './features/dashboard/pages/DesktopDashboardPage'
+import { MatrixPage } from './features/booking/pages/MatrixPage'
+import { ScanPage } from './features/scan/pages/ScanPage'
+import { OperationsPage } from './features/venue/pages/OperationsPage'
+import { DynamicPricingPage } from './features/venue/pages/DynamicPricingPage'
+import { OperationsProvider } from './hooks/useOperationsState'
+import { ProfilePage } from './features/profile/pages/ProfilePage'
+import { SettingsPage } from './features/settings/pages/SettingsPage'
+import { LoginPage } from './features/auth/pages/LoginPage'
+import { RegisterPage } from './features/registration/pages/RegisterPage'
+import { SetupPage } from './features/registration/pages/SetupPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { useIsMobile } from './hooks/useIsMobile'
+import { WalletPage } from './features/wallet'
+import { VoucherListPage } from './features/voucher/pages/VoucherListPage'
+import { VoucherFormPage } from './features/voucher/pages/VoucherFormPage'
+import { NotificationCenterPage } from './features/notifications'
 
 function App() {
   const isMobile = useIsMobile();
-
-  const Layout = isMobile ? MobileLayout : DesktopLayout;
-  const Home = isMobile ? MobileHome : DesktopHome;
+  const Home = isMobile ? MobileDashboardPage : DesktopDashboardPage;
 
   return (
-    <Layout>
-      <Routes>
+    <Routes>
+      {/* Public Route */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register/setup" element={<SetupPage />} />
+      <Route path="/change-password" element={<ChangePasswordPage />} />
+
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Home />} />
+        <Route path="/notifications" element={<NotificationCenterPage />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/scan" element={<ScanPage />} />
-        <Route path="/facility" element={<FacilityPage />} />
+        <Route path="/operations" element={
+          <OperationsProvider>
+            <OperationsPage />
+          </OperationsProvider>
+        } />
+        <Route path="/pricing" element={
+          <OperationsProvider>
+            <DynamicPricingPage />
+          </OperationsProvider>
+        } />
+        <Route path="/wallet" element={<WalletPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/vouchers" element={<VoucherListPage />} />
+        <Route path="/vouchers/create" element={<VoucherFormPage />} />
+        <Route path="/vouchers/:id/edit" element={<VoucherFormPage />} />
+      </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
