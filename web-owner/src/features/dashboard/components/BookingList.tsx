@@ -38,30 +38,31 @@ export const BookingList = ({
             </div>
           ) : (
             currentBookings.map((b) => (
-              <Card key={b.id} className="p-4 border-none shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-brand-emerald border border-slate-200">
+              <Card key={b.id} className="p-3 border-none shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Pitch badge */}
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-slate-100 flex items-center justify-center font-black text-sm text-brand-emerald border border-slate-200">
                       {b.pitchName.substring(4)}
                     </div>
-                    <div>
-                      <h4 className="font-black text-xs text-slate-800">{b.customerName}</h4>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{b.pitchName} • {b.date ? `${b.date} (${b.time})` : b.time}</p>
+                    <div className="min-w-0">
+                      <h4 className="font-black text-xs text-slate-800 truncate">{b.customerName}</h4>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5 truncate">{b.pitchName} • {b.date ? `${b.date} (${b.time})` : b.time}</p>
                     </div>
                   </div>
 
-                  <div className="text-right flex flex-col items-end gap-1.5">
+                  <div className="text-right flex flex-col items-end gap-1 shrink-0">
                     <span className="text-[11px] font-black text-slate-700">
                       {new Intl.NumberFormat('vi-VN').format(b.amount)}đ
                     </span>
                     {b.status === 'checked-in' ? (
-                      <span className="text-[8px] font-black uppercase text-brand-emerald bg-emerald-50 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-black uppercase text-brand-emerald bg-emerald-50 px-2.5 py-1 rounded-lg">
                         Checked-in
                       </span>
                     ) : (
                       <button
                         onClick={() => onCheckinDirect(b.id)}
-                        className="text-[8px] font-extrabold uppercase text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white px-2 py-0.5 rounded-md border border-blue-100 transition-colors"
+                        className="text-[11px] font-extrabold uppercase text-blue-600 bg-blue-50 active:bg-blue-600 active:text-white px-3 py-2 rounded-lg border border-blue-100 transition-colors min-h-[36px] touch-action-manipulation"
                       >
                         Check-in
                       </button>

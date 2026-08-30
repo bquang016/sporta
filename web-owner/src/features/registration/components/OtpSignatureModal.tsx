@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { sendOtp, verifyOtp } from '../services/registrationService';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 
@@ -138,8 +139,8 @@ export const OtpSignatureModal = ({
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isLoading && onClose()} />
       <div className="relative bg-white rounded-3xl p-6 lg:p-8 w-full max-w-sm shadow-2xl animate-[stampIn_0.3s_ease-out]">
         
@@ -215,6 +216,7 @@ export const OtpSignatureModal = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

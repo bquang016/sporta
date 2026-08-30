@@ -25,9 +25,14 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   if (isMobile) {
     return (
-      <header className="px-5 pt-12 pb-6 bg-brand-emerald text-white rounded-b-[2rem] shadow-md relative z-20 w-full">
+      <header
+        className="px-5 pb-6 bg-brand-emerald text-white rounded-b-[2rem] shadow-md relative z-20 w-full"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+      >
+        {/* Decorative blob */}
         <div className="absolute inset-0 overflow-hidden rounded-b-[2rem] pointer-events-none">
           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-44 h-44 bg-white/5 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-0 left-4 w-24 h-24 bg-brand-yellow/5 rounded-full blur-xl"></div>
         </div>
         
         <div className="flex justify-between items-center mb-6 relative z-10">
@@ -36,9 +41,15 @@ export const DashboardHeader = ({
             <h1 className="text-xl font-black tracking-tight mt-0.5">Bảng điều khiển</h1>
           </div>
           
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm overflow-hidden p-1">
-            <img src={logoSvg} alt="Sporta Logo" className="w-full h-full object-contain" />
-          </div>
+          {/* Logo Avatar — 44px touch target */}
+          <button
+            aria-label="Hồ sơ"
+            className="touch-target rounded-full"
+          >
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-sm overflow-hidden p-1">
+              <img src={logoSvg} alt="Sporta Logo" className="w-full h-full object-contain" />
+            </div>
+          </button>
         </div>
 
         {/* Custom Dropdown used as venue complex switcher */}

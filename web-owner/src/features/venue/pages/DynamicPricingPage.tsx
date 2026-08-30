@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOperations } from '../../../hooks/useOperationsState';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { dynamicPricingService } from '../services/dynamicPricingService';
 import type { PricingRecommendation, PricingAnalyticsSummary } from '../types/dynamicPricing';
 import { PricingRecommendationCard } from '../components/operations/PricingRecommendationCard';
 import { OccupancyHeatmapModal } from '../components/operations/OccupancyHeatmapModal';
+import { AIAnalysisProgressModal } from '../components/operations/AIAnalysisProgressModal';
+import { MobileDynamicPricingPage } from './MobileDynamicPricingPage';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { Dropdown, type DropdownOption } from '../../../components/ui/Dropdown';
 import { Tooltip } from '../../../components/ui/Tooltip';
@@ -33,7 +36,12 @@ import {
 } from 'lucide-react';
 
 export const DynamicPricingPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const { venues } = useOperations();
+
+  if (isMobile) {
+    return <MobileDynamicPricingPage />;
+  }
 
   const formatVND = (n: number) => {
     return n ? n.toLocaleString('vi-VN') + ' đ' : '0 đ';
@@ -81,6 +89,20 @@ export const DynamicPricingPage: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isHeatmapOpen, setIsHeatmapOpen] = useState<boolean>(false);
+
+  // AI Progress Modal states
+  const [analysisModalOpen, setAnalysisModalOpen] = useState<boolean>(false);
+  const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
+  const [analysisStageText, setAnalysisStageText] = useState<string>('');
+  const [analysisErrorMsg, setAnalysisErrorMsg] = useState<string>('');
+  const [analysisResultSummary, setAnalysisResultSummary] = useState<{
+    totalRecs: number;
+    surgeCount: number;
+    discountCount: number;
+  } | null>(null);
+
+  const progressTimerRef = useRef<any>(null);
 
   // Filters (On-demand queries)
   const [selectedCourtFilter, setSelectedCourtFilter] = useState<string>('ALL');
@@ -140,6 +162,7 @@ export const DynamicPricingPage: React.FC = () => {
       setRecommendations(recs);
       setAnalytics(stats);
       setSelectedIds([]);
+      return { recs, stats };
     } catch (err: any) {
       console.error('Lỗi tải dữ liệu định giá động:', err);
     } finally {
@@ -155,20 +178,54 @@ export const DynamicPricingPage: React.FC = () => {
 
   const handleTriggerBatch = async () => {
     setIsRefreshing(true);
+    setAnalysisModalOpen(true);
+    setAnalysisStatus('analyzing');
+    setAnalysisProgress(12);
+    setAnalysisStageText('Thu thập lịch sử đặt sân (6 tuần qua)...');
+    setAnalysisErrorMsg('');
+    setAnalysisResultSummary(null);
+
+    // Smooth progressive stages
+    let currentP = 12;
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      currentP += Math.random() * 8 + 3;
+      if (currentP > 90) currentP = 90;
+      setAnalysisProgress(currentP);
+      if (currentP > 25 && currentP <= 55) {
+        setAnalysisStageText('Phân tích tỷ lệ lấp đầy theo từng khung giờ...');
+      } else if (currentP > 55 && currentP <= 80) {
+        setAnalysisStageText('Mô hình hóa nhu cầu & tính hệ số định giá AI...');
+      } else if (currentP > 80) {
+        setAnalysisStageText('Tổng hợp các đề xuất tối ưu doanh thu...');
+      }
+    }, 280);
+
     try {
       await dynamicPricingService.triggerBatch();
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      setAnalysisProgress(100);
+      setAnalysisStageText('Hoàn tất phân tích!');
+
+      let latestRecs: PricingRecommendation[] = [];
       if (activeVenue?.id) {
-        await loadData(activeVenue.id, selectedCourtFilter, selectedDayFilter);
+        const res = await loadData(activeVenue.id, selectedCourtFilter, selectedDayFilter);
+        if (res?.recs) latestRecs = res.recs;
       }
-      setNotification({
-        type: 'success',
-        message: 'Đã hoàn tất phân tích lại dữ liệu định giá và tỷ lệ lấp đầy!',
+
+      const sCount = latestRecs.filter((r) => r.priceChangePercentage > 0).length;
+      const dCount = latestRecs.filter((r) => r.priceChangePercentage < 0).length;
+
+      setAnalysisResultSummary({
+        totalRecs: latestRecs.length,
+        surgeCount: sCount,
+        discountCount: dCount,
       });
+      setAnalysisStatus('success');
     } catch (err: any) {
-      setNotification({
-        type: 'error',
-        message: err.message || 'Lỗi khi kích hoạt phân tích',
-      });
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      setAnalysisStatus('error');
+      setAnalysisErrorMsg(err.message || 'Lỗi khi kích hoạt phân tích AI');
     } finally {
       setIsRefreshing(false);
     }
@@ -279,7 +336,7 @@ export const DynamicPricingPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
             <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span>Trí Tuệ Doanh Thu • AI Pricing Engine</span>
+            <span>Dự báo giá • AI Pricing Engine</span>
             <Tooltip
               position="bottom-left"
               className="whitespace-normal max-w-sm text-left"
@@ -503,11 +560,10 @@ export const DynamicPricingPage: React.FC = () => {
       {/* Notification Toast */}
       {notification && (
         <div
-          className={`p-4 rounded-2xl border text-xs font-semibold flex items-center justify-between transition-all mb-6 ${
-            notification.type === 'success'
+          className={`p-4 rounded-2xl border text-xs font-semibold flex items-center justify-between transition-all mb-6 ${notification.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
@@ -647,6 +703,18 @@ export const DynamicPricingPage: React.FC = () => {
           formatVND={formatVND}
         />
       )}
+
+      {/* AI Analysis Progress & Result Modal */}
+      <AIAnalysisProgressModal
+        isOpen={analysisModalOpen}
+        status={analysisStatus}
+        progress={analysisProgress}
+        currentStageText={analysisStageText}
+        errorMessage={analysisErrorMsg}
+        resultSummary={analysisResultSummary}
+        onClose={() => setAnalysisModalOpen(false)}
+        onRetry={handleTriggerBatch}
+      />
     </div>
   );
 };

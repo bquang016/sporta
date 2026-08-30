@@ -1,50 +1,152 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { 
+  Home, 
+  Calendar, 
+  QrCode, 
+  Building2, 
+  User 
+} from 'lucide-react';
 
 export const BottomNav = () => {
   const location = useLocation();
-  const paths = ['/', '/matrix', '/scan', '/operations', '/profile'];
-  
-  let activeIndex = paths.indexOf(location.pathname);
-  if (activeIndex === -1) {
-    if (location.pathname.startsWith('/matrix')) activeIndex = 1;
-    else if (location.pathname.startsWith('/scan')) activeIndex = 2;
-    else if (location.pathname.startsWith('/operations')) activeIndex = 3;
-    else if (location.pathname.startsWith('/profile')) activeIndex = 4;
-    else activeIndex = 0;
+  const pathname = location.pathname;
+
+  let activeIndex = 0;
+  if (pathname === '/') {
+    activeIndex = 0;
+  } else if (pathname.startsWith('/matrix')) {
+    activeIndex = 1;
+  } else if (pathname.startsWith('/scan')) {
+    activeIndex = 2;
+  } else if (pathname.startsWith('/operations') || pathname.startsWith('/pricing')) {
+    activeIndex = 3;
+  } else if (pathname.startsWith('/profile') || pathname.startsWith('/settings') || pathname.startsWith('/wallet') || pathname.startsWith('/vouchers')) {
+    activeIndex = 4;
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-2 pb-safe pt-2 bg-white/95 backdrop-blur-[20px] border-t border-surface-variant safe-area-bottom shadow-[0_-8px_30px_rgba(0,0,0,0.06)]">
-      <div className="relative flex justify-around items-center h-16 max-w-md mx-auto">
-        {/* Sliding background pill indicator for normal tabs */}
-        {activeIndex !== -1 && activeIndex !== 2 && (
-          <div 
-            className="absolute top-2 bottom-3 rounded-2xl bg-brand-emerald/10 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
-            style={{
-              left: `calc(${(activeIndex * 20) + 1.5}%)`,
-              width: '17%',
-            }}
-          />
-        )}
+    <>
+      <style>{`
+        /* Liquid Glass Custom Utilities */
+        .liquid-glass-dock {
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.85) 0%,
+            rgba(248, 250, 252, 0.78) 100%
+          );
+          backdrop-filter: blur(28px) saturate(190%);
+          -webkit-backdrop-filter: blur(28px) saturate(190%);
+          box-shadow: 
+            0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+            0 -1px 0 0 rgba(226, 232, 240, 0.5),
+            0 -12px 36px -4px rgba(6, 78, 59, 0.08),
+            0 -4px 12px -2px rgba(0, 0, 0, 0.03);
+        }
 
-        {/* Sliding dot indicator at the bottom */}
-        {activeIndex !== -1 && activeIndex !== 2 && (
-          <div 
-            className="absolute bottom-0.5 h-1 w-1 bg-brand-emerald rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
-            style={{
-              left: `calc(${(activeIndex * 20) + 10}% - 2px)`,
-            }}
-          />
-        )}
+        .liquid-center-btn {
+          background: linear-gradient(135deg, #FDE047 0%, #FACC15 50%, #EAB308 100%);
+          box-shadow: 
+            0 2px 4px 0 rgba(255, 255, 255, 0.6) inset,
+            0 -2px 4px 0 rgba(0, 0, 0, 0.1) inset,
+            0 8px 20px -4px rgba(234, 179, 8, 0.5),
+            0 4px 10px -2px rgba(6, 78, 59, 0.2);
+        }
 
-        <NavItem to="/" icon="home" label="Trang chủ" activeIndex={activeIndex} itemIndex={0} />
-        <NavItem to="/matrix" icon="calendar" label="Quản lý lịch" activeIndex={activeIndex} itemIndex={1} />
-        <NavItem to="/scan" icon="scan" label="Quét QR" isCenter activeIndex={activeIndex} itemIndex={2} />
-        <NavItem to="/operations" icon="facility" label="Vận hành" activeIndex={activeIndex} itemIndex={3} />
-        <NavItem to="/profile" icon="profile" label="Hồ sơ" activeIndex={activeIndex} itemIndex={4} />
-      </div>
-    </nav>
+        .liquid-pill-active {
+          background: radial-gradient(circle at 50% 0%, rgba(6, 78, 59, 0.12) 0%, rgba(6, 78, 59, 0.06) 100%);
+          box-shadow: 
+            0 1px 2px 0 rgba(255, 255, 255, 0.8) inset,
+            0 2px 6px -1px rgba(6, 78, 59, 0.06);
+        }
+      `}</style>
+
+      {/* Floating Liquid Glass Dock */}
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] pt-2 select-none pointer-events-none"
+      >
+        <div className="relative max-w-md mx-auto liquid-glass-dock rounded-[2rem] border border-white/60 p-1.5 transition-all pointer-events-auto">
+          <div className="relative flex justify-around items-center h-14">
+            {/* Sliding Liquid Background Capsule for Regular Tabs */}
+            {activeIndex !== 2 && (
+              <div 
+                className="absolute top-1 bottom-1 rounded-2xl liquid-pill-active border border-emerald-900/5 transition-all duration-350 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
+                style={{
+                  left: `calc(${(activeIndex * 20) + 1}%)`,
+                  width: '18%',
+                }}
+              />
+            )}
+
+            {/* Sliding Liquid Glow Dot underneath */}
+            {activeIndex !== 2 && (
+              <div 
+                className="absolute -bottom-0.5 h-1 w-2 bg-[#064e3b] rounded-full transition-all duration-350 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none shadow-[0_0_6px_#064e3b]"
+                style={{
+                  left: `calc(${(activeIndex * 20) + 10}% - 4px)`,
+                }}
+              />
+            )}
+
+            {/* Tab 0: Home */}
+            <NavItem 
+              to="/" 
+              icon={<Home className="w-5 h-5" />} 
+              label="Trang chủ" 
+              isActive={activeIndex === 0} 
+            />
+
+            {/* Tab 1: Matrix / Calendar */}
+            <NavItem 
+              to="/matrix" 
+              icon={<Calendar className="w-5 h-5" />} 
+              label="Lịch sân" 
+              isActive={activeIndex === 1} 
+            />
+
+            {/* Tab 2: Center QR Scan Floating Action Button */}
+            <Link 
+              to="/scan" 
+              className="flex flex-col items-center justify-center -mt-7 w-1/5 relative z-20 cursor-pointer group"
+              aria-label="Quét mã QR"
+            >
+              <div 
+                className={`liquid-center-btn rounded-full w-13 h-13 flex items-center justify-center text-[#064e3b] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] relative overflow-hidden ${
+                  activeIndex === 2 
+                    ? 'scale-110 ring-4 ring-emerald-500/20 shadow-lg' 
+                    : 'group-hover:scale-105 group-active:scale-95'
+                }`}
+              >
+                {/* Specular glass reflection overlay */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/40 via-transparent to-black/5 pointer-events-none" />
+                <QrCode className={`w-6 h-6 stroke-[2.5] transition-transform duration-300 ${activeIndex === 2 ? 'rotate-90 scale-105' : ''}`} />
+              </div>
+              <span className={`text-[10px] mt-1 font-black tracking-tight transition-colors duration-200 ${
+                activeIndex === 2 ? 'text-[#064e3b]' : 'text-slate-500'
+              }`}>
+                Quét QR
+              </span>
+            </Link>
+
+            {/* Tab 3: Operations */}
+            <NavItem 
+              to="/operations" 
+              icon={<Building2 className="w-5 h-5" />} 
+              label="Vận hành" 
+              isActive={activeIndex === 3} 
+            />
+
+            {/* Tab 4: Profile */}
+            <NavItem 
+              to="/profile" 
+              icon={<User className="w-5 h-5" />} 
+              label="Hồ sơ" 
+              isActive={activeIndex === 4} 
+            />
+          </div>
+        </div>
+      </nav>
+    </>
   );
 };
 
@@ -52,56 +154,38 @@ const NavItem = ({
   to, 
   icon, 
   label, 
-  isCenter, 
-  activeIndex, 
-  itemIndex 
+  isActive 
 }: { 
-  to: string, 
-  icon: string, 
-  label: string, 
-  isCenter?: boolean,
-  activeIndex: number,
-  itemIndex: number
+  to: string; 
+  icon: React.ReactNode; 
+  label: string; 
+  isActive: boolean; 
 }) => {
-  const isActive = activeIndex === itemIndex;
-
-  if (isCenter) {
-    return (
-      <Link to={to} className="flex flex-col items-center justify-center -mt-8 w-1/5 relative z-10 cursor-pointer">
-        <div className={`bg-brand-yellow text-brand-emerald rounded-full w-14 h-14 flex items-center justify-center shadow-[0_8px_16px_rgba(6,78,59,0.15)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isActive ? 'scale-110 rotate-90 bg-emerald-800 text-brand-yellow' : 'hover:scale-105 active:scale-95'}`}>
-          <Icon name={icon} className="w-6 h-6" />
-        </div>
-        <span className={`text-[10px] mt-1 font-bold tracking-wider transition-colors duration-200 ${isActive ? 'text-brand-emerald' : 'text-slate-500'}`}>{label}</span>
-      </Link>
-    );
-  }
-
   return (
-    <Link to={to} className="flex flex-col items-center justify-center w-1/5 py-1 relative z-10 h-full cursor-pointer">
-      <div className={`mb-0.5 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isActive ? 'text-brand-emerald scale-115 -translate-y-1 font-bold' : 'text-outline hover:scale-105 active:scale-95'}`}>
-        <Icon name={icon} className="w-5.5 h-5.5" />
+    <Link 
+      to={to} 
+      className="flex flex-col items-center justify-center w-1/5 py-1 relative z-10 h-full cursor-pointer group active:scale-95 transition-transform"
+    >
+      <div 
+        className={`transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          isActive 
+            ? 'text-[#064e3b] scale-110 -translate-y-0.5' 
+            : 'text-slate-400 group-hover:text-slate-600'
+        }`}
+      >
+        {icon}
       </div>
-      <span className={`text-[9px] tracking-wider transition-colors duration-300 ${isActive ? 'text-brand-emerald font-black' : 'text-outline font-semibold'}`}>
+      <span 
+        className={`text-[9px] tracking-tight transition-all duration-200 mt-0.5 ${
+          isActive 
+            ? 'text-[#064e3b] font-black scale-105' 
+            : 'text-slate-500 font-semibold'
+        }`}
+      >
         {label}
       </span>
     </Link>
   );
 };
+export default BottomNav;
 
-const Icon = ({ name, className }: { name: string, className?: string }) => {
-  // Placeholder SVG icons
-  switch (name) {
-    case 'home':
-      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
-    case 'calendar':
-      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
-    case 'scan':
-      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>;
-    case 'facility':
-      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>;
-    case 'profile':
-      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
-    default:
-      return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-  }
-};

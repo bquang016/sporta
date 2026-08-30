@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useVenueWizard } from './VenueWizardContext';
 import { ContractPreview } from './ContractPreview';
 
@@ -22,8 +23,8 @@ export const ContractModal = ({
     window.print();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 overflow-hidden animate-fadeIn">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex flex-col bg-slate-100 overflow-hidden animate-fadeIn">
       {/* ── HEADER ── */}
       <div className="shrink-0 h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-10 print:hidden">
         <div>
@@ -121,6 +122,7 @@ export const ContractModal = ({
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -35,6 +35,12 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
     isCreateMode,
     isReadOnly,
     isPureEditMode,
+    name,
+    location,
+    coverImage,
+    hasSurcharge,
+    surchargeAmount,
+    surchargeDescription,
     sportId,
     courts,
     openingTime,
@@ -69,33 +75,45 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
   ];
 
   const handleNext = async () => {
-    // Validate Step 2: Main Sport & Courts Registration & Operating Hours
-    if (step === 2) {
-      if (!sportId) {
-        showToast('error', 'Vui lòng chọn môn thể thao chính ở Bước 2!');
+    // ── STEP 1 VALIDATION ──
+    if (step === 1) {
+      if (!name || !name.trim() || name === 'Cụm sân chưa đặt tên') {
+        showToast('error', 'Vui lòng nhập tên cụm sân hợp lệ ở Bước 1!');
         return;
       }
-      if (!courts || courts.length === 0) {
-        showToast('error', 'Vui lòng đăng ký ít nhất một sân lẻ ở Bước 2!');
+      if (!location || !location.trim()) {
+        showToast('error', 'Vui lòng chọn hoặc định vị địa chỉ cụm sân trên bản đồ ở Bước 1!');
+        return;
+      }
+    }
+
+    // ── STEP 2 VALIDATION ──
+    if (step === 2) {
+      if (!openingTime || !closingTime) {
+        showToast('error', 'Vui lòng chọn đầy đủ giờ mở cửa và giờ đóng cửa!');
         return;
       }
 
       if (!shiftDurationMinutes || shiftDurationMinutes <= 0) {
-        showToast('error', 'Vui lòng chọn thời lượng mỗi ca thuê!');
+        showToast('error', 'Vui lòng chọn thời lượng mỗi ca thuê (30, 60, 90, hoặc 120 phút)!');
         return;
       }
 
       const parseTimeToMinutes = (timeStr: string): number => {
+        if (!timeStr) return 0;
         const [h, m] = timeStr.split(':').map(Number);
-        return h * 60 + m;
+        return (h || 0) * 60 + (m || 0);
       };
 
       const openMinutes = parseTimeToMinutes(openingTime);
-      const closeMinutes = parseTimeToMinutes(closingTime);
+      let closeMinutes = parseTimeToMinutes(closingTime);
+      if (closeMinutes <= openMinutes && openingTime && closingTime) {
+        closeMinutes += 24 * 60; // 24h wrap-around
+      }
       const totalOp = closeMinutes - openMinutes;
 
-      if (totalOp <= 0) {
-        showToast('error', 'Giờ đóng cửa phải lớn hơn giờ mở cửa!');
+      if (totalOp < shiftDurationMinutes) {
+        showToast('error', `Tổng thời lượng mở cửa (${totalOp} phút) không được nhỏ hơn 1 ca (${shiftDurationMinutes} phút)!`);
         return;
       }
 
@@ -104,13 +122,54 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
         return;
       }
 
-      // Check boundary alignment for each court special price rule
+      // Surcharge check
+      if (hasSurcharge) {
+        if (!surchargeAmount || surchargeAmount <= 0) {
+          showToast('error', 'Vui lòng nhập số tiền phụ thu lớn hơn 0đ!');
+          return;
+        }
+        if (!surchargeDescription || !surchargeDescription.trim()) {
+          showToast('error', 'Vui lòng nhập lý do áp dụng phụ thu!');
+          return;
+        }
+      }
+
+      // Courts check
+      if (!courts || courts.length === 0) {
+        showToast('error', 'Vui lòng tạo ít nhất một sân lẻ ở Bước 2!');
+        return;
+      }
+
+      const names = courts.map(c => (c.name || '').trim().toLowerCase());
+      const duplicateIndex = names.findIndex((n, idx) => names.indexOf(n) !== idx);
+      if (duplicateIndex !== -1) {
+        showToast('error', `Tên sân "${courts[duplicateIndex].name}" bị trùng lặp! Vui lòng đặt tên các sân khác nhau.`);
+        return;
+      }
+
       for (const court of courts) {
+        if (!court.name || !court.name.trim()) {
+          showToast('error', 'Có sân chưa được đặt tên!');
+          return;
+        }
+        if (!court.price || court.price <= 0) {
+          showToast('error', `Giá thuê cơ bản của sân "${court.name}" phải lớn hơn 0đ!`);
+          return;
+        }
+
+        // Check boundary alignment for each court special price rule
         const rules = court.priceRules || [];
         for (const rule of rules) {
           if (rule.ruleType === 'SHIFT') {
-            const ruleStart = parseTimeToMinutes(rule.startTime || '');
-            const ruleEnd = parseTimeToMinutes(rule.endTime || '');
+            if (!rule.customPrice || rule.customPrice <= 0) {
+              showToast('error', `Giá thuê ca đặc biệt của sân "${court.name}" phải lớn hơn 0đ!`);
+              return;
+            }
+            let ruleStart = parseTimeToMinutes(rule.startTime || '');
+            let ruleEnd = parseTimeToMinutes(rule.endTime || '');
+            if (ruleEnd <= ruleStart) {
+              ruleEnd += 24 * 60;
+            }
 
             // 1. Within operating boundaries?
             if (ruleStart < openMinutes || ruleEnd > closeMinutes) {
@@ -125,6 +184,14 @@ const WizardInner = ({ onClose }: { onClose: () => void }) => {
             }
           }
         }
+      }
+    }
+
+    // ── STEP 3 VALIDATION ──
+    if (step === 3) {
+      if (!coverImage || !coverImage.trim()) {
+        showToast('error', 'Vui lòng tải lên ít nhất 1 ảnh đại diện (Ảnh bìa) cho cụm sân ở Bước 3!');
+        return;
       }
     }
 

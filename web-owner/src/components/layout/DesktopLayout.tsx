@@ -17,7 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/operations': 'Quản lý vận hành',
   '/pricing': 'Định giá AI & Dự báo',
   '/wallet': 'Ví của tôi',
-  '/vouchers': 'Mã khuyến mãi',
+  '/vouchers': 'Quản lý khuyến mãi',
   '/profile': 'Hồ sơ tài khoản',
   '/settings': 'Cài đặt hệ thống',
 };
@@ -158,7 +158,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/pricing" icon="sparkles" label="Định giá AI & Dự báo" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/wallet" icon="wallet" label="Ví của tôi" isCollapsed={isSidebarCollapsed} />
-          <NavItem to="/vouchers" icon="voucher" label="Mã khuyến mãi" isCollapsed={isSidebarCollapsed} />
+          <NavItem to="/vouchers" icon="voucher" label="Quản lý khuyến mãi" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/settings" icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
         </nav>
         

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { 
   useOwnerBalance, 
   useOwnerTransactions, 
@@ -13,10 +14,12 @@ import { WithdrawalHistoryList } from './ui/WithdrawalHistoryList';
 import { BankAccountsTab } from './ui/BankAccountsTab';
 import { AddBankAccountModal } from './ui/AddBankAccountModal';
 import { WithdrawalRequestModal } from './ui/WithdrawalRequestModal';
+import { MobileWalletPage } from './pages/MobileWalletPage';
 import { ArrowRightLeft, Landmark, LayoutDashboard } from 'lucide-react';
 import type { CreateBankAccountRequest, CreateWithdrawalRequest } from './model/wallet.types';
 
 export const WalletPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<'overview' | 'withdrawals' | 'bank_accounts'>('overview');
   const [isAddBankModalOpen, setIsAddBankModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
@@ -55,6 +58,33 @@ export const WalletPage: React.FC = () => {
     refetchWithdrawals();
     refetchBankAccounts();
   };
+
+  // ═══ MOBILE VIEW ═══
+  if (isMobile) {
+    return (
+      <MobileWalletPage
+        balance={balance}
+        loadingBalance={loadingBalance}
+        transactions={transactions}
+        loadingTxns={loadingTxns}
+        withdrawals={withdrawals}
+        loadingWithdrawals={loadingWithdrawals}
+        bankAccounts={bankAccounts}
+        loadingBanks={loadingBanks}
+        vietqrBanks={vietqrBanks}
+        loadingVietQR={loadingVietQR}
+        onRefreshAll={handleRefreshAll}
+        onAddBankAccount={handleAddBankAccount}
+        onDeleteBankAccount={handleDeleteBankAccount}
+        onSetDefaultBankAccount={handleSetDefaultBankAccount}
+        onCreateWithdrawal={handleCreateWithdrawal}
+        txnPage={txnPage}
+        txnHasMore={txnHasMore}
+        txnNextPage={txnNextPage}
+        txnPrevPage={txnPrevPage}
+      />
+    );
+  }
 
   const tabs = [
     { key: 'overview' as const, icon: <LayoutDashboard size={16} />, label: 'Tổng quan' },

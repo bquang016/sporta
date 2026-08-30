@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { LoadingSpinner } from '../../../../components/ui/LoadingSpinner';
 
 interface OtpSignatureModalProps {
@@ -111,6 +112,20 @@ export const OtpSignatureModal = ({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').trim();
+    if (!/^\d+$/.test(pasted)) return;
+    const digits = pasted.slice(0, 6).split('');
+    const newOtp = [...otp];
+    digits.forEach((d, idx) => {
+      newOtp[idx] = d;
+    });
+    setOtp(newOtp);
+    const nextIdx = Math.min(digits.length, 5);
+    inputRefs.current[nextIdx]?.focus();
+  };
+
   const handleVerify = async () => {
     const code = otp.join('');
     if (code.length < 6) return;
@@ -167,8 +182,8 @@ export const OtpSignatureModal = ({
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isLoading && onClose()} />
       <div className="relative bg-white rounded-3xl p-6 lg:p-8 w-full max-w-sm shadow-2xl animate-[stampIn_0.3s_ease-out]">
 
@@ -195,35 +210,49 @@ export const OtpSignatureModal = ({
           {otp.map((digit, i) => (
             <input
               key={i}
-              ref={(el) => { inputRefs.current[i] = el; }}
+              ref={el => { inputRefs.current[i] = el; }}
               type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
               maxLength={1}
               value={digit}
+              disabled={isLocked || isLoading}
               onChange={e => handleChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(i, e)}
-              disabled={isLocked || isLoading}
-              className="w-11 h-12 text-center text-xl font-black rounded-xl border border-slate-300 focus:outline-none focus:border-brand-emerald focus:ring-4 focus:ring-brand-emerald/20 transition-all bg-slate-50 disabled:bg-slate-100 disabled:text-slate-400"
+              onPaste={handlePaste}
+              className={`w-11 h-13 text-center text-xl font-black rounded-xl border-2 transition-all outline-none ${
+                digit
+                  ? 'border-brand-emerald bg-brand-emerald/5 text-slate-800'
+                  : 'border-slate-200 bg-slate-50 text-slate-800 focus:border-brand-emerald focus:bg-white'
+              } ${isLocked ? 'opacity-50 cursor-not-allowed bg-slate-100 border-slate-200' : ''}`}
             />
           ))}
         </div>
 
+        {/* Resend & Timer */}
         <div className="text-center mb-6">
-          {isLocked ? (
+          {timeLeft > 0 && !isLocked ? (
+            <p className="text-xs text-slate-400 font-semibold flex items-center justify-center gap-1.5">
+              <span>Mã hết hạn sau:</span>
+              <strong className="text-brand-emerald font-mono text-sm">
+                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+              </strong>
+            </p>
+          ) : (
             <button
               onClick={() => handleResendOtp(true)}
               disabled={isLoading}
-              className="text-xs font-bold text-brand-emerald hover:text-emerald-700 hover:underline cursor-pointer"
+              className="text-xs font-bold text-brand-emerald hover:underline cursor-pointer flex items-center justify-center gap-1 mx-auto"
             >
-              {isLoading ? 'Đang gửi...' : 'Gửi lại mã OTP mới'}
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Gửi lại mã OTP
             </button>
-          ) : (
-            <div className="text-xs font-bold text-slate-400">
-              Mã hết hạn sau <span className="text-brand-yellow drop-shadow-sm px-1 text-sm">{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</span>
-            </div>
           )}
         </div>
 
+        {/* Actions */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -243,6 +272,7 @@ export const OtpSignatureModal = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

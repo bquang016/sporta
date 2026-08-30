@@ -91,6 +91,11 @@ export const useDashboard = ({ isMobile = false }: UseDashboardProps = {}) => {
       })
       .catch((err) => {
         console.warn('Backend overview fetch failed, utilizing client state fallback:', err);
+        const fallbackSource = isMobile ? MOBILE_REVENUE_CHART_DATA : DESKTOP_REVENUE_CHART_DATA;
+        const complexData = fallbackSource[selectedComplex] || fallbackSource['all'];
+        if (complexData && complexData[chartPeriod]) {
+          setChartData(complexData[chartPeriod]);
+        }
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);

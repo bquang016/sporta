@@ -89,6 +89,7 @@ interface LocationPickerMapProps {
   }) => void;
   onClose?: () => void;
   fullHeight?: boolean;
+  hideConfirmBar?: boolean;
 }
 
 export const LocationPickerMap = ({
@@ -96,7 +97,8 @@ export const LocationPickerMap = ({
   initialAddress = '',
   onChange,
   onClose,
-  fullHeight = false
+  fullHeight = false,
+  hideConfirmBar = false
 }: LocationPickerMapProps) => {
   const {
     suggestions,
@@ -111,6 +113,9 @@ export const LocationPickerMap = ({
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const geocodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInternalUpdateRef = useRef(false);
+  const prevPropsLatRef = useRef<number | undefined>(initialLocation?.lat);
+  const prevPropsLngRef = useRef<number | undefined>(initialLocation?.lng);
 
   // States
   const [address, setAddress] = useState(initialAddress);
@@ -130,10 +135,24 @@ export const LocationPickerMap = ({
     addressDetail: ''
   });
 
-  // Sync initial location if it changes
+  const initLat = initialLocation?.lat;
+  const initLng = initialLocation?.lng;
+
+  // Sync initial location ONLY when external props truly change (not from internal drag/select)
   useEffect(() => {
-    if (initialLocation?.lat && initialLocation?.lng && initialLocation.lat !== 0 && initialLocation.lng !== 0) {
-      const newCoords = { lat: initialLocation.lat, lng: initialLocation.lng };
+    if (isInternalUpdateRef.current) {
+      isInternalUpdateRef.current = false;
+      return;
+    }
+
+    if (initLat && initLng && initLat !== 0 && initLng !== 0) {
+      if (prevPropsLatRef.current === initLat && prevPropsLngRef.current === initLng) {
+        return;
+      }
+      prevPropsLatRef.current = initLat;
+      prevPropsLngRef.current = initLng;
+
+      const newCoords = { lat: initLat, lng: initLng };
       setCoords(newCoords);
       if (mapRef.current) {
         mapRef.current.setCenter([newCoords.lng, newCoords.lat]);
@@ -142,7 +161,7 @@ export const LocationPickerMap = ({
         markerRef.current.setLngLat([newCoords.lng, newCoords.lat]);
       }
       if (!initialAddress) {
-        reverseGeocode(initialLocation.lat, initialLocation.lng).then(geoResult => {
+        reverseGeocode(initLat, initLng).then(geoResult => {
           if (geoResult) {
             setAddress(geoResult.address);
             setSearchQuery(geoResult.address);
@@ -152,13 +171,23 @@ export const LocationPickerMap = ({
         });
       }
     }
-    if (initialAddress) {
-      setAddress(initialAddress);
-      setSearchQuery(initialAddress);
-    }
-  }, [initialLocation, initialAddress]);
+  }, [initLat, initLng]);
 
-  // Initialize Map
+  const notifyChange = (lat: number, lng: number, addr: string, components: typeof addressComponents) => {
+    if (onChange) {
+      onChange({
+        lat,
+        lng,
+        address: addr,
+        province: components.province,
+        district: components.district,
+        ward: components.ward,
+        addressDetail: components.addressDetail
+      });
+    }
+  };
+
+  // Initialize Map & Marker
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -176,7 +205,7 @@ export const LocationPickerMap = ({
     // Suppress external Goong map stylesheet resource warnings
     map.on('error', (e: any) => {
       const msg = e?.error?.message || '';
-      if (msg.includes('Source layer') || msg.includes('Image')) {
+      if (msg.includes('Source layer') || msg.includes('Image') || msg.includes('SDF') || msg.includes('sprite')) {
         return;
       }
       console.warn('Goong Map style resource warning:', msg);
@@ -249,6 +278,7 @@ export const LocationPickerMap = ({
       el.classList.remove('dragging');
       const markerCoords = marker.getLngLat();
       setCoords({ lat: markerCoords.lat, lng: markerCoords.lng });
+      isInternalUpdateRef.current = true;
 
       if (geocodeTimeoutRef.current) {
         clearTimeout(geocodeTimeoutRef.current);
@@ -262,11 +292,13 @@ export const LocationPickerMap = ({
             setSearchQuery(geoResult.address);
             const parsed = extractAddressComponents(geoResult.components, geoResult.address);
             setAddressComponents(parsed);
+            isInternalUpdateRef.current = true;
+            notifyChange(markerCoords.lat, markerCoords.lng, geoResult.address, parsed);
           }
         } catch (err) {
           console.error('Failed to geocode dragged marker:', err);
         }
-      }, 500);
+      }, 250);
     });
 
     // Cleanup on unmount
@@ -302,6 +334,7 @@ export const LocationPickerMap = ({
         
         const parsed = extractAddressComponents(details.components, details.address);
         setAddressComponents(parsed);
+        notifyChange(details.location.lat, details.location.lng, details.address, parsed);
 
         markerRef.current.setLngLat([details.location.lng, details.location.lat]);
         mapRef.current.flyTo({
@@ -371,6 +404,7 @@ export const LocationPickerMap = ({
         setSearchQuery(geoResult.address);
         const parsed = extractAddressComponents(geoResult.components, geoResult.address);
         setAddressComponents(parsed);
+        notifyChange(gpsCoords.lat, gpsCoords.lng, geoResult.address, parsed);
       }
     } catch (err: any) {
       console.error('Error locating GPS coordinate:', err);
@@ -486,7 +520,7 @@ export const LocationPickerMap = ({
       <button
         onClick={handleLocateCurrent}
         disabled={isLocating}
-        className={`absolute bottom-20 right-4 z-20 w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 hover:text-brand-emerald shadow-[0_4px_15px_rgba(0,0,0,0.08)] border border-slate-100 rounded-full flex items-center justify-center active:scale-95 transition-all cursor-pointer ${
+        className={`absolute ${hideConfirmBar ? 'bottom-5' : 'bottom-20'} right-4 z-20 w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 hover:text-brand-emerald shadow-[0_4px_15px_rgba(0,0,0,0.08)] border border-slate-100 rounded-full flex items-center justify-center active:scale-95 transition-all cursor-pointer ${
           isLocating ? 'opacity-70 cursor-not-allowed' : ''
         }`}
         title="Lấy vị trí hiện tại"
@@ -495,48 +529,50 @@ export const LocationPickerMap = ({
           <div className="w-4 h-4 border-2 border-brand-emerald border-t-transparent rounded-full animate-spin" />
         ) : (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         )}
       </button>
 
       {/* ULTRA-COMPACT BOTTOM SINGLE-ROW FLOATING BAR */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-2xl p-2.5 flex flex-row items-center justify-between gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.08)] select-none">
-        
-        {/* Left Side: Pin Icon & Resolved Address (Truncated) */}
-        <div className="flex items-center gap-2 min-w-0 flex-1 select-none">
-          <div className="w-6 h-6 rounded-full bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center flex-shrink-0 animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald" />
+      {!hideConfirmBar && (
+        <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-2xl p-2.5 flex flex-row items-center justify-between gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.08)] select-none">
+          
+          {/* Left Side: Pin Icon & Resolved Address (Truncated) */}
+          <div className="flex items-center gap-2 min-w-0 flex-1 select-none">
+            <div className="w-6 h-6 rounded-full bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center flex-shrink-0 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald" />
+            </div>
+            <span className="text-[10px] font-bold text-slate-700 truncate" title={address}>
+              {address || (isDragging ? 'Đang xác định vị trí...' : 'Kéo thả ghim để chọn vị trí')}
+            </span>
           </div>
-          <span className="text-[10px] font-bold text-slate-700 truncate" title={address}>
-            {address || (isDragging ? 'Đang xác định vị trí...' : 'Kéo thả ghim để chọn vị trí')}
-          </span>
-        </div>
 
-        {/* Right Side: Confirm / Cancel Buttons */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {onClose && (
+          {/* Right Side: Confirm / Cancel Buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 font-black text-[9px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+              >
+                Hủy
+              </button>
+            )}
             <button
               type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 font-black text-[9px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+              onClick={handleConfirm}
+              disabled={!address || isDragging}
+              className={`bg-brand-emerald hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider px-4 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer border-b-2 border-emerald-900 shadow-xs ${
+                (!address || isDragging) ? 'opacity-55 cursor-not-allowed border-b-0' : ''
+              }`}
             >
-              Hủy
+              Xác nhận
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!address || isDragging}
-            className={`bg-brand-emerald hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider px-4 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer border-b-2 border-emerald-900 shadow-xs ${
-              (!address || isDragging) ? 'opacity-55 cursor-not-allowed border-b-0' : ''
-            }`}
-          >
-            Xác nhận
-          </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
