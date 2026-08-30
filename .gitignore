@@ -25,3 +25,6 @@ node_modules/
 /allure-results/
 /playwright/.cache/
 /playwright/.cache/*
+
+# Playwright
+/playwright/.auth/

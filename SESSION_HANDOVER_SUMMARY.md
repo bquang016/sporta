@@ -44,12 +44,8 @@
 
 | Tên File Test | Luồng Nghiệp Vụ | Số Kịch Bản | Trạng Thái |
 |---|---|:---:|:---:|
-| **`e2e/auth.spec.ts`** | Xác thực & Phân quyền (Login, Sai mật khẩu, Validate Email, Logout) | 4 | ✅ Hoàn thành |
 | **`e2e/booking.spec.ts`** | Đặt sân, Chọn slot, Tính giá, Xung đột 409, Thanh toán DEV, Thanh toán tại sân | 7 | ✅ Hoàn thành |
 | **`e2e/ai-recommend.spec.ts`** | Trợ lý ảo Sporta AI, Quick Chips, Đặt sân từ Bot, Hybrid AI Match Score, Đa bộ lọc | 7 | ✅ Hoàn thành |
-| **`e2e/search-filter.spec.ts`** | Tìm kiếm từ khóa, Lọc môn thể thao, Lọc khoảng cách, Sắp xếp giá | 4 | ✅ Hoàn thành |
-| **`e2e/ticket-sessions.spec.ts`** | Sân chơi xé vé lẻ, Ghép kèo thể thao, Mua vé tham gia | 3 | ✅ Hoàn thành |
-
 ---
 
 ## 🛠️ 3. CHI TIẾT CÁC LỖI ĐÃ PHÁT HIỆN & KHẮC PHỤC (ROOT CAUSE & FIXES)
