@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import type { VenueInfo, SubCourt } from '../types';
 import { useToast } from '../../../components/ui/Toast';
 import { CurrencyInput } from '../../../components/ui/CurrencyInput';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { Checkbox } from '../../../components/ui/Checkbox';
+import { AdvancedOperationsModal } from './AdvancedOperationsModal';
+import { Plus, Trash2, Settings, Sparkles, Clock, AlertCircle } from 'lucide-react';
 
 interface VenueCourtsStepProps {
   venueInfo: VenueInfo;
@@ -19,84 +23,119 @@ export const VenueCourtsStep = ({
   isLoading
 }: VenueCourtsStepProps) => {
   const { showToast } = useToast();
-  
-  const [newCourtName, setNewCourtName] = useState('');
-  const [newCourtPrice, setNewCourtPrice] = useState<number>(100000);
 
-  const SPORT_OPTIONS = [
-    { 
-      id: '1', 
-      name: 'Bóng đá', 
-      icon: (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-9h3V8H8v3zm5-3h3v3h-3V8zm-5 5h3v3H8v-3zm5 3v-3h3v3h-3z" />
-        </svg>
-      ),
-      bgClass: "hover:border-emerald-500 hover:bg-emerald-50/20",
-      activeClass: "border-emerald-500 bg-emerald-50/30 text-emerald-700 shadow-xs"
-    },
-    { 
-      id: '2', 
-      name: 'Cầu lông', 
-      icon: (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2L4.5 20.29c-.21.52.17 1.09.73 1.09h13.54c.56 0 .94-.57.73-1.09L12 2zm0 4l5.34 13H6.66L12 6z" />
-        </svg>
-      ),
-      bgClass: "hover:border-orange-500 hover:bg-orange-50/20",
-      activeClass: "border-orange-500 bg-orange-50/30 text-orange-700 shadow-xs"
-    },
-    { 
-      id: '3', 
-      name: 'Pickleball', 
-      icon: (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm-4 5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm2 9a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm4 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm2-4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm-2-5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-        </svg>
-      ),
-      bgClass: "hover:border-sky-500 hover:bg-sky-50/20",
-      activeClass: "border-sky-500 bg-sky-50/30 text-sky-700 shadow-xs"
-    },
-    { 
-      id: '4', 
-      name: 'Bóng rổ', 
-      icon: (
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-9a1 1 0 100-2 1 1 0 000 2zm4 0a1 1 0 100-2 1 1 0 000 2zm-2 4a1 1 0 100-2 1 1 0 000 2z" />
-        </svg>
-      ),
-      bgClass: "hover:border-amber-500 hover:bg-amber-50/20",
-      activeClass: "border-amber-500 bg-amber-50/30 text-amber-700 shadow-xs"
-    }
+  const [courtPrefix, setCourtPrefix] = useState('Sân');
+  const [courtQuantity, setCourtQuantity] = useState<number>(0);
+  const [newCourtPrice, setNewCourtPrice] = useState<number>(100000);
+  
+  const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
+  const [showTooltipTemp, setShowTooltipTemp] = useState(false);
+
+  const {
+    openingTime,
+    closingTime,
+    shiftDurationMinutes,
+    hasSurcharge,
+    surchargeAmount,
+    surchargeDescription,
+  } = venueInfo;
+
+  const setOpeningTime = (val: string) => onVenueInfoChange({ ...venueInfo, openingTime: val });
+  const setClosingTime = (val: string) => onVenueInfoChange({ ...venueInfo, closingTime: val });
+  const setShiftDurationMinutes = (val?: number) => onVenueInfoChange({ ...venueInfo, shiftDurationMinutes: val || 0 });
+  const setHasSurcharge = (val: boolean) => onVenueInfoChange({ ...venueInfo, hasSurcharge: val });
+  const setSurchargeAmount = (val?: number) => onVenueInfoChange({ ...venueInfo, surchargeAmount: val });
+  const setSurchargeDescription = (val: string) => onVenueInfoChange({ ...venueInfo, surchargeDescription: val });
+
+  const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+    const hours = Math.floor(i / 2).toString().padStart(2, '0');
+    const minutes = (i % 2 === 0 ? '00' : '30');
+    return `${hours}:${minutes}`;
+  });
+  const hourDropdownOptions = TIME_OPTIONS.map(t => ({ value: t, label: t }));
+
+  const SHIFT_DURATIONS = [
+    { value: '', label: 'Chọn thời lượng...' },
+    { value: '30', label: '30 phút' },
+    { value: '60', label: '1 tiếng (60 phút)' },
+    { value: '90', label: '90 phút' },
+    { value: '120', label: '2 tiếng (120 phút)' }
   ];
 
-  const handleAddCourt = () => {
-    if (!newCourtName.trim()) {
-      showToast('warning', 'Vui lòng nhập tên sân');
+  const DAYS_MAP: Record<number, string> = {
+    1: 'Thứ 2',
+    2: 'Thứ 3',
+    3: 'Thứ 4',
+    4: 'Thứ 5',
+    5: 'Thứ 6',
+    6: 'Thứ 7',
+    7: 'Chủ Nhật'
+  };
+
+  const handleBulkAddCourts = () => {
+    if (!courtPrefix.trim()) {
+      showToast('warning', 'Vui lòng nhập tên/tiền tố sân');
       return;
     }
-
     if (newCourtPrice <= 0) {
       showToast('warning', 'Giá thuê sân phải là số lớn hơn 0');
       return;
     }
-
-    if (courts.some(c => c.name.toLowerCase() === newCourtName.trim().toLowerCase())) {
-      showToast('warning', 'Tên sân đã tồn tại');
+    if (courtQuantity < 1) {
+      showToast('warning', 'Vui lòng nhập số lượng sân cần tạo (tối thiểu 1 sân)');
+      return;
+    }
+    if (courtQuantity > 50) {
+      showToast('warning', 'Số lượng sân tạo mỗi lần tối đa là 50');
       return;
     }
 
-    const newCourt: SubCourt = {
-      name: newCourtName.trim(),
-      price: newCourtPrice,
-      status: 'ACTIVE',
-      priceRules: []
-    };
+    const newCourts: SubCourt[] = [];
+    const baseName = courtPrefix.trim();
 
-    onCourtsChange([...courts, newCourt]);
-    setNewCourtName('');
-    setNewCourtPrice(100000);
-    showToast('success', `Đã thêm ${newCourt.name} vào danh sách`);
+    if (courtQuantity === 1) {
+      if (courts.some(c => c.name.toLowerCase() === baseName.toLowerCase())) {
+        showToast('warning', `Tên sân "${baseName}" đã tồn tại trong danh sách`);
+        return;
+      }
+      newCourts.push({
+        name: baseName,
+        price: newCourtPrice,
+        status: 'ACTIVE',
+        priceRules: []
+      });
+    } else {
+      let added = 0;
+      let counter = 1;
+      while (added < courtQuantity) {
+        const potentialName = `${baseName} ${counter}`;
+        const exists = courts.some(c => c.name.toLowerCase() === potentialName.toLowerCase()) || 
+                       newCourts.some(c => c.name.toLowerCase() === potentialName.toLowerCase());
+        
+        if (!exists) {
+          newCourts.push({
+            name: potentialName,
+            price: newCourtPrice,
+            status: 'ACTIVE',
+            priceRules: []
+          });
+          added++;
+        }
+        counter++;
+        if (counter > 1000) break; // safety fallback
+      }
+    }
+
+    onCourtsChange([...courts, ...newCourts]);
+    // Fallback số lượng về 0 sau khi thêm để tránh double click / tạo nhầm
+    setCourtQuantity(0);
+    showToast('success', `Đã thêm ${newCourts.length} sân vào danh sách`);
+    
+    // Auto-show tooltip to remind about advanced config
+    setShowTooltipTemp(true);
+    setTimeout(() => {
+      setShowTooltipTemp(false);
+    }, 3000);
   };
 
   const handleRemoveCourt = (index: number) => {
@@ -105,134 +144,287 @@ export const VenueCourtsStep = ({
     showToast('info', `Đã xóa ${courtName}`);
   };
 
+  const handleRemoveRuleFromCourt = (courtIndex: number, ruleIndex: number) => {
+    const updated = courts.map((c, idx) => {
+      if (idx === courtIndex) {
+        const newRules = (c.priceRules || []).filter((_, rIdx) => rIdx !== ruleIndex);
+        return { ...c, priceRules: newRules };
+      }
+      return c;
+    });
+    onCourtsChange(updated);
+    showToast('info', 'Đã xóa quy tắc giá');
+  };
+
   const formatVND = (amount: number) => {
-    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VND';
+    return (amount || 0).toLocaleString('vi-VN') + ' đ';
+  };
+
+  const openAdvancedConfig = () => {
+    if (!shiftDurationMinutes || !openingTime || !closingTime) {
+      showToast('warning', 'Vui lòng thiết lập cấu hình vận hành (giờ mở/đóng cửa, thời lượng ca) trước khi cài đặt nâng cao.');
+      return;
+    }
+    setIsAdvancedModalOpen(true);
   };
 
   return (
-    <div className="flex-grow overflow-y-auto px-8 py-6 space-y-6 select-none max-w-4xl mx-auto w-full font-sans animate-fadeIn">
-      <div className="space-y-1">
-        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Bước 2: Dịch vụ & Sân trực thuộc</h3>
-        <p className="text-[10px] text-slate-400 font-semibold leading-normal">
-          Chọn bộ môn thể thao chính và khai báo danh sách các sân bãi lẻ trực thuộc cụm sân này.
-        </p>
-      </div>
+    <div className="flex-grow overflow-y-auto px-8 py-6 space-y-8 select-none max-w-4xl mx-auto w-full font-sans animate-fadeIn">
 
-      {/* ① Chọn môn thể thao */}
-      <div className="space-y-3">
-        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-          Môn thể thao chính
-        </label>
-        <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-          {SPORT_OPTIONS.map(opt => {
-            const isSelected = venueInfo.sportId === opt.id;
-            return (
-              <div
-                key={opt.id}
-                onClick={() => onVenueInfoChange({ ...venueInfo, sportId: opt.id })}
-                className={`border-2 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all active:scale-95 ${
-                  isSelected ? opt.activeClass : `border-slate-100 bg-white text-slate-500 ${opt.bgClass}`
-                }`}
-              >
-                {opt.icon}
-                <span className="text-[11px] font-black tracking-wider uppercase">{opt.name}</span>
+      {/* 1. Cấu hình vận hành cơ bản */}
+      <div className={`space-y-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="space-y-0.5">
+          <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Cấu hình vận hành chung</h4>
+          <p className="text-[10px] text-slate-500 font-bold">Thiết lập giờ mở/đóng cửa và phụ thu cho toàn bộ cụm sân.</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 border border-slate-100 rounded-3xl p-5 shadow-xs">
+          {/* Giờ hoạt động */}
+          <div className="space-y-5">
+            <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2">Khung giờ hoạt động</h5>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Mở cửa</label>
+                <Dropdown
+                  options={hourDropdownOptions}
+                  value={openingTime}
+                  onChange={setOpeningTime}
+                  disabled={isLoading}
+                  className="w-full text-xs font-bold text-slate-700 rounded-xl"
+                />
               </div>
-            );
-          })}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Đóng cửa</label>
+                <Dropdown
+                  options={hourDropdownOptions}
+                  value={closingTime}
+                  onChange={setClosingTime}
+                  disabled={isLoading}
+                  className="w-full text-xs font-bold text-slate-700 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Thời lượng 1 ca</label>
+              <Dropdown
+                options={SHIFT_DURATIONS}
+                value={shiftDurationMinutes ? String(shiftDurationMinutes) : ''}
+                onChange={val => setShiftDurationMinutes(val ? parseInt(val) : undefined)}
+                disabled={isLoading}
+                className="w-full text-xs font-bold text-slate-700 rounded-xl"
+              />
+            </div>
+          </div>
+
+          {/* Phụ thu */}
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Phụ thu khẩn cấp</h5>
+              <Checkbox checked={hasSurcharge} onChange={setHasSurcharge} disabled={isLoading} />
+            </div>
+
+            {hasSurcharge ? (
+              <div className="space-y-4 animate-slideDown">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Số tiền phụ thu (VND)</label>
+                  <CurrencyInput
+                    value={surchargeAmount || 0}
+                    onChange={val => setSurchargeAmount(val || undefined)}
+                    placeholder="Ví dụ: 50.000"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Lý do phụ thu</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Dọn dẹp sau 18:00..."
+                    value={surchargeDescription}
+                    onChange={e => setSurchargeDescription(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-[10px] font-bold text-slate-400 bg-slate-100/50 p-3 rounded-xl border border-dashed border-slate-200 h-24 flex items-center justify-center">
+                Không có phụ thu nào được áp dụng
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="w-full h-px bg-slate-100 my-4" />
+      <div className="w-full h-px bg-slate-100" />
 
-      {/* ② Form thêm sân */}
-      <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/50 border border-slate-100 rounded-3xl p-5 shadow-xs ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="md:col-span-3 space-y-0.5">
-          <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Đăng ký sân lẻ</h4>
-          <p className="text-[9px] text-slate-400 font-bold">Thêm các sân lẻ thuộc cụm sân và đặt giá thuê cơ bản.</p>
+      {/* 2. Form thêm sân & Danh sách */}
+      <div className={`space-y-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="space-y-0.5">
+          <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Danh sách sân bãi</h4>
+          <p className="text-[10px] text-slate-400 font-bold">Tạo các sân và áp dụng quy tắc giá (giờ vàng, cuối tuần).</p>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tên sân</label>
-          <input
-            type="text"
-            placeholder="Ví dụ: Sân 1, Sân A"
-            value={newCourtName}
-            onChange={e => setNewCourtName(e.target.value)}
-            disabled={isLoading}
-            className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-emerald-100"
-          />
+        {/* Form thêm */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs items-end">
+          <div className="space-y-1.5 md:col-span-1">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tên tiền tố</label>
+            <input
+              type="text"
+              placeholder="VD: Sân"
+              value={courtPrefix}
+              onChange={e => setCourtPrefix(e.target.value)}
+              disabled={isLoading}
+              className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-1">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Số lượng sân</label>
+            <input
+              type="number"
+              min="0"
+              max="50"
+              placeholder="0"
+              value={courtQuantity === 0 ? '' : courtQuantity}
+              onChange={e => {
+                const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                setCourtQuantity(isNaN(val) ? 0 : Math.max(0, Math.min(50, val)));
+              }}
+              disabled={isLoading}
+              className="w-full text-xs font-bold text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-brand-emerald"
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-1">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Giá cơ bản / ca</label>
+            <CurrencyInput
+              value={newCourtPrice}
+              onChange={val => setNewCourtPrice(val || 0)}
+              placeholder="100.000"
+            />
+          </div>
+          <div className="md:col-span-1">
+            <button
+              type="button"
+              onClick={handleBulkAddCourts}
+              disabled={isLoading}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-[11px] py-2.5 rounded-xl transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              Tạo sân
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Giá thuê cơ bản (VND / ca)</label>
-          <CurrencyInput
-            value={newCourtPrice}
-            onChange={val => setNewCourtPrice(val || 0)}
-            placeholder="Ví dụ: 100.000"
-          />
-        </div>
-
-        <div className="flex items-end">
-          <button
-            type="button"
-            onClick={handleAddCourt}
-            disabled={isLoading}
-            className="w-full bg-brand-emerald hover:bg-emerald-900 text-white font-extrabold text-xs py-3.5 rounded-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-1.5 shadow-md border-b-2 border-emerald-950 disabled:opacity-50"
-          >
-            <svg className="w-3.5 h-3.5 text-brand-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-            </svg>
-            Thêm sân lẻ
-          </button>
-        </div>
-      </div>
-
-      {/* ③ Danh sách sân trực thuộc */}
-      <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-            Danh sách sân đã khai báo ({courts.length})
-          </label>
-        </div>
-
+        {/* Danh sách */}
         {courts.length === 0 ? (
-          <div className="border border-dashed border-slate-200 rounded-3xl p-8 text-center text-xs text-slate-400 font-semibold bg-white shadow-2xs">
-            Chưa có sân nào được thêm. Vui lòng thêm ít nhất một sân ở form phía trên.
+          <div className="border border-dashed border-slate-200 rounded-3xl p-8 text-center text-xs text-slate-400 font-semibold bg-white shadow-2xs mt-4">
+            Chưa có sân nào được thêm. Vui lòng nhập số lượng và bấm Tạo sân ở form phía trên.
           </div>
         ) : (
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-            {courts.map((court, index) => (
-              <div
-                key={index}
-                className="bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-brand-emerald">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-black text-slate-800">{court.name}</h5>
-                    <p className="text-[10px] text-brand-emerald font-extrabold">{formatVND(court.price)}</p>
-                  </div>
-                </div>
-
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                Đã tạo <strong className="text-brand-emerald">{courts.length}</strong> sân
+              </span>
+              <div className="relative group">
                 <button
                   type="button"
-                  onClick={() => handleRemoveCourt(index)}
-                  className="p-2 rounded-lg bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 hover:text-red-700 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-2xs"
-                  title="Xóa sân này"
+                  onClick={openAdvancedConfig}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-brand-yellow hover:bg-yellow-400 text-primary font-black text-[10px] uppercase rounded-xl transition-all shadow-md cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <Settings className="w-3.5 h-3.5" />
+                  Cài đặt nâng cao
                 </button>
+                {/* Tooltip */}
+                <div className={`absolute right-0 bottom-full mb-2 w-48 p-2.5 bg-slate-800 text-white text-[10px] font-bold rounded-xl transition-all shadow-lg text-center leading-relaxed z-10 pointer-events-none ${
+                  showTooltipTemp ? 'opacity-100 visible' : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
+                }`}>
+                  Tạo quy tắc giá đặc biệt (giờ vàng, cuối tuần) và áp dụng cho nhiều sân cùng lúc
+                  {/* Arrow pointing down */}
+                  <div className="absolute top-full right-8 -mt-[1px] border-[6px] border-transparent border-t-slate-800" />
+                </div>
               </div>
-            ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {courts.map((court, index) => {
+                const hasRules = court.priceRules && court.priceRules.length > 0;
+                
+                return (
+                  <div
+                    key={index}
+                    className={`border rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group ${
+                      hasRules ? 'bg-emerald-50/20 border-emerald-200' : 'bg-white border-slate-200/80'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between pr-8">
+                        <div>
+                          <h5 className="text-xs font-black text-slate-800">{court.name}</h5>
+                          <p className="text-[10px] text-brand-emerald font-extrabold">{formatVND(court.price)} / ca</p>
+                        </div>
+                        
+                        {hasRules ? (
+                          <div className="px-2 py-0.5 rounded-md bg-brand-emerald text-white text-[8px] font-black uppercase shadow-sm">
+                            {court.priceRules?.length} quy tắc
+                          </div>
+                        ) : (
+                          <div className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[8px] font-black uppercase">
+                            Giá cơ bản
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Display active rules with individual remove option */}
+                      {hasRules && (
+                        <div className="mt-2.5 space-y-1 pt-2 border-t border-emerald-150/60">
+                          <div className="flex flex-wrap gap-1">
+                            {court.priceRules?.map((r, rIdx) => (
+                              <span
+                                key={rIdx}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-emerald-200 text-[9px] font-bold text-emerald-800 shadow-2xs"
+                              >
+                                {r.ruleType === 'SHIFT' 
+                                  ? `Ca ${r.startTime}-${r.endTime}: ${formatVND(r.customPrice || 0)}`
+                                  : `${r.dayOfWeek ? (DAYS_MAP[r.dayOfWeek] || `Thứ ${r.dayOfWeek}`) : 'Theo ngày'}: ${r.percentageModifier && r.percentageModifier !== 1 ? `+${Math.round((r.percentageModifier - 1) * 100)}%` : `+${formatVND(r.fixedModifier || 0)}`}`}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveRuleFromCourt(index, rIdx)}
+                                  className="text-slate-400 hover:text-rose-600 transition-colors ml-0.5 cursor-pointer font-bold"
+                                  title="Xóa quy tắc này"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCourt(index)}
+                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                      title="Xóa sân này"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
+
+      <AdvancedOperationsModal 
+        isOpen={isAdvancedModalOpen}
+        onClose={() => setIsAdvancedModalOpen(false)}
+        courts={courts}
+        onCourtsChange={onCourtsChange}
+        openingTime={openingTime}
+        closingTime={closingTime}
+        shiftDurationMinutes={shiftDurationMinutes}
+      />
     </div>
   );
 };

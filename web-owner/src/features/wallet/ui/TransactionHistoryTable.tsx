@@ -43,11 +43,32 @@ export const TransactionHistoryTable: React.FC<Props> = ({ transactions, loading
     <div className="space-y-4">
       <div className="space-y-3">
         {transactions.map(txn => {
-          const isPositive = txn.amount > 0;
+          const isDebit = txn.transactionType === 'BOOKING_REFUND' || 
+                          txn.transactionType === 'WITHDRAWAL' || 
+                          txn.transactionType === 'COMMISSION_DEDUCT';
+          const isPositive = !isDebit;
+
+          const badgeLabel = 
+            txn.transactionType === 'BOOKING_PAYMENT' || txn.transactionType === 'BOOKING_EARNING' ? 'Doanh thu sân' :
+            txn.transactionType === 'WITHDRAWAL' ? 'Rút tiền' :
+            txn.transactionType === 'COMMISSION_DEDUCT' ? 'Chiết khấu sàn' : 'Khấu trừ hoàn tiền';
+
+          const iconBg = 
+            txn.transactionType === 'BOOKING_REFUND' ? 'bg-red-50 text-red-600' :
+            txn.transactionType === 'WITHDRAWAL' ? 'bg-amber-50 text-amber-600' :
+            txn.transactionType === 'COMMISSION_DEDUCT' ? 'bg-slate-100 text-slate-600' :
+            'bg-emerald-50 text-emerald-600';
+
+          const amountColor = 
+            txn.transactionType === 'BOOKING_REFUND' ? 'text-red-600' :
+            txn.transactionType === 'WITHDRAWAL' ? 'text-amber-600' :
+            txn.transactionType === 'COMMISSION_DEDUCT' ? 'text-slate-600' :
+            'text-emerald-600';
+
           return (
             <div key={txn.id} className={`bg-white hover:bg-slate-50 p-5 rounded-2xl border border-slate-200/80 transition-colors flex items-center justify-between group cursor-default shadow-sm ${loading ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${iconBg}`}>
                   {isPositive ? <ArrowDownLeft size={24} /> : <ArrowUpRight size={24} />}
                 </div>
                 <div>
@@ -55,10 +76,13 @@ export const TransactionHistoryTable: React.FC<Props> = ({ transactions, loading
                     {txn.description}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                      {txn.transactionType === 'BOOKING_PAYMENT' || txn.transactionType === 'BOOKING_EARNING' ? 'Thanh toán sân' :
-                       txn.transactionType === 'WITHDRAWAL' ? 'Rút tiền' :
-                       txn.transactionType === 'COMMISSION_DEDUCT' ? 'Chiết khấu' : 'Hoàn tiền'}
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                      txn.transactionType === 'BOOKING_REFUND' ? 'text-red-700 bg-red-100' :
+                      txn.transactionType === 'WITHDRAWAL' ? 'text-amber-700 bg-amber-100' :
+                      txn.transactionType === 'COMMISSION_DEDUCT' ? 'text-slate-600 bg-slate-100' :
+                      'text-emerald-700 bg-emerald-100'
+                    }`}>
+                      {badgeLabel}
                     </span>
                     <span className="text-[10px] text-slate-300">•</span>
                     <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
@@ -70,12 +94,12 @@ export const TransactionHistoryTable: React.FC<Props> = ({ transactions, loading
               </div>
               
               <div className="text-right">
-                <p className={`text-base font-black ${isPositive ? 'text-emerald-600' : 'text-slate-800'}`}>
-                  {isPositive ? '+' : ''}{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.abs(txn.amount))}
+                <p className={`text-base font-black ${amountColor}`}>
+                  {isPositive ? '+' : '-'}{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.abs(txn.amount))}
                 </p>
                 <div className="flex items-center justify-end gap-1.5 mt-1">
-                  <CheckCircle size={14} className="text-emerald-500" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">
+                  <CheckCircle size={14} className={isDebit ? "text-slate-400" : "text-emerald-500"} />
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${isDebit ? "text-slate-500" : "text-emerald-600"}`}>
                     Thành công
                   </span>
                 </div>

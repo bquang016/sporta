@@ -58,6 +58,9 @@ public class Booking {
     @Column(name = "customer_name")
     private String customerName;
 
+    @Column(name = "customer_phone", length = 20)
+    private String customerPhone;
+
     /** Mã đặt sân định danh hiển thị cho người dùng, e.g. "SP-A3K9-X2" */
     @Column(name = "booking_code", nullable = false, unique = true, length = 20)
     private String bookingCode;
@@ -70,6 +73,22 @@ public class Booking {
     @Column(name = "wallet_discount_amount")
     @Builder.Default
     private Long walletDiscountAmount = 0L;
+
+    /** Số tiền đã hoàn lại vào ví người dùng khi hủy sân (VNĐ) */
+    @Column(name = "refund_amount")
+    private Double refundAmount;
+
+    /** Tỷ lệ hoàn tiền (%) e.g. 100, 50, 0 */
+    @Column(name = "refund_rate")
+    private Integer refundRate;
+
+    /** Lý do hủy sân */
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
+
+    /** Thời điểm hủy đơn */
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

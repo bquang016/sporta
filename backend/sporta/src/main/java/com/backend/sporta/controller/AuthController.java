@@ -11,6 +11,7 @@ import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
 import com.backend.sporta.dto.RegisterOwnerResponse;
 import com.backend.sporta.service.AuthService;
+import com.backend.sporta.service.EmailService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -35,8 +36,14 @@ public class AuthController {
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@Valid @RequestBody SendOtpRequest request) {
-        String otp = authService.sendOtp(request);
-        return ResponseEntity.ok(Map.of("message", "Mã OTP đã được gửi đến email của bạn.", "otp", otp));
+        authService.sendOtp(request);
+        return ResponseEntity.ok(Map.of("message", "Mã OTP đã được gửi đến email của bạn."));
+    }
+
+    @PostMapping("/send-otp-contract")
+    public ResponseEntity<?> sendOtpContract(@Valid @RequestBody SendOtpRequest request) {
+        authService.sendOtpForContract(request);
+        return ResponseEntity.ok(Map.of("message", "Mã OTP xác thực hợp đồng đã được gửi đến email của bạn."));
     }
 
     @PostMapping("/verify-otp")
@@ -73,18 +80,30 @@ public class AuthController {
             @RequestParam("subCourtCount") int subCourtCount,
             @RequestParam(value = "description", required = false, defaultValue = "") String description,
             @RequestParam(value = "courts", required = false, defaultValue = "[]") String courts,
+            @RequestParam(value = "freeCancellationHours", required = false) Integer freeCancellationHours,
+            @RequestParam(value = "lateCancellationRefundRate", required = false) Integer lateCancellationRefundRate,
+            @RequestParam(value = "rainRescheduleAllowed", required = false) Boolean rainRescheduleAllowed,
             @RequestParam(value = "idFrontImage", required = false) org.springframework.web.multipart.MultipartFile idFrontImage,
             @RequestParam(value = "idBackImage", required = false) org.springframework.web.multipart.MultipartFile idBackImage,
-            @RequestParam(value = "coverImage", required = false) String coverImage,
-            @RequestParam(value = "registrationImages", required = false) String registrationImages) {
-        
-        java.time.LocalTime openingTime = openingTimeStr != null && !openingTimeStr.isEmpty() ? java.time.LocalTime.parse(openingTimeStr) : java.time.LocalTime.of(5, 0);
-        java.time.LocalTime closingTime = closingTimeStr != null && !closingTimeStr.isEmpty() ? java.time.LocalTime.parse(closingTimeStr) : java.time.LocalTime.of(22, 0);
+            @RequestParam(required = false) String coverImage,
+            @RequestParam(required = false) String registrationImages,
+            @RequestParam(required = false) Boolean isContractSigned,
+            @RequestParam(required = false) String signatureTimestamp,
+            @RequestParam(required = false) String signatureIp) {
+
+        java.time.LocalTime openingTime = openingTimeStr != null && !openingTimeStr.isEmpty()
+                ? java.time.LocalTime.parse(openingTimeStr)
+                : java.time.LocalTime.of(5, 0);
+        java.time.LocalTime closingTime = closingTimeStr != null && !closingTimeStr.isEmpty()
+                ? java.time.LocalTime.parse(closingTimeStr)
+                : java.time.LocalTime.of(22, 0);
 
         RegisterOwnerResponse response = authService.registerOwner(
-                registrationToken, fullName, idNumber, venueName, province, 
-                district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge, surchargeAmount, surchargeDescription, latitude, longitude, subCourtCount, description,
-                courts, idFrontImage, idBackImage, coverImage, registrationImages);
+                registrationToken, fullName, idNumber, venueName, province,
+                district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge,
+                surchargeAmount, surchargeDescription, latitude, longitude, subCourtCount, description,
+                courts, freeCancellationHours, lateCancellationRefundRate, rainRescheduleAllowed, idFrontImage,
+                idBackImage, coverImage, registrationImages, isContractSigned, signatureTimestamp, signatureIp);
         return ResponseEntity.ok(response);
     }
 
@@ -101,7 +120,7 @@ public class AuthController {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  CHANGE PASSWORD (First-login forced change or voluntary)
+    // CHANGE PASSWORD (First-login forced change or voluntary)
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PostMapping("/change-password")
@@ -113,13 +132,14 @@ public class AuthController {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  ADMIN — Approve / Reject Owner Registration
+    // ADMIN — Approve / Reject Owner Registration
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PostMapping("/admin/approve-registration/{id}")
     public ResponseEntity<?> approveRegistration(@PathVariable UUID id) {
         authService.approveOwnerRegistration(id);
-        return ResponseEntity.ok(Map.of("message", "Đơn đăng ký đã được duyệt thành công. Email thông báo đã được gửi."));
+        return ResponseEntity
+                .ok(Map.of("message", "Đơn đăng ký đã được duyệt thành công. Email thông báo đã được gửi."));
     }
 
     @PostMapping("/admin/reject-registration/{id}")

@@ -254,7 +254,7 @@ public class TicketSessionService {
                 notificationService.createNotification(
                         ticket.getUser().getId(),
                         ticket.getUser().getRole() != null ? ticket.getUser().getRole() : Role.PLAYER,
-                        "Check-in vé thành công! 📍",
+                        "Check-in vé thành công",
                         String.format("Vé %s của bạn đã được quét check-in tại %s (%s, %s - %s). Chúc bạn thi đấu vui vẻ!",
                                 ticket.getShortCode(), session.getVenue().getName(), session.getCourt().getName(), session.getStartTime(), session.getEndTime()),
                         NotificationType.TICKET_CHECKIN_SUCCESS,
@@ -327,7 +327,7 @@ public class TicketSessionService {
                     notificationService.createNotification(
                             t.getUser().getId(),
                             t.getUser().getRole() != null ? t.getUser().getRole() : Role.PLAYER,
-                            "Ca ghép sân bị hủy! ⚠️",
+                            "Ca ghép sân bị hủy",
                             String.format("Ca xé vé lúc %s - %s ngày %s tại %s đã bị hủy bởi chủ sân. Tiền vé đã được hoàn lại.",
                                     session.getStartTime(), session.getEndTime(), session.getPlayDate(), session.getVenue().getName()),
                             NotificationType.TICKET_SESSION_CANCELLED,

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -10,278 +9,50 @@ import { useToast } from '@/components/ui/Toast';
 import { TransactionKpis } from '@/components/transactions/TransactionKpis';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionDetailModal } from '@/components/transactions/TransactionDetailModal';
+import { getAdminTransactions, type AdminTransaction } from '@/api/adminTransactionApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
 // ─────────────────────────────────────────────────────────────────────────────
 
-type PaymentMethod = 'MOMO' | 'VNPAY' | 'BANK_TRANSFER';
-type TransactionStatus = 'SUCCESS' | 'FAILED' | 'REFUNDING' | 'REFUNDED';
+type PaymentMethod = 'MOMO' | 'VNPAY' | 'BANK_TRANSFER' | 'PAYOS' | 'WALLET' | 'DEV' | 'CASH' | string;
+type TransactionStatus = 'SUCCESS' | 'FAILED' | 'REFUNDING' | 'REFUNDED' | 'PENDING';
 
-interface Transaction {
-  id: string;
-  playerName: string;
-  playerEmail: string;
-  playerPhone: string;
-  facilityCluster: string;
-  courtName: string;
-  sportType: string;
-  bookingDate: string;
-  bookingSlot: string;
-  amount: number;
-  paymentMethod: PaymentMethod;
-  status: TransactionStatus;
-  createdAt: string;
-  reason?: string;
+type Transaction = AdminTransaction & {
   updatedAt?: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA (15 High-Fidelity Records)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: "TRX-982731",
-    playerName: "Nguyễn Văn Hùng",
-    playerEmail: "hung.nv@gmail.com",
-    playerPhone: "0912345678",
-    facilityCluster: "Sân Bóng Đá Chảo Lửa",
-    courtName: "Sân số 1 (5 người)",
-    sportType: "Bóng Đá",
-    bookingDate: "2026-07-15",
-    bookingSlot: "18:00 - 19:30",
-    amount: 350000,
-    paymentMethod: "MOMO",
-    status: "SUCCESS",
-    createdAt: "2026-07-12T09:12:00Z"
-  },
-  {
-    id: "TRX-102948",
-    playerName: "Trần Thị Lan",
-    playerEmail: "lan.tt@yahoo.com",
-    playerPhone: "0987654321",
-    facilityCluster: "Cụm Sân Cầu Lông Tân Phú",
-    courtName: "Sân số 3",
-    sportType: "Cầu Lông",
-    bookingDate: "2026-07-14",
-    bookingSlot: "19:00 - 21:00",
-    amount: 160000,
-    paymentMethod: "VNPAY",
-    status: "SUCCESS",
-    createdAt: "2026-07-12T08:45:00Z"
-  },
-  {
-    id: "TRX-384729",
-    playerName: "Phan Văn Nam",
-    playerEmail: "nam.pv@hotmail.com",
-    playerPhone: "0933445566",
-    facilityCluster: "Sân Tennis Quận 7",
-    courtName: "Sân A (Mái che)",
-    sportType: "Tennis",
-    bookingDate: "2026-07-13",
-    bookingSlot: "16:00 - 18:00",
-    amount: 500000,
-    paymentMethod: "BANK_TRANSFER",
-    status: "REFUNDING",
-    createdAt: "2026-07-12T07:30:00Z",
-    reason: "Hủy đặt sân do trời mưa to giông bão, chủ sân đã xác nhận đồng ý hoàn tiền đặt cọc cho khách hàng."
-  },
-  {
-    id: "TRX-582910",
-    playerName: "Lê Minh Hoàng",
-    playerEmail: "hoang.lm@gmail.com",
-    playerPhone: "0905123456",
-    facilityCluster: "Sân Bóng Đá Chảo Lửa",
-    courtName: "Sân số 2 (7 người)",
-    sportType: "Bóng Đá",
-    bookingDate: "2026-07-16",
-    bookingSlot: "20:30 - 22:00",
-    amount: 600000,
-    paymentMethod: "MOMO",
-    status: "FAILED",
-    createdAt: "2026-07-11T15:20:00Z",
-    reason: "Thanh toán thất bại: Hết hạn thời gian giao dịch trên cổng Momo."
-  },
-  {
-    id: "TRX-284910",
-    playerName: "Phạm Thanh Thảo",
-    playerEmail: "thao.pt@outlook.com",
-    playerPhone: "0944556677",
-    facilityCluster: "Cụm Sân Cầu Lông Tân Phú",
-    courtName: "Sân số 1",
-    sportType: "Cầu Lông",
-    bookingDate: "2026-07-15",
-    bookingSlot: "08:00 - 10:00",
-    amount: 160000,
-    paymentMethod: "VNPAY",
-    status: "SUCCESS",
-    createdAt: "2026-07-11T14:10:00Z"
-  },
-  {
-    id: "TRX-748102",
-    playerName: "Đỗ Anh Tuấn",
-    playerEmail: "tuan.da@gmail.com",
-    playerPhone: "0977889900",
-    facilityCluster: "Khu Phức Hợp Thể Thao Rạch Chiếc",
-    courtName: "Sân Futsal Trong Nhà",
-    sportType: "Bóng Đá",
-    bookingDate: "2026-07-18",
-    bookingSlot: "17:00 - 19:00",
-    amount: 800000,
-    paymentMethod: "BANK_TRANSFER",
-    status: "SUCCESS",
-    createdAt: "2026-07-11T11:05:00Z"
-  },
-  {
-    id: "TRX-492019",
-    playerName: "Vũ Thị Mai",
-    playerEmail: "mai.vt@gmail.com",
-    playerPhone: "0911223344",
-    facilityCluster: "Sân Tennis Quận 7",
-    courtName: "Sân B",
-    sportType: "Tennis",
-    bookingDate: "2026-07-14",
-    bookingSlot: "18:00 - 20:00",
-    amount: 450000,
-    paymentMethod: "MOMO",
-    status: "REFUNDED",
-    createdAt: "2026-07-10T16:40:00Z",
-    reason: "Hoàn tiền thành công: Khách hủy lịch trước 48h theo đúng quy định hoàn trả của sân bãi.",
-    updatedAt: "2026-07-11T09:00:00Z"
-  },
-  {
-    id: "TRX-839201",
-    playerName: "Nguyễn Hoàng Nam",
-    playerEmail: "nam.nh@gmail.com",
-    playerPhone: "0966778899",
-    facilityCluster: "Khu Phức Hợp Thể Thao Rạch Chiếc",
-    courtName: "Sân Tennis Ngoài Trời",
-    sportType: "Tennis",
-    bookingDate: "2026-07-17",
-    bookingSlot: "06:00 - 08:00",
-    amount: 400000,
-    paymentMethod: "VNPAY",
-    status: "SUCCESS",
-    createdAt: "2026-07-10T10:15:00Z"
-  },
-  {
-    id: "TRX-194820",
-    playerName: "Bùi Quốc Khánh",
-    playerEmail: "khanh.bq@gmail.com",
-    playerPhone: "0909090909",
-    facilityCluster: "Sân Bóng Đá Chảo Lửa",
-    courtName: "Sân số 3 (5 người)",
-    sportType: "Bóng Đá",
-    bookingDate: "2026-07-15",
-    bookingSlot: "19:30 - 21:00",
-    amount: 350000,
-    paymentMethod: "BANK_TRANSFER",
-    status: "SUCCESS",
-    createdAt: "2026-07-09T21:30:00Z"
-  },
-  {
-    id: "TRX-629104",
-    playerName: "Ngô Hoàng Gia",
-    playerEmail: "gia.nh@gmail.com",
-    playerPhone: "0911999888",
-    facilityCluster: "Cụm Sân Cầu Lông Tân Phú",
-    courtName: "Sân số 4",
-    sportType: "Cầu Lông",
-    bookingDate: "2026-07-13",
-    bookingSlot: "17:00 - 19:00",
-    amount: 160000,
-    paymentMethod: "MOMO",
-    status: "SUCCESS",
-    createdAt: "2026-07-09T18:22:00Z"
-  },
-  {
-    id: "TRX-305918",
-    playerName: "Hoàng Đức Thịnh",
-    playerEmail: "thinh.hd@gmail.com",
-    playerPhone: "0922334455",
-    facilityCluster: "Khu Phức Hợp Thể Thao Rạch Chiếc",
-    courtName: "Sân Futsal Trong Nhà",
-    sportType: "Bóng Đá",
-    bookingDate: "2026-07-20",
-    bookingSlot: "20:00 - 22:00",
-    amount: 800000,
-    paymentMethod: "BANK_TRANSFER",
-    status: "FAILED",
-    createdAt: "2026-07-09T10:00:00Z",
-    reason: "Giao dịch thất bại: Lỗi kết nối cổng thanh toán ngân hàng."
-  },
-  {
-    id: "TRX-591829",
-    playerName: "Lý Hải Đăng",
-    playerEmail: "dang.lh@gmail.com",
-    playerPhone: "0938383838",
-    facilityCluster: "Sân Bóng Đá Chảo Lửa",
-    courtName: "Sân số 1 (5 người)",
-    sportType: "Bóng Đá",
-    bookingDate: "2026-07-14",
-    bookingSlot: "17:00 - 18:30",
-    amount: 350000,
-    paymentMethod: "MOMO",
-    status: "SUCCESS",
-    createdAt: "2026-07-08T15:30:00Z"
-  },
-  {
-    id: "TRX-827394",
-    playerName: "Đặng Hồng Nhung",
-    playerEmail: "nhung.dh@gmail.com",
-    playerPhone: "0988112233",
-    facilityCluster: "Sân Tennis Quận 7",
-    courtName: "Sân B",
-    sportType: "Tennis",
-    bookingDate: "2026-07-12",
-    bookingSlot: "15:00 - 17:00",
-    amount: 450000,
-    paymentMethod: "VNPAY",
-    status: "SUCCESS",
-    createdAt: "2026-07-08T11:20:00Z"
-  },
-  {
-    id: "TRX-910482",
-    playerName: "Nguyễn Lâm Oanh",
-    playerEmail: "oanh.nl@gmail.com",
-    playerPhone: "0977443322",
-    facilityCluster: "Cụm Sân Cầu Lông Tân Phú",
-    courtName: "Sân số 2",
-    sportType: "Cầu Lông",
-    bookingDate: "2026-07-16",
-    bookingSlot: "18:00 - 20:00",
-    amount: 160000,
-    paymentMethod: "BANK_TRANSFER",
-    status: "SUCCESS",
-    createdAt: "2026-07-07T14:40:00Z"
-  },
-  {
-    id: "TRX-204810",
-    playerName: "Tạ Minh Trí",
-    playerEmail: "tri.tm@gmail.com",
-    playerPhone: "0909123987",
-    facilityCluster: "Khu Phức Hợp Thể Thao Rạch Chiếc",
-    courtName: "Sân Tennis Ngoài Trời",
-    sportType: "Tennis",
-    bookingDate: "2026-07-19",
-    bookingSlot: "08:00 - 10:00",
-    amount: 400000,
-    paymentMethod: "MOMO",
-    status: "SUCCESS",
-    createdAt: "2026-07-07T09:15:00Z"
-  }
-];
+};
 
 // Items per page
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 15;
 
 export const TransactionManagement: React.FC = () => {
   const { showToast } = useToast();
   
   // Data State
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const fetchTransactions = () => {
+    setIsLoading(true);
+    getAdminTransactions()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setTransactions(data);
+        } else {
+          setTransactions([]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi khi tải danh sách giao dịch từ server:', err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
   
   // Filtering states
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -309,46 +80,32 @@ export const TransactionManagement: React.FC = () => {
 
   // Extract unique facility clusters for filter dropdown
   const uniqueClusters = useMemo(() => {
-    const clusters = transactions.map(tx => tx.facilityCluster);
+    const clusters = transactions.map(tx => tx.facilityCluster).filter(Boolean);
     return Array.from(new Set(clusters));
   }, [transactions]);
 
-  // Simulate loading spinner when filter parameters or paging changes (premium feel)
-  const triggerFakeLoading = () => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  };
-
-  // Watch filter state updates to reset paging and show loading
+  // Watch filter state updates to reset paging
   useEffect(() => {
     setCurrentPage(1);
-    triggerFakeLoading();
   }, [searchQuery, selectedCluster, selectedStatus, startDate, endDate]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll inside table container to top on page change
-    const tableContainer = document.getElementById('table-scroll-container');
-    if (tableContainer) {
-      tableContainer.scrollTop = 0;
-    }
-    triggerFakeLoading();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // FILTERING LOGIC
+  // FILTERING & SORTING LOGIC (Newest First)
   // ─────────────────────────────────────────────────────────────────────────────
   
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
+    const list = transactions.filter(tx => {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q || 
         tx.id.toLowerCase().includes(q) ||
         tx.playerName.toLowerCase().includes(q) ||
         tx.playerEmail.toLowerCase().includes(q) ||
+        tx.playerPhone.toLowerCase().includes(q) ||
         tx.courtName.toLowerCase().includes(q) ||
         tx.facilityCluster.toLowerCase().includes(q);
 
@@ -359,6 +116,13 @@ export const TransactionManagement: React.FC = () => {
       const matchesEndDate = !endDate || new Date(tx.bookingDate) <= new Date(endDate);
 
       return matchesSearch && matchesCluster && matchesStatus && matchesStartDate && matchesEndDate;
+    });
+
+    // Luôn sắp xếp các đơn hàng mới nhất lên đầu tiên
+    return list.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.bookingDate).getTime() || 0;
+      const dateB = new Date(b.createdAt || b.bookingDate).getTime() || 0;
+      return dateB - dateA;
     });
   }, [transactions, searchQuery, selectedCluster, selectedStatus, startDate, endDate]);
 
@@ -373,7 +137,11 @@ export const TransactionManagement: React.FC = () => {
     const failedTx = transactions.filter(t => t.status === 'FAILED');
 
     const totalRevenue = successTx.reduce((acc, curr) => acc + curr.amount, 0);
-    const totalRefunded = refundedTx.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalCommission = transactions.reduce((acc, curr) => {
+      const comm = curr.commissionAmount ?? (curr.status === 'SUCCESS' ? Math.round(curr.amount * 0.10) : 0);
+      return acc + comm;
+    }, 0);
+    const totalRefunded = refundedTx.reduce((acc, curr) => acc + (curr.refundAmount || curr.amount), 0);
     
     const rateDenominator = totalTransactionsCount - failedTx.length;
     const successRate = rateDenominator > 0 
@@ -382,6 +150,7 @@ export const TransactionManagement: React.FC = () => {
 
     return {
       revenue: totalRevenue,
+      totalCommission: totalCommission,
       bookingsCount: totalTransactionsCount,
       successRate: successRate,
       refunded: totalRefunded
@@ -499,57 +268,121 @@ export const TransactionManagement: React.FC = () => {
   const getStatusBadge = (status: TransactionStatus) => {
     switch (status) {
       case 'SUCCESS':
-        return <Badge variant="success">Thành công</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+            Thành công
+          </span>
+        );
       case 'REFUNDING':
-        return <Badge variant="warning">Đang hoàn tiền</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+            Đang hoàn tiền
+          </span>
+        );
       case 'REFUNDED':
-        return <Badge variant="info">Đã hoàn tiền</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.6)]" />
+            Đã hoàn tiền
+          </span>
+        );
       case 'FAILED':
-        return <Badge variant="error">Thất bại</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            Thất bại
+          </span>
+        );
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            Đang chờ
+          </span>
+        );
       default:
-        return <Badge variant="default">{status}</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 select-none">
+            {status}
+          </span>
+        );
     }
   };
 
   const getPaymentMethodBadge = (method: PaymentMethod) => {
-    switch (method) {
+    const m = (method || '').toUpperCase();
+    switch (m) {
+      case 'DEV':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-purple-100/80 text-purple-700 border border-purple-200 shadow-2xs select-none">
+            DEV TEST
+          </span>
+        );
+      case 'PAYOS':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-100/80 text-blue-700 border border-blue-200 shadow-2xs select-none">
+            PayOS QR
+          </span>
+        );
+      case 'WALLET':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-100/80 text-emerald-800 border border-emerald-200 shadow-2xs select-none">
+            Ví Sporta
+          </span>
+        );
       case 'MOMO':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-pink-50 text-pink-600 border border-pink-100 shadow-sm select-none">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-pink-100/80 text-pink-700 border border-pink-200 shadow-2xs select-none">
             Momo
           </span>
         );
       case 'VNPAY':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-100 shadow-sm select-none">
-            VNPAY
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-sky-100/80 text-sky-700 border border-sky-200 shadow-2xs select-none">
+            VNPay
           </span>
         );
-      case 'BANK_TRANSFER':
+      case 'CASH':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-brand-emerald border border-emerald-100 shadow-sm select-none">
-            Chuyển khoản
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-amber-100/80 text-amber-800 border border-amber-200 shadow-2xs select-none">
+            Tiền mặt
           </span>
         );
       default:
-        return <span className="text-[10px] font-semibold text-slate-500">{method}</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200 select-none">
+            {method}
+          </span>
+        );
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 flex flex-col flex-1 min-h-0">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-16">
       
       {/* Title & Info Section */}
-      <div className="flex justify-between items-end shrink-0">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-on-background">Lịch Sử Đặt Sân & Giao Dịch</h1>
-          <p className="text-on-surface-variant mt-1 text-sm">Giám sát dòng tiền, theo dõi khối lượng đặt lịch và xử lý khiếu nại/hoàn tiền.</p>
+          <p className="text-on-surface-variant mt-1 text-sm">Giám sát toàn bộ dòng tiền, hoa hồng nền tảng 10% và giải quyết khiếu nại hoàn tiền.</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchTransactions}
+          disabled={isLoading}
+          className="self-start sm:self-auto font-bold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs"
+        >
+          {isLoading ? 'Đang cập nhật...' : 'Làm mới dữ liệu'}
+        </Button>
       </div>
 
       {/* KPI Cards Component */}
       <TransactionKpis
         revenue={kpis.revenue}
+        totalCommission={kpis.totalCommission}
         bookingsCount={kpis.bookingsCount}
         successRate={kpis.successRate}
         refunded={kpis.refunded}
@@ -557,7 +390,7 @@ export const TransactionManagement: React.FC = () => {
       />
 
       {/* Filter and Table Card */}
-      <Card className="overflow-hidden flex flex-col flex-1 min-h-0 shadow-sm border border-slate-200/80 rounded-2xl">
+      <Card className="shadow-sm border border-slate-200/80 rounded-2xl bg-white overflow-hidden">
         
         {/* Filters & Searching Component */}
         <TransactionFilters
@@ -575,14 +408,14 @@ export const TransactionManagement: React.FC = () => {
         />
 
         {/* 3 States Management (Loading, Empty, Data) */}
-        <div id="table-scroll-container" className="flex-1 overflow-y-auto matrix-scroll min-h-0">
+        <div className="overflow-x-auto">
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center gap-3">
               <LoadingSpinner size="lg" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Đang tìm kiếm giao dịch...</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Đang tải dữ liệu giao dịch...</span>
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="h-64 flex flex-col items-center justify-center gap-3 text-center p-6">
               <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -593,108 +426,115 @@ export const TransactionManagement: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/50 sticky top-0 backdrop-blur-sm z-10 select-none">
+              <thead className="bg-slate-50/90 text-slate-600 font-bold border-b border-slate-200/70 select-none">
                 <tr>
-                  <th className="px-6 py-3.5">Mã Giao Dịch</th>
-                  <th className="px-6 py-3.5">Khách Hàng</th>
-                  <th className="px-6 py-3.5">Cụm Sân</th>
-                  <th className="px-6 py-3.5">Ngày Chơi</th>
-                  <th className="px-6 py-3.5">Thanh Toán</th>
-                  <th className="px-6 py-3.5">Giá Trị</th>
-                  <th className="px-6 py-3.5">Trạng Thái</th>
-                  <th className="px-6 py-3.5 text-center w-24">Thao Tác</th>
+                  <th className="px-5 py-3.5">Mã Đơn</th>
+                  <th className="px-5 py-3.5">Khách Hàng</th>
+                  <th className="px-5 py-3.5">Cụm Sân & Chi Tiết</th>
+                  <th className="px-5 py-3.5">Thời Gian Chơi</th>
+                  <th className="px-5 py-3.5">Phương Thức</th>
+                  <th className="px-5 py-3.5 text-right">Tổng Tiền</th>
+                  <th className="px-5 py-3.5 text-right text-amber-700 bg-amber-50/40">Hoa Hồng (10%)</th>
+                  <th className="px-5 py-3.5 text-right text-emerald-800 bg-emerald-50/40">Chủ Sân (90%)</th>
+                  <th className="px-5 py-3.5 text-center">Trạng Thái</th>
+                  <th className="px-5 py-3.5 text-center w-24">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {paginatedTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/40 transition-colors">
-                    <td className="px-6 py-4 font-black text-slate-800">#{tx.id}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-slate-800">{tx.playerName}</span>
-                        <span className="text-xs text-slate-400 font-medium font-mono">{tx.playerEmail}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-slate-800">{tx.facilityCluster}</span>
-                        <span className="text-xs text-slate-500 font-bold">{tx.courtName} ({tx.sportType})</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-slate-700">
-                          {new Date(tx.bookingDate).toLocaleDateString('vi-VN', {
-                            year: 'numeric',
-                            month: 'numeric',
-                            day: 'numeric'
-                          })}
-                        </span>
-                        <span className="text-xs text-slate-400 font-bold">{tx.bookingSlot}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">{getPaymentMethodBadge(tx.paymentMethod)}</td>
-                    <td className="px-6 py-4 font-black text-slate-800">{formatCurrency(tx.amount)}</td>
-                    <td className="px-6 py-4">{getStatusBadge(tx.status)}</td>
-                    <td className="px-6 py-4 text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTx(tx);
-                          setIsDetailOpen(true);
-                        }}
-                        className="text-brand-emerald hover:bg-emerald-50 hover:text-emerald-800 font-bold py-1.5 px-3 rounded-lg border border-brand-emerald/10 shadow-sm"
-                      >
-                        Chi tiết
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {paginatedTransactions.map((tx) => {
+                  const comm = tx.commissionAmount ?? Math.round(tx.amount * 0.10);
+                  const owner = tx.ownerAmount ?? (tx.amount - comm);
+
+                  return (
+                    <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-5 py-4 font-black text-slate-800 font-mono text-xs">#{tx.id}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-slate-800">{tx.playerName}</span>
+                          <span className="text-[11px] text-slate-400 font-medium font-mono">{tx.playerPhone || tx.playerEmail}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-slate-800">{tx.facilityCluster}</span>
+                          <span className="text-xs text-slate-500 font-semibold">{tx.courtName} ({tx.sportType})</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-slate-700">
+                            {tx.bookingDate}
+                          </span>
+                          <span className="text-xs text-slate-400 font-medium">{tx.bookingSlot}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">{getPaymentMethodBadge(tx.paymentMethod)}</td>
+                      <td className="px-5 py-4 text-right font-black text-slate-800">{formatCurrency(tx.amount)}</td>
+                      <td className="px-5 py-4 text-right font-black text-amber-600 bg-amber-50/20">+{formatCurrency(comm)}</td>
+                      <td className="px-5 py-4 text-right font-black text-emerald-700 bg-emerald-50/20">+{formatCurrency(owner)}</td>
+                      <td className="px-5 py-4 text-center">{getStatusBadge(tx.status)}</td>
+                      <td className="px-5 py-4 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTx(tx);
+                            setIsDetailOpen(true);
+                          }}
+                          className="text-brand-emerald hover:bg-emerald-50 hover:text-emerald-800 font-bold py-1 px-2.5 rounded-lg border border-brand-emerald/20 shadow-2xs"
+                        >
+                          Chi tiết
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
 
         {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-200/60 flex items-center justify-between bg-slate-50/20 shrink-0 select-none">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-            Hiển thị {(currentPage - 1) * PAGE_SIZE + 1} - {Math.min(currentPage * PAGE_SIZE, filteredTransactions.length)} trong {filteredTransactions.length} giao dịch
+        <div className="p-4 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/30 select-none">
+          <span className="text-xs text-slate-500 font-bold">
+            Hiển thị {(currentPage - 1) * PAGE_SIZE + 1} - {Math.min(currentPage * PAGE_SIZE, filteredTransactions.length)} trong tổng số {filteredTransactions.length} giao dịch
           </span>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1 || isLoading}
-              className="text-xs font-bold py-1 px-3 border border-slate-200 disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              Trước
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                onClick={() => handlePageChange(p)}
-                disabled={isLoading}
-                className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
-                  currentPage === p
-                    ? 'bg-brand-emerald text-white'
-                    : 'text-slate-500 hover:bg-slate-100'
-                }`}
+          {totalPages > 1 && (
+            <div className="flex gap-1.5 items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || isLoading}
+                className="text-xs font-bold py-1 px-3 border border-slate-200 disabled:opacity-30 disabled:hover:bg-transparent"
               >
-                {p}
-              </button>
-            ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages || isLoading}
-              className="text-xs font-bold py-1 px-3 border border-slate-200 disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              Sau
-            </Button>
-          </div>
+                Trước
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => handlePageChange(p)}
+                  disabled={isLoading}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
+                    currentPage === p
+                      ? 'bg-brand-emerald text-white shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || isLoading}
+                className="text-xs font-bold py-1 px-3 border border-slate-200 disabled:opacity-30 disabled:hover:bg-transparent"
+              >
+                Sau
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 

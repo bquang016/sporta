@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOperations } from '../../../hooks/useOperationsState';
 import { courtService } from '../services/courtService';
-import type { CourtResponse, VenueResponse, CourtRequest } from '../types';
+import type { CourtResponse, VenueResponse, CourtRequest, VenueStatisticsResponse, DateRangePreset } from '../types';
 import { useToast } from '../../../components/ui/Toast';
 
 export const useOperationsPage = () => {
@@ -29,9 +29,22 @@ export const useOperationsPage = () => {
   const activeVenue = activeVenues.find(v => v.id === selectedVenueId) || activeVenues[0];
   const activeVenueId = activeVenue?.id;
 
+  // Statistics States & Date Range
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('today');
+  const [customFromDate, setCustomFromDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [customToDate, setCustomToDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [statistics, setStatistics] = useState<VenueStatisticsResponse | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
   // Local UI States
   const [mobileScreen, setMobileScreen] = useState<'list' | 'detail'>('list');
-  const [activeTab, setActiveTab] = useState<'facilities' | 'overview' | 'tickets'>('facilities');
+  const [activeTab, setActiveTab] = useState<'facilities' | 'overview' | 'tickets' | 'pricing'>('facilities');
   const [searchQuery, setSearchQuery] = useState('');
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -179,6 +192,50 @@ export const useOperationsPage = () => {
   const filteredVenues = activeVenues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const draftVenues = venues.filter(v => v.approvalStatus === 'DRAFT');
 
+  // --- Real Statistics Fetching ---
+  const getEffectiveDateRange = useCallback(() => {
+    const now = new Date();
+    const formatYMD = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    if (dateRangePreset === 'today') {
+      const todayStr = formatYMD(now);
+      return { from: todayStr, to: todayStr };
+    } else if (dateRangePreset === '7days') {
+      const past7 = new Date();
+      past7.setDate(now.getDate() - 6);
+      return { from: formatYMD(past7), to: formatYMD(now) };
+    } else if (dateRangePreset === '30days') {
+      const past30 = new Date();
+      past30.setDate(now.getDate() - 29);
+      return { from: formatYMD(past30), to: formatYMD(now) };
+    } else {
+      return { from: customFromDate, to: customToDate };
+    }
+  }, [dateRangePreset, customFromDate, customToDate]);
+
+  const fetchStatistics = useCallback(async () => {
+    if (!activeVenueId) return;
+    try {
+      setIsLoadingStats(true);
+      const { from, to } = getEffectiveDateRange();
+      const res = await courtService.getVenueStatistics(activeVenueId, from, to);
+      setStatistics(res);
+    } catch (err: any) {
+      console.error('Lỗi khi tải dữ liệu thống kê:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [activeVenueId, getEffectiveDateRange]);
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
+
   const venueBookings = bookings.filter(b => {
     const court = courts.find(c => c.id === b.courtId);
     return court?.venueId === activeVenueId;
@@ -186,8 +243,17 @@ export const useOperationsPage = () => {
 
   const actionRequiredBookings = venueBookings.filter(b => b.status === 'ACTION_REQUIRED');
   const confirmedBookings = venueBookings.filter(b => b.status === 'CONFIRMED');
-  const todayRevenue = confirmedBookings.reduce((sum, b) => sum + b.price, 0);
-  const totalBookingsCount = venueBookings.length;
+
+  // Real KPI Metrics from Backend
+  const todayRevenue = statistics?.totalRevenue ?? 0;
+  const totalBookingsCount = statistics?.totalBookings ?? 0;
+  const avgOccupancy = statistics?.averageOccupancy ?? 0;
+  const totalVenueSlots = statistics?.totalVenueSlots ?? 0;
+  const totalBookedSlots = statistics?.totalBookedSlots ?? 0;
+  const activeCount = statistics?.activeCourtsCount ?? activeCourts.filter(c => c.status === 'ACTIVE').length;
+  const maintCount = statistics?.maintenanceCourtsCount ?? activeCourts.filter(c => c.status === 'MAINTENANCE').length;
+  const closedCount = 0;
+  const totalOpCourts = statistics?.totalCourtsCount ?? activeCourts.length;
 
   const getCourtOpStatus = (courtId: string) => {
     const court = courts.find(c => c.id === courtId);
@@ -197,23 +263,22 @@ export const useOperationsPage = () => {
   const getCourtLiveStatus = (court: CourtResponse) => {
     const opStatus = court.status;
     if (opStatus === 'MAINTENANCE') return 'MAINTENANCE';
-    const charCodeSum = court.id.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    return charCodeSum % 3 === 0 ? 'IN_USE' : 'AVAILABLE';
+    const courtStat = statistics?.courtStats?.find(s => s.courtId === court.id);
+    return (courtStat?.bookedSlots && courtStat.bookedSlots > 0) ? 'IN_USE' : 'AVAILABLE';
   };
 
   const getCourtOccupancy = (court: CourtResponse) => {
     const opStatus = court.status;
     if (opStatus === 'MAINTENANCE') return 0;
-    const charSum = court.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    return 45 + (charSum % 46);
+    const courtStat = statistics?.courtStats?.find(s => s.courtId === court.id);
+    return courtStat?.occupancyRate ?? 0;
   };
 
   const getCourtPerformanceRevenue = (court: CourtResponse) => {
     const opStatus = court.status;
     if (opStatus === 'MAINTENANCE') return 0;
-    const charSum = court.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    const dailyBookingsCount = Math.floor(charSum % 5) + 1;
-    return dailyBookingsCount * court.price;
+    const courtStat = statistics?.courtStats?.find(s => s.courtId === court.id);
+    return courtStat?.revenue ?? 0;
   };
 
   const getCourtDetails = (court: CourtResponse) => {
@@ -221,20 +286,27 @@ export const useOperationsPage = () => {
     const price = court.price;
     const surcharge = parseFloat(localStorage.getItem(`court_surcharge_${court.id}`) || '0');
     const opStatus = court.status;
+    const courtStat = statistics?.courtStats?.find(s => s.courtId === court.id);
+    const occupancy = courtStat?.occupancyRate ?? 0;
+    const performanceRevenue = courtStat?.revenue ?? 0;
+    const bookedSlots = courtStat?.bookedSlots ?? 0;
+    const totalSlots = courtStat?.totalSlots ?? 0;
+    const bookingCount = courtStat?.bookingCount ?? 0;
     const liveStatus = getCourtLiveStatus(court);
-    const occupancy = getCourtOccupancy(court);
-    const performanceRevenue = getCourtPerformanceRevenue(court);
-    return { name, price, surcharge, liveStatus, occupancy, performanceRevenue, isMaintenance: opStatus === 'MAINTENANCE' };
+
+    return {
+      name,
+      price,
+      surcharge,
+      liveStatus,
+      occupancy,
+      performanceRevenue,
+      bookedSlots,
+      totalSlots,
+      bookingCount,
+      isMaintenance: opStatus === 'MAINTENANCE'
+    };
   };
-
-  const avgOccupancy = activeCourts.length > 0
-    ? Math.round(activeCourts.reduce((sum, c) => sum + getCourtOccupancy(c), 0) / activeCourts.length)
-    : 0;
-
-  const activeCount = activeCourts.filter(c => c.status === 'ACTIVE').length;
-  const maintCount  = activeCourts.filter(c => c.status === 'MAINTENANCE').length;
-  const closedCount = 0; 
-  const totalOpCourts = activeCourts.length;
 
   const handleVenueStatusSelect = (newStatus: 'ACTIVE' | 'MAINTENANCE' | 'CLOSED') => {
     setPendingVenueStatus(newStatus);
@@ -744,7 +816,20 @@ export const useOperationsPage = () => {
     todayRevenue,
     totalBookingsCount,
     avgOccupancy,
+    totalVenueSlots,
+    totalBookedSlots,
     activeCount, maintCount, closedCount, totalOpCourts,
+
+    // Real Statistics Data & Filter Controls
+    statistics,
+    isLoadingStats,
+    dateRangePreset,
+    setDateRangePreset,
+    customFromDate,
+    setCustomFromDate,
+    customToDate,
+    setCustomToDate,
+    refreshStatistics: fetchStatistics,
 
     formatVND,
     hourDropdownOptions,

@@ -47,11 +47,11 @@ export const PersonalInfoStep = ({
         {label}
       </label>
       {file ? (
-        <div className="relative rounded-xl border border-brand-emerald/20 bg-brand-emerald/5 overflow-hidden group">
+        <div className="relative rounded-xl border border-brand-emerald/20 bg-brand-emerald/5 overflow-hidden group aspect-[85/54] w-full">
           <img
             src={URL.createObjectURL(file)}
             alt={label}
-            className="w-full h-32 lg:h-40 object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <button
@@ -73,12 +73,12 @@ export const PersonalInfoStep = ({
           type="button"
           onClick={onClick}
           disabled={isLoading}
-          className="w-full h-32 lg:h-40 border-2 border-dashed border-slate-200 hover:border-brand-emerald/40 rounded-xl
+          className="w-full aspect-[85/54] border-2 border-dashed border-slate-200 hover:border-brand-emerald/40 rounded-xl
                      flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer group
                      disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-brand-emerald/10 text-slate-400 group-hover:text-brand-emerald flex items-center justify-center transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex flex-col items-center justify-center transition-colors">
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-brand-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -92,21 +92,7 @@ export const PersonalInfoStep = ({
   );
 
   return (
-    <div className="animate-fadeIn space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-xl bg-brand-emerald/10 border-2 border-brand-emerald/20 text-brand-emerald flex items-center justify-center mx-auto mb-3">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-black text-slate-800 tracking-tight">
-          Thông tin cá nhân
-        </h3>
-        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-          Điền thông tin và tải ảnh CCCD để xác minh danh tính
-        </p>
-      </div>
+    <div className="animate-fadeIn max-w-3xl mx-auto h-full flex flex-col justify-center min-h-[400px]">
 
       {/* Form fields */}
       <div className="space-y-4">
@@ -159,7 +145,7 @@ export const PersonalInfoStep = ({
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-slate-100" />
+        <div className="h-px bg-slate-100 my-4" />
 
         {/* CCCD Images */}
         <div>
@@ -174,7 +160,7 @@ export const PersonalInfoStep = ({
             </h4>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 max-w-xl mx-auto">
             <ImageUploadCard
               label="Mặt trước"
               file={personalInfo.idFrontImage}
@@ -189,12 +175,12 @@ export const PersonalInfoStep = ({
             />
           </div>
 
+          <div className="text-center mt-3">
+             <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Định dạng JPG, PNG — Kích thước chuẩn thẻ cứng</span>
+          </div>
+
           <input ref={frontInputRef} type="file" accept="image/*" onChange={handleFrontImage} className="hidden" />
           <input ref={backInputRef} type="file" accept="image/*" onChange={handleBackImage} className="hidden" />
-
-          <p className="mt-2 text-[9px] text-slate-400 font-medium text-center">
-            JPG, PNG — Ảnh rõ ràng, không bị mờ hay che khuất
-          </p>
         </div>
       </div>
     </div>

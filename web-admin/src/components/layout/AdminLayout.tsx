@@ -8,6 +8,7 @@ import logoHorizontal from '@/assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoSvg from '@/assets/logo/light/logo-main_40x40px_small.svg';
 
 const PAGE_TITLES: Record<string, string> = {
+  'notifications': 'Trung Tâm Thông Báo Hệ Thống',
   'dashboard': 'Dashboard Thống Kê',
   'facilities': 'Kiểm Duyệt Sân',
   'owners': 'Quản Lý Chủ Sân',
@@ -42,6 +43,52 @@ function formatTimeAgo(dateStr: string): string {
     return '';
   }
 }
+
+const renderNotificationIcon = (type: string) => {
+  if (type.includes('VENUE') || type.includes('FACILITY')) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-brand-emerald shrink-0 mt-0.5 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      </div>
+    );
+  }
+  if (type.includes('WITHDRAWAL') || type.includes('RECONCIL') || type.includes('WALLET')) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 mt-0.5 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+    );
+  }
+  if (type.includes('TICKET') || type.includes('SUPPORT')) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 shrink-0 mt-0.5 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      </div>
+    );
+  }
+  if (type.includes('BOOKING')) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 mt-0.5 shadow-2xs">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 mt-0.5 shadow-2xs">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    </div>
+  );
+};
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -133,6 +180,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {(role === 'SUPER_ADMIN' || permissions.includes('VIEW_DASHBOARD')) && (
             <NavItem id="dashboard" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="home" label="Bảng điều khiển" isCollapsed={isSidebarCollapsed} />
           )}
+          <NavItem id="notifications" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="bell" label="Trung tâm thông báo" isCollapsed={isSidebarCollapsed} badge={unreadCount} />
           {(role === 'SUPER_ADMIN' || permissions.includes('MANAGE_FACILITIES')) && (
             <NavItem id="facilities" currentTab={currentTab} setCurrentTab={setCurrentTab} icon="facility" label="Kiểm duyệt sân" isCollapsed={isSidebarCollapsed} />
           )}
@@ -286,17 +334,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                     : 'bg-white hover:bg-slate-50 opacity-70'
                                 }`}
                               >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-sm ${
-                                  n.type.includes('VENUE') 
-                                    ? 'bg-purple-500' 
-                                    : n.type.includes('WITHDRAWAL') || n.type.includes('WALLET')
-                                    ? 'bg-amber-500' 
-                                    : n.type.includes('BOOKING')
-                                    ? 'bg-emerald-500'
-                                    : 'bg-blue-500'
-                                }`}>
-                                  {n.type.includes('VENUE') ? '🏟️' : n.type.includes('WITHDRAWAL') ? '💳' : n.type.includes('BOOKING') ? '⚽' : '📢'}
-                                </div>
+                                {renderNotificationIcon(n.type)}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-1">
                                     <p className={`text-xs truncate ${isUnread ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
@@ -318,8 +356,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                           })
                         ) : (
                           <div className="py-8 text-center px-4">
-                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">
-                              🔕
+                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
                             </div>
                             <p className="text-xs font-bold text-slate-600">Chưa có thông báo nào</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">Các thông báo mới từ hệ thống sẽ hiển thị tại đây</p>
@@ -435,25 +475,37 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   );
 };
 
-const NavItem = ({ id, currentTab, setCurrentTab, icon, label, isCollapsed }: { id: string, currentTab: string, setCurrentTab: (id: string) => void, icon: string, label: string, isCollapsed: boolean }) => {
+const NavItem = ({ id, currentTab, setCurrentTab, icon, label, isCollapsed, badge }: { id: string, currentTab: string, setCurrentTab: (id: string) => void, icon: string, label: string, isCollapsed: boolean, badge?: number }) => {
   const isActive = currentTab === id;
 
   const content = (
     <button 
       onClick={() => setCurrentTab(id)}
-      className={`w-full flex items-center rounded-xl transition-all duration-300 ${
-        isCollapsed ? 'justify-center p-3 w-12 mx-auto' : 'gap-3 px-4 py-3'
+      className={`w-full flex items-center justify-between rounded-xl transition-all duration-300 cursor-pointer ${
+        isCollapsed ? 'justify-center p-3 w-12 mx-auto relative' : 'gap-3 px-3.5 py-2.5'
       } ${
         isActive 
-          ? 'bg-white/10 text-brand-yellow font-semibold' 
+          ? 'bg-white/15 text-brand-yellow font-bold shadow-xs' 
           : 'text-white/70 hover:bg-white/5 hover:text-white'
       }`}
     >
-      <Icon name={icon} className="w-5 h-5 flex-shrink-0" />
-      {!isCollapsed && (
-        <span className="text-sm whitespace-nowrap overflow-hidden transition-opacity duration-300">
-          {label}
+      <div className="flex items-center gap-3 min-w-0">
+        <Icon name={icon} className="w-5 h-5 flex-shrink-0" />
+        {!isCollapsed && (
+          <span className="text-xs whitespace-nowrap overflow-hidden transition-opacity duration-300 font-bold">
+            {label}
+          </span>
+        )}
+      </div>
+
+      {badge !== undefined && badge > 0 && !isCollapsed && (
+        <span className="bg-rose-500 text-white font-black text-[10px] rounded-full px-1.5 py-0.5 shadow-sm">
+          {badge > 99 ? '99+' : badge}
         </span>
+      )}
+
+      {badge !== undefined && badge > 0 && isCollapsed && (
+        <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-[#003527]" />
       )}
     </button>
   );
@@ -471,6 +523,13 @@ const NavItem = ({ id, currentTab, setCurrentTab, icon, label, isCollapsed }: { 
 
 const Icon = ({ name, className }: { name: string, className?: string }) => {
   switch (name) {
+    case 'bell':
+    case 'notification':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      );
     case 'home':
       return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
     case 'facility':

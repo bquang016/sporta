@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getLoggedInUser } from '../../../utils/auth';
+import { fetchOwnerProfileApi, updateOwnerProfileApi, type OwnerProfileData } from '../services/profileService';
 
 export const useProfile = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'info';
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loggedInUser = getLoggedInUser();
   const userEmail = loggedInUser?.email || 'owner@sporta.vn';
   const userInitials = userEmail.substring(0, 2).toUpperCase();
 
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<OwnerProfileData>({
     name: 'Nguyễn Quang Huy',
     email: userEmail,
     phone: '0987 654 321',
@@ -32,6 +34,40 @@ export const useProfile = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Load real profile data on mount
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    fetchOwnerProfileApi()
+      .then((data) => {
+        if (isMounted && data) {
+          setProfileData({
+            name: data.name || 'Chủ sân',
+            email: data.email || userEmail,
+            phone: data.phone || '',
+            role: data.role || 'Chủ sân',
+            venueId: data.venueId,
+            facilityName: data.facilityName || 'Cụm sân Sporta',
+            address: data.address || '',
+            openHours: data.openHours || '05:00 - 23:00',
+            description: data.description || '',
+            avatarUrl: data.avatarUrl
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch real owner profile, using current state:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userEmail]);
+
   useEffect(() => {
     if (message) {
       const timer = setTimeout(() => setMessage(null), 3000);
@@ -39,13 +75,29 @@ export const useProfile = () => {
     }
   }, [message]);
 
-  const handleProfileSave = (e: React.FormEvent) => {
+  const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const updated = await updateOwnerProfileApi(profileData);
+      setProfileData({
+        name: updated.name || profileData.name,
+        email: updated.email || profileData.email,
+        phone: updated.phone || profileData.phone,
+        role: updated.role || profileData.role,
+        venueId: updated.venueId || profileData.venueId,
+        facilityName: updated.facilityName || profileData.facilityName,
+        address: updated.address || profileData.address,
+        openHours: updated.openHours || profileData.openHours,
+        description: updated.description || profileData.description,
+        avatarUrl: updated.avatarUrl || profileData.avatarUrl
+      });
       setMessage({ type: 'success', text: 'Cập nhật thông tin cá nhân và cơ sở thành công!' });
-    }, 800);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Lưu thông tin thất bại. Vui lòng thử lại.' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePasswordSave = async (e: React.FormEvent) => {
@@ -66,7 +118,8 @@ export const useProfile = () => {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8387/api/v1/auth/change-password', {
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      const response = await fetch(`http://${host}:8387/api/v1/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,6 +174,7 @@ export const useProfile = () => {
     activeTab,
     isLogoutModalOpen,
     setIsLogoutModalOpen,
+    isLoading,
     userEmail,
     userInitials,
     profileData,

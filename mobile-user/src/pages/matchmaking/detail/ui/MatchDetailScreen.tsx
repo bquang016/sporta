@@ -158,8 +158,8 @@ export function MatchDetailScreen() {
         return;
       }
 
-      const validClubs = clubs.filter((c: any) => String(c.id) !== String(host.id));
-      if (validClubs.length === 0) {
+      const notHostClubs = clubs.filter((c: any) => String(c.id) !== String(host.id));
+      if (notHostClubs.length === 0) {
         showConfirm(
           'Không thể ghép trận với chính mình',
           `CLB duy nhất của bạn là "${host.name}" (Chủ room). Cùng 1 CLB không thể ghép chung 1 trận đấu được. Vui lòng tham gia thêm CLB khác để xin ghép.`,
@@ -171,8 +171,50 @@ export function MatchDetailScreen() {
         return;
       }
 
-      setMyClubs(validClubs);
-      setSelectedClubId(validClubs[0]?.id || null);
+      // 1. Kiểm tra môn thể thao
+      const sameSportClubs = notHostClubs.filter((c: any) => {
+        if (!host.sportId && !host.sportName) return true;
+        const hostSportId = String(host.sportId || '');
+        const hostSportName = (host.sportName || '').toLowerCase().trim();
+        const clubSportId = String(c.sportId || (c.sport && c.sport.id) || '');
+        const clubSportName = (c.sport ? (typeof c.sport === 'string' ? c.sport : c.sport.name) : (c.sportName || '')).toLowerCase().trim();
+
+        if (hostSportId && clubSportId && hostSportId === clubSportId) return true;
+        if (hostSportName && clubSportName && (hostSportName.includes(clubSportName) || clubSportName.includes(hostSportName))) return true;
+        return false;
+      });
+
+      if (sameSportClubs.length === 0) {
+        showConfirm(
+          'Khác môn thể thao',
+          `Bài đăng ghép trận thuộc môn "${host.sportName || 'Thể thao'}". Bạn chưa có CLB nào thuộc môn này để xin ghép trận.`,
+          () => router.push('/(tabs)/club' as any),
+          'warning',
+          'Tạo/Tham gia CLB',
+          'Đã hiểu'
+        );
+        return;
+      }
+
+      // 2. Kiểm tra vai trò Trưởng/Phó nhóm
+      const leaderClubs = sameSportClubs.filter((c: any) =>
+        c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER'
+      );
+
+      if (leaderClubs.length === 0) {
+        showConfirm(
+          'Chưa có quyền Trưởng/Phó nhóm',
+          `Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB gửi yêu cầu ghép trận. Bạn hiện là thành viên thường trong các CLB môn ${host.sportName || ''}.`,
+          () => router.push('/(tabs)/club' as any),
+          'warning',
+          'Đến trang CLB',
+          'Đã hiểu'
+        );
+        return;
+      }
+
+      setMyClubs(leaderClubs);
+      setSelectedClubId(leaderClubs[0]?.id || null);
       setIsJoinModalVisible(true);
     } catch (e: any) {
       showAlert('Lỗi', e.message || 'Không thể nạp danh sách CLB của bạn', 'danger');
@@ -255,6 +297,14 @@ export function MatchDetailScreen() {
   const minAmount = Math.round((booking.totalPrice * minSharePercent) / 100);
   const maxAmount = booking.totalPrice - minAmount;
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/matchmaking');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -262,7 +312,7 @@ export function MatchDetailScreen() {
       {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>

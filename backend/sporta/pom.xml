@@ -110,6 +110,12 @@
 			<artifactId>payos-java</artifactId>
 			<version>2.0.1</version>
 		</dependency>
+		<!-- Firebase Admin SDK for Push Notifications -->
+		<dependency>
+			<groupId>com.google.firebase</groupId>
+			<artifactId>firebase-admin</artifactId>
+			<version>9.2.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

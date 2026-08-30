@@ -29,9 +29,9 @@ export function useRegister() {
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const { id_token } = response.params;
-      if (id_token) {
-        handleBackendGoogleLogin(id_token);
+      const idToken = response.params?.id_token || (response as any).authentication?.idToken;
+      if (idToken) {
+        handleBackendGoogleLogin(idToken);
       }
     } else if (response?.type === 'error') {
       const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
@@ -57,12 +57,39 @@ export function useRegister() {
       } else {
         if (Platform.OS === 'web') {
           localStorage.setItem('accessToken', res.accessToken);
-          localStorage.setItem('userEmail', res.email);
-          localStorage.setItem('userName', res.fullName);
         } else {
           await SecureStore.setItemAsync('accessToken', res.accessToken);
+        }
+
+        let realFullName = res.fullName;
+        let realAvatar: string | null = null;
+        try {
+          const { usersApi } = require('../../../../shared/api/users');
+          const profile = await usersApi.getProfile();
+          if (profile && profile.fullName) {
+            realFullName = profile.fullName;
+            realAvatar = profile.avatarUrl || null;
+          }
+        } catch (profileErr) {
+          console.log('Profile sync on Google Login warning:', profileErr);
+        }
+
+        if (Platform.OS === 'web') {
+          localStorage.setItem('userEmail', res.email);
+          localStorage.setItem('userName', realFullName);
+          if (realAvatar) {
+            localStorage.setItem('userAvatar', realAvatar);
+          } else {
+            localStorage.removeItem('userAvatar');
+          }
+        } else {
           await SecureStore.setItemAsync('userEmail', res.email);
-          await SecureStore.setItemAsync('userName', res.fullName);
+          await SecureStore.setItemAsync('userName', realFullName);
+          if (realAvatar) {
+            await SecureStore.setItemAsync('userAvatar', realAvatar);
+          } else {
+            await SecureStore.deleteItemAsync('userAvatar');
+          }
         }
         showAlert('Thành công', res.message, () => router.replace('/(tabs)'));
       }
@@ -95,22 +122,13 @@ export function useRegister() {
 
     setLoading(true);
     try {
-      const res = await sendOtp(trimmedEmail);
-      if (res.otp) {
-        showAlert('Mã OTP', `Mã OTP của bạn là: ${res.otp}`, () => {
-          router.push({
-            pathname: '/(auth)/otp-verify',
-            params: { email: trimmedEmail, password },
-          });
+      await sendOtp(trimmedEmail);
+      showAlert('Thành công', 'Đã gửi mã OTP đến email của bạn. Vui lòng kiểm tra hộp thư.', () => {
+        router.push({
+          pathname: '/(auth)/otp-verify',
+          params: { email: trimmedEmail, password },
         });
-      } else {
-        showAlert('Thành công', 'Đã gửi mã OTP đến email của bạn.', () => {
-          router.push({
-            pathname: '/(auth)/otp-verify',
-            params: { email: trimmedEmail, password },
-          });
-        });
-      }
+      });
     } catch (error: any) {
       showAlert('Lỗi', error.message || 'Email này đã tồn tại hoặc có lỗi xảy ra.');
     } finally {

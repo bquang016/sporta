@@ -55,6 +55,22 @@ interface VenueWizardContextType {
   surchargeDescription: string;
   setSurchargeDescription: (val: string) => void;
 
+  // Step 4: Policy
+  freeCancellationHours: number | null;
+  setFreeCancellationHours: (val: number | null) => void;
+  lateCancellationRefundRate: number | null;
+  setLateCancellationRefundRate: (val: number | null) => void;
+  rainRescheduleAllowed: boolean | null;
+  setRainRescheduleAllowed: (val: boolean | null) => void;
+
+  // Step 5: Contract
+  isAgreedToTerms: boolean;
+  setIsAgreedToTerms: (val: boolean) => void;
+  isContractSigned: boolean;
+  setIsContractSigned: (val: boolean) => void;
+  signatureData: { timestamp: string; ip: string } | null;
+  setSignatureData: (val: { timestamp: string; ip: string } | null) => void;
+
   // Actions
   loading: boolean;
   isCreateMode: boolean;
@@ -120,6 +136,16 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
   const [surchargeAmount, setSurchargeAmount] = useState<number | undefined>(undefined);
   const [surchargeDescription, setSurchargeDescription] = useState('');
   
+  // Policy State variables
+  const [freeCancellationHours, setFreeCancellationHours] = useState<number | null>(null);
+  const [lateCancellationRefundRate, setLateCancellationRefundRate] = useState<number | null>(null);
+  const [rainRescheduleAllowed, setRainRescheduleAllowed] = useState<boolean | null>(null);
+
+  // Contract State variables
+  const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
+  const [isContractSigned, setIsContractSigned] = useState(false);
+  const [signatureData, setSignatureData] = useState<{ timestamp: string; ip: string } | null>(null);
+
   const [loading, setLoading] = useState(false);
 
   const resetWizard = () => {
@@ -144,6 +170,12 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     setHasSurcharge(false);
     setSurchargeAmount(undefined);
     setSurchargeDescription('');
+    setFreeCancellationHours(null);
+    setLateCancellationRefundRate(null);
+    setRainRescheduleAllowed(null);
+    setIsAgreedToTerms(false);
+    setIsContractSigned(false);
+    setSignatureData(null);
   };
 
   const loadFromExistingVenue = (venue: VenueResponse, venueCourts: any[]) => {
@@ -166,6 +198,17 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     setHasSurcharge(venue.hasSurcharge || false);
     setSurchargeAmount(venue.surchargeAmount !== null && venue.surchargeAmount !== undefined ? venue.surchargeAmount : undefined);
     setSurchargeDescription(venue.surchargeDescription || '');
+    
+    // Policy map (giả định api có trả về fields này, có thể cần update type VenueResponse sau)
+    const venueAny = venue as any;
+    setFreeCancellationHours(venueAny.freeCancellationHours !== undefined ? venueAny.freeCancellationHours : null);
+    setLateCancellationRefundRate(venueAny.lateCancellationRefundRate !== undefined ? venueAny.lateCancellationRefundRate : null);
+    setRainRescheduleAllowed(venueAny.rainRescheduleAllowed !== undefined ? venueAny.rainRescheduleAllowed : null);
+    
+    // Reset contract on edit existing venue
+    setIsAgreedToTerms(false);
+    setIsContractSigned(false);
+    setSignatureData(null);
     
     // Map court price rules from global store if available
     const mappedCourts: CourtDraftDto[] = venueCourts.map(c => {
@@ -223,6 +266,10 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
           setHasSurcharge(parsed.hasSurcharge || false);
           setSurchargeAmount(parsed.surchargeAmount);
           setSurchargeDescription(parsed.surchargeDescription || '');
+          setFreeCancellationHours(parsed.freeCancellationHours !== undefined ? parsed.freeCancellationHours : null);
+          setLateCancellationRefundRate(parsed.lateCancellationRefundRate !== undefined ? parsed.lateCancellationRefundRate : null);
+          setRainRescheduleAllowed(parsed.rainRescheduleAllowed !== undefined ? parsed.rainRescheduleAllowed : null);
+          // Không lưu state contract vào local storage để bắt buộc ký lại mỗi phiên
           return;
         } catch (e) {
           console.error("Lỗi khi khôi phục tiến trình nháp từ localStorage:", e);
@@ -278,7 +325,10 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
       shiftDurationMinutes,
       hasSurcharge,
       surchargeAmount,
-      surchargeDescription
+      surchargeDescription,
+      freeCancellationHours,
+      lateCancellationRefundRate,
+      rainRescheduleAllowed
     };
 
     localStorage.setItem(key, JSON.stringify(draftData));
@@ -303,7 +353,10 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
     shiftDurationMinutes,
     hasSurcharge,
     surchargeAmount,
-    surchargeDescription
+    surchargeDescription,
+    freeCancellationHours,
+    lateCancellationRefundRate,
+    rainRescheduleAllowed
   ]);
 
   const buildPayload = () => {
@@ -326,6 +379,12 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
       hasSurcharge,
       surchargeAmount,
       surchargeDescription,
+      freeCancellationHours,
+      lateCancellationRefundRate,
+      rainRescheduleAllowed,
+      isContractSigned,
+      signatureTimestamp: signatureData?.timestamp,
+      signatureIp: signatureData?.ip,
       courts: courts.map(c => ({
         id: c.id,
         name: c.name,
@@ -534,6 +593,18 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
         setSurchargeAmount,
         surchargeDescription,
         setSurchargeDescription,
+        freeCancellationHours,
+        setFreeCancellationHours,
+        lateCancellationRefundRate,
+        setLateCancellationRefundRate,
+        rainRescheduleAllowed,
+        setRainRescheduleAllowed,
+        isAgreedToTerms,
+        setIsAgreedToTerms,
+        isContractSigned,
+        setIsContractSigned,
+        signatureData,
+        setSignatureData,
         loading,
         isCreateMode,
         initialVenue,

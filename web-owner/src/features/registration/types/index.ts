@@ -4,8 +4,8 @@
 
 export type RegistrationStep = 'email' | 'otp' | 'success';
 
-export type SetupStep = 'personal' | 'venue-basic' | 'venue-courts' | 'venue-images' | 'venue-operating' | 'review';
-
+export type SetupStep = 'personal' | 'venue-basic' | 'venue-courts' | 'venue-images' | 'venue-policy' | 'review';
+export type MainSetupStep = 'general' | 'business' | 'review';
 export interface PersonalInfo {
   fullName: string;
   idNumber: string; // CCCD/CMND
@@ -32,6 +32,9 @@ export interface VenueInfo {
   hasSurcharge: boolean;
   surchargeAmount?: number;
   surchargeDescription: string;
+  freeCancellationHours: number | null;
+  lateCancellationRefundRate: number | null;
+  rainRescheduleAllowed: boolean | null;
 }
 
 export interface CourtPriceRuleRequest {
@@ -105,6 +108,12 @@ export const SETUP_STEPS: { key: SetupStep; label: string }[] = [
   { key: 'venue-basic', label: 'Cơ bản' },
   { key: 'venue-courts', label: 'Sân bãi' },
   { key: 'venue-images', label: 'Tải ảnh' },
-  { key: 'venue-operating', label: 'Vận hành' },
+  { key: 'venue-policy', label: 'Chính sách' },
   { key: 'review', label: 'Xác nhận' },
+];
+
+export const MAIN_STEPS: { key: MainSetupStep; label: string; subSteps: SetupStep[] }[] = [
+  { key: 'general', label: 'Thông tin chung', subSteps: ['personal', 'venue-basic'] },
+  { key: 'business', label: 'Cấu hình kinh doanh', subSteps: ['venue-courts', 'venue-images', 'venue-policy'] },
+  { key: 'review', label: 'Hoàn tất', subSteps: ['review'] }
 ];

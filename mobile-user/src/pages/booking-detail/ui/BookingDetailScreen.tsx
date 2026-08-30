@@ -109,7 +109,10 @@ export function BookingDetailScreen() {
         venuePhone: venue.ownerPhone ?? '',
         venueImage: venue.coverImage ?? '',
         venueSport: venue.sportName || 'Thể thao',
-        bookingDate: selectedDate.toISOString().split('T')[0],
+        bookingDate: (() => {
+          const pad = (n: number) => n.toString().padStart(2, '0');
+          return `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())}`;
+        })(),
         slotsParam,
         totalPrice: String(totalPrice),
       },

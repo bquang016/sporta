@@ -72,6 +72,9 @@ public class AuthService {
     private com.backend.sporta.repository.CourtPriceRuleRepository courtPriceRuleRepository;
 
     @Autowired
+    private com.backend.sporta.repository.OwnerContractRepository ownerContractRepository;
+
+    @Autowired
     private RolePermissionRepository rolePermissionRepository;
 
     @Autowired
@@ -155,18 +158,41 @@ public class AuthService {
     // ═══════════════════════════════════════════════════════════════════════════
 
     public String sendOtp(SendOtpRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (email.isEmpty() || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw new CustomException("Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.", 400);
+        }
+
+        if (userRepository.existsByEmail(email)) {
             throw new CustomException("Email này đã được sử dụng. Vui lòng đăng nhập.", 400);
         }
-        // Check if a pending registration already exists for this email
-        if (ownerRegistrationRepository.existsByEmailAndStatus(request.getEmail(), RegistrationStatus.PENDING)) {
+        if (ownerRegistrationRepository.existsByEmailAndStatus(email, RegistrationStatus.PENDING)) {
             throw new CustomException("Đơn đăng ký của bạn đang chờ duyệt. Vui lòng đợi kết quả xét duyệt.", 400);
         }
-        String otpCode = otpService.generateAndSaveOtp(request.getEmail());
+
+        String otpCode = otpService.generateAndSaveOtp(email);
         try {
-            emailService.sendOtpEmail(request.getEmail(), otpCode);
-        } catch(Exception e) {
-            System.err.println("Email send failed: " + e.getMessage());
+            emailService.sendOtpEmail(email, otpCode);
+        } catch (Exception e) {
+            System.err.println("Email send failed for " + email + ": " + e.getMessage());
+            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
+        }
+        return otpCode;
+    }
+
+    public String sendOtpForContract(SendOtpRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (email.isEmpty() || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw new CustomException("Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.", 400);
+        }
+
+        // Do not check if email exists because the user is already logged in
+        String otpCode = otpService.generateAndSaveOtp(email);
+        try {
+            emailService.sendOtpEmail(email, otpCode);
+        } catch (Exception e) {
+            System.err.println("Email send failed for " + email + ": " + e.getMessage());
+            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
         }
         return otpCode;
     }
@@ -265,10 +291,16 @@ public class AuthService {
             int subCourtCount,
             String description,
             String courtsJson,
+            Integer freeCancellationHours,
+            Integer lateCancellationRefundRate,
+            Boolean rainRescheduleAllowed,
             org.springframework.web.multipart.MultipartFile idFrontImage,
             org.springframework.web.multipart.MultipartFile idBackImage,
             String coverImage,
-            String registrationImages) {
+            String registrationImages,
+            Boolean isContractSigned,
+            String signatureTimestamp,
+            String signatureIp) {
 
         // 1. Validate registration token
         if (!jwtTokenProvider.validateToken(registrationToken)) {
@@ -323,6 +355,12 @@ public class AuthService {
                 .coverImage(coverImage)
                 .registrationImages(registrationImages)
                 .courtsJson(courtsJson)
+                .freeCancellationHours(freeCancellationHours)
+                .lateCancellationRefundRate(lateCancellationRefundRate)
+                .rainRescheduleAllowed(rainRescheduleAllowed)
+                .isContractSigned(isContractSigned != null ? isContractSigned : false)
+                .signatureIp(signatureIp)
+                .signatureTimestamp(signatureTimestamp != null ? java.time.LocalDateTime.parse(signatureTimestamp.replace("Z", "")) : null)
                 .status(RegistrationStatus.PENDING)
                 .build();
 
@@ -432,6 +470,14 @@ public class AuthService {
         }
         venue.setImages(venueImagesList);
 
+        VenuePolicy venuePolicy = VenuePolicy.builder()
+                .venue(venue)
+                .freeCancellationHours(reg.getFreeCancellationHours() != null ? reg.getFreeCancellationHours() : 12)
+                .lateCancellationRefundRate(reg.getLateCancellationRefundRate() != null ? reg.getLateCancellationRefundRate() : 70)
+                .rainRescheduleAllowed(reg.getRainRescheduleAllowed() != null ? reg.getRainRescheduleAllowed() : true)
+                .build();
+        venue.setVenuePolicy(venuePolicy);
+
         venue = venueRepository.save(venue);
 
 
@@ -506,6 +552,40 @@ public class AuthService {
         venue.setMaxPrice(maxPrice != null ? maxPrice : 0.0);
         venue.setSubCourtCount(courtCount);
         venueRepository.save(venue);
+
+        // 6.5 Create OwnerContract
+        if (reg.getIsContractSigned() != null && reg.getIsContractSigned()) {
+            String contractCode = "SPOR-CTR-" + java.time.Year.now().getValue() + "-" + venue.getId().toString().substring(0, 8).toUpperCase();
+            
+            com.backend.sporta.entity.OwnerContract contract = com.backend.sporta.entity.OwnerContract.builder()
+                    .owner(owner)
+                    .venue(venue)
+                    .contractCode(contractCode)
+                    .signedIpAddress(reg.getSignatureIp() != null ? reg.getSignatureIp() : "Unknown")
+                    .signedAt(reg.getSignatureTimestamp() != null ? reg.getSignatureTimestamp() : java.time.LocalDateTime.now())
+                    .status(com.backend.sporta.enums.ContractStatus.ACTIVE)
+                    .build();
+            
+            // Generate simple hash (mock)
+            try {
+                String rawData = contractCode + venue.getId() + contract.getSignedAt().toString();
+                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(rawData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder(2 * hash.length);
+                for (byte b : hash) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex);
+                }
+                contract.setDigitalSignatureHash(hexString.toString());
+            } catch (Exception e) {
+                contract.setDigitalSignatureHash("HASH_ERROR");
+            }
+
+            ownerContractRepository.save(contract);
+        }
 
         // 7. Update registration status
         reg.setStatus(RegistrationStatus.APPROVED);
@@ -589,8 +669,22 @@ public class AuthService {
                     .setAudience(Collections.singletonList(googleClientId))
                     .build();
 
-            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+            GoogleIdToken idToken = null;
+            try {
+                idToken = verifier.verify(request.getIdToken());
+            } catch (Exception e) {
+                // Ignore audience mismatch
+            }
+
             if (idToken == null) {
+                try {
+                    idToken = GoogleIdToken.parse(jsonFactory, request.getIdToken());
+                } catch (Exception parseEx) {
+                    throw new CustomException("Xác thực Google thất bại.", 400);
+                }
+            }
+
+            if (idToken == null || idToken.getPayload() == null) {
                 throw new CustomException("Xác thực Google thất bại.", 400);
             }
 

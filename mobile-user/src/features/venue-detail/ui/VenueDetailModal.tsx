@@ -763,7 +763,7 @@ export function VenueDetailModal({
                     avgServiceScore={reviewData?.avgServiceScore ?? 0}
                   />
 
-                  {/* Write Review Button (only when user can review) */}
+                  {/* Write / Edit Review Button */}
                   {canReview && (
                     <TouchableOpacity
                       style={styles.writeReviewBtn}
@@ -771,14 +771,16 @@ export function VenueDetailModal({
                       onPress={() => setShowWriteReview(true)}
                     >
                       <MaterialIcons name="edit" size={16} color={COLORS.primary} />
-                      <Text style={styles.writeReviewBtnText}>Viet danh gia cua ban</Text>
+                      <Text style={styles.writeReviewBtnText}>
+                        {reviewData?.hasReviewed ? 'Chỉnh sửa đánh giá của bạn' : 'Viết đánh giá của bạn'}
+                      </Text>
                     </TouchableOpacity>
                   )}
 
                   {/* Filter Chips */}
                   <View style={styles.reviewChipsFilterRow}>
                     {[
-                      { key: 'all', label: `Tat ca (${reviewData?.totalReviews ?? 0})` },
+                      { key: 'all', label: `Tất cả (${reviewData?.totalReviews ?? 0})` },
                       { key: '5', label: '5 Sao' },
                       { key: '4', label: '4 Sao' },
                     ].map((f) => (
@@ -806,14 +808,14 @@ export function VenueDetailModal({
                   {reviewsLoading && filteredReviews.length === 0 ? (
                     <View style={styles.reviewsLoadingBox}>
                       <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.reviewsLoadingText}>Dang tai danh gia...</Text>
+                      <Text style={styles.reviewsLoadingText}>Đang tải đánh giá...</Text>
                     </View>
                   ) : filteredReviews.length === 0 ? (
                     <View style={styles.reviewsEmptyBox}>
                       <MaterialIcons name="rate-review" size={40} color={COLORS.outlineVariant} />
-                      <Text style={styles.reviewsEmptyTitle}>Chua co danh gia</Text>
+                      <Text style={styles.reviewsEmptyTitle}>Chưa có đánh giá</Text>
                       <Text style={styles.reviewsEmptyText}>
-                        Hay la nguoi dau tien danh gia cum san nay!
+                        Hãy là người đầu tiên đánh giá cụm sân này!
                       </Text>
                     </View>
                   ) : (
@@ -830,7 +832,7 @@ export function VenueDetailModal({
                           {reviewsLoading ? (
                             <ActivityIndicator size="small" color={COLORS.primary} />
                           ) : (
-                            <Text style={styles.loadMoreText}>Xem them danh gia</Text>
+                            <Text style={styles.loadMoreText}>Xem thêm đánh giá</Text>
                           )}
                         </TouchableOpacity>
                       )}
@@ -900,6 +902,7 @@ export function VenueDetailModal({
         visible={showWriteReview}
         venueId={venueId}
         venueName={venueName}
+        existingReview={reviewData?.myReview}
         onClose={() => setShowWriteReview(false)}
         onSuccess={() => {
           setShowWriteReview(false);

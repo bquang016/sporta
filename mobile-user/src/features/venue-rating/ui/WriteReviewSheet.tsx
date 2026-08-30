@@ -19,7 +19,8 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 import { Button } from '../../../shared/ui';
 import { StarRatingInput } from './StarRatingInput';
 import { useSubmitReview } from '../hooks';
-import type { CreateReviewPayload } from '../types';
+import { fetchVenueReviews } from '../api';
+import type { CreateReviewPayload, VenueReviewItem } from '../types';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -35,20 +36,23 @@ interface WriteReviewSheetProps {
   visible: boolean;
   venueId: string | null;
   venueName?: string;
+  existingReview?: VenueReviewItem | null;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
 /**
- * Bottom Sheet để người dùng viết review.
+ * Bottom Sheet để người dùng viết hoặc sửa review.
  * - Chọn 1–5 sao (bắt buộc)
  * - Nhập comment tùy chọn (max 1000 ký tự)
+ * - Pre-fill nếu đã có bài đánh giá trước đó để chỉnh sửa
  * - Submit gọi API thực
  */
 export function WriteReviewSheet({
   visible,
   venueId,
   venueName,
+  existingReview,
   onClose,
   onSuccess,
 }: WriteReviewSheetProps) {
@@ -57,16 +61,22 @@ export function WriteReviewSheet({
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [fetchedReview, setFetchedReview] = useState<VenueReviewItem | null>(null);
+  const [fetchingExisting, setFetchingExisting] = useState(false);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
-  // Reset state when opening
+  const activeReview = existingReview || fetchedReview;
+  const isEditing = Boolean(activeReview);
+
+  // Reset state and fetch existing review when opening
   useEffect(() => {
     if (visible) {
-      setRating(0);
-      setComment('');
       reset();
+      setRating(existingReview?.rating || 0);
+      setComment(existingReview?.comment || '');
+      setFetchedReview(null);
 
       translateY.setValue(SCREEN_HEIGHT);
       backdropOpacity.setValue(0);
@@ -84,8 +94,23 @@ export function WriteReviewSheet({
           useNativeDriver: true,
         }),
       ]).start();
+
+      // If existingReview not provided, fetch from API to check if user has reviewed
+      if (!existingReview && venueId) {
+        setFetchingExisting(true);
+        fetchVenueReviews(venueId, 0, 10)
+          .then((res) => {
+            if (res?.myReview) {
+              setFetchedReview(res.myReview);
+              setRating(res.myReview.rating || 0);
+              setComment(res.myReview.comment || '');
+            }
+          })
+          .catch(() => {})
+          .finally(() => setFetchingExisting(false));
+      }
     }
-  }, [visible]);
+  }, [visible, venueId, existingReview]);
 
   // Auto-close on success
   useEffect(() => {
@@ -167,7 +192,7 @@ export function WriteReviewSheet({
 
               <View style={styles.headerRow}>
                 <View>
-                  <Text style={styles.sheetTitle}>Viết đánh giá</Text>
+                  <Text style={styles.sheetTitle}>{isEditing ? 'Chỉnh sửa đánh giá' : 'Viết đánh giá'}</Text>
                   {venueName ? (
                     <Text style={styles.sheetSubtitle} numberOfLines={1}>
                       {venueName}
@@ -187,7 +212,9 @@ export function WriteReviewSheet({
               {success ? (
                 <View style={styles.successBox}>
                   <MaterialIcons name="check-circle" size={48} color={COLORS.success} />
-                  <Text style={styles.successTitle}>Gửi đánh giá thành công!</Text>
+                  <Text style={styles.successTitle}>
+                    {isEditing ? 'Cập nhật đánh giá thành công!' : 'Gửi đánh giá thành công!'}
+                  </Text>
                   <Text style={styles.successSub}>
                     Cảm ơn bạn đã chia sẻ trải nghiệm.
                   </Text>
@@ -241,7 +268,7 @@ export function WriteReviewSheet({
 
                   {/* Submit button */}
                   <Button
-                    title={loading ? 'Đang gửi...' : 'Gửi đánh giá'}
+                    title={loading ? 'Đang lưu...' : isEditing ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
                     variant="secondary"
                     size="lg"
                     style={styles.submitBtn}

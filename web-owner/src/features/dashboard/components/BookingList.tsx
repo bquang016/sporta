@@ -46,7 +46,7 @@ export const BookingList = ({
                     </div>
                     <div>
                       <h4 className="font-black text-xs text-slate-800">{b.customerName}</h4>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{b.pitchName} • {b.time}</p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{b.pitchName} • {b.date ? `${b.date} (${b.time})` : b.time}</p>
                     </div>
                   </div>
 
@@ -126,7 +126,12 @@ export const BookingList = ({
                       </span>
                     </div>
                   </td>
-                  <td className="py-4 font-bold text-slate-700">{b.time}</td>
+                  <td className="py-4 font-bold text-slate-700">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-800">{b.time}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">{b.date || 'Hôm nay'}</span>
+                    </div>
+                  </td>
                   <td className="py-4">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-800">{b.customerName}</span>

@@ -85,10 +85,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
     private boolean isClubAdmin(Long clubId, Long userId) {
         Optional<ClubMember> member = clubMemberRepository.findByClubIdAndUserId(clubId, userId);
-        if (member.isEmpty()) return false;
+        if (member.isEmpty()) {
+            Club club = clubRepository.findById(clubId).orElse(null);
+            if (club != null && club.getCreator() != null && club.getCreator().getId().equals(userId)) {
+                return true;
+            }
+            return false;
+        }
         ClubMember m = member.get();
+        if (m.getClub() != null && m.getClub().getCreator() != null
+                && m.getClub().getCreator().getId().equals(userId)) {
+            return true;
+        }
         return m.getStatus() == ClubMemberStatus.APPROVED &&
-               (m.getRole() == ClubMemberRole.ADMIN || m.getRole() == ClubMemberRole.SUB_LEADER);
+                (m.getRole() == ClubMemberRole.ADMIN || m.getRole() == ClubMemberRole.SUB_LEADER);
     }
 
     private LocalDateTime getBookingStartTime(Booking booking) {
@@ -105,7 +115,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                     .orElse(LocalDate.now().plusDays(1));
             return LocalDateTime.of(bookingDate, minStartTime);
         }
-        return (booking != null && booking.getCreatedAt() != null) ? booking.getCreatedAt().plusDays(1) : LocalDateTime.now().plusDays(1);
+        return (booking != null && booking.getCreatedAt() != null) ? booking.getCreatedAt().plusDays(1)
+                : LocalDateTime.now().plusDays(1);
     }
 
     private LocalDateTime getBookingEndTime(Booking booking) {
@@ -127,7 +138,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MatchRoomResponse> getRooms(Long sportId, MatchType matchType, String timeFilter, String levelFilter, String sort, String userEmail) {
+    public List<MatchRoomResponse> getRooms(Long sportId, MatchType matchType, String timeFilter, String levelFilter,
+            String sort, String userEmail) {
         User user = getUserByEmail(userEmail);
         List<MatchRoom> rooms = matchRoomRepository.findAllByFilters(sportId, null);
 
@@ -165,7 +177,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             return Collections.emptyList();
         }
 
-        List<MatchRoom> hostOrGuestRooms = matchRoomRepository.findByHostClubIdInOrGuestClubIdInOrderByCreatedAtDesc(clubIds, clubIds);
+        List<MatchRoom> hostOrGuestRooms = matchRoomRepository
+                .findByHostClubIdInOrGuestClubIdInOrderByCreatedAtDesc(clubIds, clubIds);
         List<JoinRequest> myRequests = joinRequestRepository.findByApplicantClubIdIn(clubIds);
         Set<UUID> requestedRoomIds = myRequests.stream().map(jr -> jr.getRoom().getId()).collect(Collectors.toSet());
 
@@ -199,25 +212,41 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         }
 
         if (matchRoomRepository.existsByBookingIdAndStatusNot(booking.getId(), MatchStatus.CANCELLED)) {
-            throw new CustomException("Lịch đặt sân này (Mã đơn: " + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getId()) + ") đã được tạo phòng ghép trận rồi. Mỗi lần thanh toán đặt sân (dù đặt 1 hay nhiều ca) chỉ được tạo 1 phòng ghép trận duy nhất.", 400);
+            throw new CustomException("Lịch đặt sân này (Mã đơn: "
+                    + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getId())
+                    + ") đã được tạo phòng ghép trận rồi. Mỗi lần thanh toán đặt sân (dù đặt 1 hay nhiều ca) chỉ được tạo 1 phòng ghép trận duy nhất.",
+                    400);
         }
 
         Club hostClub = clubRepository.findById(request.getHostClubId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin CLB", 404));
 
         if (!isClubAdmin(hostClub.getId(), user.getId())) {
-            throw new CustomException("Bạn không có quyền đại diện cho CLB này", 403);
+            throw new CustomException("Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB tạo phòng ghép trận.",
+                    403);
         }
 
         if (!clubEloService.isEligibleForMatchmaking(hostClub.getId())) {
-            throw new CustomException("CLB phải có ít nhất " + config.getMinActiveClubMembers() + " thành viên ACTIVE để tạo room ghép trận", 400);
+            throw new CustomException("CLB phải có ít nhất " + config.getMinActiveClubMembers()
+                    + " thành viên ACTIVE để tạo room ghép trận", 400);
+        }
+
+        if (hostClub.getSport() != null && booking.getVenue() != null && booking.getVenue().getSport() != null) {
+            if (!hostClub.getSport().getId().equals(booking.getVenue().getSport().getId())) {
+                throw new CustomException("CLB " + hostClub.getName() + " (" + hostClub.getSport().getName()
+                        + ") không cùng môn thể thao với sân đấu đã đặt ("
+                        + booking.getVenue().getSport().getName() + ")", 400);
+            }
         }
 
         LocalDateTime startTime = getBookingStartTime(booking);
         LocalDateTime joinDeadline = startTime.minusMinutes(config.getJoinCutoffMinutes());
 
         if (startTime == null || LocalDateTime.now().isAfter(joinDeadline)) {
-            throw new CustomException("Lịch đặt sân đã quá giờ hoặc quá sát giờ thi đấu (cần tạo bài trước giờ thi đấu ít nhất " + config.getJoinCutoffMinutes() + " phút)", 400);
+            throw new CustomException(
+                    "Lịch đặt sân đã quá giờ hoặc quá sát giờ thi đấu (cần tạo bài trước giờ thi đấu ít nhất "
+                            + config.getJoinCutoffMinutes() + " phút)",
+                    400);
         }
 
         int hostPercent = request.getHostSharePercent() != null ? request.getHostSharePercent() : 50;
@@ -225,7 +254,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         double bookingTotal = booking.getFinalPrice() != null ? booking.getFinalPrice() : 0.0;
         double guestAmount = Math.round(bookingTotal * guestPercent / 100.0);
 
-        String desiredLevelsStr = request.getDesiredLevels() != null ? String.join(",", request.getDesiredLevels()) : "";
+        String desiredLevelsStr = request.getDesiredLevels() != null ? String.join(",", request.getDesiredLevels())
+                : "";
 
         MatchRoom room = MatchRoom.builder()
                 .booking(booking)
@@ -245,13 +275,13 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public MatchRoomResponse getRoomDetail(UUID roomId, String userEmail) {
         User user = getUserByEmail(userEmail);
         MatchRoom room = matchRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy thông tin bài đăng ghép trận", 404));
 
-        Match match = matchRepository.findByRoomId(room.getId()).orElse(null);
+        Match match = findMatchByRoomIdOrMatchId(room.getId());
         return mapToRoomResponse(room, match, user);
     }
 
@@ -274,14 +304,16 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         boolean hasRequests = applicants.stream().anyMatch(a -> a.getStatus() == JoinRequestStatus.PENDING);
 
         if (hasRequests) {
-            if (request.getHostSharePercent() != null && !request.getHostSharePercent().equals(room.getHostSharePercent())) {
+            if (request.getHostSharePercent() != null
+                    && !request.getHostSharePercent().equals(room.getHostSharePercent())) {
                 throw new CustomException("Đã có đối thủ gửi yêu cầu, không được sửa tỷ lệ chi phí", 400);
             }
         } else {
             if (request.getHostSharePercent() != null) {
                 int hostPercent = request.getHostSharePercent();
                 int guestPercent = 100 - hostPercent;
-                double bookingTotal = room.getBooking().getFinalPrice() != null ? room.getBooking().getFinalPrice() : 0.0;
+                double bookingTotal = room.getBooking().getFinalPrice() != null ? room.getBooking().getFinalPrice()
+                        : 0.0;
                 double guestAmount = Math.round(bookingTotal * guestPercent / 100.0);
                 room.setHostSharePercent(hostPercent);
                 room.setGuestSharePercent(guestPercent);
@@ -333,10 +365,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                                 "Kèo đấu đã bị hủy",
                                 "Phòng ghép kèo của CLB " + room.getHostClub().getName() + " đã bị hủy.",
                                 NotificationType.MATCH_CANCELLED,
-                                room.getId().toString()
-                        ));
+                                room.getId().toString()));
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         }
     }
@@ -356,7 +388,18 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy CLB xin ghép", 404));
 
         if (!isClubAdmin(applicantClub.getId(), user.getId())) {
-            throw new CustomException("Bạn không có quyền đại diện cho CLB xin ghép này", 403);
+            throw new CustomException("Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB gửi yêu cầu ghép trận.",
+                    403);
+        }
+
+        if (room.getHostClub() != null && room.getHostClub().getSport() != null && applicantClub.getSport() != null) {
+            if (!room.getHostClub().getSport().getId().equals(applicantClub.getSport().getId())) {
+                throw new CustomException(
+                        "CLB xin ghép khác môn thể thao với CLB phòng ghép trận (Môn thể thao bài đăng: "
+                                + room.getHostClub().getSport().getName() + ", Môn thể thao CLB bạn: "
+                                + applicantClub.getSport().getName() + ")",
+                        400);
+            }
         }
 
         if (applicantClub.getId().equals(room.getHostClub().getId())) {
@@ -364,10 +407,12 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         }
 
         if (!clubEloService.isEligibleForMatchmaking(applicantClub.getId())) {
-            throw new CustomException("CLB xin ghép phải có ít nhất " + config.getMinActiveClubMembers() + " thành viên ACTIVE", 400);
+            throw new CustomException(
+                    "CLB xin ghép phải có ít nhất " + config.getMinActiveClubMembers() + " thành viên ACTIVE", 400);
         }
 
-        if (joinRequestRepository.existsByRoomIdAndApplicantClubIdAndStatusIn(room.getId(), applicantClub.getId(), Arrays.asList(JoinRequestStatus.PENDING, JoinRequestStatus.ACCEPTED))) {
+        if (joinRequestRepository.existsByRoomIdAndApplicantClubIdAndStatusIn(room.getId(), applicantClub.getId(),
+                Arrays.asList(JoinRequestStatus.PENDING, JoinRequestStatus.ACCEPTED))) {
             throw new CustomException("CLB đã gửi yêu cầu ghép trận vào phòng này trước đó", 400);
         }
 
@@ -389,10 +434,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                         "Yêu cầu ghép kèo mới ⚽",
                         "CLB " + applicantClub.getName() + " vừa gửi yêu cầu xin ghép kèo vào phòng của bạn.",
                         NotificationType.MATCH_REQUEST_JOIN,
-                        room.getId().toString()
-                ));
+                        room.getId().toString()));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         return mapToJoinRequestResponse(joinReq);
     }
@@ -443,10 +488,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                         "Yêu cầu ghép kèo bị từ chối",
                         "CLB " + req.getRoom().getHostClub().getName() + " đã từ chối yêu cầu ghép kèo.",
                         NotificationType.MATCH_JOIN_REJECTED,
-                        req.getRoom().getId().toString()
-                ));
+                        req.getRoom().getId().toString()));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
@@ -485,12 +530,13 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                         guestClub.getCreator().getId(),
                         Role.PLAYER,
                         "Yêu cầu ghép kèo được chấp nhận! 🎉",
-                        "CLB " + room.getHostClub().getName() + " đã đồng ý ghép kèo với CLB của bạn. Chuẩn bị ra sân nào!",
+                        "CLB " + room.getHostClub().getName()
+                                + " đã đồng ý ghép kèo với CLB của bạn. Chuẩn bị ra sân nào!",
                         NotificationType.MATCH_JOIN_ACCEPTED,
-                        room.getId().toString()
-                ));
+                        room.getId().toString()));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         List<JoinRequest> roomRequests = joinRequestRepository.findByRoomId(room.getId());
         for (JoinRequest r : roomRequests) {
@@ -500,7 +546,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             }
         }
 
-        List<JoinRequest> guestPendingRequests = joinRequestRepository.findByApplicantClubIdAndStatus(guestClub.getId(), JoinRequestStatus.PENDING);
+        List<JoinRequest> guestPendingRequests = joinRequestRepository.findByApplicantClubIdAndStatus(guestClub.getId(),
+                JoinRequestStatus.PENDING);
         for (JoinRequest otherReq : guestPendingRequests) {
             if (!otherReq.getId().equals(acceptedReq.getId())) {
                 otherReq.setStatus(JoinRequestStatus.AUTO_CANCELLED_CONFLICT);
@@ -541,12 +588,18 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     @Transactional
     public MatchRoomResponse submitScore(UUID matchId, SubmitScoreRequest request, String userEmail) {
         User user = getUserByEmail(userEmail);
-        Match match = matchRepository.findById(matchId)
-                .or(() -> matchRepository.findByRoomId(matchId))
-                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin trận đấu", 404));
+        Match match = findMatchByRoomIdOrMatchId(matchId);
+        if (match == null) {
+            throw new CustomException("Không tìm thấy thông tin trận đấu", 404);
+        }
 
         if (!isClubAdmin(match.getHostClub().getId(), user.getId())) {
             throw new CustomException("Chỉ chủ/quản lý CLB Host mới được nhập tỷ số", 403);
+        }
+
+        LocalDateTime startTime = getBookingStartTime(match.getBooking());
+        if (startTime != null && LocalDateTime.now().isBefore(startTime)) {
+            throw new CustomException("Chưa đến giờ thi đấu của trận đấu. Vui lòng đợi đến giờ đá để cập nhật tỷ số.", 400);
         }
 
         if (match.getStatus() == MatchStatus.RESULT_FINAL) {
@@ -557,15 +610,19 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         String sportName = sport != null ? sport.getName() : "Bóng đá";
         ScoreAdapter adapter = scoreAdapterRegistry.getAdapter(sportName);
 
-        ScoreAdapter.ValidationResult val = adapter.validate(request.getHostScore(), request.getGuestScore(), request.getRawScoreDetails());
+        ScoreAdapter.ValidationResult val = adapter.validate(request.getHostScore(), request.getGuestScore(),
+                request.getRawScoreDetails());
         if (!val.isValid()) {
             throw new CustomException("Tỷ số không hợp lệ: " + val.getErrorMessage(), 400);
         }
 
-        NormalizedOutcome outcome = adapter.normalize(request.getHostScore(), request.getGuestScore(), request.getRawScoreDetails());
-        double gFactor = adapter.calculateG(request.getHostScore(), request.getGuestScore(), request.getRawScoreDetails());
+        NormalizedOutcome outcome = adapter.normalize(request.getHostScore(), request.getGuestScore(),
+                request.getRawScoreDetails());
+        double gFactor = adapter.calculateG(request.getHostScore(), request.getGuestScore(),
+                request.getRawScoreDetails());
 
-        Optional<ScoreSubmission> lastSub = scoreSubmissionRepository.findFirstByMatchIdOrderByVersionDesc(match.getId());
+        Optional<ScoreSubmission> lastSub = scoreSubmissionRepository
+                .findFirstByMatchIdOrderByVersionDesc(match.getId());
         int version = lastSub.map(s -> s.getVersion() + 1).orElse(1);
 
         ScoreSubmission submission = ScoreSubmission.builder()
@@ -595,9 +652,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     @Transactional
     public MatchRoomResponse confirmScore(UUID matchId, String userEmail) {
         User user = getUserByEmail(userEmail);
-        Match match = matchRepository.findById(matchId)
-                .or(() -> matchRepository.findByRoomId(matchId))
-                .orElseThrow(() -> new CustomException("Không tìm thấy trận đấu", 404));
+        Match match = findMatchByRoomIdOrMatchId(matchId);
+        if (match == null) {
+            throw new CustomException("Không tìm thấy trận đấu", 404);
+        }
 
         if (!isClubAdmin(match.getGuestClub().getId(), user.getId())) {
             throw new CustomException("Chỉ chủ/quản lý CLB Guest mới được xác nhận tỷ số", 403);
@@ -620,12 +678,13 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(config.getPairLimitWindowDays());
         long recentRankedMatches = matchRepository.countRecentRankedMatchesBetweenClubs(
-                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo
-        );
+                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo);
 
-        CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, submission.getOutcome(), submission.getGFactor(), (int) recentRankedMatches);
+        CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, submission.getOutcome(), submission.getGFactor(),
+                (int) recentRankedMatches);
 
-        String scoreText = adapter.getCanonicalScoreText(submission.getHostScore(), submission.getGuestScore(), submission.getRawScoreDetails());
+        String scoreText = adapter.getCanonicalScoreText(submission.getHostScore(), submission.getGuestScore(),
+                submission.getRawScoreDetails());
         String expJson = "";
         try {
             expJson = objectMapper.writeValueAsString(crpRes.getExplanation());
@@ -706,13 +765,15 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy trận đấu", 404));
 
-        if (!isClubAdmin(match.getGuestClub().getId(), user.getId()) && !isClubAdmin(match.getHostClub().getId(), user.getId())) {
+        if (!isClubAdmin(match.getGuestClub().getId(), user.getId())
+                && !isClubAdmin(match.getHostClub().getId(), user.getId())) {
             throw new CustomException("Chỉ chủ/quản lý CLB mới được từ chối tỷ số/khiếu nại", 403);
         }
 
         Dispute dispute = Dispute.builder()
                 .match(match)
-                .openedByClub(isClubAdmin(match.getGuestClub().getId(), user.getId()) ? match.getGuestClub() : match.getHostClub())
+                .openedByClub(isClubAdmin(match.getGuestClub().getId(), user.getId()) ? match.getGuestClub()
+                        : match.getHostClub())
                 .reasonCode(request.getReasonCode() != null ? request.getReasonCode() : "DISAGREE_SCORE")
                 .description(request.getDescription())
                 .status(DisputeStatus.OPEN)
@@ -736,7 +797,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy trận đấu", 404));
 
-        if (!isClubAdmin(match.getHostClub().getId(), user.getId()) && !isClubAdmin(match.getGuestClub().getId(), user.getId())) {
+        if (!isClubAdmin(match.getHostClub().getId(), user.getId())
+                && !isClubAdmin(match.getGuestClub().getId(), user.getId())) {
             throw new CustomException("Không có quyền đề nghị hòa", 403);
         }
 
@@ -800,8 +862,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     @Override
     @Transactional(readOnly = true)
     public RankingPreviewResponse previewRanking(UUID matchId, String hostScore, String guestScore, String rawScoreDetails) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new CustomException("Không tìm thấy trận đấu", 404));
+        Match match = findMatchByRoomIdOrMatchId(matchId);
+        if (match == null) {
+            throw new CustomException("Không tìm thấy trận đấu", 404);
+        }
 
         Sport sport = match.getHostClub().getSport();
         String sportName = sport != null ? sport.getName() : "Bóng đá";
@@ -817,12 +881,12 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(config.getPairLimitWindowDays());
         long recentRankedMatches = matchRepository.countRecentRankedMatchesBetweenClubs(
-                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo
-        );
+                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo);
 
         CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, outcome, gFactor, (int) recentRankedMatches);
 
-        String balanceLabel = clubEloService.getBalanceLabel(match.getHostClubEloSnapshot(), match.getGuestClubEloSnapshot());
+        String balanceLabel = clubEloService.getBalanceLabel(match.getHostClubEloSnapshot(),
+                match.getGuestClubEloSnapshot());
 
         return RankingPreviewResponse.builder()
                 .matchType(match.getMatchType())
@@ -846,8 +910,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         String addressText = "";
         if (booking.getVenue() != null) {
-            addressText = booking.getVenue().getAddressDetail() != null ? booking.getVenue().getAddressDetail() :
-                    (booking.getVenue().getLocation() != null ? booking.getVenue().getLocation() : "");
+            addressText = booking.getVenue().getAddressDetail() != null ? booking.getVenue().getAddressDetail()
+                    : (booking.getVenue().getLocation() != null ? booking.getVenue().getLocation() : "");
         }
 
         LocalDateTime startDateTime = getBookingStartTime(booking);
@@ -856,7 +920,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         BookingSummaryResponse bookingVM = BookingSummaryResponse.builder()
                 .id(booking.getId().toString())
                 .facilityName(booking.getVenue() != null ? booking.getVenue().getName() : "")
-                .courtName(booking.getDetails() != null && !booking.getDetails().isEmpty() && booking.getDetails().get(0).getCourt() != null ? booking.getDetails().get(0).getCourt().getName() : "Sân đấu")
+                .courtName(booking.getDetails() != null && !booking.getDetails().isEmpty()
+                        && booking.getDetails().get(0).getCourt() != null
+                                ? booking.getDetails().get(0).getCourt().getName()
+                                : "Sân đấu")
                 .sportId(room.getHostClub().getSport() != null ? room.getHostClub().getSport().getId().toString() : "1")
                 .sportName(room.getHostClub().getSport() != null ? room.getHostClub().getSport().getName() : "Bóng đá")
                 .date(startDateTime != null ? startDateTime.toLocalDate().toString() : LocalDate.now().toString())
@@ -869,7 +936,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .build();
 
         ClubSummaryResponse hostClubVM = mapToClubSummaryResponse(room.getHostClub());
-        ClubSummaryResponse guestClubVM = room.getGuestClub() != null ? mapToClubSummaryResponse(room.getGuestClub()) : null;
+        ClubSummaryResponse guestClubVM = room.getGuestClub() != null ? mapToClubSummaryResponse(room.getGuestClub())
+                : null;
 
         List<JoinRequest> applicantsList = joinRequestRepository.findByRoomId(room.getId());
         List<JoinRequestResponse> applicantsVM = applicantsList.stream()
@@ -890,14 +958,16 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         int guestElo = room.getGuestClub() != null ? clubEloService.getClubElo(room.getGuestClub()) : hostElo;
         String balanceLabel = clubEloService.getBalanceLabel(hostElo, guestElo);
 
-        List<String> desiredLevelsList = room.getDesiredLevels() != null && !room.getDesiredLevels().isBlank() ?
-                Arrays.asList(room.getDesiredLevels().split(",")) : Collections.emptyList();
+        List<String> desiredLevelsList = room.getDesiredLevels() != null && !room.getDesiredLevels().isBlank()
+                ? Arrays.asList(room.getDesiredLevels().split(","))
+                : Collections.emptyList();
 
         ScoreSubmissionResponse submissionVM = null;
         MatchResultResponse resultVM = null;
 
         if (match != null) {
-            Optional<ScoreSubmission> sub = scoreSubmissionRepository.findFirstByMatchIdOrderByVersionDesc(match.getId());
+            Optional<ScoreSubmission> sub = scoreSubmissionRepository
+                    .findFirstByMatchIdOrderByVersionDesc(match.getId());
             if (sub.isPresent()) {
                 ScoreSubmission s = sub.get();
                 submissionVM = ScoreSubmissionResponse.builder()
@@ -919,7 +989,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                     if (r.getExplanationJson() != null) {
                         expList = objectMapper.readValue(r.getExplanationJson(), List.class);
                     }
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                }
 
                 resultVM = MatchResultResponse.builder()
                         .matchId(match.getId().toString())
@@ -1004,7 +1075,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         }
 
         boolean isHostAdmin = isClubAdmin(room.getHostClub().getId(), currentUser.getId());
-        boolean isGuestAdmin = room.getGuestClub() != null && isClubAdmin(room.getGuestClub().getId(), currentUser.getId());
+        boolean isGuestAdmin = room.getGuestClub() != null
+                && isClubAdmin(room.getGuestClub().getId(), currentUser.getId());
 
         MatchStatus status = room.getStatus();
 
@@ -1016,10 +1088,53 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .canManageApplicants(isHostAdmin && status == MatchStatus.OPEN)
                 .canEditRoom(isHostAdmin && status == MatchStatus.OPEN)
                 .canCancelRoom(isHostAdmin && status == MatchStatus.OPEN)
-                .canEnterScore(isHostAdmin && (status == MatchStatus.MATCHED || status == MatchStatus.UPCOMING || status == MatchStatus.SCORE_PENDING || status == MatchStatus.RESULT_OVERDUE))
-                .canConfirmScore(isGuestAdmin && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))
-                .canReport((isHostAdmin || isGuestAdmin) && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))
-                .canProposeDraw((isHostAdmin || isGuestAdmin) && (status == MatchStatus.RESULT_OVERDUE || status == MatchStatus.SCORE_PENDING))
+                .canEnterScore(isHostAdmin && (status == MatchStatus.MATCHED || status == MatchStatus.UPCOMING
+                        || status == MatchStatus.SCORE_PENDING || status == MatchStatus.RESULT_OVERDUE))
+                .canConfirmScore(isGuestAdmin
+                        && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))
+                .canReport((isHostAdmin || isGuestAdmin)
+                        && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))
+                .canProposeDraw((isHostAdmin || isGuestAdmin)
+                        && (status == MatchStatus.RESULT_OVERDUE || status == MatchStatus.SCORE_PENDING))
                 .build();
+    }
+
+    private Match findMatchByRoomIdOrMatchId(UUID id) {
+        if (id == null) return null;
+        Match match = matchRepository.findById(id)
+                .or(() -> matchRepository.findByRoomId(id))
+                .orElse(null);
+
+        if (match == null) {
+            MatchRoom room = matchRoomRepository.findById(id).orElse(null);
+            if (room != null && room.getGuestClub() != null) {
+                int hostElo = clubEloService.getClubElo(room.getHostClub());
+                int guestElo = clubEloService.getClubElo(room.getGuestClub());
+                String hostLevel = clubEloService.getLevelLabel(hostElo);
+                String guestLevel = clubEloService.getLevelLabel(guestElo);
+                int hostCrp = room.getHostClub().getCrp() != null ? room.getHostClub().getCrp() : 0;
+                int guestCrp = room.getGuestClub().getCrp() != null ? room.getGuestClub().getCrp() : 0;
+
+                match = Match.builder()
+                        .room(room)
+                        .booking(room.getBooking())
+                        .hostClub(room.getHostClub())
+                        .guestClub(room.getGuestClub())
+                        .matchType(room.getMatchType())
+                        .status(room.getStatus() != null ? room.getStatus() : MatchStatus.MATCHED)
+                        .hostSharePercent(room.getHostSharePercent())
+                        .guestSharePercent(room.getGuestSharePercent())
+                        .guestShareAmount(room.getGuestShareAmount())
+                        .hostClubEloSnapshot(hostElo)
+                        .guestClubEloSnapshot(guestElo)
+                        .hostLevelSnapshot(hostLevel)
+                        .guestLevelSnapshot(guestLevel)
+                        .hostCrpBeforeSnapshot(hostCrp)
+                        .guestCrpBeforeSnapshot(guestCrp)
+                        .build();
+                match = matchRepository.save(match);
+            }
+        }
+        return match;
     }
 }

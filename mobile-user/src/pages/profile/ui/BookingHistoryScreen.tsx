@@ -13,12 +13,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
-import { getMyBookingsApi, cancelBookingApi, getEffectiveBookingStatus, BookingItem } from '../../../shared/api/bookings';
+import { getMyBookingsApi, getEffectiveBookingStatus, BookingItem, CancelBookingResponseData } from '../../../shared/api/bookings';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 import { BookingTab, BookingFilterTabs } from './components/booking-history/BookingFilterTabs';
 import { BookingHistoryCard } from './components/booking-history/BookingHistoryCard';
 import { BookingQrModal } from './components/booking-history/BookingQrModal';
+import { CancellationPreviewModal } from '../../../features/booking/ui/CancellationPreviewModal';
 import { WriteReviewSheet } from '../../../features/venue-rating';
 
 interface BookingHistoryScreenProps {
@@ -36,7 +37,7 @@ export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreen
   // Modals state
   const [selectedQRBooking, setSelectedQRBooking] = useState<BookingItem | null>(null);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState<BookingItem | null>(null);
-  const [cancelSuccessBooking, setCancelSuccessBooking] = useState<BookingItem | null>(null);
+  const [cancelSuccessData, setCancelSuccessData] = useState<CancelBookingResponseData | null>(null);
   const [selectedReviewBooking, setSelectedReviewBooking] = useState<BookingItem | null>(null);
 
   const fetchBookings = async () => {
@@ -79,20 +80,22 @@ export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreen
     cancelled: bookings.filter((b) => getEffectiveBookingStatus(b) === 'CANCELLED').length,
   };
 
-  const handleCancelConfirm = async () => {
-    if (!selectedCancelBooking) return;
-    const cancelledItem = selectedCancelBooking;
-    try {
-      await cancelBookingApi(cancelledItem.id);
-      setBookings((prev) =>
-        prev.map((b) => (b.id === cancelledItem.id ? { ...b, status: 'CANCELLED' } : b))
-      );
-      setSelectedCancelBooking(null);
-      setCancelSuccessBooking(cancelledItem);
-    } catch (error: any) {
-      setSelectedCancelBooking(null);
-      showAlert('Lỗi', error?.message || 'Không thể hủy đơn đặt sân. Vui lòng thử lại sau.');
-    }
+  const handleCancelSuccess = (result: CancelBookingResponseData) => {
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === result.bookingId
+          ? {
+              ...b,
+              status: 'CANCELLED',
+              refundAmount: result.refundAmount,
+              refundRate: result.refundRate,
+              cancelledAt: result.cancelledAt,
+            }
+          : b
+      )
+    );
+    setSelectedCancelBooking(null);
+    setCancelSuccessData(result);
   };
 
   const handleCardPress = (booking: BookingItem) => {
@@ -117,6 +120,11 @@ export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreen
     });
   };
 
+  const formatVND = (val?: number) => {
+    if (!val) return '0 đ';
+    return val.toLocaleString('vi-VN') + ' đ';
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
@@ -130,22 +138,24 @@ export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreen
               activeOpacity={0.7} 
               onPress={() => router.back()}
             >
-              <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+              <MaterialIcons name="arrow-back-ios" size={20} color={COLORS.onSurface} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Lịch Sử Đặt Sân</Text>
+            
+            <Text style={styles.headerTitle}>Lịch sử đặt sân</Text>
+            
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
       )}
 
-      {/* Reusable Filter Tabs Component */}
+      {/* Top Filter Tabs */}
       <BookingFilterTabs 
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        counts={counts}
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        counts={counts} 
       />
 
-      {/* Booking Items List */}
+      {/* List content */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -184,30 +194,33 @@ export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreen
         onClose={() => setSelectedQRBooking(null)}
       />
 
-      {/* Reusable App ConfirmModal */}
-      <ConfirmModal
+      {/* Dedicated Cancellation Preview & Refund Modal */}
+      <CancellationPreviewModal
         visible={!!selectedCancelBooking}
-        title="Xác nhận hủy đặt sân?"
-        message={`Bạn có chắc chắn muốn hủy đơn đặt sân ${selectedCancelBooking?.bookingCode} tại ${selectedCancelBooking?.venueName} không?`}
-        confirmText="Hủy đặt sân"
-        cancelText="Giữ đơn"
-        confirmVariant="primary"
-        icon="warning"
-        iconColor={COLORS.error}
-        onConfirm={handleCancelConfirm}
-        onCancel={() => setSelectedCancelBooking(null)}
+        booking={selectedCancelBooking}
+        onClose={() => setSelectedCancelBooking(null)}
+        onSuccess={handleCancelSuccess}
       />
 
       {/* Cancellation Success App Modal */}
       <ConfirmModal
-        visible={!!cancelSuccessBooking}
+        visible={!!cancelSuccessData}
         title="Hủy đặt sân thành công"
-        message={`Đơn đặt sân ${cancelSuccessBooking?.bookingCode} tại "${cancelSuccessBooking?.venueName}" đã được chuyển sang trạng thái Đã Hủy.\n\nTiền sẽ được tự động hoàn lại ví/tài khoản của bạn theo đúng chính sách hoàn hủy.`}
-        confirmText="Đã hiểu"
+        message={
+          cancelSuccessData?.refundAmount && cancelSuccessData.refundAmount > 0
+            ? `${cancelSuccessData.message}\n\nSố dư ví Sporta hiện tại: ${formatVND(cancelSuccessData.userWalletBalance)}`
+            : cancelSuccessData?.message || 'Đơn đặt sân đã được hủy thành công.'
+        }
+        confirmText="Xem Ví Sporta"
+        cancelText="Đóng"
         confirmVariant="primary"
         icon="check-circle"
         iconColor={COLORS.primary}
-        onConfirm={() => setCancelSuccessBooking(null)}
+        onConfirm={() => {
+          setCancelSuccessData(null);
+          router.push('/wallet' as any);
+        }}
+        onCancel={() => setCancelSuccessData(null)}
       />
 
       {/* Review Modal */}
@@ -249,32 +262,33 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   headerTitle: {
-    ...TYPOGRAPHY.headlineMd,
+    ...TYPOGRAPHY.titleMd,
     fontSize: 18,
-    color: COLORS.primary,
     fontWeight: '700',
+    color: COLORS.onSurface,
   },
   scrollContent: {
     padding: SPACING.marginMobile,
-    paddingBottom: SPACING.xl * 2,
+    paddingBottom: 40,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xl * 2,
+    paddingVertical: 80,
+    gap: SPACING.sm,
   },
   emptyTitle: {
-    ...TYPOGRAPHY.headlineMd,
+    ...TYPOGRAPHY.titleMd,
     fontSize: 16,
-    color: COLORS.onSurface,
     fontWeight: '700',
-    marginTop: SPACING.md,
+    color: COLORS.onSurface,
+    marginTop: SPACING.sm,
   },
   emptySubtitle: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 13,
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
-    marginTop: 4,
+    paddingHorizontal: SPACING.xl,
   },
 });

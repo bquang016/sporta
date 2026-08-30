@@ -8,7 +8,7 @@ export const COMPLEXES: Complex[] = [
 ];
 
 export const MOBILE_COMPLEXES: Complex[] = [
-  { id: 'all', name: 'Tần cả cụm sân', location: 'TP. Hồ Chí Minh' }, // Keep original typo "Tần cả cụm sân" from MobileHome.tsx to ensure 100% exact match
+  { id: 'all', name: 'Tần cả cụm sân', location: 'TP. Hồ Chí Minh' },
   { id: 'q7', name: 'Sporta Quận 7', location: 'Nguyễn Văn Linh, Q.7' },
   { id: 'tb', name: 'Sporta Tân Bình', location: 'Cộng Hòa, Q. Tân Bình' },
   { id: 'bt', name: 'Sporta Bình Thạnh', location: 'Chu Văn An, Q. Bình Thạnh' },
@@ -29,18 +29,18 @@ export const INITIAL_PITCHES: Pitch[] = [
 ];
 
 export const DESKTOP_INITIAL_BOOKINGS: Booking[] = [
-  { id: 'b-1', pitchName: 'Sân Q7-1', complexId: 'q7', time: '17:30 - 19:00', customerName: 'Nguyễn Văn Hùng', phone: '0901234567', amount: 450000, status: 'pending-checkin' },
-  { id: 'b-2', pitchName: 'Sân TB-2', complexId: 'tb', time: '18:00 - 19:30', customerName: 'Trần Anh Tuấn', phone: '0918765432', amount: 780000, status: 'checked-in' },
-  { id: 'b-3', pitchName: 'Sân BT-4', complexId: 'bt', time: '19:00 - 21:00', customerName: 'Lê Minh Quốc', phone: '0983332211', amount: 1640000, status: 'pending-checkin' },
-  { id: 'b-4', pitchName: 'Sân Q7-3', complexId: 'q7', time: '20:00 - 21:30', customerName: 'Phạm Đức Duy', phone: '0977889900', amount: 750000, status: 'pending-checkin' },
-  { id: 'b-5', pitchName: 'Sân BT-1', complexId: 'bt', time: '20:30 - 22:00', customerName: 'Đỗ Hữu Tài', phone: '0966554433', amount: 465000, status: 'checked-in' },
+  { id: 'b-1', pitchName: 'Sân Q7-1', complexId: 'q7', date: '26/08/2026', time: '17:30 - 19:00', customerName: 'Nguyễn Văn Hùng', phone: '0901234567', amount: 450000, status: 'pending-checkin' },
+  { id: 'b-2', pitchName: 'Sân TB-2', complexId: 'tb', date: '26/08/2026', time: '18:00 - 19:30', customerName: 'Trần Anh Tuấn', phone: '0918765432', amount: 780000, status: 'checked-in' },
+  { id: 'b-3', pitchName: 'Sân BT-4', complexId: 'bt', date: '26/08/2026', time: '19:00 - 21:00', customerName: 'Lê Minh Quốc', phone: '0983332211', amount: 1640000, status: 'pending-checkin' },
+  { id: 'b-4', pitchName: 'Sân Q7-3', complexId: 'q7', date: '26/08/2026', time: '20:00 - 21:30', customerName: 'Phạm Đức Duy', phone: '0977889900', amount: 750000, status: 'pending-checkin' },
+  { id: 'b-5', pitchName: 'Sân BT-1', complexId: 'bt', date: '26/08/2026', time: '20:30 - 22:00', customerName: 'Đỗ Hữu Tài', phone: '0966554433', amount: 465000, status: 'checked-in' },
 ];
 
 export const MOBILE_INITIAL_BOOKINGS: Booking[] = [
-  { id: 'b-1', pitchName: 'Sân Q7-1', complexId: 'q7', time: '17:30 - 19:00', customerName: 'Nguyễn Văn Hùng', phone: '0901234567', amount: 450000, status: 'pending-checkin' },
-  { id: 'b-2', pitchName: 'Sân TB-2', complexId: 'tb', time: '18:00 - 19:30', customerName: 'Trần Anh Tuấn', phone: '0918765432', amount: 780000, status: 'checked-in' },
-  { id: 'b-3', pitchName: 'Sân BT-4', complexId: 'bt', time: '19:00 - 21:00', customerName: 'Lê Minh Quốc', phone: '0983332211', amount: 1640000, status: 'pending-checkin' },
-  { id: 'b-4', pitchName: 'Sân Q7-3', complexId: 'q7', time: '20:00 - 21:30', customerName: 'Phạm Đức Duy', phone: '0977889900', amount: 750000, status: 'pending-checkin' },
+  { id: 'b-1', pitchName: 'Sân Q7-1', complexId: 'q7', date: '26/08/2026', time: '17:30 - 19:00', customerName: 'Nguyễn Văn Hùng', phone: '0901234567', amount: 450000, status: 'pending-checkin' },
+  { id: 'b-2', pitchName: 'Sân TB-2', complexId: 'tb', date: '26/08/2026', time: '18:00 - 19:30', customerName: 'Trần Anh Tuấn', phone: '0918765432', amount: 780000, status: 'checked-in' },
+  { id: 'b-3', pitchName: 'Sân BT-4', complexId: 'bt', date: '26/08/2026', time: '19:00 - 21:00', customerName: 'Lê Minh Quốc', phone: '0983332211', amount: 1640000, status: 'pending-checkin' },
+  { id: 'b-4', pitchName: 'Sân Q7-3', complexId: 'q7', date: '26/08/2026', time: '20:00 - 21:30', customerName: 'Phạm Đức Duy', phone: '0977889900', amount: 750000, status: 'pending-checkin' },
 ];
 
 export const DESKTOP_INITIAL_ACTIVITIES: Activity[] = [
@@ -97,5 +97,102 @@ export const MOBILE_REVENUE_CHART_DATA: Record<ComplexId, Record<ChartPeriod, Ch
     day: { labels: ['06h', '10h', '14h', '18h', '22h'], values: [120, 170, 270, 670, 480] },
     quarter: { labels: ['Q1', 'Q2', 'Q3', 'Q4'], values: [6.7, 9.0, 11.6, 16.0] },
     year: { labels: ['24', '25', '26'], values: [32, 43, 58] }
+  }
+};
+
+// ═══ BACKEND API INTEGRATION ═══
+export interface OwnerDashboardResponseData {
+  listComplexes: Complex[];
+  stats: {
+    revenue: number;
+    revenueK: number;
+    occupancy: number;
+    pendingCount: number;
+    activeRatio: string;
+  };
+  pitches: Pitch[];
+  bookings: Booking[];
+  activities: Activity[];
+  chartData: ChartData;
+}
+
+export const fetchDashboardOverviewApi = async (venueId = 'all', period = 'day'): Promise<OwnerDashboardResponseData> => {
+  const token = localStorage.getItem('accessToken');
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+
+  const response = await fetch(`http://${host}:8387/api/v1/owner/dashboard/overview?venueId=${venueId}&period=${period}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Không thể tải dữ liệu bảng điều khiển');
+  }
+
+  const data = await response.json();
+  return {
+    listComplexes: data.listComplexes || COMPLEXES,
+    stats: data.stats || { revenue: 2745000, revenueK: 2745, occupancy: 36, pendingCount: 3, activeRatio: '10/11' },
+    pitches: (data.pitches || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type || '5v5',
+      complexId: p.complexId || 'all',
+      status: p.status as any,
+      price: p.price || 300000
+    })),
+    bookings: (data.bookings || []).map((b: any) => ({
+      id: b.id,
+      pitchName: b.pitchName,
+      complexId: b.complexId || 'all',
+      date: b.date,
+      time: b.time,
+      customerName: b.customerName,
+      phone: b.phone,
+      amount: b.amount,
+      status: b.status as any
+    })),
+    activities: data.activities || DESKTOP_INITIAL_ACTIVITIES,
+    chartData: data.chartData || { labels: ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00'], values: [450, 800, 600, 1100, 2450, 1900] }
+  };
+};
+
+export const updateCourtStatusApi = async (courtId: string, status: string): Promise<boolean> => {
+  const token = localStorage.getItem('accessToken');
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const dbStatus = status === 'maintenance' ? 'MAINTENANCE' : 'ACTIVE';
+
+  try {
+    const response = await fetch(`http://${host}:8387/api/v1/owner/courts/${courtId}/status?status=${dbStatus}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return response.ok;
+  } catch (err) {
+    console.error('Error updating court status:', err);
+    return false;
+  }
+};
+
+export const checkInTicketApi = async (tokenStr: string): Promise<boolean> => {
+  const token = localStorage.getItem('accessToken');
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+
+  try {
+    const response = await fetch(`http://${host}:8387/api/v1/owner/tickets/check-in`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ token: tokenStr })
+    });
+    return response.ok;
+  } catch (err) {
+    console.error('Error checking in ticket:', err);
+    return false;
   }
 };

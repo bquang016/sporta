@@ -35,7 +35,10 @@ import com.backend.sporta.dto.VenueDraftRequest;
 import com.backend.sporta.dto.CourtDraftDto;
 import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.CourtPriceRule;
+import com.backend.sporta.entity.VenuePolicy;
+import com.backend.sporta.entity.OwnerContract;
 import com.backend.sporta.repository.CourtPriceRuleRepository;
+import com.backend.sporta.repository.OwnerContractRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +78,9 @@ public class VenueService {
 
     @Autowired
     private CourtPriceRuleRepository courtPriceRuleRepository;
+
+    @Autowired
+    private OwnerContractRepository ownerContractRepository;
 
     @Autowired
     private BookingDetailRepository bookingDetailRepository;
@@ -140,7 +146,8 @@ public class VenueService {
         String ownerPhone = (venue.getOwner() != null) ? venue.getOwner().getPhoneNumber() : null;
 
         String finalCoverImage = venue.getCoverImage();
-        if (finalCoverImage == null && venue.getRegistrationImages() != null && !venue.getRegistrationImages().trim().isEmpty()) {
+        if (finalCoverImage == null && venue.getRegistrationImages() != null
+                && !venue.getRegistrationImages().trim().isEmpty()) {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 java.util.List<String> imageUrls = mapper.readValue(venue.getRegistrationImages(),
@@ -151,7 +158,21 @@ public class VenueService {
                         detailImages = imageUrls;
                     }
                 }
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
+        }
+
+        Double minPrice = venue.getMinPrice();
+        Double maxPrice = venue.getMaxPrice();
+        if ((minPrice == null || minPrice <= 0) && venue.getId() != null) {
+            Double calcMin = courtRepository.findMinPriceByVenueIdAndStatusActive(venue.getId());
+            Double calcMax = courtRepository.findMaxPriceByVenueIdAndStatusActive(venue.getId());
+            if (calcMin != null && calcMin > 0) {
+                minPrice = calcMin;
+            }
+            if (calcMax != null && calcMax > 0) {
+                maxPrice = calcMax;
+            }
         }
 
         return VenueDetailResponse.builder()
@@ -171,8 +192,8 @@ public class VenueService {
                 .surchargeDescription(venue.getSurchargeDescription())
                 .status(venue.getStatus())
                 .approvalStatus(venue.getApprovalStatus())
-                .minPrice(venue.getMinPrice())
-                .maxPrice(venue.getMaxPrice())
+                .minPrice(minPrice != null ? minPrice : 0.0)
+                .maxPrice(maxPrice != null ? maxPrice : 0.0)
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .ownerPhone(ownerPhone)
                 .courts(courtPublicList)
@@ -230,6 +251,7 @@ public class VenueService {
                 String sportLevel = null;
                 Double pricePerTicket = null;
                 String customerName = null;
+                String customerPhone = null;
 
                 // Kiểm tra xem slot có thuộc ca xé vé không
                 TicketSession matchedSession = null;
@@ -266,11 +288,13 @@ public class VenueService {
                         }
                         if (bd.getBooking().getIsManual() != null && bd.getBooking().getIsManual()) {
                             customerName = bd.getBooking().getCustomerName();
+                            customerPhone = bd.getBooking().getCustomerPhone();
                             if (customerName == null || customerName.isEmpty()) {
                                 customerName = "Đặt thủ công";
                             }
                         } else if (bd.getBooking().getUser() != null) {
                             customerName = bd.getBooking().getUser().getFullName();
+                            customerPhone = bd.getBooking().getUser().getPhoneNumber();
                         } else {
                             customerName = "Khách vãng lai";
                         }
@@ -281,41 +305,9 @@ public class VenueService {
                     status = "available";
                 }
 
-                // Tính giá: ưu tiên SHIFT rule trước
-                double price = court.getPrice();
-
-                // 1. Áp SHIFT rule (giá tùy chỉnh theo ca giờ)
-                boolean shiftApplied = false;
-                for (CourtPriceRule rule : rules) {
-                    if (rule.getRuleType() == PriceRuleType.SHIFT
-                            && rule.getStartTime() != null
-                            && rule.getEndTime() != null
-                            && rule.getCustomPrice() != null
-                            && !currentSlot.isBefore(rule.getStartTime())
-                            && currentSlot.isBefore(rule.getEndTime())) {
-                        price = rule.getCustomPrice();
-                        shiftApplied = true;
-                        break;
-                    }
-                }
-
-                // 2. Áp DAY_OF_WEEK modifier lên trên price hiện tại
-                for (CourtPriceRule rule : rules) {
-                    if (rule.getRuleType() == PriceRuleType.DAY_OF_WEEK
-                            && rule.getDayOfWeek() != null
-                            && rule.getDayOfWeek() == dayOfWeekValue) {
-                        if (rule.getPercentageModifier() != null) {
-                            price = price * rule.getPercentageModifier();
-                        }
-                        if (rule.getFixedModifier() != null) {
-                            price = price + rule.getFixedModifier();
-                        }
-                        break;
-                    }
-                }
-
-                // Làm tròn giá về hàng nghìn
-                price = Math.round(price / 1000.0) * 1000.0;
+                // Tính giá phân tầng theo CourtPriceRule qua Helper dùng chung
+                double price = com.backend.sporta.util.CourtPricingCalculationHelper.calculateSlotPrice(
+                        court.getPrice(), rules, dayOfWeekValue, currentSlot);
 
                 result.add(SlotResponse.builder()
                         .courtId(court.getId())
@@ -331,6 +323,7 @@ public class VenueService {
                         .sportLevel(sportLevel)
                         .pricePerTicket(pricePerTicket)
                         .customerName(customerName)
+                        .customerPhone(customerPhone)
                         .build());
 
                 slotTime = slotTime.plusMinutes(shiftMinutes);
@@ -390,11 +383,12 @@ public class VenueService {
             }
             venueImageRepository.saveAll(detailImages);
             venue.setImages(detailImages);
-            
+
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
         return mapToResponse(venue, false);
@@ -518,11 +512,12 @@ public class VenueService {
             }
             venueImageRepository.saveAll(detailImages);
             venue.getImages().addAll(detailImages);
-            
+
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
         Venue updatedVenue = venueRepository.save(venue);
@@ -615,6 +610,51 @@ public class VenueService {
 
         venue = venueRepository.save(venue);
 
+        VenuePolicy venuePolicy = VenuePolicy.builder()
+                .venue(venue)
+                .freeCancellationHours(
+                        request.getFreeCancellationHours() != null ? request.getFreeCancellationHours() : 12)
+                .lateCancellationRefundRate(
+                        request.getLateCancellationRefundRate() != null ? request.getLateCancellationRefundRate() : 70)
+                .rainRescheduleAllowed(
+                        request.getRainRescheduleAllowed() != null ? request.getRainRescheduleAllowed() : true)
+                .build();
+        venue.setVenuePolicy(venuePolicy);
+        venue = venueRepository.save(venue);
+
+        if (request.getIsContractSigned() != null && request.getIsContractSigned()) {
+            String contractCode = "SPOR-CTR-" + java.time.Year.now().getValue() + "-"
+                    + venue.getId().toString().substring(0, 8).toUpperCase();
+
+            OwnerContract contract = OwnerContract.builder()
+                    .owner(owner)
+                    .venue(venue)
+                    .contractCode(contractCode)
+                    .signedIpAddress(request.getSignatureIp() != null ? request.getSignatureIp() : "Unknown")
+                    .signedAt(request.getSignatureTimestamp() != null
+                            ? java.time.LocalDateTime.parse(request.getSignatureTimestamp().replace("Z", ""))
+                            : java.time.LocalDateTime.now())
+                    .status(com.backend.sporta.enums.ContractStatus.ACTIVE)
+                    .build();
+
+            try {
+                String rawData = contractCode + venue.getId() + contract.getSignedAt().toString();
+                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(rawData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder(2 * hash.length);
+                for (byte b : hash) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1)
+                        hexString.append('0');
+                    hexString.append(hex);
+                }
+                contract.setDigitalSignatureHash(hexString.toString());
+            } catch (Exception e) {
+                contract.setDigitalSignatureHash("HASH_ERROR");
+            }
+            ownerContractRepository.save(contract);
+        }
+
         if (request.getDetailImages() != null && !request.getDetailImages().isEmpty()) {
             List<VenueImage> detailImages = new java.util.ArrayList<>();
             for (String imgUrl : request.getDetailImages()) {
@@ -629,7 +669,8 @@ public class VenueService {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
         syncCourts(venue, request.getCourts(), email);
@@ -686,6 +727,51 @@ public class VenueService {
         venue.setSubCourtCount(request.getCourts() != null ? request.getCourts().size() : venue.getSubCourtCount());
 
         venue.getImages().clear();
+
+        if (venue.getVenuePolicy() == null) {
+            venue.setVenuePolicy(VenuePolicy.builder().venue(venue).build());
+        }
+        if (request.getFreeCancellationHours() != null)
+            venue.getVenuePolicy().setFreeCancellationHours(request.getFreeCancellationHours());
+        if (request.getLateCancellationRefundRate() != null)
+            venue.getVenuePolicy().setLateCancellationRefundRate(request.getLateCancellationRefundRate());
+        if (request.getRainRescheduleAllowed() != null)
+            venue.getVenuePolicy().setRainRescheduleAllowed(request.getRainRescheduleAllowed());
+
+        if (request.getIsContractSigned() != null && request.getIsContractSigned()) {
+            boolean hasContract = ownerContractRepository.existsByVenueId(venue.getId());
+            if (!hasContract) {
+                String contractCode = "SPOR-CTR-" + java.time.Year.now().getValue() + "-"
+                        + venue.getId().toString().substring(0, 8).toUpperCase();
+                OwnerContract contract = OwnerContract.builder()
+                        .owner(venue.getOwner())
+                        .venue(venue)
+                        .contractCode(contractCode)
+                        .signedIpAddress(request.getSignatureIp() != null ? request.getSignatureIp() : "Unknown")
+                        .signedAt(request.getSignatureTimestamp() != null
+                                ? java.time.LocalDateTime.parse(request.getSignatureTimestamp().replace("Z", ""))
+                                : java.time.LocalDateTime.now())
+                        .status(com.backend.sporta.enums.ContractStatus.ACTIVE)
+                        .build();
+                try {
+                    String rawData = contractCode + venue.getId() + contract.getSignedAt().toString();
+                    java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                    byte[] hash = digest.digest(rawData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    StringBuilder hexString = new StringBuilder(2 * hash.length);
+                    for (byte b : hash) {
+                        String hex = Integer.toHexString(0xff & b);
+                        if (hex.length() == 1)
+                            hexString.append('0');
+                        hexString.append(hex);
+                    }
+                    contract.setDigitalSignatureHash(hexString.toString());
+                } catch (Exception e) {
+                    contract.setDigitalSignatureHash("HASH_ERROR");
+                }
+                ownerContractRepository.save(contract);
+            }
+        }
+
         venueRepository.saveAndFlush(venue);
 
         if (request.getDetailImages() != null && !request.getDetailImages().isEmpty()) {
@@ -702,7 +788,8 @@ public class VenueService {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 venue.setRegistrationImages(mapper.writeValueAsString(request.getDetailImages()));
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
         syncCourts(venue, request.getCourts(), email);
@@ -792,7 +879,6 @@ public class VenueService {
         Venue updatedVenue = venueRepository.save(venue);
         return mapToResponse(updatedVenue, false);
     }
-
 
     private void syncCourts(Venue venue, List<CourtDraftDto> courtsList, String ownerEmail) {
         if (courtsList == null) {
@@ -934,7 +1020,8 @@ public class VenueService {
                 : new ArrayList<>();
 
         String finalCoverImage = venue.getCoverImage();
-        if (finalCoverImage == null && venue.getRegistrationImages() != null && !venue.getRegistrationImages().trim().isEmpty()) {
+        if (finalCoverImage == null && venue.getRegistrationImages() != null
+                && !venue.getRegistrationImages().trim().isEmpty()) {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 java.util.List<String> imageUrls = mapper.readValue(venue.getRegistrationImages(),
@@ -942,7 +1029,21 @@ public class VenueService {
                 if (!imageUrls.isEmpty()) {
                     finalCoverImage = imageUrls.get(0);
                 }
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
+        }
+
+        Double minPrice = venue.getMinPrice();
+        Double maxPrice = venue.getMaxPrice();
+        if ((minPrice == null || minPrice <= 0) && venue.getId() != null) {
+            Double calcMin = courtRepository.findMinPriceByVenueIdAndStatusActive(venue.getId());
+            Double calcMax = courtRepository.findMaxPriceByVenueIdAndStatusActive(venue.getId());
+            if (calcMin != null && calcMin > 0) {
+                minPrice = calcMin;
+            }
+            if (calcMax != null && calcMax > 0) {
+                maxPrice = calcMax;
+            }
         }
 
         return VenueResponse.builder()
@@ -967,8 +1068,8 @@ public class VenueService {
                 .status(venue.getStatus())
                 .approvalStatus(venue.getApprovalStatus())
                 .hasPendingRevision(hasPendingRevision)
-                .minPrice(venue.getMinPrice())
-                .maxPrice(venue.getMaxPrice())
+                .minPrice(minPrice != null ? minPrice : 0.0)
+                .maxPrice(maxPrice != null ? maxPrice : 0.0)
                 .sportName(venue.getSport() != null ? venue.getSport().getName() : venue.getSportTypes())
                 .averageRating(venue.getAverageRating())
                 .totalReviews(venue.getTotalReviews())
@@ -1121,14 +1222,14 @@ public class VenueService {
         rev.setReviewerNotes(reason);
         venueRevisionRepository.save(rev);
     }
-    
+
     private double calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
         final int R = 6371; // Bán kính trái đất (km)
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+                        * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
@@ -1136,55 +1237,60 @@ public class VenueService {
     public List<VenueResponse> searchVenues(VenueSearchCriteriaDTO criteria) {
         Specification<Venue> spec = VenueSpecification.buildSearchSpecification(criteria);
         List<Venue> venues = venueRepository.findAll(spec);
-        
+
         List<VenueResponse> results = new ArrayList<>();
-        
+
         for (Venue venue : venues) {
             Double distanceKm = null;
-            if (criteria.getUserLat() != null && criteria.getUserLng() != null && venue.getLatitude() != null && venue.getLongitude() != null) {
-                distanceKm = calculateHaversineDistance(criteria.getUserLat(), criteria.getUserLng(), venue.getLatitude(), venue.getLongitude());
+            if (criteria.getUserLat() != null && criteria.getUserLng() != null && venue.getLatitude() != null
+                    && venue.getLongitude() != null) {
+                distanceKm = calculateHaversineDistance(criteria.getUserLat(), criteria.getUserLng(),
+                        venue.getLatitude(), venue.getLongitude());
                 if (criteria.getRadiusKm() != null && distanceKm > criteria.getRadiusKm()) {
                     continue;
                 }
             }
-            
+
             Integer availableSlots = null;
             if (criteria.getBookingDate() != null && criteria.getStartTime() != null && criteria.getEndTime() != null) {
-                boolean hasAvailable = checkVenueAvailability(venue, criteria.getBookingDate(), criteria.getStartTime(), criteria.getEndTime());
+                boolean hasAvailable = checkVenueAvailability(venue, criteria.getBookingDate(), criteria.getStartTime(),
+                        criteria.getEndTime());
                 if (!hasAvailable) {
                     continue;
                 }
-                availableSlots = 1; 
+                availableSlots = 1;
             }
-            
+
             VenueResponse response = mapToResponse(venue, false);
             response.setDistanceKm(distanceKm);
             response.setAvailableSlotsCount(availableSlots);
             results.add(response);
         }
-        
+
         if (criteria.getUserLat() != null && criteria.getUserLng() != null) {
             results.sort((v1, v2) -> {
-                if (v1.getDistanceKm() == null) return 1;
-                if (v2.getDistanceKm() == null) return -1;
+                if (v1.getDistanceKm() == null)
+                    return 1;
+                if (v2.getDistanceKm() == null)
+                    return -1;
                 return v1.getDistanceKm().compareTo(v2.getDistanceKm());
             });
         }
-        
+
         return results;
     }
-    
+
     private boolean checkVenueAvailability(Venue venue, LocalDate date, LocalTime start, LocalTime end) {
         List<Court> activeCourts = courtRepository.findByVenueId(venue.getId()).stream()
                 .filter(c -> c.getStatus() == CourtStatus.ACTIVE)
                 .collect(Collectors.toList());
-                
+
         for (Court court : activeCourts) {
             List<com.backend.sporta.entity.BookingDetail> bookings = bookingDetailRepository
                     .findByCourtIdAndBookingDateAndBookingStatusIn(
                             court.getId(), date,
                             Arrays.asList(BookingStatus.CONFIRMED, BookingStatus.PENDING));
-            
+
             boolean courtAvailable = true;
             for (com.backend.sporta.entity.BookingDetail bd : bookings) {
                 if (start.isBefore(bd.getEndTime()) && end.isAfter(bd.getStartTime())) {
@@ -1192,7 +1298,7 @@ public class VenueService {
                     break;
                 }
             }
-            
+
             if (courtAvailable) {
                 return true;
             }

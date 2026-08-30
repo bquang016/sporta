@@ -20,6 +20,9 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     /** Lịch sử đặt sân của user */
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** Lấy tất cả booking sắp xếp mới nhất */
+    List<Booking> findAllByOrderByCreatedAtDesc();
+
 
     /** Tìm theo bookingCode */
     java.util.Optional<Booking> findByBookingCode(String bookingCode);
@@ -29,4 +32,16 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /** Kiểm tra user đã có Booking COMPLETED tại venue này chưa (dùng cho điều kiện review) */
     boolean existsByUserIdAndVenueIdAndStatus(Long userId, UUID venueId, BookingStatus status);
+
+    /** Tìm danh sách các Booking thuộc Venue có ngày chơi (BookingDetail.bookingDate) trong khoảng [fromDate, toDate] */
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "JOIN b.details d " +
+           "WHERE b.venue.id = :venueId " +
+           "AND d.bookingDate BETWEEN :fromDate AND :toDate " +
+           "AND b.status IN :statuses")
+    List<Booking> findBookingsByVenueAndDateRange(
+            @Param("venueId") UUID venueId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("statuses") List<BookingStatus> statuses);
 }

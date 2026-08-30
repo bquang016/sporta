@@ -25,9 +25,9 @@ export function useLogin() {
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const { id_token } = response.params;
-      if (id_token) {
-        handleBackendGoogleLogin(id_token);
+      const idToken = response.params?.id_token || (response as any).authentication?.idToken;
+      if (idToken) {
+        handleBackendGoogleLogin(idToken);
       }
     } else if (response?.type === 'error') {
       const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
@@ -38,28 +38,56 @@ export function useLogin() {
   const handleBackendGoogleLogin = async (idToken: string) => {
     setLoading(true);
     try {
-      const response = await googleLoginApi(idToken);
-      if (response.isNewUser) {
+      const res = await googleLoginApi(idToken);
+      if (res.isNewUser) {
         const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
         router.push({
           pathname: '/(auth)/personal-info',
           params: {
-            registrationToken: response.registrationToken,
-            email: response.email,
+            registrationToken: res.registrationToken,
+            email: res.email,
             password: dummyPassword,
-            fullName: response.fullName,
+            fullName: res.fullName,
           },
         });
       } else {
         if (Platform.OS === 'web') {
-          localStorage.setItem('accessToken', response.accessToken);
-          localStorage.setItem('userEmail', response.email);
-          localStorage.setItem('userName', response.fullName);
+          localStorage.setItem('accessToken', res.accessToken);
         } else {
-          await SecureStore.setItemAsync('accessToken', response.accessToken);
-          await SecureStore.setItemAsync('userEmail', response.email);
-          await SecureStore.setItemAsync('userName', response.fullName);
+          await SecureStore.setItemAsync('accessToken', res.accessToken);
         }
+
+        let realFullName = res.fullName;
+        let realAvatar: string | null = null;
+        try {
+          const { usersApi } = require('../../../../shared/api/users');
+          const profile = await usersApi.getProfile();
+          if (profile && profile.fullName) {
+            realFullName = profile.fullName;
+            realAvatar = profile.avatarUrl || null;
+          }
+        } catch (profileErr) {
+          console.log('Profile sync on Google Login warning:', profileErr);
+        }
+
+        if (Platform.OS === 'web') {
+          localStorage.setItem('userEmail', res.email);
+          localStorage.setItem('userName', realFullName);
+          if (realAvatar) {
+            localStorage.setItem('userAvatar', realAvatar);
+          } else {
+            localStorage.removeItem('userAvatar');
+          }
+        } else {
+          await SecureStore.setItemAsync('userEmail', res.email);
+          await SecureStore.setItemAsync('userName', realFullName);
+          if (realAvatar) {
+            await SecureStore.setItemAsync('userAvatar', realAvatar);
+          } else {
+            await SecureStore.deleteItemAsync('userAvatar');
+          }
+        }
+
         router.replace('/(tabs)');
       }
     } catch (error: any) {

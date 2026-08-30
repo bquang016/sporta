@@ -10,14 +10,25 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../src/shared/api/queryClient';
 import { AlertProvider } from '../src/shared/contexts/AlertContext';
 import { ChatbotFAB } from '../src/features/chatbot/ui/ChatbotFAB';
 import { ChatbotBottomSheet } from '../src/features/chatbot/ui/ChatbotBottomSheet';
 
+// Complete auth session if returning from web browser popup
+WebBrowser.maybeCompleteAuthSession();
+
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+import { usePushNotifications } from '../src/shared/hooks/usePushNotifications';
+
+function PushNotificationManager() {
+  usePushNotifications();
+  return null;
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -56,6 +67,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AlertProvider>
+        <PushNotificationManager />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
