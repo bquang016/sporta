@@ -6,34 +6,32 @@ import {
   ChevronRight, 
   CheckCircle2, 
   Clock, 
-  ArrowUpRight,
-  User,
-  MapPin,
-  Sparkles
+  MapPin, 
+  ShieldCheck
 } from 'lucide-react';
 
 interface MobileBookingListProps {
   currentBookings: Booking[];
-  listComplexes: Complex[];
-  onCheckinDirect: (bookingId: string) => void;
+  listComplexes?: Complex[];
+  onCheckinDirect?: (bookingId: string) => void;
 }
 
-type BookingFilter = 'all' | 'pending' | 'checked-in';
+type BookingFilter = 'all' | 'today' | 'completed';
 
 export const MobileBookingList: React.FC<MobileBookingListProps> = ({
   currentBookings,
-  listComplexes: _listComplexes,
-  onCheckinDirect
 }) => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<BookingFilter>('all');
 
-  const pendingCount = currentBookings.filter(b => b.status === 'pending-checkin').length;
-  const checkedInCount = currentBookings.filter(b => b.status === 'checked-in').length;
+  const todayDateStr = new Date().toLocaleDateString('vi-VN');
+  
+  const todayBookings = currentBookings.filter(b => !b.date || b.date === todayDateStr || b.date.includes('Hôm nay'));
+  const completedBookings = currentBookings.filter(b => b.status === 'checked-in');
 
   const filteredBookings = currentBookings.filter(b => {
-    if (filter === 'pending') return b.status === 'pending-checkin';
-    if (filter === 'checked-in') return b.status === 'checked-in';
+    if (filter === 'today') return !b.date || b.date === todayDateStr || b.date.includes('Hôm nay');
+    if (filter === 'completed') return b.status === 'checked-in';
     return true;
   });
 
@@ -42,7 +40,7 @@ export const MobileBookingList: React.FC<MobileBookingListProps> = ({
   };
 
   return (
-    <section className="bg-white rounded-3xl p-4 border border-slate-200/60 shadow-sm space-y-3.5">
+    <section className="bg-white rounded-3xl p-4 border border-slate-200/60 shadow-sm space-y-3.5 select-none">
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -53,7 +51,7 @@ export const MobileBookingList: React.FC<MobileBookingListProps> = ({
             <h2 className="text-xs font-black text-slate-800 uppercase tracking-wide">
               Đơn đặt gần đây
             </h2>
-            <p className="text-[10px] text-slate-400 font-medium">Tự động duyệt từ ứng dụng khách</p>
+            <p className="text-[10px] text-slate-400 font-medium">Tự động đồng bộ từ ứng dụng khách</p>
           </div>
         </div>
 
@@ -62,7 +60,7 @@ export const MobileBookingList: React.FC<MobileBookingListProps> = ({
           onClick={() => navigate('/matrix')}
           className="touch-target text-[11px] font-black text-[#064e3b] hover:text-emerald-900 active:scale-95 flex items-center gap-0.5 uppercase tracking-wider"
         >
-          <span>Xem tất cả</span>
+          <span>Xem ma trận</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -86,33 +84,31 @@ export const MobileBookingList: React.FC<MobileBookingListProps> = ({
 
         <button
           type="button"
-          onClick={() => setFilter('pending')}
+          onClick={() => setFilter('today')}
           className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-            filter === 'pending'
+            filter === 'today'
               ? 'bg-white text-[#064e3b] shadow-xs'
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>Chờ nhận sân</span>
-          {pendingCount > 0 && (
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 font-black">
-              {pendingCount}
-            </span>
-          )}
+          <span>Hôm nay</span>
+          <span className={`text-[9px] px-1.5 py-0.2 rounded-full ${filter === 'today' ? 'bg-emerald-100 text-[#064e3b]' : 'bg-slate-200 text-slate-600'}`}>
+            {todayBookings.length}
+          </span>
         </button>
 
         <button
           type="button"
-          onClick={() => setFilter('checked-in')}
+          onClick={() => setFilter('completed')}
           className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-            filter === 'checked-in'
+            filter === 'completed'
               ? 'bg-white text-[#064e3b] shadow-xs'
               : 'text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>Đã nhận sân</span>
-          <span className={`text-[9px] px-1.5 py-0.2 rounded-full ${filter === 'checked-in' ? 'bg-emerald-100 text-[#064e3b]' : 'bg-slate-200 text-slate-600'}`}>
-            {checkedInCount}
+          <span>Đã chơi</span>
+          <span className={`text-[9px] px-1.5 py-0.2 rounded-full ${filter === 'completed' ? 'bg-emerald-100 text-[#064e3b]' : 'bg-slate-200 text-slate-600'}`}>
+            {completedBookings.length}
           </span>
         </button>
       </div>
@@ -125,11 +121,10 @@ export const MobileBookingList: React.FC<MobileBookingListProps> = ({
           </div>
         ) : (
           filteredBookings.map((booking) => {
-            const isCheckedIn = booking.status === 'checked-in';
             return (
               <div
                 key={booking.id}
-                className="p-3.5 rounded-2xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col gap-2.5"
+                className="p-3.5 rounded-2xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all shadow-2xs flex flex-col gap-2.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3 min-w-0">
@@ -154,32 +149,22 @@ export const MobileBookingList: React.FC<MobileBookingListProps> = ({
                     <span className="text-xs font-black text-[#064e3b]">
                       {formatVND(booking.amount)}
                     </span>
-                    <span className="block text-[9px] text-slate-400 font-bold uppercase">
+                    <span className="block text-[9px] text-emerald-600 font-black uppercase">
                       Đã thanh toán
                     </span>
                   </div>
                 </div>
 
-                {/* Bottom Action / Status row */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
-                    <span>Mã đơn: <strong className="text-slate-600 font-mono">{booking.id}</strong></span>
+                {/* Bottom Status Info Row */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <div className="flex items-center gap-1 text-slate-400 font-medium">
+                    <span>Mã đơn: <strong className="text-slate-700 font-mono font-bold">{booking.id}</strong></span>
                   </div>
 
-                  {isCheckedIn ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200/60">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Đã Check-in
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onCheckinDirect(booking.id)}
-                      className="touch-target min-h-[34px] px-3.5 py-1.5 bg-[#064e3b] active:bg-emerald-950 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1"
-                    >
-                      <span>Nhận sân (Check-in)</span>
-                    </button>
-                  )}
+                  <span className="inline-flex items-center gap-1 font-bold text-[#064e3b] bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200/60">
+                    <ShieldCheck className="w-3 h-3 text-brand-emerald" />
+                    <span>Lịch hợp lệ</span>
+                  </span>
                 </div>
               </div>
             );

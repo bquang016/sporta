@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { useDashboard } from '../hooks/useDashboard';
 import { MobileDashboardHeader } from '../components/mobile/MobileDashboardHeader';
-import { MobileQuickActions } from '../components/mobile/MobileQuickActions';
 import { MobileRevenueChart } from '../components/mobile/MobileRevenueChart';
 import { MobilePitchMonitor } from '../components/mobile/MobilePitchMonitor';
 import { MobileBookingList } from '../components/mobile/MobileBookingList';
@@ -35,21 +34,9 @@ export const MobileDashboardPage = () => {
     setPendingStatusToApply,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
-    isScanModalOpen,
-    setIsScanModalOpen,
-    isScanning,
-    scanStatus,
-    scannedResult,
-    ticketCode,
-    setTicketCode,
-    scanMessage,
     activities,
     handleInitiateStatusChange,
     handleConfirmStatusChange,
-    handleCheckinDirect,
-    handleStartQRScan,
-    handleQuickCheckin,
-    handleSimulateDesktopQR
   } = useDashboard({ isMobile: true });
 
   return (
@@ -67,21 +54,6 @@ export const MobileDashboardPage = () => {
 
       {/* 2. MAIN MOBILE WORKSPACE */}
       <main className="px-4 -mt-2 space-y-4 relative z-20">
-        {/* Quick check-in & QR Action Hub */}
-        <MobileQuickActions
-          isScanning={isScanning}
-          isScanModalOpen={isScanModalOpen}
-          setIsScanModalOpen={setIsScanModalOpen}
-          scanStatus={scanStatus}
-          scannedResult={scannedResult}
-          onStartQRScan={handleStartQRScan}
-          ticketCode={ticketCode}
-          setTicketCode={setTicketCode}
-          scanMessage={scanMessage}
-          onQuickCheckin={handleQuickCheckin}
-          onSimulateDesktopQR={handleSimulateDesktopQR}
-        />
-
         {/* AI Dynamic Pricing Insight Widget */}
         <div
           onClick={() => navigate('/pricing')}
@@ -134,11 +106,10 @@ export const MobileDashboardPage = () => {
           onInitiateStatusChange={handleInitiateStatusChange}
         />
 
-        {/* Recent Bookings List & Check-in Actions */}
+        {/* Recent Bookings List */}
         <MobileBookingList
           currentBookings={currentBookings}
           listComplexes={listComplexes}
-          onCheckinDirect={handleCheckinDirect}
         />
 
         {/* Timeline Activity Log */}
@@ -168,4 +139,3 @@ export const MobileDashboardPage = () => {
 };
 
 export default MobileDashboardPage;
-
