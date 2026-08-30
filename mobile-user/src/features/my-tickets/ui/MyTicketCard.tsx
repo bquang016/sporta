@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { UserTicket } from '../../../entities/ticket/model/ticket.types';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
@@ -15,32 +15,72 @@ export function MyTicketCard({ ticket, onPress }: MyTicketCardProps) {
   const isRefunded = ticket.status === 'REFUNDED';
 
   const getStatusLabel = () => {
-    if (isUnused) return 'Chưa sử dụng';
-    if (isUsed) return 'Đã check-in';
+    if (isUnused) return 'Khả dụng';
+    if (isUsed) return 'Đã Check-in';
     if (isRefunded) return 'Đã hoàn trả';
     return ticket.status;
+  };
+
+  const getSportIcon = (): keyof typeof MaterialIcons.glyphMap => {
+    const text = `${ticket.venueName || ''} ${ticket.courtName || ''}`.toLowerCase();
+    if (
+      text.includes('bóng đá') ||
+      text.includes('football') ||
+      text.includes('soccer') ||
+      text.includes('futsal') ||
+      text.includes('sân 7') ||
+      text.includes('sân 5') ||
+      text.includes('sân 11')
+    ) {
+      return 'sports-soccer';
+    }
+    if (text.includes('cầu lông') || text.includes('badminton')) {
+      return 'sports-tennis';
+    }
+    if (text.includes('tennis') || text.includes('quần vợt')) {
+      return 'sports-tennis';
+    }
+    if (text.includes('bóng rổ') || text.includes('basketball')) {
+      return 'sports-basketball';
+    }
+    if (text.includes('bóng chuyền') || text.includes('volleyball')) {
+      return 'sports-volleyball';
+    }
+    if (text.includes('pickleball')) {
+      return 'sports-tennis';
+    }
+    return 'sports-soccer';
   };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     try {
       const [y, m, d] = dateStr.split('-');
-      return `${d}/${m}/${y}`;
+      const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+      const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      const dayName = days[dateObj.getDay()];
+      return `${dayName}, ${d}/${m}/${y}`;
     } catch {
       return dateStr;
     }
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
-      <View style={styles.headerRow}>
-        <View style={styles.venueContainer}>
+    <TouchableOpacity style={styles.cardContainer} onPress={onPress} activeOpacity={0.88}>
+      {/* ── CARD TOP: VENUE & STATUS ── */}
+      <View style={styles.cardHeader}>
+        <View style={styles.venueBlock}>
           <View style={styles.iconCircle}>
-            <Ionicons name="ticket" size={16} color={COLORS.primary} />
+            <MaterialIcons name={getSportIcon()} size={18} color="#064E3B" />
           </View>
-          <Text style={styles.venueName} numberOfLines={1}>
-            {ticket.venueName}
-          </Text>
+          <View style={styles.venueNameCol}>
+            <Text style={styles.venueName} numberOfLines={1}>
+              {ticket.venueName}
+            </Text>
+            <Text style={styles.courtName} numberOfLines={1}>
+              Sân: {ticket.courtName} {ticket.quantity && ticket.quantity > 1 ? `• ${ticket.quantity} vé` : ''}
+            </Text>
+          </View>
         </View>
 
         <View
@@ -51,6 +91,12 @@ export function MyTicketCard({ ticket, onPress }: MyTicketCardProps) {
             isRefunded && styles.statusBadgeRefunded,
           ]}
         >
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: isUnused ? '#10B981' : isUsed ? '#94A3B8' : '#EF4444' },
+            ]}
+          />
           <Text
             style={[
               styles.statusBadgeText,
@@ -64,29 +110,43 @@ export function MyTicketCard({ ticket, onPress }: MyTicketCardProps) {
         </View>
       </View>
 
-      <View style={styles.divider} />
+      {/* ── PERFORATED TICKET NOTCHES ── */}
+      <View style={styles.perforatedRow}>
+        <View style={[styles.cutoutCircle, styles.cutoutLeft]} />
+        <View style={styles.dashedDivider} />
+        <View style={[styles.cutoutCircle, styles.cutoutRight]} />
+      </View>
 
-      <View style={styles.infoRow}>
-        <View style={styles.infoCol}>
-          <View style={styles.courtRow}>
-            <Text style={styles.courtName}>Sân: {ticket.courtName}</Text>
-            {ticket.quantity && ticket.quantity > 1 ? (
-              <View style={styles.quantityBadge}>
-                <Text style={styles.quantityBadgeText}>{ticket.quantity} vé (slot)</Text>
-              </View>
-            ) : null}
-          </View>
-          <View style={styles.timeRow}>
-            <Ionicons name="time-outline" size={14} color={COLORS.onSurfaceVariant} />
-            <Text style={styles.timeText}>
-              {ticket.startTime} - {ticket.endTime} • {formatDate(ticket.playDate)}
-            </Text>
-          </View>
+      {/* ── CARD MIDDLE: TIME & ADDRESS ── */}
+      <View style={styles.cardBody}>
+        {/* Match Time & Date */}
+        <View style={styles.infoRow}>
+          <MaterialIcons name="schedule" size={16} color="#D97706" />
+          <Text style={styles.infoTimeText}>
+            {ticket.startTime} - {ticket.endTime} • <Text style={styles.infoDateSpan}>{formatDate(ticket.playDate)}</Text>
+          </Text>
         </View>
 
-        <TouchableOpacity style={styles.qrBtn} onPress={onPress} activeOpacity={0.8}>
-          <Ionicons name="qr-code-outline" size={16} color={COLORS.onSecondary} />
-          <Text style={styles.qrBtnText}>Mã QR</Text>
+        {/* Address */}
+        <View style={styles.infoRow}>
+          <MaterialIcons name="location-on" size={16} color="#64748B" />
+          <Text style={styles.infoAddressText} numberOfLines={1}>
+            {ticket.venueAddress || ticket.venueName}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── CARD FOOTER: SHORTCODE & QR BUTTON ── */}
+      <View style={styles.cardFooter}>
+        <View style={styles.shortCodePill}>
+          <Text style={styles.shortCodeLabel}>Mã vé:</Text>
+          <Text style={styles.shortCodeText}>#{ticket.shortCode}</Text>
+        </View>
+
+        <TouchableOpacity style={styles.qrActionBtn} onPress={onPress} activeOpacity={0.82}>
+          <MaterialIcons name="qr-code" size={16} color="#FFFFFF" />
+          <Text style={styles.qrActionBtnText}>Mã QR Nhận Sân</Text>
+          <MaterialIcons name="chevron-right" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -94,136 +154,200 @@ export function MyTicketCard({ ticket, onPress }: MyTicketCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    marginVertical: SPACING.xs,
+  cardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    borderColor: '#E2E8F0',
+    shadowColor: '#002B1F',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
-    gap: 8,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  headerRow: {
+
+  /* ── Header ── */
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: SPACING.xs,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
-  venueContainer: {
+  venueBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
+    paddingRight: 8,
   },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.primaryOpacity08,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ECFDF5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  venueName: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.onSurface,
-    fontWeight: '800',
-    fontSize: 15,
+  venueNameCol: {
     flex: 1,
+    gap: 1,
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
-    borderRadius: BORDER_RADIUS.full,
+  venueName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.2,
   },
-  statusBadgeUnused: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-  },
-  statusBadgeUsed: {
-    backgroundColor: COLORS.surfaceContainerHigh,
-  },
-  statusBadgeRefunded: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-  },
-  statusBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-  },
-  statusBadgeTextUnused: {
+  courtName: {
+    fontSize: 12,
+    fontWeight: '600',
     color: '#059669',
   },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+  },
+  statusBadgeUnused: {
+    backgroundColor: '#ECFDF5',
+  },
+  statusBadgeUsed: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusBadgeRefunded: {
+    backgroundColor: '#FEF2F2',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  statusBadgeTextUnused: {
+    color: '#064E3B',
+  },
   statusBadgeTextUsed: {
-    color: COLORS.outline,
+    color: '#64748B',
   },
   statusBadgeTextRefunded: {
-    color: COLORS.error,
+    color: '#DC2626',
   },
-  divider: {
+
+  /* ── Perforated Notches ── */
+  perforatedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 14,
+    position: 'relative',
+  },
+  cutoutCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  cutoutLeft: {
+    left: -8,
+  },
+  cutoutRight: {
+    right: -8,
+  },
+  dashedDivider: {
+    flex: 1,
+    marginHorizontal: 14,
     height: 1,
-    backgroundColor: COLORS.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+
+  /* ── Body ── */
+  cardBody: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 12,
+    gap: 6,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
-  infoCol: {
-    gap: 4,
+  infoTimeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  infoDateSpan: {
+    color: '#059669',
+    fontWeight: '700',
+  },
+  infoAddressText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
     flex: 1,
   },
-  courtRow: {
+
+  /* ── Footer ── */
+  cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  courtName: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  quantityBadge: {
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  quantityBadgeText: {
-    fontSize: 10.5,
-    color: COLORS.primary,
-    fontWeight: '800',
-  },
-  timeRow: {
+  shortCodePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  timeText: {
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '600',
+  shortCodeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
   },
-  qrBtn: {
+  shortCodeText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#064E3B',
+  },
+  qrActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: COLORS.secondary, // Dynamic Athletic Yellow
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: BORDER_RADIUS.md,
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: '#064E3B',
+    paddingHorizontal: 13,
+    paddingVertical: 7.5,
+    borderRadius: 12,
   },
-  qrBtnText: {
-    color: COLORS.onSecondary,
-    fontWeight: '900',
+  qrActionBtnText: {
     fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
+
+export default MyTicketCard;

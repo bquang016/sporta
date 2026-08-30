@@ -34,7 +34,7 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
 }) => {
   const { showToast } = useToast();
   const activeCourts = courts.filter(c => c.status === 'ACTIVE');
-  
+
   const [courtId, setCourtId] = useState('');
   const [playDate, setPlayDate] = useState(() => {
     const today = new Date();
@@ -45,7 +45,7 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
   const [pricePerTicket, setPricePerTicket] = useState(50000);
   const [maxSlots, setMaxSlots] = useState(10);
   const [sportLevel, setSportLevel] = useState<SportLevel>('ALL');
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
