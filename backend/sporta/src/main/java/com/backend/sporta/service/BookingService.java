@@ -84,7 +84,8 @@ public class BookingService {
             throw new CustomException("Danh sách khung giờ không được để trống", 400);
         }
 
-        // Lấy venue từ court đầu tiên (giả định tất cả slot trong 1 booking thuộc cùng 1 venue)
+        // Lấy venue từ court đầu tiên (giả định tất cả slot trong 1 booking thuộc cùng
+        // 1 venue)
         UUID firstCourtId = request.getSlots().get(0).getCourtId();
         Court firstCourt = courtRepository.findById(firstCourtId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy sân", 404));
@@ -98,7 +99,8 @@ public class BookingService {
                 .venue(venue)
                 .bookingCode(generateBookingCode())
                 .paymentMethod(request.getPaymentMethod())
-                .status("payos".equals(request.getPaymentMethod()) ? BookingStatus.PENDING : (request.getStatus() != null ? request.getStatus() : BookingStatus.CONFIRMED))
+                .status("payos".equals(request.getPaymentMethod()) ? BookingStatus.PENDING
+                        : (request.getStatus() != null ? request.getStatus() : BookingStatus.CONFIRMED))
                 .isManual(request.getIsManual() != null ? request.getIsManual() : false)
                 .customerName(request.getCustomerName())
                 .customerPhone(request.getCustomerPhone())
@@ -127,7 +129,8 @@ public class BookingService {
                         409);
             }
 
-            // Tính giá thực tế (ưu tiên rule theo ca giờ hoặc theo thứ, fallback về court.price)
+            // Tính giá thực tế (ưu tiên rule theo ca giờ hoặc theo thứ, fallback về
+            // court.price)
             double actualPrice = resolveSlotPrice(court, slot.getBookingDate(), slot.getStartTime(), slot.getEndTime());
             totalPrice += actualPrice;
 
@@ -149,15 +152,15 @@ public class BookingService {
         double discount = 0.0;
         String ownerVoucher = request.getOwnerVoucherCode();
         String sysVoucher = request.getSystemVoucherCode();
-        if ((ownerVoucher == null || ownerVoucher.isBlank()) && (sysVoucher == null || sysVoucher.isBlank()) && request.getVoucherCode() != null && !request.getVoucherCode().isBlank()) {
+        if ((ownerVoucher == null || ownerVoucher.isBlank()) && (sysVoucher == null || sysVoucher.isBlank())
+                && request.getVoucherCode() != null && !request.getVoucherCode().isBlank()) {
             sysVoucher = request.getVoucherCode();
         }
 
         if ((ownerVoucher != null && !ownerVoucher.isBlank()) || (sysVoucher != null && !sysVoucher.isBlank())) {
             var voucherResp = voucherService.previewApplyVouchers(
                     new ApplyVoucherRequest(ownerVoucher, sysVoucher, venue.getId(), totalPrice),
-                    user.getId()
-            );
+                    user.getId());
             discount = voucherResp.getTotalDiscount() != null ? voucherResp.getTotalDiscount() : 0.0;
         }
         booking.setDiscountAmount(discount);
@@ -166,8 +169,10 @@ public class BookingService {
         booking = bookingRepository.save(booking);
 
         // Ghi nhận sử dụng voucher sau khi lưu booking
-        if (discount > 0 && ((ownerVoucher != null && !ownerVoucher.isBlank()) || (sysVoucher != null && !sysVoucher.isBlank()))) {
-            voucherService.commitApplyVouchers(ownerVoucher, sysVoucher, venue.getId(), totalPrice, booking, user.getId());
+        if (discount > 0 && ((ownerVoucher != null && !ownerVoucher.isBlank())
+                || (sysVoucher != null && !sysVoucher.isBlank()))) {
+            voucherService.commitApplyVouchers(ownerVoucher, sysVoucher, venue.getId(), totalPrice, booking,
+                    user.getId());
         }
 
         // Nếu thanh toán bằng PayOS, tạo link thanh toán qua PaymentService (Module 1)
@@ -178,8 +183,7 @@ public class BookingService {
                     com.backend.sporta.enums.PaymentTransactionType.BOOKING_PAYMENT,
                     "Đặt sân " + booking.getBookingCode(),
                     "BOOKING",
-                    booking.getId()
-            );
+                    booking.getId());
 
             BookingResponse response = mapToBookingResponse(booking);
             response.setCheckoutUrl(paymentResponse.getCheckoutUrl());
@@ -194,31 +198,33 @@ public class BookingService {
                     ownerWalletService.creditEarning(
                             booking.getVenue().getOwner().getId(),
                             booking.getId(),
-                            Math.round(booking.getFinalPrice())
-                    );
+                            Math.round(booking.getFinalPrice()));
                 } catch (Exception e) {
                     log.error("Lỗi cộng doanh thu ví chủ sân cho booking {}: {}", booking.getId(), e.getMessage());
                 }
             }
 
             try {
+                String courtSummary = getCourtSummary(booking);
                 eventPublisher.publishEvent(new NotificationEvent(
                         this,
                         booking.getUser().getId(),
                         Role.PLAYER,
-                        "Đặt sân thành công 🎉",
-                        String.format("Đơn đặt sân %s tại %s đã được xác nhận thành công!",
-                                booking.getBookingCode(), booking.getVenue().getName()),
+                        "Đặt sân thành công",
+                        String.format("Lịch đặt %s tại %s đã được xác nhận thành công!",
+                                courtSummary, booking.getVenue().getName()),
                         NotificationType.BOOKING_SUCCESS,
-                        booking.getId().toString()
-                ));
-            } catch (Exception ignored) {}
+                        booking.getId().toString()));
+            } catch (Exception ignored) {
+            }
 
             try {
-                if (booking.getUser() != null && booking.getUser().getEmail() != null && !booking.getUser().getEmail().isEmpty()) {
+                if (booking.getUser() != null && booking.getUser().getEmail() != null
+                        && !booking.getUser().getEmail().isEmpty()) {
                     emailService.sendBookingSuccessEmail(booking.getUser().getEmail(), booking);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         return mapToBookingResponse(booking);
@@ -246,8 +252,7 @@ public class BookingService {
                     ownerWalletService.creditEarning(
                             booking.getVenue().getOwner().getId(),
                             booking.getId(),
-                            Math.round(booking.getFinalPrice())
-                    );
+                            Math.round(booking.getFinalPrice()));
                 } catch (Exception e) {
                     log.error("Lỗi cộng doanh thu ví chủ sân cho booking {}: {}", booking.getId(), e.getMessage());
                 }
@@ -255,18 +260,42 @@ public class BookingService {
 
             // Gửi thông báo Push Notification
             try {
+                String courtSummary = getCourtSummary(booking);
                 eventPublisher.publishEvent(new NotificationEvent(
                         this,
                         booking.getUser().getId(),
                         Role.PLAYER,
-                        "Đặt sân thành công 🎉",
-                        String.format("Đơn đặt sân %s tại %s đã được thanh toán thành công!",
-                                booking.getBookingCode(), booking.getVenue().getName()),
+                        "Đặt sân thành công",
+                        String.format("Lịch đặt %s tại %s đã được thanh toán thành công!",
+                                courtSummary, booking.getVenue().getName()),
                         NotificationType.BOOKING_SUCCESS,
-                        booking.getId().toString()
-                ));
-            } catch (Exception ignored) {}
+                        booking.getId().toString()));
+            } catch (Exception ignored) {
+            }
         }
+    }
+
+    private String getCourtSummary(Booking booking) {
+        if (booking == null || booking.getDetails() == null || booking.getDetails().isEmpty()) {
+            return "sân";
+        }
+        Set<String> courtNames = booking.getDetails().stream()
+                .map(d -> d.getCourt() != null ? d.getCourt().getName() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        String names = courtNames.isEmpty() ? "sân" : String.join(", ", courtNames);
+
+        BookingDetail first = booking.getDetails().get(0);
+        if (first.getBookingDate() != null && first.getStartTime() != null && first.getEndTime() != null) {
+            String timeStr = String.format(" (%s - %s, %02d/%02d)",
+                    first.getStartTime().toString(),
+                    first.getEndTime().toString(),
+                    first.getBookingDate().getDayOfMonth(),
+                    first.getBookingDate().getMonthValue());
+            return names + timeStr;
+        }
+        return names;
     }
 
     // ─── Resolve Slot Price with Custom Rules ───────────────────────────────────
@@ -278,8 +307,7 @@ public class BookingService {
 
         var rules = courtPriceRuleRepository.findByCourtId(court.getId());
         return com.backend.sporta.util.CourtPricingCalculationHelper.calculateSlotPrice(
-                court.getPrice(), rules, date, startTime
-        );
+                court.getPrice(), rules, date, startTime);
     }
 
     // ─── Generate Booking Code ──────────────────────────────────────────────────
@@ -288,9 +316,11 @@ public class BookingService {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         Random rnd = new Random();
         StringBuilder sb = new StringBuilder("SP-");
-        for (int i = 0; i < 4; i++) sb.append(chars.charAt(rnd.nextInt(chars.length())));
+        for (int i = 0; i < 4; i++)
+            sb.append(chars.charAt(rnd.nextInt(chars.length())));
         sb.append("-");
-        for (int i = 0; i < 2; i++) sb.append(chars.charAt(rnd.nextInt(chars.length())));
+        for (int i = 0; i < 2; i++)
+            sb.append(chars.charAt(rnd.nextInt(chars.length())));
 
         String code = sb.toString();
         if (bookingRepository.findByBookingCode(code).isPresent()) {
@@ -337,7 +367,8 @@ public class BookingService {
 
     private LocalDateTime getEarliestBookingStartTime(Booking booking) {
         if (booking.getDetails() == null || booking.getDetails().isEmpty()) {
-            return (booking.getCreatedAt() != null) ? booking.getCreatedAt().plusDays(1) : LocalDateTime.now().plusDays(1);
+            return (booking.getCreatedAt() != null) ? booking.getCreatedAt().plusDays(1)
+                    : LocalDateTime.now().plusDays(1);
         }
 
         BookingDetail earliest = booking.getDetails().stream()
@@ -420,7 +451,8 @@ public class BookingService {
             policyDesc = "Hủy trước " + freeHours + " giờ thi đấu: Miễn phí hủy, hoàn 100% vào Ví Sporta.";
         } else if (hoursRemaining >= 2.0) {
             refundRate = lateRate;
-            policyDesc = "Hủy muộn (còn " + String.format("%.1f", hoursRemaining) + "h): Hoàn " + lateRate + "% vào Ví Sporta, phí giữ lại " + (100 - lateRate) + "%.";
+            policyDesc = "Hủy muộn (còn " + String.format("%.1f", hoursRemaining) + "h): Hoàn " + lateRate
+                    + "% vào Ví Sporta, phí giữ lại " + (100 - lateRate) + "%.";
         } else {
             refundRate = 0;
             eligible = false;
@@ -431,9 +463,10 @@ public class BookingService {
         long refundAmount = Math.round(paid * (refundRate / 100.0));
         long cancellationFee = Math.round(paid) - refundAmount;
 
-        String courtName = (booking.getDetails() != null && !booking.getDetails().isEmpty() && booking.getDetails().get(0).getCourt() != null)
-                ? booking.getDetails().get(0).getCourt().getName()
-                : "Sân";
+        String courtName = (booking.getDetails() != null && !booking.getDetails().isEmpty()
+                && booking.getDetails().get(0).getCourt() != null)
+                        ? booking.getDetails().get(0).getCourt().getName()
+                        : "Sân";
 
         return CancellationPreviewResponse.builder()
                 .bookingId(booking.getId())
@@ -472,7 +505,8 @@ public class BookingService {
         // Kiểm tra xem đã qua giờ kết thúc thi đấu chưa
         if (booking.getDetails() != null && !booking.getDetails().isEmpty()) {
             boolean isFinished = booking.getDetails().stream().anyMatch(d -> {
-                if (d.getBookingDate() == null || d.getEndTime() == null) return false;
+                if (d.getBookingDate() == null || d.getEndTime() == null)
+                    return false;
                 LocalDateTime endDateTime = LocalDateTime.of(d.getBookingDate(), d.getEndTime());
                 return !endDateTime.isAfter(LocalDateTime.now());
             });
@@ -542,8 +576,7 @@ public class BookingService {
                     booking.getId(),
                     refundAmount,
                     booking.getBookingCode(),
-                    refundRate
-            );
+                    refundRate);
         } else {
             var balanceResp = userWalletService.getBalance(booking.getUser().getEmail());
             userNewBalance = balanceResp.getBalance();
@@ -557,8 +590,7 @@ public class BookingService {
                         booking.getId(),
                         refundAmount,
                         booking.getBookingCode(),
-                        refundRate
-                );
+                        refundRate);
             } catch (Exception e) {
                 log.warn("Lỗi khấu trừ ví chủ sân khi hủy booking: {}", e.getMessage());
             }
@@ -566,7 +598,9 @@ public class BookingService {
 
         // 3. Cập nhật Booking
         String reason = (request != null && request.getReason() != null && !request.getReason().isBlank())
-                ? request.getReason().trim() + (request.getNote() != null && !request.getNote().isBlank() ? " (" + request.getNote().trim() + ")" : "")
+                ? request.getReason().trim() + (request.getNote() != null && !request.getNote().isBlank()
+                        ? " (" + request.getNote().trim() + ")"
+                        : "")
                 : "Người dùng hủy đặt sân";
 
         booking.setStatus(BookingStatus.CANCELLED);
@@ -587,16 +621,17 @@ public class BookingService {
                     matchRoomRepository.save(room);
                 }
             });
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         // 6. Gửi thông báo Push Notification
         try {
             // Cho User
             String userMsg = refundAmount > 0
                     ? String.format("Đã hủy đơn %s và hoàn %s VNĐ vào Ví Sporta của bạn (Tỷ lệ hoàn %d%%).",
-                        booking.getBookingCode(), VND_FORMAT.format(refundAmount), refundRate)
+                            booking.getBookingCode(), VND_FORMAT.format(refundAmount), refundRate)
                     : String.format("Đã hủy đơn %s. Đơn hủy sát giờ không đủ điều kiện hoàn tiền theo chính sách sân.",
-                        booking.getBookingCode());
+                            booking.getBookingCode());
 
             eventPublisher.publishEvent(new NotificationEvent(
                     this,
@@ -605,8 +640,7 @@ public class BookingService {
                     "Hủy đặt sân thành công 🎟️",
                     userMsg,
                     NotificationType.BOOKING_CANCELLED,
-                    booking.getId().toString()
-            ));
+                    booking.getId().toString()));
 
             // Cho Chủ sân
             if (venue != null && venue.getOwner() != null && venue.getOwner().getUser() != null) {
@@ -615,18 +649,19 @@ public class BookingService {
                         venue.getOwner().getUser().getId(),
                         Role.OWNER,
                         "Khách hàng đã hủy lịch đặt sân ⚠️",
-                        String.format("Khách hàng %s đã hủy đơn %s tại %s. Khung giờ thi đấu đã được tự động mở lại trên lịch.",
+                        String.format(
+                                "Khách hàng %s đã hủy đơn %s tại %s. Khung giờ thi đấu đã được tự động mở lại trên lịch.",
                                 booking.getUser().getFullName(), booking.getBookingCode(), venue.getName()),
                         NotificationType.OWNER_BOOKING_CANCELLED,
-                        booking.getId().toString()
-                ));
+                        booking.getId().toString()));
             }
         } catch (Exception e) {
             log.warn("Lỗi gửi thông báo khi hủy booking: {}", e.getMessage());
         }
 
         String successMsg = refundAmount > 0
-                ? String.format("Hủy đơn thành công. Đã hoàn %s VNĐ vào ví Sporta của bạn.", VND_FORMAT.format(refundAmount))
+                ? String.format("Hủy đơn thành công. Đã hoàn %s VNĐ vào ví Sporta của bạn.",
+                        VND_FORMAT.format(refundAmount))
                 : "Hủy đơn thành công.";
 
         return CancelBookingResponse.builder()
@@ -657,7 +692,8 @@ public class BookingService {
         if (booking.getStatus() == BookingStatus.CONFIRMED || booking.getStatus() == BookingStatus.PENDING) {
             if (booking.getDetails() != null && !booking.getDetails().isEmpty()) {
                 boolean allFinished = booking.getDetails().stream().allMatch(d -> {
-                    if (d.getBookingDate() == null || d.getEndTime() == null) return false;
+                    if (d.getBookingDate() == null || d.getEndTime() == null)
+                        return false;
                     LocalDateTime endDateTime = LocalDateTime.of(d.getBookingDate(), d.getEndTime());
                     return !endDateTime.isAfter(LocalDateTime.now());
                 });
@@ -671,18 +707,18 @@ public class BookingService {
         Venue venue = booking.getVenue();
         Long sportId = (venue != null && venue.getSport() != null) ? venue.getSport().getId() : null;
         String sportName = (venue != null && venue.getSport() != null) ? venue.getSport().getName() : null;
-        
-        List<BookingDetailResponse> detailResponses = booking.getDetails().stream().map(d -> 
-            BookingDetailResponse.builder()
-                .id(d.getId())
-                .courtId(d.getCourt().getId())
-                .courtName(d.getCourt().getName())
-                .bookingDate(d.getBookingDate())
-                .startTime(d.getStartTime())
-                .endTime(d.getEndTime())
-                .price(d.getPrice())
-                .build()
-        ).collect(Collectors.toList());
+
+        List<BookingDetailResponse> detailResponses = booking.getDetails().stream()
+                .map(d -> BookingDetailResponse.builder()
+                        .id(d.getId())
+                        .courtId(d.getCourt().getId())
+                        .courtName(d.getCourt().getName())
+                        .bookingDate(d.getBookingDate())
+                        .startTime(d.getStartTime())
+                        .endTime(d.getEndTime())
+                        .price(d.getPrice())
+                        .build())
+                .collect(Collectors.toList());
 
         return BookingResponse.builder()
                 .id(booking.getId())
@@ -699,9 +735,11 @@ public class BookingService {
                 .details(detailResponses)
                 .paymentMethod(booking.getPaymentMethod())
                 .status(booking.getStatus())
-                .playerName(booking.getIsManual() != null && booking.getIsManual() ? booking.getCustomerName() : (booking.getUser() != null ? booking.getUser().getFullName() : null))
+                .playerName(booking.getIsManual() != null && booking.getIsManual() ? booking.getCustomerName()
+                        : (booking.getUser() != null ? booking.getUser().getFullName() : null))
                 .playerEmail(booking.getUser() != null ? booking.getUser().getEmail() : null)
-                .playerPhone(booking.getIsManual() != null && booking.getIsManual() ? booking.getCustomerPhone() : (booking.getUser() != null ? booking.getUser().getPhoneNumber() : null))
+                .playerPhone(booking.getIsManual() != null && booking.getIsManual() ? booking.getCustomerPhone()
+                        : (booking.getUser() != null ? booking.getUser().getPhoneNumber() : null))
                 .refundAmount(booking.getRefundAmount())
                 .refundRate(booking.getRefundRate())
                 .cancellationReason(booking.getCancellationReason())

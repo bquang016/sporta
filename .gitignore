@@ -35,3 +35,8 @@ build/
 .turbo/
 # Playwright
 /playwright/.auth/
+
+# Firebase Credentials & Keys
+**/firebase-service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist
