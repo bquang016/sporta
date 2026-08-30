@@ -1,6 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Linking,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { fetchSessionDetail } from '../../../entities/ticket/api/ticketApi';
 import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
@@ -8,6 +20,7 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 
 export function TicketDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams();
   const sessionId = Array.isArray(id) ? id[0] : id;
 
@@ -44,14 +57,20 @@ export function TicketDetailScreen() {
     }, [loadSession])
   );
 
-  const getSportLevelLabel = (level?: SportLevel) => {
+  const getSportLevelMeta = (level?: SportLevel) => {
     switch (level) {
-      case 'WEAK': return 'Mới chơi';
-      case 'WEAK_AVERAGE': return 'Yếu - Trung bình';
-      case 'AVERAGE': return 'Trung bình';
-      case 'AVERAGE_GOOD': return 'Bán chuyên';
-      case 'GOOD': return 'Chuyên nghiệp';
-      default: return 'Tất cả trình độ';
+      case 'WEAK':
+        return { label: 'Mới chơi', desc: 'Dành cho người mới tập làm quen', color: '#10B981' };
+      case 'WEAK_AVERAGE':
+        return { label: 'Yếu - Trung bình', desc: 'Đã nắm luật cơ bản (2.0 - 2.5)', color: '#3B82F6' };
+      case 'AVERAGE':
+        return { label: 'Trung bình', desc: 'Đánh bền, kiểm soát bóng tốt (3.0 - 3.5)', color: '#F59E0B' };
+      case 'AVERAGE_GOOD':
+        return { label: 'Bán chuyên', desc: 'Kỹ chiến thuật nâng cao (3.5 - 4.0+)', color: '#8B5CF6' };
+      case 'GOOD':
+        return { label: 'Chuyên nghiệp', desc: 'Vận động viên thi đấu (4.5+)', color: '#EF4444' };
+      default:
+        return { label: 'Tất cả trình độ', desc: 'Giao lưu mọi cấp độ', color: COLORS.primary };
     }
   };
 
@@ -63,18 +82,47 @@ export function TicketDetailScreen() {
     }
   };
 
-  const formatDate = (dateStr?: string) => {
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  };
+
+  const formatDateString = (dateStr?: string) => {
     if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
+    try {
+      const [y, m, d] = dateStr.split('-');
+      const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+      const days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+      const dayName = days[dateObj.getDay()];
+      return `${dayName}, ${d}/${m}/${y}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const calculateDuration = (startTime?: string, endTime?: string) => {
+    if (!startTime || !endTime) return '120 phút';
+    try {
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      const diffMins = (eh * 60 + em) - (sh * 60 + sm);
+      return diffMins > 0 ? `${diffMins} phút` : '120 phút';
+    } catch {
+      return '120 phút';
+    }
+  };
+
+  const openGoogleMaps = () => {
+    if (!session) return;
+    const query = encodeURIComponent(session.venueAddress || session.venueLocation || session.venueName);
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Đang tải thông tin ca xé vé...</Text>
+          <Text style={styles.loadingText}>Đang tải chi tiết ca xé vé...</Text>
         </View>
       </SafeAreaView>
     );
@@ -82,16 +130,16 @@ export function TicketDetailScreen() {
 
   if (error || !session) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
+            <Ionicons name="arrow-back" size={22} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Ca Xé Vé</Text>
-          <View style={{ width: 32 }} />
+          <View style={{ width: 38 }} />
         </View>
         <View style={styles.centerContainer}>
-          <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.error} />
           <Text style={styles.errorText}>{error || 'Không tìm thấy thông tin ca xé vé'}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={loadSession}>
             <Text style={styles.retryBtnText}>Thử lại</Text>
@@ -101,149 +149,275 @@ export function TicketDetailScreen() {
     );
   }
 
-  const remainingSlots = session ? session.maxSlots - session.bookedSlots : 0;
-  const isFull = remainingSlots <= 0 || session?.status === 'FULL';
-  const totalPrice = session ? session.pricePerTicket * quantity : 0;
+  const remainingSlots = Math.max(0, session.maxSlots - session.bookedSlots);
+  const isFull = remainingSlots <= 0 || session.status === 'FULL';
+  const isAlmostFull = remainingSlots > 0 && remainingSlots <= 2;
+  const totalPrice = session.pricePerTicket * quantity;
+  const levelMeta = getSportLevelMeta(session.sportLevel);
+  const progressPercent = Math.min(100, Math.round((session.bookedSlots / session.maxSlots) * 100));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Cover Hero Banner */}
+      {/* Top Floating App Bar */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.8}>
+          <Ionicons name="arrow-back" size={22} color={COLORS.onSurface} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Chi Tiết Ca Xé Vé</Text>
+        <TouchableOpacity onPress={loadSession} style={styles.reloadBtn} activeOpacity={0.8}>
+          <Ionicons name="refresh" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── 1. Hero Cover Banner ── */}
         <View style={styles.heroWrapper}>
           {session.coverImage ? (
-            <Image source={{ uri: session.coverImage }} style={styles.heroImage} />
+            <Image source={{ uri: session.coverImage }} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={styles.heroFallback}>
-              <MaterialIcons name="sports-tennis" size={64} color={COLORS.primary} />
+              <Ionicons name="tennisball" size={56} color={COLORS.primary} />
             </View>
           )}
 
-          {/* Floating Back Button */}
-          <TouchableOpacity onPress={handleGoBack} style={styles.floatingBackBtn} activeOpacity={0.8}>
-            <MaterialIcons name="arrow-back" size={22} color={COLORS.onSurface} />
-          </TouchableOpacity>
+          {/* Gradient Overlay & Status Pill */}
+          <View style={styles.heroOverlay}>
+            <View style={styles.heroTopRow}>
+              <View style={styles.sportTypePill}>
+                <Ionicons name="trophy-outline" size={13} color="#FFFFFF" />
+                <Text style={styles.sportTypePillText}>
+                  {(session.sportName || 'PICKLEBALL').toUpperCase()}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.statusPill,
+                  isFull ? styles.statusPillFull : isAlmostFull ? styles.statusPillAmber : styles.statusPillOpen,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusPillDot,
+                    isFull ? { backgroundColor: '#EF4444' } : isAlmostFull ? { backgroundColor: '#F59E0B' } : { backgroundColor: '#10B981' },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    isFull ? { color: '#EF4444' } : isAlmostFull ? { color: '#D97706' } : { color: '#059669' },
+                  ]}
+                >
+                  {isFull ? 'HẾT VÉ' : isAlmostFull ? 'SẮP HẾT VÉ' : 'ĐANG MỞ ĐẶT VÉ'}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
 
-        {/* Content Details */}
-        <View style={styles.body}>
-          {/* Title & Badge */}
-          <View style={styles.titleRow}>
-            <View style={styles.titleCol}>
-              <Text style={styles.venueName}>{session.venueName}</Text>
-              <Text style={styles.courtName}>Sân: <Text style={styles.courtNameBold}>{session.courtName}</Text></Text>
-            </View>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelBadgeText}>{getSportLevelLabel(session.sportLevel)}</Text>
+        {/* ── 2. Venue Info & Court Details Card ── */}
+        <View style={styles.sectionCard}>
+          <View style={styles.venueTitleRow}>
+            <View style={styles.venueTitleCol}>
+              <View style={styles.verifiedRow}>
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="shield-checkmark" size={12} color="#059669" />
+                  <Text style={styles.verifiedBadgeText}>ĐÃ XÁC THỰC</Text>
+                </View>
+                <View style={styles.courtNameTag}>
+                  <Text style={styles.courtNameTagText}>{session.courtName}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.venueNameText}>{session.venueName}</Text>
             </View>
           </View>
 
-          {/* Address card */}
-          <View style={styles.infoCard}>
-            <MaterialIcons name="location-on" size={20} color={COLORS.primary} />
-            <Text style={styles.infoCardText}>
-              {session.venueAddress || session.venueLocation || 'Địa điểm cụm sân'}
+          {/* Address row with Maps button */}
+          <View style={styles.addressBox}>
+            <View style={styles.addressLeft}>
+              <Ionicons name="location-sharp" size={16} color={COLORS.primary} style={{ marginTop: 2 }} />
+              <Text style={styles.addressText}>
+                {session.venueAddress || session.venueLocation || 'Địa chỉ cụm sân thể thao Sporta'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.mapsBtn} onPress={openGoogleMaps} activeOpacity={0.8}>
+              <Ionicons name="navigate-outline" size={14} color={COLORS.primary} />
+              <Text style={styles.mapsBtnText}>Chỉ đường</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── 3. Schedule & Level Details Card ── */}
+        <View style={styles.sectionCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderIcon}>
+              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+            </View>
+            <Text style={styles.cardSectionTitle}>Thời gian & Trình độ thi đấu</Text>
+          </View>
+
+          <View style={styles.scheduleGrid}>
+            <View style={styles.scheduleCol}>
+              <Text style={styles.scheduleColLabel}>Ngày chơi</Text>
+              <Text style={styles.scheduleColValue}>{formatDateString(session.playDate)}</Text>
+            </View>
+
+            <View style={styles.scheduleColDivider} />
+
+            <View style={styles.scheduleCol}>
+              <Text style={styles.scheduleColLabel}>Khung giờ</Text>
+              <Text style={styles.scheduleColValue}>
+                {session.startTime} - {session.endTime}
+              </Text>
+              <Text style={styles.scheduleDuration}>
+                ({calculateDuration(session.startTime, session.endTime)})
+              </Text>
+            </View>
+          </View>
+
+          {/* Level Info Banner */}
+          <View style={[styles.levelBanner, { backgroundColor: `${levelMeta.color}12`, borderColor: `${levelMeta.color}30` }]}>
+            <View style={[styles.levelIconWrap, { backgroundColor: levelMeta.color }]}>
+              <Ionicons name="medal-outline" size={16} color="#FFFFFF" />
+            </View>
+            <View style={styles.levelTextCol}>
+              <View style={styles.levelNameRow}>
+                <Text style={styles.levelLabelPrefix}>Trình độ yêu cầu:</Text>
+                <Text style={[styles.levelNameText, { color: levelMeta.color }]}>{levelMeta.label}</Text>
+              </View>
+              <Text style={styles.levelDescText}>{levelMeta.desc}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── 4. Slot Availability & Progress Card ── */}
+        <View style={styles.sectionCard}>
+          <View style={styles.slotHeaderRow}>
+            <View style={styles.slotHeaderLeft}>
+              <Ionicons name="people-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.cardSectionTitle}>Tình trạng chỗ trống</Text>
+            </View>
+            <Text style={[styles.slotBadgeBold, isFull ? styles.textRed : isAlmostFull ? styles.textAmber : styles.textGreen]}>
+              {isFull ? 'HẾT SLOT' : `Còn ${remainingSlots} / ${session.maxSlots} vé`}
             </Text>
           </View>
 
-          {/* Time & Date Card */}
-          <View style={styles.infoCard}>
-            <MaterialIcons name="event" size={20} color={COLORS.primary} />
-            <View style={styles.infoCardTextCol}>
-              <Text style={styles.infoCardTitle}>Giờ & Ngày chơi</Text>
-              <Text style={styles.infoCardValue}>
-                {session.startTime} - {session.endTime} • {formatDate(session.playDate)}
-              </Text>
-            </View>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progressPercent}%` },
+                isFull ? { backgroundColor: COLORS.error } : isAlmostFull ? { backgroundColor: '#F59E0B' } : { backgroundColor: COLORS.primary },
+              ]}
+            />
           </View>
 
-          {/* Slot availability progress */}
-          <View style={styles.slotCard}>
-            <View style={styles.slotHeader}>
-              <Text style={styles.slotTitle}>Số slot còn trống</Text>
-              <Text style={[styles.slotBadgeText, isFull ? styles.slotBadgeFull : styles.slotBadgeAvailable]}>
-                {isFull ? 'HẾT SLOT' : `Còn ${remainingSlots}/${session.maxSlots} vé`}
-              </Text>
-            </View>
-            <View style={styles.progressBarBackground}>
-              <View 
-                style={[
-                  styles.progressBarFill, 
-                  { width: `${Math.min(100, (session.bookedSlots / session.maxSlots) * 100)}%` },
-                  isFull && { backgroundColor: COLORS.error }
-                ]} 
-              />
-            </View>
+          <View style={styles.progressSubRow}>
+            <Text style={styles.progressSubText}>Đã đặt: {session.bookedSlots} vé</Text>
+            <Text style={styles.progressSubText}>Tổng số: {session.maxSlots} vé</Text>
           </View>
+        </View>
 
-          {/* Quantity Selector Card */}
-          {!isFull && (
-            <View style={styles.quantityCard}>
+        {/* ── 5. Quantity Selector Card (When Available) ── */}
+        {!isFull && (
+          <View style={styles.sectionCard}>
+            <View style={styles.quantityCardRow}>
               <View style={styles.quantityInfoCol}>
-                <Text style={styles.quantityTitle}>Số lượng vé đặt</Text>
-                <Text style={styles.quantitySub}>Đặt cho bạn và bạn bè đi cùng</Text>
+                <Text style={styles.cardSectionTitle}>Số lượng vé đặt</Text>
+                <Text style={styles.quantitySubText}>
+                  Đặt cho bạn & bạn bè (Tối đa {remainingSlots} vé)
+                </Text>
               </View>
-              <View style={styles.counterRow}>
+
+              <View style={styles.counterControlRow}>
                 <TouchableOpacity
                   style={[styles.counterBtn, quantity <= 1 && styles.counterBtnDisabled]}
                   onPress={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={quantity <= 1}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
-                  <MaterialIcons name="remove" size={18} color={quantity <= 1 ? COLORS.outline : COLORS.primary} />
+                  <Ionicons name="remove" size={18} color={quantity <= 1 ? COLORS.outline : COLORS.primary} />
                 </TouchableOpacity>
 
-                <Text style={styles.counterValue}>{quantity}</Text>
+                <Text style={styles.counterNumberText}>{quantity}</Text>
 
                 <TouchableOpacity
                   style={[styles.counterBtn, quantity >= remainingSlots && styles.counterBtnDisabled]}
                   onPress={() => setQuantity((q) => Math.min(remainingSlots, q + 1))}
                   disabled={quantity >= remainingSlots}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
-                  <MaterialIcons name="add" size={18} color={quantity >= remainingSlots ? COLORS.outline : COLORS.primary} />
+                  <Ionicons name="add" size={18} color={quantity >= remainingSlots ? COLORS.outline : COLORS.primary} />
                 </TouchableOpacity>
               </View>
             </View>
-          )}
 
-          {/* Quy định & Hướng dẫn */}
-          <View style={styles.rulesCard}>
-            <Text style={styles.rulesTitle}>Quy định ca xé vé</Text>
-            <View style={styles.ruleItem}>
-              <MaterialIcons name="check-circle-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.ruleText}>Có thể mua nhiều vé cùng lúc cho bạn bè đi cùng.</Text>
+            <View style={styles.quantityPriceRow}>
+              <Text style={styles.quantityPriceLabel}>Đơn giá / vé:</Text>
+              <Text style={styles.quantityPriceVal}>{formatCurrency(session.pricePerTicket)}</Text>
             </View>
-            <View style={styles.ruleItem}>
-              <MaterialIcons name="qr-code-scanner" size={16} color={COLORS.primary} />
-              <Text style={styles.ruleText}>Mỗi vé sẽ được cấp 01 Mã QR & mã ShortCode riêng biệt để check-in độc lập.</Text>
-            </View>
-            <View style={styles.ruleItem}>
-              <MaterialIcons name="do-not-disturb" size={16} color={COLORS.amber} />
-              <Text style={styles.ruleText}>Lưu ý: Vé xé sau khi mua không được hủy và không hoàn tiền.</Text>
-            </View>
+          </View>
+        )}
+
+        {/* ── 6. Rules & Policy Card ── */}
+        <View style={styles.rulesCard}>
+          <View style={styles.rulesHeaderRow}>
+            <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.rulesHeaderTitle}>Quy định & Hướng dẫn ca xé vé</Text>
+          </View>
+
+          <View style={styles.ruleItem}>
+            <Ionicons name="qr-code-outline" size={16} color={COLORS.primary} style={{ marginTop: 2 }} />
+            <Text style={styles.ruleItemText}>
+              Mỗi vé được cấp 01 Mã QR & ShortCode riêng biệt để check-in độc lập tại cụm sân.
+            </Text>
+          </View>
+
+          <View style={styles.ruleItem}>
+            <Ionicons name="time-outline" size={16} color={COLORS.primary} style={{ marginTop: 2 }} />
+            <Text style={styles.ruleItemText}>
+              Cho phép check-in sớm từ 60 phút trước giờ bắt đầu để khởi động và chuẩn bị.
+            </Text>
+          </View>
+
+          <View style={styles.ruleItem}>
+            <Ionicons name="warning-outline" size={16} color="#D97706" style={{ marginTop: 2 }} />
+            <Text style={[styles.ruleItemText, { color: '#B45309', fontWeight: '600' }]}>
+              Lưu ý: Vé xé mua theo suất cá nhân, không hỗ trợ hủy và không hoàn tiền sau khi thanh toán.
+            </Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Bar */}
-      <View style={styles.bottomBar}>
-        <View style={styles.priceCol}>
-          <Text style={styles.priceLabel}>Tổng tiền ({quantity} vé)</Text>
-          <Text style={styles.priceValue}>{totalPrice.toLocaleString('vi-VN')}đ</Text>
+      {/* ── 7. Sticky Bottom Action Bar ── */}
+      <View style={[styles.bottomBarWrapper, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>
+        <View style={styles.bottomPriceCol}>
+          <Text style={styles.bottomPriceLabel}>Tổng tiền ({quantity} vé):</Text>
+          <Text style={styles.bottomPriceValue}>{formatCurrency(totalPrice)}</Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.buyBtn, isFull && styles.buyBtnDisabled]}
-          onPress={() => router.push({ pathname: '/ticket-payment/[id]', params: { id: session.id, quantity: String(quantity) } } as any)}
+          style={[styles.checkoutBtn, isFull && styles.checkoutBtnDisabled]}
+          onPress={() =>
+            router.push({
+              pathname: '/ticket-payment/[id]',
+              params: { id: session.id, quantity: String(quantity) },
+            } as any)
+          }
           disabled={isFull}
           activeOpacity={0.85}
         >
-          <Text style={[styles.buyBtnText, isFull && styles.buyBtnTextDisabled]}>
-            {isFull ? 'Hết vé' : 'Mua vé ngay'}
+          <Text style={[styles.checkoutBtnText, isFull && styles.checkoutBtnTextDisabled]}>
+            {isFull ? 'Đã hết vé' : 'Tiếp tục thanh toán'}
           </Text>
-          {!isFull && <MaterialIcons name="arrow-forward" size={18} color={COLORS.onSecondary} />}
+          {!isFull && <Ionicons name="arrow-forward" size={18} color={COLORS.onSecondary} />}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -255,11 +429,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceContainerHigh,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceContainerLow,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reloadBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceContainerLow,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '900',
+    color: COLORS.onSurface,
+    fontSize: 16.5,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: SPACING.md,
+    paddingBottom: 160,
+    gap: 12,
+  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: SPACING.lg,
     gap: SPACING.sm,
   },
   loadingText: {
@@ -276,34 +490,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: BORDER_RADIUS.md,
+    marginTop: 8,
   },
   retryBtnText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
+    fontWeight: '800',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.surface,
-  },
-  backBtn: {
-    padding: SPACING.xs,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
+
+  /* Hero Section */
   heroWrapper: {
-    height: 220,
+    height: 200,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: 'hidden',
     position: 'relative',
     backgroundColor: COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceContainerHigh,
   },
   heroImage: {
     width: '100%',
@@ -316,216 +519,403 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  floatingBackBtn: {
+  heroOverlay: {
     position: 'absolute',
-    top: 44,
-    left: SPACING.md,
-    width: 38,
-    height: 38,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: SPACING.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sportTypePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  sportTypePillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  statusPillOpen: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+  },
+  statusPillAmber: {
+    backgroundColor: 'rgba(254, 243, 199, 0.95)',
+  },
+  statusPillFull: {
+    backgroundColor: 'rgba(254, 226, 226, 0.95)',
+  },
+  statusPillDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusPillText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+
+  /* Standard Section Card */
+  sectionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceContainerHigh,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 10,
   },
-  body: {
-    padding: SPACING.md,
-    gap: SPACING.md,
-    marginTop: -20,
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-  },
-  titleRow: {
+  venueTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: SPACING.sm,
   },
-  titleCol: {
+  venueTitleCol: {
     flex: 1,
     gap: 4,
   },
-  venueName: {
-    ...TYPOGRAPHY.headlineLgMobile,
-    color: COLORS.onSurface,
-    fontWeight: '800',
-  },
-  courtName: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-  },
-  courtNameBold: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  levelBadge: {
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  levelBadgeText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  infoCard: {
+  verifiedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: 8,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  verifiedBadgeText: {
+    color: '#059669',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  courtNameTag: {
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  courtNameTagText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  venueNameText: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 17,
+    fontWeight: '900',
+    color: COLORS.onSurface,
+    lineHeight: 22,
+  },
+  addressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surfaceContainerLow,
+    padding: 10,
+    borderRadius: BORDER_RADIUS.lg,
+    gap: 10,
+  },
+  addressLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    flex: 1,
+  },
+  addressText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 17,
+    flex: 1,
+  },
+  mapsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: COLORS.surface,
-    padding: SPACING.md,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity20,
+  },
+  mapsBtnText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  /* Schedule Grid */
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardHeaderIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.primaryOpacity08,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardSectionTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+  },
+  scheduleGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceContainerLow,
+    padding: 12,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  scheduleCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  scheduleColDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: COLORS.surfaceContainerHigh,
+  },
+  scheduleColLabel: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    color: COLORS.onSurfaceVariant,
+  },
+  scheduleColValue: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  scheduleDuration: {
+    fontSize: 10.5,
+    color: COLORS.outline,
+    fontWeight: '600',
+  },
+
+  /* Level Banner */
+  levelBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerLow,
   },
-  infoCardText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurface,
-    flex: 1,
-    fontSize: 13,
+  levelIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  infoCardTextCol: {
+  levelTextCol: {
     flex: 1,
     gap: 2,
   },
-  infoCardTitle: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 11,
-  },
-  infoCardValue: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  slotCard: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: SPACING.xs,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerLow,
-  },
-  slotHeader: {
+  levelNameRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 5,
   },
-  slotTitle: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.onSurface,
-    fontSize: 14,
-    fontWeight: '700',
+  levelLabelPrefix: {
+    fontSize: 11,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
-  slotBadgeText: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
+  levelNameText: {
+    fontSize: 12.5,
+    fontWeight: '900',
+  },
+  levelDescText: {
+    fontSize: 11,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  /* Slot Progress */
+  slotHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  slotHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  slotBadgeBold: {
     fontSize: 13,
+    fontWeight: '900',
   },
-  slotBadgeAvailable: {
-    color: COLORS.primary,
+  textGreen: {
+    color: '#059669',
   },
-  slotBadgeFull: {
-    color: COLORS.error,
+  textAmber: {
+    color: '#D97706',
   },
-  progressBarBackground: {
-    height: 8,
+  textRed: {
+    color: '#DC2626',
+  },
+  progressTrack: {
+    height: 9,
     backgroundColor: COLORS.surfaceContainerHigh,
     borderRadius: BORDER_RADIUS.full,
     overflow: 'hidden',
     marginTop: 4,
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.full,
   },
-  rulesCard: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: SPACING.xs,
-  },
-  rulesTitle: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  ruleItem: {
+  progressSubRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.xs,
+    justifyContent: 'space-between',
+    marginTop: 2,
   },
-  ruleText: {
-    ...TYPOGRAPHY.bodyMd,
+  progressSubText: {
+    fontSize: 11,
     color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    flex: 1,
+    fontWeight: '600',
   },
-  quantityCard: {
+
+  /* Quantity Selector */
+  quantityCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerLow,
   },
   quantityInfoCol: {
-    gap: 2,
     flex: 1,
+    gap: 2,
   },
-  quantityTitle: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.onSurface,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  quantitySub: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+  quantitySubText: {
     fontSize: 11,
+    color: COLORS.onSurfaceVariant,
   },
-  counterRow: {
+  counterControlRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
     backgroundColor: COLORS.surfaceContainerLow,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceContainerHigh,
   },
   counterBtn: {
     width: 32,
     height: 32,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: 16,
     backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   counterBtnDisabled: {
     backgroundColor: COLORS.surfaceContainerHigh,
     elevation: 0,
   },
-  counterValue: {
-    ...TYPOGRAPHY.headlineMd,
+  counterNumberText: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 16,
+    fontWeight: '900',
     color: COLORS.primary,
-    fontWeight: '800',
     minWidth: 20,
     textAlign: 'center',
   },
-  bottomBar: {
+  quantityPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.surfaceContainerHigh,
+    paddingTop: 8,
+    marginTop: 4,
+  },
+  quantityPriceLabel: {
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  quantityPriceVal: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+
+  /* Rules & Policy */
+  rulesCard: {
+    backgroundColor: COLORS.surfaceContainerLow,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    gap: 8,
+  },
+  rulesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  rulesHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  ruleItemText: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 11.5,
+    color: COLORS.onSurfaceVariant,
+    flex: 1,
+    lineHeight: 16,
+  },
+
+  /* Sticky Bottom Bar */
+  bottomBarWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -534,54 +924,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingTop: 12,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.surfaceContainerHigh,
-    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  priceCol: {
+  bottomPriceCol: {
     gap: 2,
   },
-  priceLabel: {
-    ...TYPOGRAPHY.labelSm,
+  bottomPriceLabel: {
+    fontSize: 11,
     color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
   },
-  priceValue: {
-    ...TYPOGRAPHY.titleLg,
-    color: COLORS.primary,
-    fontWeight: '800',
+  bottomPriceValue: {
+    ...TYPOGRAPHY.titleMd,
     fontSize: 18,
+    fontWeight: '900',
+    color: COLORS.primary,
   },
-  priceUnit: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    fontWeight: '400',
-  },
-  buyBtn: {
+  checkoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.secondary, // Dynamic Athletic Yellow
-    paddingHorizontal: 24,
+    gap: 8,
+    backgroundColor: COLORS.secondary, // Dynamic Athletic Yellow #FED01B
+    paddingHorizontal: 22,
     paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.lg,
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  buyBtnDisabled: {
+  checkoutBtnDisabled: {
     backgroundColor: COLORS.surfaceContainerHigh,
+    elevation: 0,
+    shadowOpacity: 0,
   },
-  buyBtnText: {
+  checkoutBtnText: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSecondary,
-    fontWeight: '800',
-    fontSize: 15,
+    color: COLORS.onSecondary, // Deep Emerald text
+    fontWeight: '900',
+    fontSize: 14.5,
   },
-  buyBtnTextDisabled: {
+  checkoutBtnTextDisabled: {
     color: COLORS.outline,
   },
 });

@@ -1,5 +1,5 @@
 import { apiFetch } from '../../../shared/api/apiClient';
-import { TicketSession, UserTicket, TicketFilterState } from '../model/ticket.types';
+import { TicketSession, UserTicket, TicketFilterState, PurchaseTicketPayload } from '../model/ticket.types';
 
 /** GET /api/v1/ticket-sessions — lấy danh sách ca xé vé khả dụng theo bộ lọc */
 export const fetchAvailableSessions = (filters?: TicketFilterState): Promise<TicketSession[]> => {
@@ -19,10 +19,18 @@ export const fetchSessionDetail = (sessionId: string): Promise<TicketSession> =>
   return apiFetch<TicketSession>(`/ticket-sessions/${sessionId}`, { method: 'GET' }, false);
 };
 
-/** POST /api/v1/ticket-sessions/{id}/purchase — mua vé xé (hỗ trợ mua số lượng nhiều slot) (cần JWT) */
-export const purchaseTicket = (sessionId: string, quantity: number = 1): Promise<UserTicket> => {
-  return apiFetch<UserTicket>(`/ticket-sessions/${sessionId}/purchase?quantity=${quantity}`, {
+/** POST /api/v1/ticket-sessions/{id}/purchase — mua vé xé (hỗ trợ mua số lượng, chọn paymentMethod, voucher) (cần JWT) */
+export const purchaseTicket = (
+  sessionId: string, 
+  payloadOrQuantity: PurchaseTicketPayload | number = 1
+): Promise<UserTicket> => {
+  const payload: PurchaseTicketPayload = typeof payloadOrQuantity === 'number'
+    ? { quantity: payloadOrQuantity, paymentMethod: 'payos' }
+    : payloadOrQuantity;
+
+  return apiFetch<UserTicket>(`/ticket-sessions/${sessionId}/purchase`, {
     method: 'POST',
+    body: JSON.stringify(payload),
   }, true);
 };
 

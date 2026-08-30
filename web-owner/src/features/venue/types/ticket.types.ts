@@ -32,10 +32,16 @@ export interface TicketSessionRequest {
 export interface TicketCheckInResponse {
   ticketId: string;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerAvatar?: string;
+  venueName?: string;
   courtName: string;
+  shortCode?: string;
   startTime: string;
   endTime: string;
   playDate: string;
+  checkInTime?: string;
   sportLevel: SportLevel;
   quantity?: number;
   status: 'USED';

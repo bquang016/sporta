@@ -19,10 +19,15 @@ import {
   Check,
   XCircle,
   History,
-  ShieldAlert,
   HelpCircle,
   Play,
-  ChevronRight,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Award,
+  Ticket as TicketIcon,
   Info
 } from 'lucide-react';
 
@@ -43,8 +48,11 @@ export const ScanPage = () => {
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isStoppingRef = useRef(false);
+  const isProcessingRef = useRef(false);
+  const lastScannedTokenRef = useRef<string | null>(null);
+  const lastScanTimestampRef = useRef<number>(0);
 
-  // Detect insecure context (e.g. HTTP on local IP 192.168.x.x which Safari strictly blocks)
+  // Detect insecure context
   const isHttpOnLan = typeof window !== 'undefined' && 
     !window.isSecureContext && 
     window.location.hostname !== 'localhost' && 
@@ -59,8 +67,8 @@ export const ScanPage = () => {
 
       if (isSuccess) {
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
-        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.15); // A6 note
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.15);
         gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
       } else {
@@ -85,6 +93,25 @@ export const ScanPage = () => {
     }
   };
 
+  // Hardware MediaStream Track Stopper (Turns off green webcam light)
+  const stopCameraStreams = () => {
+    try {
+      const videoElems = document.querySelectorAll('video');
+      videoElems.forEach((video) => {
+        if (video && video.srcObject) {
+          const stream = video.srcObject as MediaStream;
+          stream.getTracks().forEach((track) => {
+            track.stop();
+            track.enabled = false;
+          });
+          video.srcObject = null;
+        }
+      });
+    } catch (e) {
+      console.error('Error stopping media tracks:', e);
+    }
+  };
+
   // Stop camera helper
   const stopCamera = async () => {
     if (isStoppingRef.current) return;
@@ -94,6 +121,7 @@ export const ScanPage = () => {
         if (scannerRef.current.isScanning) {
           await scannerRef.current.stop();
         }
+        await scannerRef.current.clear();
       } catch (err) {
         console.error('Error stopping scanner:', err);
       } finally {
@@ -103,11 +131,12 @@ export const ScanPage = () => {
         isStoppingRef.current = false;
       }
     }
+    stopCameraStreams();
+    setIsScanning(false);
   };
 
   // Start camera scanner
   const startCamera = async () => {
-    // Check if mediaDevices API exists
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError(
         isHttpOnLan 
@@ -120,6 +149,7 @@ export const ScanPage = () => {
     await stopCamera();
     setCameraError(null);
     setIsCameraStarting(true);
+    isProcessingRef.current = false;
 
     try {
       // Small pause to guarantee target container is mounted
@@ -137,7 +167,7 @@ export const ScanPage = () => {
       await scanner.start(
         { facingMode },
         {
-          fps: 15,
+          fps: 10,
           qrbox: (width, height) => {
             const size = Math.min(width, height) * 0.72;
             return { width: size, height: size };
@@ -145,9 +175,22 @@ export const ScanPage = () => {
           aspectRatio: 1.0,
         },
         async (decodedText) => {
+          const now = Date.now();
+          const cleanToken = decodedText.trim();
+
+          // Guard: If currently processing or scanned same token within 4 seconds, ignore
+          if (isProcessingRef.current) return;
+          if (lastScannedTokenRef.current === cleanToken && now - lastScanTimestampRef.current < 4000) {
+            return;
+          }
+
+          isProcessingRef.current = true;
+          lastScannedTokenRef.current = cleanToken;
+          lastScanTimestampRef.current = now;
+
           // Immediately pause/stop to prevent duplicate rapid scans
           await stopCamera();
-          handleProcessCheckIn(decodedText);
+          handleProcessCheckIn(cleanToken);
         },
         () => {} // Silent scan frame
       );
@@ -170,6 +213,7 @@ export const ScanPage = () => {
   // Start / Stop camera when tab changes or result shows
   useEffect(() => {
     if (activeTab === 'camera' && !checkInResult && !checkInError) {
+      isProcessingRef.current = false;
       startCamera();
     } else {
       stopCamera();
@@ -180,10 +224,20 @@ export const ScanPage = () => {
     };
   }, [activeTab, facingMode, checkInResult, checkInError]);
 
+  // Clean up when unmounting / navigating away
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   // Check-in API handler
   const handleProcessCheckIn = async (token: string) => {
     const cleanToken = token.trim();
-    if (!cleanToken) return;
+    if (!cleanToken) {
+      isProcessingRef.current = false;
+      return;
+    }
 
     setIsCheckingIn(true);
     setCheckInError(null);
@@ -230,6 +284,7 @@ export const ScanPage = () => {
 
   // Reset to scan next ticket
   const handleScanNext = () => {
+    isProcessingRef.current = false;
     setCheckInResult(null);
     setCheckInError(null);
     setManualToken('');
@@ -246,7 +301,7 @@ export const ScanPage = () => {
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 5.5rem)' 
       }}
     >
-      {/* ── 1. SPORTY-TECH LIQUID GLASS HEADER ── */}
+      {/* ── 1. SPORTY-TECH HEADER ── */}
       <header
         className="relative bg-gradient-to-b from-[#002b1f] via-[#064e3b] to-[#043d2e] text-white rounded-b-[2.5rem] shadow-xl overflow-hidden z-20 pb-5 transition-all"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
@@ -349,50 +404,102 @@ export const ScanPage = () => {
           }
         `}</style>
 
-        {/* ── 2A. CHECK-IN RESULT CARD (SUCCESS / ERROR) ── */}
+        {/* ── 2A. CHECK-IN RESULT CARD (FULL CUSTOMER & TICKET DETAILS) ── */}
         {checkInResult && (
           <div className="bg-white rounded-3xl p-5 border-2 border-emerald-500 shadow-xl space-y-4 animate-scaleUp">
-            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shrink-0">
-                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
+            {/* Header Banner */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shrink-0">
+                  <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
+                </div>
+                <div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
+                    Hợp Lệ • Check-in Thành Công
+                  </span>
+                  <h3 className="text-base font-black text-slate-800 tracking-tight mt-0.5">
+                    {checkInResult.customerName}
+                  </h3>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
-                  Hợp Lệ • Check-in Thành Công
-                </span>
-                <h3 className="text-base font-black text-slate-800 tracking-tight mt-1 truncate">
-                  {checkInResult.customerName}
-                </h3>
-              </div>
+
+              {checkInResult.shortCode && (
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Mã vé</span>
+                  <span className="text-xs font-black font-mono tracking-widest text-brand-emerald bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                    {checkInResult.shortCode}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/60 text-xs">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Cụm sân & Sân đấu</span>
-                <span className="font-black text-slate-800 flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5 text-brand-emerald" />
-                  {checkInResult.courtName}
-                </span>
+            {/* Customer Details Box */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3 text-xs">
+              <div className="flex items-center gap-3 pb-2 border-b border-slate-200/50">
+                {checkInResult.customerAvatar ? (
+                  <img 
+                    src={checkInResult.customerAvatar} 
+                    alt={checkInResult.customerName}
+                    className="w-10 h-10 rounded-full object-cover border border-emerald-300 shadow-xs" 
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 text-brand-emerald flex items-center justify-center font-black text-sm border border-emerald-200">
+                    {checkInResult.customerName?.charAt(0)?.toUpperCase() || 'K'}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-black text-slate-900 truncate">{checkInResult.customerName}</h4>
+                  {checkInResult.customerPhone && (
+                    <p className="text-[11px] text-slate-600 font-semibold flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      <span>{checkInResult.customerPhone}</span>
+                    </p>
+                  )}
+                  {checkInResult.customerEmail && (
+                    <p className="text-[10.5px] text-slate-400 truncate flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-slate-400" />
+                      <span>{checkInResult.customerEmail}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Khung giờ trận đấu</span>
-                <span className="font-black text-slate-800 flex items-center gap-1 font-mono">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
-                  {checkInResult.startTime} - {checkInResult.endTime}
-                </span>
-              </div>
+              {/* Grid of match details */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Sân thi đấu</span>
+                  <span className="font-black text-brand-emerald flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {checkInResult.courtName}
+                  </span>
+                </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Ngày thi đấu</span>
-                <span className="font-bold text-slate-700">{checkInResult.playDate}</span>
-              </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Khung giờ</span>
+                  <span className="font-black text-slate-800 flex items-center gap-1 font-mono">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                    {checkInResult.startTime?.substring(0, 5)} - {checkInResult.endTime?.substring(0, 5)}
+                  </span>
+                </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Trình độ</span>
-                <span className="font-bold text-brand-emerald">
-                  {getSportLevelLabel(checkInResult.sportLevel)}
-                </span>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Ngày chơi</span>
+                  <span className="font-bold text-slate-700">{checkInResult.playDate}</span>
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Trình độ</span>
+                  <span className="font-bold text-brand-emerald">
+                    {getSportLevelLabel(checkInResult.sportLevel)}
+                  </span>
+                </div>
+
+                <div className="col-span-2 flex justify-between items-center pt-2 border-t border-slate-200/50">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">Số lượng vé check-in:</span>
+                  <span className="font-black text-brand-emerald bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+                    {checkInResult.quantity || 1} slot (vé)
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -549,7 +656,7 @@ export const ScanPage = () => {
                   Nhập Mã Token / Mã Vé
                 </h3>
                 <p className="text-[10px] text-slate-400 font-medium">
-                  Nhập mã vé 8 ký tự hoặc token từ vé đặt sân
+                  Nhập mã vé 6-8 ký tự hoặc dán token QR
                 </p>
               </div>
             </div>
@@ -560,9 +667,9 @@ export const ScanPage = () => {
                 <input
                   type="text"
                   value={manualToken}
-                  onChange={(e) => setManualToken(e.target.value)}
-                  placeholder="Nhập mã vé hoặc dán token QR..."
-                  className="w-full pl-11 pr-24 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:border-brand-emerald focus:bg-white transition-all shadow-2xs font-mono"
+                  onChange={(e) => setManualToken(e.target.value.toUpperCase())}
+                  placeholder="Nhập mã vé (ví dụ: A7K2MX)..."
+                  className="w-full pl-11 pr-24 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:border-brand-emerald focus:bg-white transition-all shadow-2xs font-mono uppercase"
                   autoFocus
                 />
                 <button
@@ -573,23 +680,6 @@ export const ScanPage = () => {
                   <ClipboardPaste className="w-3 h-3" />
                   <span>Dán</span>
                 </button>
-              </div>
-
-              {/* Quick sample token pills for fast demo/test */}
-              <div className="pt-1">
-                <span className="text-[10px] text-slate-400 font-bold block mb-1.5">Mã thử nghiệm nhanh:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {['TK-DEMO-01', 'TK-TEST-2026', 'TICKET-SPORTA'].map((sample) => (
-                    <button
-                      key={sample}
-                      type="button"
-                      onClick={() => setManualToken(sample)}
-                      className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-brand-emerald hover:border-emerald-200 text-slate-600 border border-slate-200 text-[10px] font-mono font-bold active:scale-95 transition-all cursor-pointer"
-                    >
-                      {sample}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -627,7 +717,7 @@ export const ScanPage = () => {
                   <div className="min-w-0 pr-2">
                     <h4 className="font-black text-slate-800 truncate">{ticket.customerName}</h4>
                     <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5">
-                      {ticket.courtName} • {ticket.startTime} - {ticket.endTime}
+                      {ticket.courtName} • {ticket.startTime} - {ticket.endTime} {ticket.quantity && ticket.quantity > 1 ? `(${ticket.quantity} vé)` : ''}
                     </p>
                   </div>
 
