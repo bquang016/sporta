@@ -17,33 +17,30 @@ export const Dashboard: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [metrics, setMetrics] = useState<AdminKpi[]>([
-        { label: 'Tổng Doanh Thu', value: '125,000,000 đ', change: '+12%', isPositive: true },
+        { label: 'Tổng Doanh Thu', value: '0 đ', change: 'Doanh thu tích lũy', isPositive: true },
         { 
             label: 'Doanh thu Hoa hồng', 
-            value: '12,500,000 đ', 
-            change: '+8%', 
+            value: '0 đ', 
+            change: '10% GMV hệ thống', 
             isPositive: true,
-            tooltip: 'Tính bằng 10% chiết khấu trung bình nhân với tổng số tiền giao dịch Online thành công.'
+            tooltip: 'Tính bằng 10% chiết khấu trung bình nhân với tổng số tiền giao dịch thành công.'
         },
-        { label: 'Người Dùng Mới', value: '3,456', change: '+5%', isPositive: true },
-        { label: 'Lượt Đặt Sân', value: '1,234', change: '+4%', isPositive: true },
-        { label: 'Sân Chờ Duyệt', value: '12', change: 'Cần xử lý', isPositive: false },
+        { label: 'Người Dùng', value: '0', change: 'Tổng tài khoản', isPositive: true },
+        { label: 'Lượt Đặt Sân', value: '0', change: 'Tổng lượt đặt', isPositive: true },
+        { label: 'Sân Chờ Duyệt', value: '0', change: 'Đã xử lý xong', isPositive: true },
     ]);
 
     const [revenueData, setRevenueData] = useState<AdminChartData>({
         labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
-        values: [12000000, 15000000, 11000000, 18000000, 25000000, 32000000, 28000000]
+        values: [0, 0, 0, 0, 0, 0, 0]
     });
 
     const [userData, setUserData] = useState<AdminChartData>({
         labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
-        values: [45, 52, 38, 65, 89, 120, 105]
+        values: [0, 0, 0, 0, 0, 0, 0]
     });
 
-    const [activities, setActivities] = useState<AdminActivity[]>([
-        { id: '1', time: '10:45 Hôm nay', message: 'Hệ thống đã tự động duyệt các sân mới.' },
-        { id: '2', time: '09:30 Hôm nay', message: 'Người dùng vừa đăng ký trở thành đối tác.' },
-    ]);
+    const [activities, setActivities] = useState<AdminActivity[]>([]);
 
     const [leaderboardData, setLeaderboardData] = useState<Record<string, PartnerData[]>>({});
 
@@ -53,14 +50,14 @@ export const Dashboard: React.FC = () => {
         try {
             const data = await getAdminDashboardOverview(timeFilter);
             if (data) {
-                if (data.metrics && data.metrics.length > 0) setMetrics(data.metrics);
-                if (data.revenueData && data.revenueData.labels) setRevenueData(data.revenueData);
-                if (data.userData && data.userData.labels) setUserData(data.userData);
-                if (data.activities && data.activities.length > 0) setActivities(data.activities);
+                if (data.metrics) setMetrics(data.metrics);
+                if (data.revenueData) setRevenueData(data.revenueData);
+                if (data.userData) setUserData(data.userData);
+                if (data.activities) setActivities(data.activities);
                 if (data.leaderboardData) setLeaderboardData(data.leaderboardData);
             }
         } catch (err: any) {
-            console.warn('Using client dashboard fallback:', err);
+            console.error('Error fetching admin dashboard overview:', err);
             setError(err.message || 'Không thể kết nối máy chủ');
         } finally {
             setIsLoading(false);
