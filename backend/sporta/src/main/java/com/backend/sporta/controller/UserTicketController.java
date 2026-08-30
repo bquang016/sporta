@@ -1,5 +1,6 @@
 package com.backend.sporta.controller;
 
+import com.backend.sporta.dto.PurchaseTicketRequest;
 import com.backend.sporta.dto.TicketSessionResponse;
 import com.backend.sporta.dto.UserTicketResponse;
 import com.backend.sporta.enums.SportLevel;
@@ -48,14 +49,26 @@ public class UserTicketController {
 
     /**
      * POST /api/v1/ticket-sessions/{id}/purchase
-     * Đặt mua vé xé (hỗ trợ mua 1 hoặc nhiều slot cùng lúc cho bạn bè)
+     * Đặt mua vé xé (hỗ trợ mua 1 hoặc nhiều slot cùng lúc, chọn phương thức thanh toán, áp dụng voucher)
      */
     @PostMapping("/ticket-sessions/{id}/purchase")
     public ResponseEntity<UserTicketResponse> purchaseTicket(
             @PathVariable UUID id,
-            @RequestParam(defaultValue = "1") int quantity) {
+            @RequestBody(required = false) PurchaseTicketRequest request,
+            @RequestParam(required = false) Integer quantity) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        UserTicketResponse response = userTicketService.purchaseTicket(id, email, quantity);
+        
+        PurchaseTicketRequest finalRequest = request;
+        if (finalRequest == null) {
+            finalRequest = PurchaseTicketRequest.builder()
+                    .quantity(quantity != null ? quantity : 1)
+                    .paymentMethod("payos")
+                    .build();
+        } else if (quantity != null && finalRequest.getQuantity() <= 1) {
+            finalRequest.setQuantity(quantity);
+        }
+        
+        UserTicketResponse response = userTicketService.purchaseTicket(id, email, finalRequest);
         return ResponseEntity.ok(response);
     }
 

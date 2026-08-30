@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class NotificationService {
     private String stripEmojis(String text) {
@@ -31,33 +34,37 @@ public class NotificationService {
     private final DeviceTokenRepository deviceTokenRepository;
     private final FcmService fcmService;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void createNotification(Long recipientId, Role role, String title, String content, NotificationType type, String referenceId) {
-        title = stripEmojis(title);
-        content = stripEmojis(content);
-        Notification notification = Notification.builder()
-                .recipientId(recipientId)
-                .recipientRole(role != null ? role : Role.PLAYER)
-                .title(title)
-                .content(content)
-                .type(type)
-                .referenceId(referenceId)
-                .isRead(false)
-                .createdAt(LocalDateTime.now())
-                .build();
-        Notification saved = notificationRepository.save(notification);
+        try {
+            title = stripEmojis(title);
+            content = stripEmojis(content);
+            Notification notification = Notification.builder()
+                    .recipientId(recipientId)
+                    .recipientRole(role != null ? role : Role.PLAYER)
+                    .title(title != null ? title : "Thông báo Sporta")
+                    .content(content != null ? content : "")
+                    .type(type != null ? type : NotificationType.SYSTEM_ALERT)
+                    .referenceId(referenceId)
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            Notification saved = notificationRepository.save(notification);
 
-        // Gửi Firebase FCM Push Notification bất đồng bộ
-        Map<String, String> dataPayload = new HashMap<>();
-        if (type != null) {
-            dataPayload.put("type", type.name());
-        }
-        if (referenceId != null) {
-            dataPayload.put("referenceId", referenceId);
-        }
-        dataPayload.put("notificationId", String.valueOf(saved.getId()));
+            // Gửi Firebase FCM Push Notification bất đồng bộ
+            Map<String, String> dataPayload = new HashMap<>();
+            if (type != null) {
+                dataPayload.put("type", type.name());
+            }
+            if (referenceId != null) {
+                dataPayload.put("referenceId", referenceId);
+            }
+            dataPayload.put("notificationId", String.valueOf(saved.getId()));
 
-        fcmService.sendPushToUser(recipientId, title, content, dataPayload);
+            fcmService.sendPushToUser(recipientId, title, content, dataPayload);
+        } catch (Exception e) {
+            log.error("Lỗi tạo notification cho recipientId {}: {}", recipientId, e.getMessage());
+        }
     }
 
     public Page<NotificationDTO> getUserNotifications(Long recipientId, Pageable pageable) {

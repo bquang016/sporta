@@ -37,11 +37,23 @@ export interface UserTicket {
   price: number;
   quantity?: number;
   totalPrice?: number;
+  discountAmount?: number;
+  finalPrice?: number;
+  paymentMethod?: string;
+  checkoutUrl?: string;
+  orderCode?: number;
   sportLevel: SportLevel;
   status: TicketStatus;
   qrCodeToken: string;
   shortCode: string;
   createdAt: string;
+}
+
+export interface PurchaseTicketPayload {
+  quantity: number;
+  paymentMethod?: string; // 'wallet' | 'payos' | 'cash' | 'dev'
+  ownerVoucherCode?: string;
+  systemVoucherCode?: string;
 }
 
 export interface TicketFilterState {

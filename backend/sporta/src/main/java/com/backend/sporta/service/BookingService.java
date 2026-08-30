@@ -445,8 +445,7 @@ public class BookingService {
 
         if (isGracePeriod) {
             refundRate = 100;
-            policyDesc = "Trong thời gian ân hạn 10 phút sau khi đặt: Miễn phí hủy, hoàn 100% toàn bộ tiền vào Ví Sporta (còn "
-                    + (graceMinutesRemaining > 0 ? graceMinutesRemaining + " phút" : "dưới 1 phút") + ").";
+            policyDesc = "Trong thời gian 10 phút sau khi đặt: Miễn phí hủy, hoàn 100% toàn bộ tiền vào Ví Sporta (còn " + (graceMinutesRemaining > 0 ? graceMinutesRemaining + " phút" : "dưới 1 phút") + ").";
         } else if (hoursRemaining >= freeHours) {
             refundRate = 100;
             policyDesc = "Hủy trước " + freeHours + " giờ thi đấu: Miễn phí hủy, hoàn 100% vào Ví Sporta.";

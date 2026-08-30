@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  StatusBar,
+  TextInput,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUserTickets } from '../../../entities/ticket/model/useUserTickets';
 import { UserTicket } from '../../../entities/ticket/model/ticket.types';
@@ -12,19 +24,38 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
   const router = useRouter();
   const { tickets, loading, error, refetch } = useUserTickets();
   const [activeTab, setActiveTab] = useState<'ALL' | 'UNUSED' | 'USED'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<UserTicket | null>(null);
   const [qrModalVisible, setQrModalVisible] = useState(false);
+
+  const unusedCount = useMemo(() => tickets.filter((t) => t.status === 'UNUSED').length, [tickets]);
+  const usedCount = useMemo(() => tickets.filter((t) => t.status !== 'UNUSED').length, [tickets]);
+  const totalCount = tickets.length;
 
   const handleCardPress = (ticket: UserTicket) => {
     setSelectedTicket(ticket);
     setQrModalVisible(true);
   };
 
-  const filteredTickets = tickets.filter((t) => {
-    if (activeTab === 'UNUSED') return t.status === 'UNUSED';
-    if (activeTab === 'USED') return t.status === 'USED' || t.status === 'REFUNDED';
-    return true;
-  });
+  const filteredTickets = useMemo(() => {
+    return tickets.filter((t) => {
+      // Tab filter
+      if (activeTab === 'UNUSED' && t.status !== 'UNUSED') return false;
+      if (activeTab === 'USED' && t.status === 'UNUSED') return false;
+
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const venueMatch = t.venueName?.toLowerCase().includes(q);
+        const courtMatch = t.courtName?.toLowerCase().includes(q);
+        const codeMatch = t.shortCode?.toLowerCase().includes(q);
+        const orderMatch = String(t.orderCode || '').toLowerCase().includes(q);
+        if (!venueMatch && !courtMatch && !codeMatch && !orderMatch) return false;
+      }
+
+      return true;
+    });
+  }, [tickets, activeTab, searchQuery]);
 
   const handleGoBack = () => {
     if (router.canGoBack()) {
@@ -35,61 +66,138 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
-      {/* Optional Header when opened standalone */}
+      {/* ── 1. CLEAN APP HEADER (Matching Profile Screen) ── */}
       {showHeader && (
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.onSurface} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Vé Của Tôi</Text>
-          <TouchableOpacity onPress={refetch} style={styles.refreshBtn} activeOpacity={0.7}>
-            <MaterialIcons name="refresh" size={22} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
+        <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleGoBack} style={styles.backBtn} activeOpacity={0.7}>
+              <MaterialIcons name="arrow-back-ios" size={19} color={COLORS.onSurface} />
+            </TouchableOpacity>
+
+            <View style={styles.headerTitleCol}>
+              <Text style={styles.headerTitle}>Vé Của Tôi</Text>
+            </View>
+
+            <TouchableOpacity onPress={refetch} style={styles.refreshBtn} activeOpacity={0.7}>
+              <MaterialIcons name="refresh" size={22} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       )}
 
-      {/* Tab Segment Control */}
-      <View style={styles.tabContainer}>
+      {/* ── 2. QUICK STATS DASHBOARD STRIP ── */}
+      <View style={styles.statsContainer}>
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'ALL' && styles.tabItemActive]}
-          onPress={() => setActiveTab('ALL')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, activeTab === 'ALL' && styles.tabTextActive]}>
-            Tất cả ({tickets.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'UNUSED' && styles.tabItemActive]}
+          style={[styles.statCard, activeTab === 'UNUSED' && styles.statCardActive]}
           onPress={() => setActiveTab('UNUSED')}
           activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'UNUSED' && styles.tabTextActive]}>
-            Chưa dùng ({tickets.filter((t) => t.status === 'UNUSED').length})
-          </Text>
+          <View style={[styles.statIconCircle, { backgroundColor: '#ECFDF5' }]}>
+            <MaterialIcons name="confirmation-number" size={16} color="#059669" />
+          </View>
+          <View style={styles.statTextCol}>
+            <Text style={styles.statNum}>{unusedCount}</Text>
+            <Text style={styles.statLabel}>Khả dụng</Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'USED' && styles.tabItemActive]}
+          style={[styles.statCard, activeTab === 'USED' && styles.statCardActive]}
           onPress={() => setActiveTab('USED')}
           activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === 'USED' && styles.tabTextActive]}>
-            Lịch sử ({tickets.filter((t) => t.status !== 'UNUSED').length})
-          </Text>
+          <View style={[styles.statIconCircle, { backgroundColor: '#F1F5F9' }]}>
+            <MaterialIcons name="task-alt" size={16} color="#64748B" />
+          </View>
+          <View style={styles.statTextCol}>
+            <Text style={styles.statNum}>{usedCount}</Text>
+            <Text style={styles.statLabel}>Đã chơi</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.statCard, activeTab === 'ALL' && styles.statCardActive]}
+          onPress={() => setActiveTab('ALL')}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.statIconCircle, { backgroundColor: '#FFFBEB' }]}>
+            <MaterialIcons name="receipt-long" size={16} color="#D97706" />
+          </View>
+          <View style={styles.statTextCol}>
+            <Text style={styles.statNum}>{totalCount}</Text>
+            <Text style={styles.statLabel}>Tổng số vé</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Main List */}
+      {/* ── 3. SEARCH & TAB FILTER CHIPS ── */}
+      <View style={styles.filterSection}>
+        {/* Search Input Bar */}
+        <View style={styles.searchBar}>
+          <MaterialIcons name="search" size={19} color="#64748B" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm theo tên sân, cụm sân, mã vé..."
+            placeholderTextColor="#94A3B8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
+          />
+          {searchQuery.length > 0 && Platform.OS !== 'ios' && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+              <MaterialIcons name="cancel" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Tab Filter Chips */}
+        <View style={styles.tabChipsRow}>
+          <TouchableOpacity
+            style={[styles.chip, activeTab === 'ALL' && styles.chipActive]}
+            onPress={() => setActiveTab('ALL')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.chipText, activeTab === 'ALL' && styles.chipTextActive]}>
+              Tất cả ({totalCount})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chip, activeTab === 'UNUSED' && styles.chipActive]}
+            onPress={() => setActiveTab('UNUSED')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.chipText, activeTab === 'UNUSED' && styles.chipTextActive]}>
+              Chưa dùng ({unusedCount})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chip, activeTab === 'USED' && styles.chipActive]}
+            onPress={() => setActiveTab('USED')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.chipText, activeTab === 'USED' && styles.chipTextActive]}>
+              Lịch sử ({usedCount})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── 4. MAIN TICKET LIST ── */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refetch} colors={[COLORS.primary]} />
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
         }
       >
         {loading && tickets.length === 0 ? (
@@ -101,29 +209,39 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
           <View style={styles.centerContainer}>
             <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={refetch}>
+            <TouchableOpacity style={styles.retryBtn} onPress={refetch} activeOpacity={0.8}>
               <Text style={styles.retryBtnText}>Thử lại</Text>
             </TouchableOpacity>
           </View>
         ) : filteredTickets.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="confirmation-number" size={64} color={COLORS.surfaceContainerHigh} />
-            <Text style={styles.emptyTitle}>Chưa có vé xé nào</Text>
-            <Text style={styles.emptySub}>
-              {activeTab === 'ALL'
-                ? 'Bạn chưa mua vé xé nào. Hãy tìm các ca xé vé gần bạn và trải nghiệm ngay!'
+            <View style={styles.emptyIconBox}>
+              <MaterialIcons name="confirmation-number" size={44} color={COLORS.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>
+              {searchQuery.trim()
+                ? 'Không tìm thấy vé phù hợp'
                 : activeTab === 'UNUSED'
-                ? 'Bạn không có vé nào đang chờ sử dụng.'
-                : 'Bạn chưa có vé nào trong lịch sử đã sử dụng.'}
+                ? 'Không có vé nào đang chờ sử dụng'
+                : activeTab === 'USED'
+                ? 'Chưa có vé nào trong lịch sử'
+                : 'Bạn chưa có vé xé nào'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery.trim()
+                ? `Không có kết quả nào trùng khớp với từ khóa "${searchQuery}".`
+                : activeTab === 'UNUSED'
+                ? 'Các vé sau khi mua thành công sẽ xuất hiện tại đây để bạn quét mã nhận sân.'
+                : 'Tìm kiếm các ca xé vé gần bạn để tham gia giao lưu và thi đấu thể thao.'}
             </Text>
 
-            <TouchableOpacity 
-              style={styles.exploreBtn} 
+            <TouchableOpacity
+              style={styles.exploreBtn}
               onPress={() => router.push('/ticket-sessions' as any)}
               activeOpacity={0.85}
             >
-              <MaterialIcons name="search" size={18} color={COLORS.onSecondary} />
-              <Text style={styles.exploreBtnText}>Tìm vé xé ngay</Text>
+              <MaterialIcons name="search" size={18} color="#FFFFFF" />
+              <Text style={styles.exploreBtnText}>Tìm Ca Xé Vé Ngay</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -139,133 +257,235 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
         )}
       </ScrollView>
 
-      {/* QR Ticket Detail Modal */}
+      {/* ── 5. FLOATING TICKET DETAIL QR MODAL ── */}
       <TicketQrModal
         visible={qrModalVisible}
         ticket={selectedTicket}
         onClose={() => setQrModalVisible(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
+  },
+
+  /* ── Header ── */
+  headerSafeArea: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F6',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
+    paddingHorizontal: 16,
+    height: 56,
   },
   backBtn: {
-    padding: SPACING.xs,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitleCol: {
+    alignItems: 'center',
   },
   headerTitle: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.onSurface,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.2,
   },
   refreshBtn: {
-    padding: SPACING.xs,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.surface,
-    gap: SPACING.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerLow,
-  },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.full,
-    alignItems: 'center',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
+    alignItems: 'flex-end',
   },
-  tabItemActive: {
-    backgroundColor: COLORS.primaryOpacity10,
+
+  /* ── Stats Strip ── */
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    backgroundColor: '#FFFFFF',
   },
-  tabText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
+  statCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  statCardActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  statIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statTextCol: {
+    gap: 1,
+  },
+  statNum: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  statLabel: {
+    fontSize: 10.5,
     fontWeight: '600',
+    color: '#64748B',
   },
-  tabTextActive: {
-    color: COLORS.primary,
-    fontWeight: '800',
+
+  /* ── Filter & Search Section ── */
+  filterSection: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F6',
+    gap: 10,
   },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#0F172A',
+  },
+  tabChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+  },
+  chipActive: {
+    backgroundColor: '#064E3B',
+  },
+  chipText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  /* ── Scroll List ── */
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.xl,
+    padding: 16,
+    paddingBottom: 40,
   },
   listContainer: {
-    gap: SPACING.xs,
+    gap: 14,
   },
+
+  /* ── State Views ── */
   centerContainer: {
-    paddingVertical: 60,
+    paddingVertical: 70,
     alignItems: 'center',
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: 12,
   },
   loadingText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
   },
   errorText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.error,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
   retryBtn: {
-    backgroundColor: COLORS.primaryOpacity10,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#064E3B',
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 12,
+    marginTop: 4,
   },
   retryBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.primary,
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   emptyContainer: {
     paddingVertical: 60,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  emptyIconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   emptyTitle: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.onSurface,
+    fontSize: 16,
     fontWeight: '700',
+    color: '#0F172A',
+    textAlign: 'center',
   },
   emptySub: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.xl,
     fontSize: 13,
+    fontWeight: '400',
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   exploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: SPACING.sm,
-    backgroundColor: COLORS.secondary, // Dynamic Athletic Yellow
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.md,
+    gap: 6,
+    backgroundColor: '#064E3B',
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 14,
+    marginTop: 8,
   },
   exploreBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSecondary,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
 });
+
+export default MyTicketsScreen;

@@ -407,20 +407,25 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
           </div>
         </div>
       ) : (
-        <div className="bg-white border-b border-slate-100 p-4 shadow-xs select-none flex justify-between items-center text-xs text-slate-500 font-bold mx-4 rounded-2xl">
-          <span className="flex items-center gap-1">
-            Tỷ lệ: <span className="text-slate-800 font-black">{kpis.occupancyRate}%</span>
-          </span>
-          <span className="w-px h-3 bg-slate-200"></span>
-          <span className="flex items-center gap-1">
-            Doanh thu: <span className="text-brand-emerald font-black">{formatPrice(kpis.totalRevenue)}</span>
-          </span>
-          <span className="w-px h-3 bg-slate-200"></span>
-          <span className="flex items-center gap-1">
-            Sân: <span className="text-slate-800 font-black">{kpis.activeCourtsText}</span>
-          </span>
+        <div className="mx-4">
+          <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div className="space-y-0.5">
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Lấp đầy</span>
+              <p className="text-sm font-black text-slate-800 tracking-tight">{kpis.occupancyRate}%</p>
+            </div>
+            <div className="space-y-0.5 border-x border-slate-100 px-2">
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Doanh thu</span>
+              <p className="text-sm font-black text-brand-emerald tracking-tight truncate">{formatPrice(kpis.totalRevenue)}</p>
+            </div>
+            <div className="space-y-0.5 pl-1">
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sân mở</span>
+              <p className="text-sm font-black text-slate-800 tracking-tight">{kpis.activeCourtsText}</p>
+            </div>
+          </div>
         </div>
       )}
+
+
 
       {/* ─── 2. THANH BỘ LỌC & NÚT ĐẶT SÂN NHANH ─────────────────── */}
       <div className={`bg-white p-4 rounded-2xl border border-slate-200/85 shadow-[0_4px_18px_rgba(0,0,0,0.02)] flex flex-wrap items-center justify-between gap-4 ${isMobile ? 'mx-4' : ''}`}>

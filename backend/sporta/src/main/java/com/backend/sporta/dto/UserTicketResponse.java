@@ -36,6 +36,11 @@ public class UserTicketResponse {
     private BigDecimal price;
     private Integer quantity;
     private BigDecimal totalPrice;
+    private BigDecimal discountAmount;
+    private BigDecimal finalPrice;
+    private String paymentMethod;
+    private String checkoutUrl;
+    private Long orderCode;
     private SportLevel sportLevel;
     private TicketStatus status;
     

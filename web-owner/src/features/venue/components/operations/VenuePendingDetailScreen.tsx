@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '../../../../components/ui/Button';
 import { ConfirmModal } from '../../../../common/ui/overlay/ConfirmModal';
 import { useOperations } from '../../../../hooks/useOperationsState';
@@ -83,10 +84,11 @@ export const VenuePendingDetailScreen = ({
     return timeStr.substring(0, 5);
   };
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-6 select-none font-sans py-4">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200/60 rounded-3xl p-5 shadow-xs">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] bg-slate-50 flex flex-col h-[100dvh] overflow-y-auto overscroll-contain font-sans">
+      <div className="max-w-6xl mx-auto w-full space-y-6 select-none p-3 sm:p-6 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+        {/* Header bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200/60 rounded-3xl p-4 sm:p-5 shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <button
@@ -98,22 +100,22 @@ export const VenuePendingDetailScreen = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
               Chi tiết cụm sân chờ duyệt
             </h1>
           </div>
-          <p className="text-xs text-slate-400 font-semibold pl-9">
+          <p className="text-[11px] sm:text-xs text-slate-400 font-semibold pl-9">
             Xem chi tiết thông tin đang được Admin kiểm duyệt
           </p>
         </div>
 
-        <div className="flex gap-2.5 w-full sm:w-auto sm:pl-9">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
           <Button
             variant="secondary"
             size="sm"
             disabled={loading}
             onClick={() => setIsConfirmApproveOpen(true)}
-            className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider px-5 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
+            className="flex-1 sm:flex-initial bg-brand-emerald hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider px-4 py-2.5 min-h-[38px] rounded-xl cursor-pointer shadow-xs"
           >
             Duyệt cụm sân
           </Button>
@@ -122,7 +124,7 @@ export const VenuePendingDetailScreen = ({
             size="sm"
             disabled={loading}
             onClick={() => setIsConfirmCancelOpen(true)}
-            className="flex-1 sm:flex-initial text-red-600 hover:text-red-750 hover:bg-red-50 font-black text-xs border border-red-200 uppercase tracking-wider px-5 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
+            className="flex-1 sm:flex-initial text-red-600 hover:text-red-750 hover:bg-red-50 font-black text-xs border border-red-200 uppercase tracking-wider px-4 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
           >
             Hủy gửi duyệt
           </Button>
@@ -131,7 +133,7 @@ export const VenuePendingDetailScreen = ({
             size="sm"
             disabled={loading}
             onClick={onClose}
-            className="flex-1 sm:flex-initial font-black text-xs border-b-2 border-slate-950 uppercase tracking-wider px-6 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
+            className="flex-1 sm:flex-initial font-black text-xs border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 uppercase tracking-wider px-5 py-2.5 min-h-[38px] rounded-xl cursor-pointer"
           >
             Đóng
           </Button>
@@ -350,16 +352,18 @@ export const VenuePendingDetailScreen = ({
         variant="warning"
       />
 
-      <ConfirmModal
-        isOpen={isConfirmApproveOpen}
-        onClose={() => setIsConfirmApproveOpen(false)}
-        onConfirm={handleApproveSubmit}
-        title="Xác nhận phê duyệt"
-        message="Bạn có chắc chắn muốn phê duyệt cụm sân này ngay lập tức không? Trạng thái sẽ được chuyển sang Hoạt động."
-        confirmText="Đồng ý duyệt"
-        cancelText="Không"
-        variant="success"
-      />
-    </div>
+        <ConfirmModal
+          isOpen={isConfirmApproveOpen}
+          onClose={() => setIsConfirmApproveOpen(false)}
+          onConfirm={handleApproveSubmit}
+          title="Xác nhận phê duyệt"
+          message="Bạn có chắc chắn muốn phê duyệt cụm sân này ngay lập tức không? Trạng thái sẽ được chuyển sang Hoạt động."
+          confirmText="Đồng ý duyệt"
+          cancelText="Không"
+          variant="success"
+        />
+      </div>
+    </div>,
+    document.body
   );
 };

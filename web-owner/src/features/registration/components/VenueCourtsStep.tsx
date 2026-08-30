@@ -160,9 +160,33 @@ export const VenueCourtsStep = ({
     return (amount || 0).toLocaleString('vi-VN') + ' đ';
   };
 
+  const parseTimeToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  const openMinutes = parseTimeToMinutes(openingTime);
+  let closeMinutes = parseTimeToMinutes(closingTime);
+  if (closeMinutes <= openMinutes && openingTime && closingTime) {
+    closeMinutes += 24 * 60;
+  }
+  const totalOperatingMinutes = closeMinutes - openMinutes;
+  const isShiftDurationValid = !!(shiftDurationMinutes && shiftDurationMinutes > 0 && (totalOperatingMinutes % shiftDurationMinutes === 0));
+  const totalShiftsCount = isShiftDurationValid && shiftDurationMinutes ? Math.floor(totalOperatingMinutes / shiftDurationMinutes) : 0;
+  const remainderMinutes = shiftDurationMinutes ? totalOperatingMinutes % shiftDurationMinutes : 0;
+
   const openAdvancedConfig = () => {
-    if (!shiftDurationMinutes || !openingTime || !closingTime) {
-      showToast('warning', 'Vui lòng thiết lập cấu hình vận hành (giờ mở/đóng cửa, thời lượng ca) trước khi cài đặt nâng cao.');
+    if (!openingTime || !closingTime) {
+      showToast('warning', 'Vui lòng chọn giờ mở cửa và giờ đóng cửa!');
+      return;
+    }
+    if (!shiftDurationMinutes || shiftDurationMinutes <= 0) {
+      showToast('warning', 'Vui lòng chọn thời lượng 1 ca thuê trước khi cài đặt nâng cao!');
+      return;
+    }
+    if (!isShiftDurationValid) {
+      showToast('error', `Tổng thời gian mở cửa (${totalOperatingMinutes} phút) chưa chia hết cho ca ${shiftDurationMinutes} phút! Vui lòng chỉnh lại.`);
       return;
     }
     setIsAdvancedModalOpen(true);
@@ -180,7 +204,7 @@ export const VenueCourtsStep = ({
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 border border-slate-100 rounded-3xl p-5 shadow-xs">
           {/* Giờ hoạt động */}
-          <div className="space-y-5">
+          <div className="space-y-4">
             <h5 className="text-[10px] font-black text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2">Khung giờ hoạt động</h5>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -214,6 +238,28 @@ export const VenueCourtsStep = ({
                 className="w-full text-xs font-bold text-slate-700 rounded-xl"
               />
             </div>
+
+            {/* Real-time Shift Duration Status */}
+            {!shiftDurationMinutes ? (
+              <div className="text-[10px] font-bold text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                <span>Vui lòng chọn thời lượng 1 ca thuê (Ví dụ: 60 phút)</span>
+              </div>
+            ) : !isShiftDurationValid ? (
+              <div className="text-[10px] font-bold text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200 flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-500 mt-0.5 flex-shrink-0" />
+                <span>
+                  Tổng thời gian mở cửa ({Math.floor(totalOperatingMinutes / 60)}h{totalOperatingMinutes % 60 ? ` ${totalOperatingMinutes % 60}p` : ''}) không chia hết cho ca ${shiftDurationMinutes} phút (dư ${remainderMinutes} phút). Vui lòng điều chỉnh lại giờ mở/đóng hoặc thời lượng ca.
+                </span>
+              </div>
+            ) : (
+              <div className="text-[10px] font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-brand-emerald flex-shrink-0" />
+                <span>
+                  ✓ Hợp lệ: Tổng {Math.floor(totalOperatingMinutes / 60)} tiếng — Chia làm <strong>{totalShiftsCount} ca / ngày</strong> ({openingTime} - {closingTime})
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Phụ thu */}

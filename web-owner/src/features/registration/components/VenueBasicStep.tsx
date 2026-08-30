@@ -72,28 +72,6 @@ export const VenueBasicStep = ({
           </div>
         </div>
 
-        {/* Coordinates */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Vĩ độ (Latitude)</label>
-            <input
-              type="text"
-              readOnly
-              value={venueInfo.latitude !== undefined ? venueInfo.latitude : 'Chưa định vị'}
-              className="w-full text-xs font-bold text-slate-400 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100/60 focus:outline-none cursor-default"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Kinh độ (Longitude)</label>
-            <input
-              type="text"
-              readOnly
-              value={venueInfo.longitude !== undefined ? venueInfo.longitude : 'Chưa định vị'}
-              className="w-full text-xs font-bold text-slate-400 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100/60 focus:outline-none cursor-default"
-            />
-          </div>
-        </div>
-
         {/* Description textarea */}
         <div className="space-y-1.5">
           <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Mô tả cụm sân</label>

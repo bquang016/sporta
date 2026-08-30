@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOwnerNotifications } from '../hooks/useOwnerNotifications';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { MobileNotificationCenter } from '../components/mobile/MobileNotificationCenter';
 import type { NotificationItem } from '../types/notification.types';
 
 type CategoryFilter = 'ALL' | 'SUPPORT' | 'BOOKING' | 'SYSTEM';
@@ -17,8 +19,22 @@ function formatDateTime(dateStr: string): string {
 }
 
 export const NotificationCenterPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { notifications, unreadCount, loading, refetch, markAsRead, markAllAsRead } = useOwnerNotifications(10000);
+
+  if (isMobile) {
+    return (
+      <MobileNotificationCenter
+        notifications={notifications}
+        unreadCount={unreadCount}
+        loading={loading}
+        refetch={refetch}
+        markAsRead={markAsRead}
+        markAllAsRead={markAllAsRead}
+      />
+    );
+  }
 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('ALL');
   const [readFilter, setReadFilter] = useState<ReadStatusFilter>('ALL');
@@ -26,6 +42,7 @@ export const NotificationCenterPage: React.FC = () => {
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 8;
+
 
   // L?c b? ho?n to?n c?c th?ng b?o v? v? doanh thu theo y?u c?u
   const activeNotifications = useMemo(() => {

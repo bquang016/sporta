@@ -1,5 +1,8 @@
 import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ContractPreview } from '../../registration/components/ContractPreview';
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 
 interface ContractInfo {
   id: number;
@@ -19,14 +22,14 @@ interface ContractFullscreenModalProps {
   onClose: () => void;
 }
 
-export const ContractFullscreenModal = ({ contract, onClose }: ContractFullscreenModalProps) => {
+export const ContractFullscreenModal: React.FC<ContractFullscreenModalProps> = ({ contract, onClose }) => {
+  useBodyScrollLock(true);
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
     window.print();
   };
 
-  // Map API response to the format ContractPreview expects
   const personalInfo = {
     fullName: contract.ownerFullName,
     idNumber: contract.ownerIdCard,
@@ -37,9 +40,6 @@ export const ContractFullscreenModal = ({ contract, onClose }: ContractFullscree
     hometown: '',
   };
 
-  // We only have venueAddress in the DTO, so we'll just put it all in province/district
-  // since ContractPreview formats it as: `${venueInfo.addressDetail}, ${venueInfo.ward}, ${venueInfo.district}, ${venueInfo.province}`
-  // We can just put the full address in addressDetail and leave others empty.
   const venueInfo = {
     name: contract.venueName,
     province: '',
@@ -55,49 +55,64 @@ export const ContractFullscreenModal = ({ contract, onClose }: ContractFullscree
     subCourtCount: 1,
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 overflow-y-auto print:bg-white print:overflow-visible">
-      {/* Top Header - hidden when printing */}
-      <div className="sticky top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 z-10 flex items-center justify-between px-6 shadow-sm print:hidden">
-        <div className="flex items-center gap-4">
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[999999] overflow-y-auto print:bg-white print:overflow-visible font-sans animate-fadeIn select-none">
+      {/* Top Header - Sticky with safe area padding */}
+      <div 
+        className="sticky top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 z-50 flex items-center justify-between px-4 sm:px-6 shadow-sm print:hidden"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0.5rem)', paddingBottom: '0.5rem' }}
+      >
+        <div className="flex items-center gap-3">
           <button 
+            type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 flex items-center justify-center transition-all focus:outline-none"
+            className="touch-target w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+            title="Quay lại"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+            <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
           </button>
-          <div>
-            <h3 className="font-black text-slate-800">Chi tiết Hợp đồng</h3>
-            <p className="text-[10px] text-slate-500 font-medium">Mã: {contract.contractCode}</p>
+          <div className="min-w-0">
+            <h3 className="font-black text-slate-800 text-sm sm:text-base tracking-tight truncate">
+              Văn Bản Hợp Đồng Điện Tử
+            </h3>
+            <p className="text-[10px] sm:text-xs font-mono font-bold text-slate-500">
+              Mã: {contract.contractCode}
+            </p>
           </div>
         </div>
 
         <button 
+          type="button"
           onClick={handlePrint}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-emerald text-white font-bold text-xs hover:bg-emerald-900 shadow-sm transition-all focus:outline-none"
+          className="touch-target flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-emerald active:bg-emerald-950 text-white font-black text-xs hover:bg-emerald-800 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          Tải về (PDF)
+          <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">In / Tải về (PDF)</span>
+          <span className="sm:hidden">Tải PDF</span>
         </button>
       </div>
 
-      {/* Contract Content */}
-      <div className="py-12 px-4 print:py-0 print:px-0" ref={printRef}>
+      {/* Contract Paper Content */}
+      <div 
+        className="py-6 sm:py-10 px-3 sm:px-6 flex justify-center print:py-0 print:px-0" 
+        ref={printRef}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}
+      >
         <ContractPreview 
           personalInfo={personalInfo}
           venueInfo={venueInfo as any}
           isSigned={true}
           signatureData={{
             timestamp: contract.signedAt,
-            ip: contract.signedIpAddress || 'Hệ thống lưu trữ'
+            ip: contract.signedIpAddress || 'Hệ thống Sporta'
           }}
           contractCode={contract.contractCode}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
+export default ContractFullscreenModal;
