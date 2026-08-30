@@ -274,6 +274,11 @@ public class AuthService {
             String registrationToken,
             String fullName,
             String idNumber,
+            String gender,
+            String nationality,
+            String hometown,
+            String permanentAddress,
+            String phoneNumber,
             String venueName,
             String province,
             String district,
@@ -334,6 +339,11 @@ public class AuthService {
                 .email(email)
                 .fullName(fullName)
                 .idNumber(idNumber)
+                .gender(gender)
+                .nationality(nationality)
+                .hometown(hometown)
+                .permanentAddress(permanentAddress)
+                .phoneNumber(phoneNumber)
                 .idFrontImage(idFrontUrl)
                 .idBackImage(idBackUrl)
                 .venueName(venueName)
@@ -392,11 +402,24 @@ public class AuthService {
         // 1. Generate random password
         String rawPassword = generateRandomPassword(8);
 
+        Gender genderEnum = null;
+        if (reg.getGender() != null) {
+            if (reg.getGender().equalsIgnoreCase("Nam") || reg.getGender().equalsIgnoreCase("MALE")) {
+                genderEnum = Gender.MALE;
+            } else if (reg.getGender().equalsIgnoreCase("Nữ") || reg.getGender().equalsIgnoreCase("FEMALE")) {
+                genderEnum = Gender.FEMALE;
+            } else if (reg.getGender().equalsIgnoreCase("Khác") || reg.getGender().equalsIgnoreCase("OTHER")) {
+                genderEnum = Gender.OTHER;
+            }
+        }
+
         // 2. Create User (role=OWNER, status=ACTIVE, mustChangePassword=true)
         User user = User.builder()
                 .email(reg.getEmail())
                 .password(passwordEncoder.encode(rawPassword))
                 .fullName(reg.getFullName())
+                .phoneNumber(reg.getPhoneNumber())
+                .gender(genderEnum)
                 .role(Role.OWNER)
                 .status(UserStatus.ACTIVE)
                 .mustChangePassword(true)
@@ -407,10 +430,14 @@ public class AuthService {
         Owner owner = Owner.builder()
                 .user(user)
                 .fullName(reg.getFullName())
+                .phoneNumber(reg.getPhoneNumber())
                 .idNumber(reg.getIdNumber())
                 .idFrontImage(reg.getIdFrontImage())
                 .idBackImage(reg.getIdBackImage())
-                .phoneNumber("") // will be updated later
+                .gender(reg.getGender())
+                .nationality(reg.getNationality())
+                .hometown(reg.getHometown())
+                .permanentAddress(reg.getPermanentAddress())
                 .build();
         owner = ownerRepository.save(owner);
 

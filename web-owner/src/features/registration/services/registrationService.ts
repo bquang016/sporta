@@ -79,6 +79,11 @@ export async function registerOwner(
   // Personal info
   formData.append('fullName', personalInfo.fullName);
   formData.append('idNumber', personalInfo.idNumber);
+  formData.append('gender', personalInfo.gender || '');
+  formData.append('nationality', personalInfo.nationality || 'Việt Nam');
+  formData.append('hometown', personalInfo.hometown || '');
+  formData.append('permanentAddress', personalInfo.permanentAddress || '');
+  formData.append('phoneNumber', personalInfo.phoneNumber || '');
 
   // CCCD images
   if (personalInfo.idFrontImage) {

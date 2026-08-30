@@ -8,7 +8,12 @@ export type SetupStep = 'personal' | 'venue-basic' | 'venue-courts' | 'venue-ima
 export type MainSetupStep = 'general' | 'business' | 'review';
 export interface PersonalInfo {
   fullName: string;
+  gender: string;
+  phoneNumber: string;
   idNumber: string; // CCCD/CMND
+  nationality: string;
+  hometown: string;
+  permanentAddress: string;
   idFrontImage: File | null;
   idBackImage: File | null;
 }

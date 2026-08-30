@@ -211,12 +211,29 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Đã tạo tài khoản Admin (admin@sporta.vn / admin123).");
         }
 
+        // Ensure new personal info columns exist on owner_registrations & owners
+        try {
+            jdbcTemplate.execute("ALTER TABLE owner_registrations ADD COLUMN IF NOT EXISTS gender VARCHAR(20)");
+            jdbcTemplate.execute("ALTER TABLE owner_registrations ADD COLUMN IF NOT EXISTS nationality VARCHAR(100)");
+            jdbcTemplate.execute("ALTER TABLE owner_registrations ADD COLUMN IF NOT EXISTS hometown VARCHAR(255)");
+            jdbcTemplate.execute("ALTER TABLE owner_registrations ADD COLUMN IF NOT EXISTS permanent_address TEXT");
+            jdbcTemplate.execute("ALTER TABLE owner_registrations ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)");
+
+            jdbcTemplate.execute("ALTER TABLE owners ADD COLUMN IF NOT EXISTS gender VARCHAR(20)");
+            jdbcTemplate.execute("ALTER TABLE owners ADD COLUMN IF NOT EXISTS nationality VARCHAR(100)");
+            jdbcTemplate.execute("ALTER TABLE owners ADD COLUMN IF NOT EXISTS permanent_address TEXT");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc thêm cột mới trên owner_registrations / owners.");
+        }
+
         // Seed Default Owner User
         if (userRepository.findByEmail("owner@sporta.vn").isEmpty()) {
             User ownerUser = User.builder()
                     .email("owner@sporta.vn")
                     .password(passwordEncoder.encode("owner123"))
                     .fullName("Chủ Sân Sporta")
+                    .phoneNumber("0987654321")
+                    .gender(com.backend.sporta.enums.Gender.MALE)
                     .role(Role.OWNER)
                     .status(UserStatus.ACTIVE)
                     .build();
@@ -227,8 +244,11 @@ public class DataSeeder implements CommandLineRunner {
                     .user(ownerUser)
                     .fullName("Chủ Sân Sporta")
                     .phoneNumber("0987654321")
+                    .gender("Nam")
+                    .nationality("Việt Nam")
                     .dateOfBirth(LocalDate.of(1990, 1, 1))
-                    .hometown("Hà Nội")
+                    .hometown("Thành phố Hà Nội")
+                    .permanentAddress("12 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Thành phố Hà Nội")
                     .build();
             ownerProfile = ownerRepository.save(ownerProfile);
             System.out.println("Data Seeder: Đã tạo thông tin hồ sơ Owner chi tiết liên kết tài khoản.");

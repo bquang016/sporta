@@ -29,12 +29,14 @@ export const ContractFullscreenModal = ({ contract, onClose }: ContractFullscree
   // Map API response to the format ContractPreview expects
   const personalInfo = {
     fullName: contract.ownerFullName,
+    gender: '',
+    phoneNumber: '',
     idNumber: contract.ownerIdCard,
+    nationality: 'Việt Nam',
+    hometown: '',
+    permanentAddress: '',
     idFrontImage: null,
     idBackImage: null,
-    phone: '', 
-    dateOfBirth: '',
-    hometown: '',
   };
 
   // We only have venueAddress in the DTO, so we'll just put it all in province/district
