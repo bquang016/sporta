@@ -34,7 +34,12 @@ export function useSetupWizard() {
   // ── Form data ──
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
     fullName: '',
+    gender: '',
+    phoneNumber: '',
     idNumber: '',
+    nationality: 'Việt Nam',
+    hometown: '',
+    permanentAddress: '',
     idFrontImage: null,
     idBackImage: null,
   });
@@ -86,7 +91,16 @@ export function useSetupWizard() {
       switch (step) {
         case 'personal':
           if (!personalInfo.fullName.trim()) return 'Vui lòng nhập họ và tên.';
+          if (!personalInfo.gender) return 'Vui lòng chọn giới tính.';
+          if (!personalInfo.phoneNumber.trim()) return 'Vui lòng nhập số điện thoại.';
+          if (!/^0\d{9}$/.test(personalInfo.phoneNumber.trim())) return 'Số điện thoại không hợp lệ (phải đúng 10 chữ số bắt đầu bằng số 0).';
           if (!personalInfo.idNumber.trim()) return 'Vui lòng nhập số CCCD/CMND.';
+          if (!/^(\d{12}|\d{9})$/.test(personalInfo.idNumber.trim())) return 'Số CCCD/CMND không hợp lệ (phải gồm đúng 12 chữ số đối với thẻ CCCD, hoặc 9 chữ số với CMND).';
+          if (!personalInfo.nationality.trim()) return 'Vui lòng nhập quốc tịch.';
+          if (!personalInfo.hometown.trim()) return 'Vui lòng chọn quê quán.';
+          if (!personalInfo.permanentAddress.trim()) return 'Vui lòng chọn/nhập nơi thường trú đầy đủ.';
+          if (!personalInfo.idFrontImage) return 'Vui lòng tải lên ảnh mặt trước CCCD/CMND.';
+          if (!personalInfo.idBackImage) return 'Vui lòng tải lên ảnh mặt sau CCCD/CMND.';
           return null;
 
         case 'venue-basic':

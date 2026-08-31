@@ -32,12 +32,14 @@ export const ContractFullscreenModal: React.FC<ContractFullscreenModalProps> = (
 
   const personalInfo = {
     fullName: contract.ownerFullName,
+    gender: '',
+    phoneNumber: '',
     idNumber: contract.ownerIdCard,
+    nationality: 'Việt Nam',
+    hometown: '',
+    permanentAddress: '',
     idFrontImage: null,
     idBackImage: null,
-    phone: '', 
-    dateOfBirth: '',
-    hometown: '',
   };
 
   const venueInfo = {

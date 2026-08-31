@@ -45,6 +45,15 @@ public class Owner {
     @Column(name = "hometown")
     private String hometown;
 
+    @Column(name = "gender")
+    private String gender;
+
+    @Column(name = "nationality")
+    private String nationality;
+
+    @Column(name = "permanent_address", columnDefinition = "TEXT")
+    private String permanentAddress;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

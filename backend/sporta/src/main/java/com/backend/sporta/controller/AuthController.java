@@ -63,6 +63,11 @@ public class AuthController {
             @RequestParam("registrationToken") String registrationToken,
             @RequestParam("fullName") String fullName,
             @RequestParam("idNumber") String idNumber,
+            @RequestParam(value = "gender", required = false, defaultValue = "") String gender,
+            @RequestParam(value = "nationality", required = false, defaultValue = "Việt Nam") String nationality,
+            @RequestParam(value = "hometown", required = false, defaultValue = "") String hometown,
+            @RequestParam(value = "permanentAddress", required = false, defaultValue = "") String permanentAddress,
+            @RequestParam(value = "phoneNumber", required = false, defaultValue = "") String phoneNumber,
             @RequestParam("venueName") String venueName,
             @RequestParam("province") String province,
             @RequestParam("district") String district,
@@ -99,8 +104,8 @@ public class AuthController {
                 : java.time.LocalTime.of(22, 0);
 
         RegisterOwnerResponse response = authService.registerOwner(
-                registrationToken, fullName, idNumber, venueName, province,
-                district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge,
+                registrationToken, fullName, idNumber, gender, nationality, hometown, permanentAddress, phoneNumber,
+                venueName, province, district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge,
                 surchargeAmount, surchargeDescription, latitude, longitude, subCourtCount, description,
                 courts, freeCancellationHours, lateCancellationRefundRate, rainRescheduleAllowed, idFrontImage,
                 idBackImage, coverImage, registrationImages, isContractSigned, signatureTimestamp, signatureIp);

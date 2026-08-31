@@ -41,9 +41,35 @@ public class AdminDashboardService {
 
     @Transactional(readOnly = true)
     public AdminDashboardResponse getDashboardOverview(String timeFilter) {
-        // 1. Calculate Core Metrics from DB
+        LocalDate today = LocalDate.now();
+        LocalDate firstDayThisMonth = today.withDayOfMonth(1);
+        LocalDate firstDayLastMonth = today.minusMonths(1).withDayOfMonth(1);
+        LocalDate lastDayLastMonth = firstDayThisMonth.minusDays(1);
+        LocalDate firstDayThisYear = today.withDayOfYear(1);
+
+        // 1. Fetch Bookings and filter valid ones
+        List<Booking> allBookings = bookingRepository.findAll();
+        List<Booking> validBookings = allBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED || b.getStatus() == BookingStatus.CONFIRMED)
+                .collect(Collectors.toList());
+
+        // 2. Filter bookings according to timeFilter for KPI calculation
+        List<Booking> periodBookings;
+        String filterPeriodText;
+        if ("last_month".equalsIgnoreCase(timeFilter)) {
+            periodBookings = filterBookingsByDateRange(validBookings, firstDayLastMonth, lastDayLastMonth);
+            filterPeriodText = "Trong tháng trước";
+        } else if ("year".equalsIgnoreCase(timeFilter)) {
+            periodBookings = filterBookingsByDateRange(validBookings, firstDayThisYear, today);
+            filterPeriodText = "Trong năm nay";
+        } else { // "this_month" or default
+            periodBookings = filterBookingsByDateRange(validBookings, firstDayThisMonth, today);
+            filterPeriodText = "Trong tháng này";
+        }
+
+        // 3. Calculate Core Metrics for the selected timeFilter
         long userCount = userRepository.count();
-        long bookingCount = bookingRepository.count();
+        long periodBookingCount = periodBookings.size();
         List<Venue> pendingVenues = venueRepository.findByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.PENDING);
         long pendingRegsCount = ownerRegistrationRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(r -> r.getStatus() == RegistrationStatus.PENDING)
@@ -51,12 +77,7 @@ public class AdminDashboardService {
 
         long totalPendingApprovals = pendingVenues.size() + pendingRegsCount;
 
-        List<Booking> allBookings = bookingRepository.findAll();
-        List<Booking> validBookings = allBookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.COMPLETED || b.getStatus() == BookingStatus.CONFIRMED)
-                .collect(Collectors.toList());
-
-        double totalGmv = validBookings.stream()
+        double totalGmv = periodBookings.stream()
                 .mapToDouble(b -> b.getFinalPrice() != null ? b.getFinalPrice() : 0.0)
                 .sum();
 
@@ -70,29 +91,29 @@ public class AdminDashboardService {
         metrics.add(AdminKpiDto.builder()
                 .label("Tổng Doanh Thu")
                 .value(formattedTotalRevenue)
-                .change("Doanh thu thực tế")
+                .change(filterPeriodText)
                 .isPositive(true)
                 .build());
 
         metrics.add(AdminKpiDto.builder()
                 .label("Doanh thu Hoa hồng")
                 .value(formattedCommission)
-                .change("10% tổng GMV hệ thống")
+                .change("10% GMV (" + filterPeriodText.toLowerCase() + ")")
                 .isPositive(true)
-                .tooltip("Tính bằng 10% chiết khấu trung bình nhân với tổng số tiền giao dịch Online thành công.")
+                .tooltip("Tính bằng 10% chiết khấu trung bình nhân với tổng số tiền giao dịch thành công trong khoảng thời gian đã chọn.")
                 .build());
 
         metrics.add(AdminKpiDto.builder()
-                .label("Người Dùng Mới")
+                .label("Tổng Người Dùng")
                 .value(formatter.format(userCount))
-                .change("Tổng tài sản người dùng")
+                .change("Tổng số tài khoản hệ thống")
                 .isPositive(true)
                 .build());
 
         metrics.add(AdminKpiDto.builder()
                 .label("Lượt Đặt Sân")
-                .value(formatter.format(bookingCount))
-                .change("Tổng lượt đặt thành công")
+                .value(formatter.format(periodBookingCount))
+                .change(filterPeriodText)
                 .isPositive(true)
                 .build());
 
@@ -103,16 +124,8 @@ public class AdminDashboardService {
                 .isPositive(totalPendingApprovals == 0)
                 .build());
 
-        // 2. REAL Partner Leaderboard (Calculated per Venue for this_month, last_month, year)
+        // 4. REAL Partner Leaderboard (Calculated per Venue for this_month, last_month, year)
         List<Venue> allVenues = venueRepository.findAll();
-
-        LocalDate today = LocalDate.now();
-        LocalDate firstDayThisMonth = today.withDayOfMonth(1);
-
-        LocalDate firstDayLastMonth = today.minusMonths(1).withDayOfMonth(1);
-        LocalDate lastDayLastMonth = firstDayThisMonth.minusDays(1);
-
-        LocalDate firstDayThisYear = today.withDayOfYear(1);
 
         List<PartnerDataDto> thisMonthList = buildLeaderboardForDateRange(allVenues, validBookings, firstDayThisMonth, today);
         List<PartnerDataDto> lastMonthList = buildLeaderboardForDateRange(allVenues, validBookings, firstDayLastMonth, lastDayLastMonth);
@@ -278,5 +291,17 @@ public class AdminDashboardService {
         });
 
         return list;
+    }
+
+    private List<Booking> filterBookingsByDateRange(List<Booking> bookings, LocalDate startDate, LocalDate endDate) {
+        return bookings.stream()
+                .filter(b -> {
+                    LocalDate bDate = b.getCreatedAt() != null ? b.getCreatedAt().toLocalDate() : LocalDate.now();
+                    if (b.getDetails() != null && !b.getDetails().isEmpty() && b.getDetails().get(0).getBookingDate() != null) {
+                        bDate = b.getDetails().get(0).getBookingDate();
+                    }
+                    return !bDate.isBefore(startDate) && !bDate.isAfter(endDate);
+                })
+                .collect(Collectors.toList());
     }
 }

@@ -46,7 +46,11 @@ export const ContractPreview = ({
         <div className="space-y-1">
           <div className="font-bold uppercase underline underline-offset-2 mb-2">BÊN A (CHỦ CƠ SỞ THỂ THAO / OWNER):</div>
           <p>• Người đại diện: <strong>{personalInfo.fullName || '[Chưa nhập Họ tên]'}</strong></p>
+          <p>• Giới tính: <strong>{personalInfo.gender || '[Chưa chọn]'}</strong> | Quốc tịch: <strong>{personalInfo.nationality || 'Việt Nam'}</strong></p>
+          <p>• Số điện thoại: <strong>{personalInfo.phoneNumber || '[Chưa nhập SĐT]'}</strong></p>
           <p>• Số CCCD/CMND: <strong>{personalInfo.idNumber || '[Chưa nhập CCCD]'}</strong></p>
+          <p>• Quê quán: <strong>{personalInfo.hometown || '[Chưa chọn Quê quán]'}</strong></p>
+          <p>• Nơi thường trú: <strong>{personalInfo.permanentAddress || '[Chưa nhập Nơi thường trú]'}</strong></p>
           <p>• Tên cụm sân: <strong>{venueInfo.name || '[Chưa nhập Tên sân]'}</strong></p>
           <p>• Địa chỉ kinh doanh: {venueInfo.addressDetail ? `${venueInfo.addressDetail}, ` : ''}{venueInfo.ward}{venueInfo.district ? `, ${venueInfo.district}` : ''}{venueInfo.province ? `, ${venueInfo.province}` : ''}</p>
         </div>

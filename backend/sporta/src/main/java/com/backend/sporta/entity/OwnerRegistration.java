@@ -35,6 +35,21 @@ public class OwnerRegistration {
     @Column(name = "id_back_image", columnDefinition = "TEXT")
     private String idBackImage;
 
+    @Column(name = "gender")
+    private String gender;
+
+    @Column(name = "nationality")
+    private String nationality;
+
+    @Column(name = "hometown")
+    private String hometown;
+
+    @Column(name = "permanent_address", columnDefinition = "TEXT")
+    private String permanentAddress;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
     // ── Venue info ──
     @Column(name = "venue_name", nullable = false)
     private String venueName;
