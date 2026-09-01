@@ -22,7 +22,9 @@ interface UserClubsCardProps {
 export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardProps) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  if (!clubs || clubs.length === 0) {
+  const displayClubs = clubs || [];
+
+  if (displayClubs.length === 0) {
     return (
       <View style={styles.card}>
         <View style={styles.headerRow}>
@@ -37,8 +39,8 @@ export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardPr
   }
 
   // Display at most 2 clubs outside unless expanded
-  const visibleClubs = isExpanded ? clubs : clubs.slice(0, 2);
-  const hasMore = clubs.length > 2;
+  const visibleClubs = isExpanded ? displayClubs : displayClubs.slice(0, 2);
+  const hasMore = displayClubs.length > 2;
 
   const getRoleLabel = (role?: string) => {
     if (!role) return 'Thành viên';
@@ -56,13 +58,14 @@ export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardPr
           <Text style={styles.title}>Các câu lạc bộ đã tham gia</Text>
         </View>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{clubs.length}</Text>
+          <Text style={styles.countText}>{displayClubs.length}</Text>
         </View>
       </View>
 
       {/* Clubs List */}
       <View style={styles.list}>
-        {visibleClubs.map((club, index) => (
+        <View>
+          {visibleClubs.map((club, index) => (
           <TouchableOpacity
             key={`${club.clubId}-${index}`}
             style={[
@@ -108,6 +111,7 @@ export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardPr
             </View>
           </TouchableOpacity>
         ))}
+        </View>
       </View>
 
       {/* "Xem tất cả" / "Thu gọn" Button */}
@@ -118,7 +122,7 @@ export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardPr
           onPress={() => setIsExpanded(!isExpanded)}
         >
           <Text style={styles.expandButtonText}>
-            {isExpanded ? 'Thu gọn' : `Xem tất cả (${clubs.length} câu lạc bộ)`}
+            {isExpanded ? 'Thu gọn' : `Xem tất cả (${displayClubs.length} câu lạc bộ)`}
           </Text>
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -147,9 +151,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   titleLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingRight: 8,
   },
   title: {
     ...TYPOGRAPHY.labelMd,
@@ -158,6 +164,7 @@ const styles = StyleSheet.create({
     color: '#334155',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+    flexShrink: 1,
   },
   countBadge: {
     backgroundColor: '#EFF6FF',
@@ -177,6 +184,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    overflow: 'hidden',
   },
   clubItem: {
     flexDirection: 'row',

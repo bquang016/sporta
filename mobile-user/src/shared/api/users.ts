@@ -60,6 +60,7 @@ export interface PublicUserProfileResponse {
     sportId: number;
     sportName: string;
     sportIcon?: string;
+    level?: string;
     bookingCount: number;
     percentage: number;
   }[];
@@ -93,7 +94,7 @@ export const usersApi = {
   },
 
   getPublicProfile: async (userId: string | number): Promise<PublicUserProfileResponse> => {
-    return apiFetch<PublicUserProfileResponse>(`/users/${userId}/public`, { method: 'GET' }, false);
+    return apiFetch<PublicUserProfileResponse>(`/users/${userId}/public`, { method: 'GET' }, true);
   },
 
   updateProfile: async (data: UpdateUserProfileRequest, avatarUri?: string): Promise<UserProfileDto> => {

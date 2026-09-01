@@ -7,15 +7,17 @@ interface SportStatItem {
   sportId: number;
   sportName: string;
   sportIcon?: string;
+  level?: string;
   bookingCount: number;
   percentage: number;
 }
 
 interface UserSportsCardProps {
   sports?: SportStatItem[];
+  privateMode?: boolean;
 }
 
-export const UserSportsCard = React.memo(({ sports }: UserSportsCardProps) => {
+export const UserSportsCard = React.memo(({ sports, privateMode }: UserSportsCardProps) => {
   if (!sports || sports.length === 0) {
     return (
       <View style={styles.container}>
@@ -87,30 +89,10 @@ export const UserSportsCard = React.memo(({ sports }: UserSportsCardProps) => {
                   <View>
                     <Text style={styles.sportName}>{item.sportName}</Text>
                     <Text style={styles.bookingCountText}>
-                      {item.bookingCount} lượt đặt sân
+                      Trình độ: {item.level || 'Chưa xác định'}
                     </Text>
                   </View>
                 </View>
-
-                {/* Percentage Tag */}
-                <View style={[styles.percentageBadge, { backgroundColor: config.bgColor }]}>
-                  <Text style={[styles.percentageText, { color: config.barColor }]}>
-                    {item.percentage}% hoạt động
-                  </Text>
-                </View>
-              </View>
-
-              {/* Progress Bar */}
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${Math.min(100, Math.max(8, item.percentage))}%`,
-                      backgroundColor: config.barColor,
-                    },
-                  ]}
-                />
               </View>
             </View>
           );

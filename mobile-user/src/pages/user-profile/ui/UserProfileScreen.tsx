@@ -86,17 +86,19 @@ export function UserProfileScreen() {
             joinedYearLabel={joinedYearLabel}
           />
 
-          {/* 2. Sports Summary Cards (Luôn hiển thị trình độ) */}
-          <UserSportsCard sports={profile.sports} />
-
           {profile.privateMode ? (
             <View style={styles.privateModeContainer}>
-              <Ionicons name="lock-closed" size={48} color={COLORS.outline} />
-              <Text style={styles.privateModeTitle}>Tài khoản riêng tư</Text>
-              <Text style={styles.privateModeDesc}>Các thông tin cá nhân và lịch sử hoạt động của người dùng này đã bị ẩn.</Text>
+              <Ionicons name="lock-closed" size={48} color="#94A3B8" />
+              <Text style={styles.privateModeTitle}>Tài khoản ẩn</Text>
+              <Text style={styles.privateModeDesc}>
+                Các thông tin chi tiết đã được bảo mật bởi người dùng.
+              </Text>
             </View>
           ) : (
             <>
+              {/* 2. Sports Summary Cards (Luôn hiển thị trình độ) */}
+              <UserSportsCard sports={profile.sports} />
+
               {/* 3. Physical Stats Card */}
               <UserPhysicalCard
                 height={profile.height}
@@ -104,7 +106,10 @@ export function UserProfileScreen() {
               />
 
               {/* 4. Joined Clubs Card */}
-              <UserClubsCard clubs={profile.joinedClubs} onClubPress={handleClubPress} />
+              <UserClubsCard 
+                clubs={profile.joinedClubs} 
+                onClubPress={handleClubPress}
+              />
             </>
           )}
 
@@ -167,25 +172,28 @@ const styles = StyleSheet.create({
   },
   privateModeContainer: {
     margin: SPACING.marginMobile,
-    padding: SPACING.xl,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 60,
+    paddingHorizontal: SPACING.xl,
+    backgroundColor: '#F8FAFC',
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    marginTop: 40,
+    gap: 8,
   },
   privateModeTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '700',
     color: COLORS.onSurface,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.xs,
+    marginTop: SPACING.sm,
   },
   privateModeDesc: {
     ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 20,
+    paddingHorizontal: 20,
   },
 });

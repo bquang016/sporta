@@ -39,6 +39,7 @@ public class UserController {
     @GetMapping({"/{id}/public", "/{id}"})
     public ResponseEntity<com.backend.sporta.dto.PublicUserProfileResponse> getPublicUserProfile(@PathVariable Long id) {
         com.backend.sporta.dto.PublicUserProfileResponse profile = userService.getPublicUserProfile(id);
+        System.out.println("DEBUG PUBLIC PROFILE FOR ID " + id + ": privateMode=" + profile.getPrivateMode());
         return ResponseEntity.ok(profile);
     }
 
