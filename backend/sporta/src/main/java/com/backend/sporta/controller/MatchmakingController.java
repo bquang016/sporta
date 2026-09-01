@@ -132,4 +132,18 @@ public class MatchmakingController {
             @RequestParam(required = false) String rawScoreDetails) {
         return ResponseEntity.ok(matchmakingService.previewRanking(matchId, hostScore, guestScore, rawScoreDetails));
     }
+
+    @PostMapping({"/rooms/{roomId}/dev/assign-clubs", "/matches/{roomId}/dev/assign-clubs"})
+    public ResponseEntity<MatchRoomResponse> devAssignClubs(
+            @PathVariable UUID roomId,
+            @RequestBody DevAssignClubsRequest request) {
+        return ResponseEntity.ok(matchmakingService.devAssignClubs(roomId, request, getCurrentUserEmail()));
+    }
+
+    @PostMapping({"/rooms/{roomId}/dev/force-finish", "/matches/{roomId}/dev/force-finish"})
+    public ResponseEntity<MatchRoomResponse> devForceFinishMatch(
+            @PathVariable UUID roomId,
+            @Valid @RequestBody DevForceFinishMatchRequest request) {
+        return ResponseEntity.ok(matchmakingService.devForceFinishMatch(roomId, request, getCurrentUserEmail()));
+    }
 }

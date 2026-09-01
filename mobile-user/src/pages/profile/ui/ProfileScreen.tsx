@@ -9,6 +9,7 @@ import {
   StatusBar,
   RefreshControl,
   Platform,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedSportIndex, setSelectedSportIndex] = useState(0);
 
   const {
     isAuthenticated,
@@ -58,6 +60,81 @@ export function ProfileScreen() {
   const handleSettings = useCallback(() => {
     router.push('/profile/settings' as any);
   }, [router]);
+
+  // User sports list sorted by priority: VERIFIED > Total Matches > Elo Rating > Total Wins
+  const userSports = React.useMemo(() => {
+    if (!profileData?.sports || profileData.sports.length === 0) {
+      return [
+        { id: 1, sportId: 1, sportName: 'Bóng đá', level: 'AVERAGE', eloRating: 1500, eloStatus: 'UNVERIFIED', levelLabel: 'Trung bình', placementMatchesPlayed: 0, totalRankedMatches: 0, totalWins: 0, winRate: 0 },
+      ];
+    }
+
+    return [...profileData.sports].sort((a, b) => {
+      // 1. Priority: VERIFIED (3) > CALIBRATING (2) > UNVERIFIED (1)
+      const statusWeight = (s?: string) => (s === 'VERIFIED' ? 3 : s === 'CALIBRATING' ? 2 : 1);
+      const diffStatus = statusWeight(b.eloStatus) - statusWeight(a.eloStatus);
+      if (diffStatus !== 0) return diffStatus;
+
+      // 2. Total ranked matches played (most active)
+      const matchesA = a.totalRankedMatches ?? 0;
+      const matchesB = b.totalRankedMatches ?? 0;
+      if (matchesB !== matchesA) return matchesB - matchesA;
+
+      // 3. Higher Elo rating
+      const eloA = a.eloRating ?? 0;
+      const eloB = b.eloRating ?? 0;
+      if (eloB !== eloA) return eloB - eloA;
+
+      // 4. Total wins
+      const winsA = a.totalWins ?? 0;
+      const winsB = b.totalWins ?? 0;
+      return winsB - winsA;
+    });
+  }, [profileData?.sports]);
+
+  const currentSport = userSports[Math.min(selectedSportIndex, userSports.length - 1)] || userSports[0];
+  const currentElo = currentSport?.eloRating ?? 1500;
+  const currentEloStatus = currentSport?.eloStatus ?? 'UNVERIFIED';
+  const currentLevelLabel = currentSport?.levelLabel || (currentSport?.level === 'GOOD' ? 'Khá' : currentSport?.level === 'WEAK' ? 'Yếu' : 'Trung bình');
+  const totalMatches = currentSport?.totalRankedMatches ?? 0;
+  const totalWins = currentSport?.totalWins ?? 0;
+  const winRate = currentSport?.winRate ?? (totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0);
+  const placementPlayed = currentSport?.placementMatchesPlayed ?? 0;
+
+  const getBadgeConfig = (status: string, played: number) => {
+    switch (status) {
+      case 'VERIFIED':
+        return {
+          label: 'ĐÃ XÁC THỰC',
+          iconLibrary: 'Ionicons',
+          iconName: 'shield-checkmark',
+          bgColor: '#ECFDF5',
+          textColor: '#059669',
+          borderColor: '#A7F3D0',
+        };
+      case 'CALIBRATING':
+        return {
+          label: `PHÂN HẠNG ${played}/5`,
+          iconLibrary: 'MaterialCommunityIcons',
+          iconName: 'timer-sand',
+          bgColor: '#FEF3C7',
+          textColor: '#D97706',
+          borderColor: '#FDE68A',
+        };
+      case 'UNVERIFIED':
+      default:
+        return {
+          label: 'TỰ KHAI',
+          iconLibrary: 'MaterialCommunityIcons',
+          iconName: 'shield-account-outline',
+          bgColor: '#F1F5F9',
+          textColor: '#64748B',
+          borderColor: '#CBD5E1',
+        };
+    }
+  };
+
+  const badgeConfig = getBadgeConfig(currentEloStatus, placementPlayed);
 
   if (!isAuthenticated) {
     return (
@@ -94,15 +171,6 @@ export function ProfileScreen() {
       </View>
     );
   }
-
-  // User sports list with fallback
-  const userSports = profileData?.sports && profileData.sports.length > 0
-    ? profileData.sports
-    : [
-        { id: 1, sportName: 'Tennis', level: 'Bán chuyên' },
-        { id: 2, sportName: 'Cầu lông', level: 'Nâng cao' },
-        { id: 3, sportName: 'Pickleball', level: 'Cơ bản' },
-      ];
 
   return (
     <View style={styles.container}>
@@ -150,53 +218,49 @@ export function ProfileScreen() {
          ======================================================== */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + 96 },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
-        overScrollMode="never"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+            colors={['#064E3B']}
+            tintColor="#064E3B"
           />
         }
       >
         {/* ========================================================
-            PREMIUM PROFILE HERO CARD
+            HERO PROFILE CARD WITH DYNAMIC SPORTS CHIPS
            ======================================================== */}
         <View style={styles.heroCard}>
           <LinearGradient
-            colors={['#ECFDF5', '#F8FAFC', '#FFFFFF']}
+            colors={['#FFFFFF', '#F0FDF4']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroGradient}
           >
             <View style={styles.heroTopRow}>
-              {/* Avatar with Glow Ring */}
               <View style={styles.avatarContainer}>
                 <View style={styles.avatarBorderRing}>
-                  <Avatar size={76} source={userAvatar} fallbackType="user" />
+                  <Avatar
+                    source={userAvatar}
+                    text={userName}
+                    size="xl"
+                  />
                 </View>
                 <TouchableOpacity
-                  onPress={handleEditProfile}
                   style={styles.avatarCameraBadge}
+                  onPress={handleEditProfile}
                   activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="camera" size={13} color="#FFFFFF" />
+                  <MaterialIcons name="photo-camera" size={13} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
 
-              {/* User Info Details */}
               <View style={styles.heroInfoColumn}>
                 <View style={styles.heroNameRow}>
                   <Text style={styles.userName} numberOfLines={1}>
-                    {userName || 'Vận động viên Sporta'}
+                    {userName || 'Người dùng Sporta'}
                   </Text>
                 </View>
                 <Text style={styles.userEmail} numberOfLines={1}>
@@ -211,63 +275,138 @@ export function ProfileScreen() {
               </View>
             </View>
 
-            {/* Dynamic Sports Chips */}
-            <View style={styles.sportsChipsRow}>
-              {userSports.map((s, idx) => (
-                <View key={idx} style={styles.sportChip}>
-                  <MaterialCommunityIcons
-                    name={
-                      s.sportName.toLowerCase().includes('tennis')
-                        ? 'tennis'
-                        : s.sportName.toLowerCase().includes('cầu lông') || s.sportName.toLowerCase().includes('badminton')
-                        ? 'badminton'
-                        : 'trophy-outline'
-                    }
-                    size={14}
-                    color="#064E3B"
-                  />
-                  <Text style={styles.sportChipText}>{s.sportName}</Text>
-                  {s.level && <Text style={styles.sportChipLevel}>• {s.level}</Text>}
-                </View>
-              ))}
+            {/* Sports Section Header & Quick Hint */}
+            <View style={styles.sportsSectionHeader}>
+              <View style={styles.sportsHeaderLeft}>
+                <Ionicons name="fitness-outline" size={13} color="#064E3B" />
+                <Text style={styles.sportsSectionTitle}>MÔN THI ĐẤU</Text>
+              </View>
+              <View style={styles.sportsHintBadge}>
+                <Ionicons name="sparkles" size={10} color="#059669" />
+                <Text style={styles.sportsHintText}>Chạm để xem chỉ số</Text>
+              </View>
             </View>
+
+            {/* Interactive Priority-Sorted Sports Selector Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sportsChipsRow}
+            >
+              {userSports.map((s, idx) => {
+                const isSelected = idx === selectedSportIndex;
+                const isVerified = s.eloStatus === 'VERIFIED';
+                return (
+                  <TouchableOpacity
+                    key={s.sportId || idx}
+                    onPress={() => setSelectedSportIndex(idx)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.sportChip,
+                      isSelected && styles.sportChipActive,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        s.sportName.toLowerCase().includes('tennis')
+                          ? 'tennis'
+                          : s.sportName.toLowerCase().includes('cầu lông') || s.sportName.toLowerCase().includes('badminton')
+                          ? 'badminton'
+                          : s.sportName.toLowerCase().includes('bóng rổ') || s.sportName.toLowerCase().includes('basketball')
+                          ? 'basketball'
+                          : 'soccer'
+                      }
+                      size={14}
+                      color={isSelected ? '#FFFFFF' : '#064E3B'}
+                    />
+                    <Text style={[styles.sportChipText, isSelected && styles.sportChipTextActive]}>
+                      {s.sportName}
+                    </Text>
+                    {isVerified && (
+                      <Ionicons
+                        name="shield-checkmark"
+                        size={11}
+                        color={isSelected ? '#A7F3D0' : '#059669'}
+                      />
+                    )}
+                    {s.eloRating && (
+                      <Text style={[styles.sportChipElo, isSelected && styles.sportChipEloActive]}>
+                        {s.eloRating}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </LinearGradient>
         </View>
 
         {/* ========================================================
-            ATHLETIC PERFORMANCE & ELO STATS DASHBOARD
+            ATHLETIC PERFORMANCE & ELO STATS DASHBOARD (INTERACTIVE)
            ======================================================== */}
         <View style={styles.statsCard}>
-          <View style={styles.statCol}>
+          {/* Elo Column -> Tap to open Sports Elo Screen */}
+          <TouchableOpacity
+            style={styles.statCol}
+            onPress={() => router.push('/profile/sports-elo' as any)}
+            activeOpacity={0.7}
+          >
             <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
               <MaterialCommunityIcons name="fire" size={18} color="#D97706" />
             </View>
-            <Text style={styles.statValue}>1,450</Text>
-            <Text style={styles.statLabel}>Elo Thể Thao</Text>
-            <Text style={styles.statSub}>Bán Chuyên</Text>
-          </View>
+            <Text style={styles.statValue}>{currentElo.toLocaleString()}</Text>
+            <Text style={styles.statLabel}>Elo {currentSport?.sportName}</Text>
+            <View style={styles.statActionHint}>
+              <Text style={styles.statSub}>{currentLevelLabel}</Text>
+              <Ionicons name="chevron-forward" size={11} color="#059669" />
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.statDivider} />
 
-          <View style={styles.statCol}>
+          {/* Matches Column -> Tap to open Ranked Match History */}
+          <TouchableOpacity
+            style={styles.statCol}
+            onPress={() => router.push('/profile/ranked-matches' as any)}
+            activeOpacity={0.7}
+          >
             <View style={[styles.statIconBadge, { backgroundColor: '#E7F3EF' }]}>
-              <MaterialCommunityIcons name="calendar-check" size={18} color="#064E3B" />
+              <MaterialCommunityIcons name="trophy" size={18} color="#064E3B" />
             </View>
-            <Text style={styles.statValue}>24</Text>
-            <Text style={styles.statLabel}>Trận Đã Đấu</Text>
-            <Text style={styles.statSub}>Hoàn thành</Text>
-          </View>
+            <Text style={styles.statValue}>{totalMatches}</Text>
+            <Text style={styles.statLabel}>Trận Xếp Hạng</Text>
+            <View style={styles.statActionHint}>
+              <Text style={styles.statSub}>{totalWins} Thắng</Text>
+              <Ionicons name="chevron-forward" size={11} color="#064E3B" />
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.statDivider} />
 
-          <View style={styles.statCol}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#EFF6FF' }]}>
-              <MaterialCommunityIcons name="trophy-award" size={18} color="#2563EB" />
+          {/* Verification Badge Column -> Tap to open dedicated Elo Guide Screen */}
+          <TouchableOpacity
+            style={styles.statCol}
+            onPress={() => router.push('/profile/elo-guide' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.statIconBadge, { backgroundColor: badgeConfig.bgColor }]}>
+              {badgeConfig.iconLibrary === 'MaterialCommunityIcons' ? (
+                <MaterialCommunityIcons name={badgeConfig.iconName as any} size={18} color={badgeConfig.textColor} />
+              ) : (
+                <Ionicons name={badgeConfig.iconName as any} size={18} color={badgeConfig.textColor} />
+              )}
             </View>
-            <Text style={styles.statValue}>68%</Text>
-            <Text style={styles.statLabel}>Tỉ Lệ Thắng</Text>
-            <Text style={styles.statSub}>Phong độ cao</Text>
-          </View>
+            <View style={[styles.statusBadgeSmall, { backgroundColor: badgeConfig.bgColor, borderColor: badgeConfig.borderColor }]}>
+              <Text style={[styles.statusBadgeSmallText, { color: badgeConfig.textColor }]}>
+                {badgeConfig.label}
+              </Text>
+            </View>
+            <Text style={styles.statLabel}>Xác thực Elo</Text>
+            <View style={styles.statActionHint}>
+              <Text style={[styles.statSub, { color: '#2563EB' }]}>Thắng {winRate}%</Text>
+              <Ionicons name="information-circle" size={11} color="#2563EB" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* ========================================================
@@ -313,61 +452,70 @@ export function ProfileScreen() {
           <View style={styles.menuCard}>
             <MenuRow
               icon="history"
-              iconBg="#E7F3EF"
-              iconColor="#064E3B"
+              iconBg="#EFF6FF"
+              iconColor="#2563EB"
               title="Lịch sử đặt sân"
-              subtitle="Chi tiết các phiên đặt sân và biên nhận"
+              subtitle="Danh sách các sân đã đặt"
               onPress={() => router.push('/profile/booking-history' as any)}
             />
             <View style={styles.menuDivider} />
             <MenuRow
-              icon="local-activity"
-              iconBg="#FEF3C7"
-              iconColor="#B45309"
-              title="Xé vé & Ghép trận"
-              subtitle="Quản lý vé trận đấu và người cùng chơi"
+              icon="confirmation-number"
+              iconBg="#ECFDF5"
+              iconColor="#059669"
+              title="Vé của tôi"
+              subtitle="Các ca xé vé đang tham gia"
               onPress={() => router.push('/my-tickets' as any)}
             />
             <View style={styles.menuDivider} />
             <MenuRow
               icon="groups"
-              iconBg="#E0E7FF"
-              iconColor="#4338CA"
+              iconBg="#FFFBEB"
+              iconColor="#D97706"
               title="Câu lạc bộ của tôi"
-              subtitle="Danh sách CLB bạn đang sinh hoạt"
+              subtitle="Quản lý & kết nối thành viên"
               onPress={() => router.push('/my-clubs' as any)}
             />
           </View>
         </View>
 
         {/* ========================================================
-            MENU SECTION 2: CÀI ĐẶT & HỖ TRỢ
+            MENU SECTION 2: TÀI KHOẢN & BẢO MẬT
            ======================================================== */}
         <View style={styles.menuSection}>
-          <Text style={styles.sectionHeaderTitle}>Hệ Thống & Trợ Giúp</Text>
+          <Text style={styles.sectionHeaderTitle}>Tài Khoản & Cài Đặt</Text>
           <View style={styles.menuCard}>
+            <MenuRow
+              icon="person-outline"
+              iconBg="#F1F5F9"
+              iconColor="#475569"
+              title="Chỉnh sửa hồ sơ"
+              subtitle="Họ tên, ảnh đại diện, số điện thoại"
+              onPress={handleEditProfile}
+            />
+            <View style={styles.menuDivider} />
             <MenuRow
               icon="settings"
               iconBg="#F1F5F9"
-              iconColor="#334155"
+              iconColor="#475569"
               title="Cài đặt tài khoản"
-              subtitle="Bảo mật, thông báo và tài khoản liên kết"
+              subtitle="Thông báo, mật khẩu, sinh trắc học"
               onPress={handleSettings}
             />
             <View style={styles.menuDivider} />
             <MenuRow
               icon="help-outline"
-              iconBg="#EFF6FF"
-              iconColor="#1D4ED8"
-              title="Trung tâm trợ giúp"
-              subtitle="Câu hỏi thường gặp và liên hệ CSKH"
+              iconBg="#F1F5F9"
+              iconColor="#475569"
+              title="Trợ giúp & Hỗ trợ"
+              subtitle="Câu hỏi thường gặp, liên hệ CSKH"
               onPress={() => router.push('/profile/help' as any)}
             />
           </View>
         </View>
 
         {/* ========================================================
-            LOGOUT CTA BUTTON
+            LOGOUT BUTTON
            ======================================================== */}
         <View style={styles.logoutContainer}>
           <TouchableOpacity
@@ -594,36 +742,88 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
-  sportsChipsRow: {
+  sportsSectionHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 14,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  sportsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sportsSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#064E3B',
+    letterSpacing: 0.5,
+  },
+  sportsHintBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+  },
+  sportsHintText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  sportsChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
     gap: 8,
   },
   sportChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F0FDF4',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: BORDER_RADIUS.full,
     gap: 5,
     borderWidth: 1,
     borderColor: '#DCFCE7',
   },
+  sportChipActive: {
+    backgroundColor: '#064E3B',
+    borderColor: '#064E3B',
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   sportChipText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#064E3B',
   },
-  sportChipLevel: {
+  sportChipTextActive: {
+    color: '#FFFFFF',
+  },
+  sportChipElo: {
     fontSize: 11,
-    color: '#475569',
-    fontWeight: '500',
+    fontWeight: '800',
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  sportChipEloActive: {
+    color: '#064E3B',
+    backgroundColor: '#A7F3D0',
   },
   statsCard: {
     flexDirection: 'row',
@@ -650,7 +850,19 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
+  },
+  statusBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    marginBottom: 2,
+  },
+  statusBadgeSmallText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   statDivider: {
     width: 1,
@@ -674,6 +886,207 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontWeight: '700',
     marginTop: 2,
+  },
+  statActionHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalBox: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+  },
+  modalTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  modalProgressCard: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 8,
+    marginBottom: 14,
+  },
+  modalProgressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalProgressPercent: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  modalProgressTrack: {
+    height: 7,
+    backgroundColor: '#FDE68A',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  modalProgressFill: {
+    height: '100%',
+    backgroundColor: '#D97706',
+    borderRadius: 4,
+  },
+  modalProgressHint: {
+    fontSize: 12,
+    color: '#78350F',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  explainSection: {
+    marginBottom: 16,
+    gap: 8,
+  },
+  explainHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  explainSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  explainCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  explainParagraph: {
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 17,
+  },
+  badgeLevelsContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  badgeLevelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  badgeLevelDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 5,
+  },
+  badgeLevelName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  badgeLevelDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+    marginTop: 1,
+  },
+  bonusListCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  bonusListItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  bonusIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  bonusListTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#064E3B',
+  },
+  bonusListDesc: {
+    fontSize: 11,
+    color: '#047857',
+    lineHeight: 15,
+    marginTop: 1,
+  },
+  modalActionsContainer: {
+    gap: 8,
+    paddingTop: 6,
+    paddingBottom: 16,
+  },
+  modalActionPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#064E3B',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+  },
+  modalActionPrimaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalActionSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modalActionSecondaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#064E3B',
   },
   quickBannerRow: {
     flexDirection: 'row',

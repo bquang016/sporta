@@ -287,4 +287,83 @@ export class MatchmakingApiRepository {
   static async getRankingPreview(roomId: string): Promise<RankingCalculationPreview> {
     return apiFetch<RankingCalculationPreview>(`/matchmaking/matches/${roomId}/preview-ranking`, { method: 'GET' }, true);
   }
+
+  /**
+   * [DEV] Lấy danh sách tất cả CLB trong hệ thống
+   */
+  static async listAllClubs(sportId?: string): Promise<ClubSummaryVM[]> {
+    const params = sportId ? `?sportId=${sportId}` : '';
+    const clubs = await apiFetch<any[]>(`/clubs/all${params}`, { method: 'GET' }, true);
+    return (clubs || []).map((c) => ({
+      id: String(c.id),
+      name: c.name,
+      sportId: String(c.sportId || c.sport?.id || 1),
+      sportName: c.sportName || c.sport?.name || 'Bóng đá',
+      avatarUrl: c.avatarImage || c.avatarUrl,
+      logoUrl: c.avatarImage || c.avatarUrl,
+      levelLabel: c.level || 'Trung bình',
+      clubElo: c.elo || 1500,
+      crp: c.crp || 0,
+      activeMemberCount: c.members ?? c.activeMemberCount ?? c.memberCount ?? 1,
+      isEligibleForMatchmaking: true,
+      userStatus: 'ADMIN',
+      isLeaderOrSubLeader: true,
+    }));
+  }
+
+  /**
+   * [DEV] Tự gán CLB tham gia kèo đấu (Side A / Side B)
+   */
+  static async devAssignClubs(
+    roomId: string,
+    params: { hostClubId?: number | string; guestClubId?: number | string }
+  ): Promise<MatchRoomVM> {
+    return apiFetch<MatchRoomVM>(
+      `/matchmaking/rooms/${roomId}/dev/assign-clubs`,
+      {
+        method: 'POST',
+        body: JSON.stringify(params),
+      },
+      true
+    );
+  }
+
+  /**
+   * Lấy danh sách thành viên của một CLB
+   */
+  static async getClubMembers(clubId: string | number): Promise<any[]> {
+    return apiFetch<any[]>(`/clubs/${clubId}/members`, { method: 'GET' }, true);
+  }
+
+  /**
+   * [DEV] Tự nhập tỉ số và kết thúc kèo đấu ngay lập tức
+   */
+  static async devForceFinishMatch(
+    roomId: string,
+    params: {
+      hostScore: number | string;
+      guestScore: number | string;
+      rawScoreDetails?: string;
+      hostPlayerUserIds?: number[];
+      guestPlayerUserIds?: number[];
+    }
+  ): Promise<MatchRoomVM> {
+    return apiFetch<MatchRoomVM>(
+      `/matchmaking/rooms/${roomId}/dev/force-finish`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          hostScore: String(params.hostScore),
+          guestScore: String(params.guestScore),
+          rawScoreDetails: params.rawScoreDetails,
+          hostPlayerUserIds: params.hostPlayerUserIds,
+          guestPlayerUserIds: params.guestPlayerUserIds,
+        }),
+      },
+      true
+    );
+  }
 }
+
+export const MatchmakingService = MatchmakingApiRepository;
+

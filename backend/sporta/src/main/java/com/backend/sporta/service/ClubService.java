@@ -17,4 +17,6 @@ public interface ClubService {
     List<ClubResponse> getAvailableClubs(Long sportId, String query, String userEmail);
     
     List<ClubResponse> getJoinedClubs(Long sportId, String query, String userEmail);
+
+    List<ClubResponse> getAllClubs(Long sportId, String query, String userEmail);
 }

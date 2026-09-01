@@ -43,7 +43,7 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
       return { text: 'Kết quả Hòa', outcome: 'DRAW' };
     } else {
       if (hostScoreNum > guestScoreNum) return { text: `Thắng: ${room.hostClub.name}`, outcome: 'WIN_A' };
-      if (guestScoreNum > guestScoreNum) return { text: `Thắng: ${room.guestClub?.name || 'Đội bạn'}`, outcome: 'WIN_B' };
+      if (guestScoreNum > hostScoreNum) return { text: `Thắng: ${room.guestClub?.name || 'Đội bạn'}`, outcome: 'WIN_B' };
       return { text: 'Kết quả Hòa', outcome: 'DRAW' };
     }
   };
@@ -64,21 +64,27 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
     <View style={styles.container}>
       {/* Header Bar */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Cập Nhật Tỷ Số Trận Đấu</Text>
-        <Text style={styles.sportBadgeText}>{room.booking.sportName} • {room.booking.format}</Text>
+        <View style={styles.headerIconCircle}>
+          <Ionicons name="trophy" size={16} color="#D97706" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Nhập Tỷ Số Trận Đấu</Text>
+          <Text style={styles.sportBadgeText}>{room.booking.sportName} • {room.booking.format}</Text>
+        </View>
       </View>
 
       {!isSetSport ? (
-        /* Consolidated Scoreboard Card (Horizontal Host vs Guest Layout) */
+        /* Digital Scoreboard Card */
         <View style={styles.scoreboardCard}>
           {/* Host Club Counter */}
           <View style={styles.teamCol}>
             <View style={styles.avatarHost}>
-              <Text style={styles.avatarText}>{room.hostClub.name.charAt(4) || 'A'}</Text>
+              <Text style={styles.avatarText}>{room.hostClub.name.charAt(0) || 'A'}</Text>
             </View>
             <Text style={styles.teamName} numberOfLines={1}>
               {room.hostClub.name}
             </Text>
+            <Text style={styles.roleLabel}>Chủ room (Bên A)</Text>
 
             <View style={styles.counterRow}>
               <TouchableOpacity
@@ -86,7 +92,7 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
                 onPress={() => setHostScoreNum(Math.max(0, hostScoreNum - 1))}
                 style={styles.stepBtn}
               >
-                <Ionicons name="remove" size={18} color={COLORS.primary} />
+                <Ionicons name="remove" size={18} color="#0F172A" />
               </TouchableOpacity>
 
               <View style={styles.scoreNumBox}>
@@ -98,7 +104,7 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
                 onPress={() => setHostScoreNum(hostScoreNum + 1)}
                 style={styles.stepBtn}
               >
-                <Ionicons name="add" size={18} color={COLORS.primary} />
+                <Ionicons name="add" size={18} color="#0F172A" />
               </TouchableOpacity>
             </View>
           </View>
@@ -111,11 +117,12 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
           {/* Guest Club Counter */}
           <View style={styles.teamCol}>
             <View style={styles.avatarGuest}>
-              <Text style={styles.avatarText}>{room.guestClub?.name?.charAt(4) || 'B'}</Text>
+              <Text style={styles.avatarText}>{room.guestClub?.name?.charAt(0) || 'B'}</Text>
             </View>
             <Text style={styles.teamName} numberOfLines={1}>
               {room.guestClub?.name || 'Đội bạn'}
             </Text>
+            <Text style={styles.roleLabel}>Đối thủ (Bên B)</Text>
 
             <View style={styles.counterRow}>
               <TouchableOpacity
@@ -123,7 +130,7 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
                 onPress={() => setGuestScoreNum(Math.max(0, guestScoreNum - 1))}
                 style={styles.stepBtn}
               >
-                <Ionicons name="remove" size={18} color={COLORS.primary} />
+                <Ionicons name="remove" size={18} color="#0F172A" />
               </TouchableOpacity>
 
               <View style={styles.scoreNumBox}>
@@ -135,13 +142,13 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
                 onPress={() => setGuestScoreNum(guestScoreNum + 1)}
                 style={styles.stepBtn}
               >
-                <Ionicons name="add" size={18} color={COLORS.primary} />
+                <Ionicons name="add" size={18} color="#0F172A" />
               </TouchableOpacity>
             </View>
           </View>
         </View>
       ) : (
-        /* Badminton / Tennis set inputs */
+        /* Badminton / Pickleball set inputs */
         <View style={styles.setContainer}>
           <Text style={styles.setTitle}>Tỷ số từng Set (Cầu lông/Pickleball):</Text>
           {sets.map((set, idx) => (
@@ -182,17 +189,15 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
 
       {/* Outcome Preview Card */}
       <View style={styles.previewCard}>
-        <Ionicons name="trophy-outline" size={18} color={COLORS.primary} />
-        <Text style={styles.previewLabel}>Dự kiến kết quả:</Text>
+        <Ionicons name="ribbon" size={18} color={COLORS.primary} />
+        <Text style={styles.previewLabel}>Dự kiến:</Text>
         <Text style={styles.previewValue} numberOfLines={1}>{winnerPreview.text}</Text>
       </View>
 
-      {/* Super Handsome Action Submit Button */}
+      {/* Action Submit Button */}
       <TouchableOpacity activeOpacity={0.88} onPress={handleSubmit} style={styles.submitBtn}>
-        <View style={styles.trophyIconBg}>
-          <Ionicons name="trophy" size={18} color={COLORS.secondary} />
-        </View>
-        <Text style={styles.submitBtnText}>XÁC NHẬN KẾT QUẢ & XEM ĐIỂM CRP (+/-)</Text>
+        <Ionicons name="checkmark-done-circle" size={20} color="#FFFFFF" />
+        <Text style={styles.submitBtnText}>Xác nhận & Gửi Tỷ Số Cho Bên B</Text>
       </TouchableOpacity>
     </View>
   );
@@ -200,41 +205,48 @@ export function ScoreInputForm({ room, onSubmitScore }: ScoreInputFormProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity08,
-    gap: SPACING.md,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#E2E8F0',
+    gap: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 16,
+    fontSize: 15.5,
   },
   sportBadgeText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
+    ...TYPOGRAPHY.bodyMd,
+    color: '#64748B',
     fontSize: 12,
-    fontWeight: '600',
   },
   scoreboardCard: {
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
+    padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#F1F5F9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -242,7 +254,7 @@ const styles = StyleSheet.create({
   teamCol: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   avatarHost: {
     width: 44,
@@ -251,50 +263,61 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatarGuest: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.surfaceTint,
+    backgroundColor: '#0284C7',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatarText: {
     ...TYPOGRAPHY.titleMd,
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontWeight: '800',
+    fontSize: 18,
   },
   teamName: {
-    ...TYPOGRAPHY.labelMd,
+    ...TYPOGRAPHY.titleSm,
     fontWeight: '800',
     color: COLORS.onSurface,
     fontSize: 13,
     textAlign: 'center',
   },
+  roleLabel: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 10.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
   counterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 4,
+    marginTop: 6,
   },
   stepBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#CBD5E1',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scoreNumBox: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.default,
-    width: 50,
-    height: 46,
+    borderRadius: BORDER_RADIUS.md,
+    width: 48,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: COLORS.primary,
@@ -304,31 +327,28 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   scoreNumText: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
     color: COLORS.primary,
   },
   vsBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderColor: COLORS.outlineVariant,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 4,
   },
   vsText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSurfaceVariant,
+    color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 10,
+    fontSize: 11,
   },
   setContainer: {
     gap: 8,
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
+    backgroundColor: '#F8FAFC',
+    padding: 12,
     borderRadius: BORDER_RADIUS.lg,
   },
   setTitle: {
@@ -340,14 +360,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#E2E8F0',
   },
   setTag: {
-    backgroundColor: COLORS.primaryOpacity08,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
@@ -356,7 +376,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.labelSm,
     color: COLORS.primary,
     fontWeight: '800',
-    fontSize: 10,
+    fontSize: 10.5,
   },
   setInputGroup: {
     flexDirection: 'row',
@@ -364,35 +384,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   setInput: {
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.default,
-    width: 44,
-    height: 38,
+    borderRadius: BORDER_RADIUS.sm,
+    width: 42,
+    height: 36,
     textAlign: 'center',
     fontWeight: '800',
     color: COLORS.primary,
-    fontSize: 16,
+    fontSize: 15,
   },
   setDash: {
     fontSize: 14,
     fontWeight: '800',
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
   },
   previewCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: COLORS.primaryOpacity08,
-    paddingHorizontal: SPACING.md,
+    backgroundColor: 'rgba(6, 78, 59, 0.06)',
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.md,
   },
   previewLabel: {
     ...TYPOGRAPHY.bodyMd,
     fontSize: 12.5,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
   },
   previewValue: {
     ...TYPOGRAPHY.labelMd,
@@ -404,32 +424,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: COLORS.primary,
-    borderWidth: 1.5,
-    borderColor: COLORS.secondary,
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.xl,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
-  },
-  trophyIconBg: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(254, 208, 27, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginTop: 4,
   },
   submitBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 13.5,
-    letterSpacing: 0.4,
+    ...TYPOGRAPHY.titleSm,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

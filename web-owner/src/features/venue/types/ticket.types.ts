@@ -16,6 +16,9 @@ export interface TicketSessionResponse {
   bookedSlots: number;
   sportLevel: SportLevel;
   status: TicketSessionStatus;
+  hasHostTeam?: boolean;
+  hostTeamName?: string;
+  hostTeamLevel?: SportLevel;
 }
 
 export interface TicketSessionRequest {
@@ -27,6 +30,9 @@ export interface TicketSessionRequest {
   pricePerTicket: number;
   maxSlots: number;
   sportLevel: SportLevel;
+  hasHostTeam?: boolean;
+  hostTeamName?: string;
+  hostTeamLevel?: SportLevel;
 }
 
 export interface TicketCheckInResponse {

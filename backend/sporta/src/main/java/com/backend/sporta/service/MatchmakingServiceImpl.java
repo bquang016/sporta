@@ -62,7 +62,22 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     private ClubMemberRepository clubMemberRepository;
 
     @Autowired
+    private SportRepository sportRepository;
+
+    @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserSportRepository userSportRepository;
+
+    @Autowired
+    private com.backend.sporta.service.matchmaking.PersonalEloEngine personalEloEngine;
+
+    @Autowired
+    private ClubPollRepository clubPollRepository;
+
+    @Autowired
+    private ClubPollVoteRepository clubPollVoteRepository;
 
     @Autowired
     private ClubEloService clubEloService;
@@ -516,6 +531,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         Club guestClub = acceptedReq.getApplicantClub();
 
+        if (room.getMatchType() == MatchType.RANKED) {
+            validateAntiSmurf(room.getHostClub(), guestClub);
+        }
+
         acceptedReq.setStatus(JoinRequestStatus.ACCEPTED);
         joinRequestRepository.save(acceptedReq);
 
@@ -732,7 +751,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             crpLedgerRepository.save(guestLedger);
 
             Club hostClub = match.getHostClub();
-            hostClub.setCrp(crpRes.getHostCrpAfter());
+            int currentHostCrp = hostClub.getCrp() != null ? hostClub.getCrp() : 0;
+            hostClub.setCrp(Math.max(0, currentHostCrp + crpRes.getHostCrpDelta()));
             hostClub.setFinalMatches((hostClub.getFinalMatches() != null ? hostClub.getFinalMatches() : 0) + 1);
             if (submission.getOutcome() == NormalizedOutcome.WIN_HOST) {
                 hostClub.setRankedWins((hostClub.getRankedWins() != null ? hostClub.getRankedWins() : 0) + 1);
@@ -740,12 +760,15 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             clubRepository.save(hostClub);
 
             Club guestClub = match.getGuestClub();
-            guestClub.setCrp(crpRes.getGuestCrpAfter());
+            int currentGuestCrp = guestClub.getCrp() != null ? guestClub.getCrp() : 0;
+            guestClub.setCrp(Math.max(0, currentGuestCrp + crpRes.getGuestCrpDelta()));
             guestClub.setFinalMatches((guestClub.getFinalMatches() != null ? guestClub.getFinalMatches() : 0) + 1);
             if (submission.getOutcome() == NormalizedOutcome.WIN_GUEST) {
                 guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
             }
             clubRepository.save(guestClub);
+
+            updatePlayerElos(match, submission.getOutcome());
         }
 
         match.setStatus(MatchStatus.RESULT_FINAL);
@@ -827,21 +850,73 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             throw new CustomException("Trận đấu không ở trạng thái đề nghị hòa", 400);
         }
 
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(config.getPairLimitWindowDays());
+        long recentRankedMatches = matchRepository.countRecentRankedMatchesBetweenClubs(
+                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo);
+
+        CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, NormalizedOutcome.DRAW, 1.0,
+                (int) recentRankedMatches);
+
+        String expJson = "";
+        try {
+            expJson = objectMapper.writeValueAsString(crpRes.getExplanation());
+        } catch (Exception e) {
+            expJson = "[\"Kết quả Hòa theo đồng thuận\"]";
+        }
+
         com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
                 .match(match)
                 .outcome(NormalizedOutcome.DRAW)
                 .finalScoreText("Hòa (Đồng thuận)")
-                .hostCrpBefore(match.getHostCrpBeforeSnapshot())
-                .hostCrpDelta(0)
-                .hostCrpAfter(match.getHostCrpBeforeSnapshot())
-                .guestCrpBefore(match.getGuestCrpBeforeSnapshot())
-                .guestCrpDelta(0)
-                .guestCrpAfter(match.getGuestCrpBeforeSnapshot())
-                .isRankedEligible(false)
-                .explanationJson("[\"Kết quả Hòa theo đồng thuận - CRP không đổi.\"]")
+                .hostCrpBefore(crpRes.getHostCrpBefore())
+                .hostCrpDelta(crpRes.getHostCrpDelta())
+                .hostCrpAfter(crpRes.getHostCrpAfter())
+                .guestCrpBefore(crpRes.getGuestCrpBefore())
+                .guestCrpDelta(crpRes.getGuestCrpDelta())
+                .guestCrpAfter(crpRes.getGuestCrpAfter())
+                .isRankedEligible(crpRes.isRankedEligible())
+                .explanationJson(expJson)
                 .build();
 
         matchResultRepository.save(result);
+
+        if (crpRes.isRankedEligible()) {
+            CRPLedger hostLedger = CRPLedger.builder()
+                    .matchId(match.getId())
+                    .clubId(match.getHostClub().getId())
+                    .beforeCrp(crpRes.getHostCrpBefore())
+                    .deltaCrp(crpRes.getHostCrpDelta())
+                    .afterCrp(crpRes.getHostCrpAfter())
+                    .reason("Kết quả Hòa đồng thuận trận Ranked " + match.getId())
+                    .algorithmVersion(config.getAlgorithmVersion())
+                    .build();
+            crpLedgerRepository.save(hostLedger);
+
+            CRPLedger guestLedger = CRPLedger.builder()
+                    .matchId(match.getId())
+                    .clubId(match.getGuestClub().getId())
+                    .beforeCrp(crpRes.getGuestCrpBefore())
+                    .deltaCrp(crpRes.getGuestCrpDelta())
+                    .afterCrp(crpRes.getGuestCrpAfter())
+                    .reason("Kết quả Hòa đồng thuận trận Ranked " + match.getId())
+                    .algorithmVersion(config.getAlgorithmVersion())
+                    .build();
+            crpLedgerRepository.save(guestLedger);
+
+            Club hostClub = match.getHostClub();
+            int currentHostCrp = hostClub.getCrp() != null ? hostClub.getCrp() : 0;
+            hostClub.setCrp(Math.max(0, currentHostCrp + crpRes.getHostCrpDelta()));
+            hostClub.setFinalMatches((hostClub.getFinalMatches() != null ? hostClub.getFinalMatches() : 0) + 1);
+            clubRepository.save(hostClub);
+
+            Club guestClub = match.getGuestClub();
+            int currentGuestCrp = guestClub.getCrp() != null ? guestClub.getCrp() : 0;
+            guestClub.setCrp(Math.max(0, currentGuestCrp + crpRes.getGuestCrpDelta()));
+            guestClub.setFinalMatches((guestClub.getFinalMatches() != null ? guestClub.getFinalMatches() : 0) + 1);
+            clubRepository.save(guestClub);
+
+            updatePlayerElos(match, NormalizedOutcome.DRAW);
+        }
 
         match.setStatus(MatchStatus.RESULT_FINAL);
         matchRepository.save(match);
@@ -942,16 +1017,28 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         List<JoinRequest> applicantsList = joinRequestRepository.findByRoomId(room.getId());
         List<JoinRequestResponse> applicantsVM = applicantsList.stream()
+                .filter(a -> a.getStatus() == JoinRequestStatus.PENDING)
                 .map(this::mapToJoinRequestResponse)
                 .collect(Collectors.toList());
 
         JoinRequestResponse myReqVM = null;
         if (currentUser != null) {
-            Optional<JoinRequest> myReq = applicantsList.stream()
+            Optional<JoinRequest> pendingReq = applicantsList.stream()
                     .filter(a -> isClubAdmin(a.getApplicantClub().getId(), currentUser.getId()))
+                    .filter(a -> a.getStatus() == JoinRequestStatus.PENDING)
                     .findFirst();
-            if (myReq.isPresent()) {
-                myReqVM = mapToJoinRequestResponse(myReq.get());
+            if (pendingReq.isPresent()) {
+                myReqVM = mapToJoinRequestResponse(pendingReq.get());
+            } else {
+                Optional<JoinRequest> latestReq = applicantsList.stream()
+                        .filter(a -> isClubAdmin(a.getApplicantClub().getId(), currentUser.getId()))
+                        .max((r1, r2) -> {
+                            if (r1.getCreatedAt() == null || r2.getCreatedAt() == null) return 0;
+                            return r1.getCreatedAt().compareTo(r2.getCreatedAt());
+                        });
+                if (latestReq.isPresent()) {
+                    myReqVM = mapToJoinRequestResponse(latestReq.get());
+                }
             }
         }
 
@@ -1046,6 +1133,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .sportId(club.getSport() != null ? club.getSport().getId().toString() : "1")
                 .sportName(club.getSport() != null ? club.getSport().getName() : "Bóng đá")
                 .logoUrl(club.getAvatarImage())
+                .avatarUrl(club.getAvatarImage())
                 .activeMemberCount(activeCount)
                 .isEligibleForMatchmaking(eligible)
                 .clubElo(elo)
@@ -1137,5 +1225,388 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             }
         }
         return match;
+    }
+
+    public void updatePlayerElos(Match match, NormalizedOutcome outcome) {
+        if (match == null || match.getHostClub() == null || match.getGuestClub() == null) return;
+        if (match.getMatchType() != MatchType.RANKED) return;
+
+        Club hostClub = match.getHostClub();
+        Club guestClub = match.getGuestClub();
+        Long sportId = hostClub.getSport() != null ? hostClub.getSport().getId() : null;
+        if (sportId == null && guestClub.getSport() != null) {
+            sportId = guestClub.getSport().getId();
+        }
+        if (sportId == null) return;
+
+        List<ClubMember> hostLineup = getMatchLineup(match, hostClub);
+        List<ClubMember> guestLineup = getMatchLineup(match, guestClub);
+
+        int avgHostElo = calculateLineupAvgElo(hostLineup, sportId);
+        int avgGuestElo = calculateLineupAvgElo(guestLineup, sportId);
+
+        double hostScore = (outcome == NormalizedOutcome.WIN_HOST) ? 1.0 : (outcome == NormalizedOutcome.DRAW ? 0.5 : 0.0);
+        double guestScore = (outcome == NormalizedOutcome.WIN_GUEST) ? 1.0 : (outcome == NormalizedOutcome.DRAW ? 0.5 : 0.0);
+
+        int scoreDiff = 0;
+        var resultOpt = matchResultRepository.findByMatchId(match.getId());
+        if (resultOpt.isPresent()) {
+            try {
+                String[] parts = resultOpt.get().getFinalScoreText().split("-");
+                if (parts.length == 2) {
+                    int h = Integer.parseInt(parts[0].trim());
+                    int g = Integer.parseInt(parts[1].trim());
+                    scoreDiff = Math.abs(h - g);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        for (ClubMember member : hostLineup) {
+            updateIndividualMemberElo(member, sportId, avgGuestElo, hostScore, scoreDiff);
+        }
+        for (ClubMember member : guestLineup) {
+            updateIndividualMemberElo(member, sportId, avgHostElo, guestScore, scoreDiff);
+        }
+    }
+
+    private List<ClubMember> getMatchLineup(Match match, Club club) {
+        if (match != null && club != null) {
+            Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(club.getId(), match.getId());
+            if (pollOpt.isPresent()) {
+                List<ClubPollVote> joinVotes = clubPollVoteRepository.findByPollIdAndOption(pollOpt.get().getId(), PollVoteOption.JOIN);
+                if (!joinVotes.isEmpty()) {
+                    Set<Long> userIds = joinVotes.stream()
+                            .filter(v -> v.getUser() != null)
+                            .map(v -> v.getUser().getId())
+                            .collect(Collectors.toSet());
+                    List<ClubMember> lineup = clubMemberRepository.findByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED)
+                            .stream()
+                            .filter(m -> m.getUser() != null && userIds.contains(m.getUser().getId()))
+                            .collect(Collectors.toList());
+                    if (!lineup.isEmpty()) {
+                        return lineup;
+                    }
+                }
+            }
+        }
+        return clubMemberRepository.findByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
+    }
+
+    private void recordDevLineup(Match match, Club club, List<Long> userIds) {
+        if (match == null || club == null || userIds == null || userIds.isEmpty()) return;
+        try {
+            ClubPoll poll = clubPollRepository.findByClubIdAndMatchId(club.getId(), match.getId())
+                    .orElseGet(() -> {
+                        User creator = club.getCreator() != null ? club.getCreator() : userRepository.findById(userIds.get(0)).orElse(null);
+                        ClubPoll newPoll = ClubPoll.builder()
+                                .club(club)
+                                .creator(creator)
+                                .matchId(match.getId())
+                                .title("Đội hình thi đấu trận " + match.getId())
+                                .closeTime("23:59")
+                                .isClosed(true)
+                                .build();
+                        return clubPollRepository.save(newPoll);
+                    });
+
+            List<ClubPollVote> existingVotes = clubPollVoteRepository.findByPollId(poll.getId());
+            clubPollVoteRepository.deleteAll(existingVotes);
+
+            for (Long uid : userIds) {
+                userRepository.findById(uid).ifPresent(u -> {
+                    ClubPollVote vote = ClubPollVote.builder()
+                            .poll(poll)
+                            .user(u)
+                            .option(PollVoteOption.JOIN)
+                            .votedAt(LocalDateTime.now())
+                            .build();
+                    clubPollVoteRepository.save(vote);
+                });
+            }
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to record dev lineup: " + e.getMessage());
+        }
+    }
+
+    private int calculateLineupAvgElo(List<ClubMember> lineup, Long sportId) {
+        if (lineup == null || lineup.isEmpty()) return 1000;
+        int total = 0;
+        int count = 0;
+        for (ClubMember m : lineup) {
+            if (m.getUser() == null) continue;
+            Optional<UserSport> us = userSportRepository.findByUserIdAndSportId(m.getUser().getId(), sportId);
+            total += us.map(UserSport::getEffectiveElo).orElse(1000);
+            count++;
+        }
+        return count > 0 ? (int) Math.round((double) total / count) : 1000;
+    }
+
+    private void updateIndividualMemberElo(ClubMember member, Long sportId, int opponentTeamElo, double score, int scoreDiff) {
+        if (member == null || member.getUser() == null || sportId == null) return;
+        User user = member.getUser();
+
+        UserSport us = userSportRepository.findByUserIdAndSportId(user.getId(), sportId)
+                .orElseGet(() -> {
+                    Sport sport = (member.getClub() != null && member.getClub().getSport() != null)
+                            ? member.getClub().getSport()
+                            : sportRepository.findById(sportId).orElse(null);
+                    return UserSport.builder()
+                            .user(user)
+                            .sport(sport)
+                            .level(SportLevel.AVERAGE)
+                            .eloRating(1500)
+                            .eloStatus(EloStatus.UNVERIFIED)
+                            .placementMatchesPlayed(0)
+                            .totalRankedMatches(0)
+                            .totalWins(0)
+                            .build();
+                });
+
+        personalEloEngine.updatePlayerStats(us, opponentTeamElo, score, EloSourceType.CLUB_RANKED, scoreDiff);
+        userSportRepository.save(us);
+    }
+
+    private void validateAntiSmurf(Club hostClub, Club guestClub) {
+        List<ClubMember> hostMembers = clubMemberRepository.findByClubIdAndStatus(hostClub.getId(), ClubMemberStatus.APPROVED);
+        List<ClubMember> guestMembers = clubMemberRepository.findByClubIdAndStatus(guestClub.getId(), ClubMemberStatus.APPROVED);
+
+        Set<Long> hostUserIds = hostMembers.stream()
+                .filter(m -> m.getUser() != null)
+                .map(m -> m.getUser().getId())
+                .collect(Collectors.toSet());
+
+        long overlap = guestMembers.stream()
+                .filter(m -> m.getUser() != null && hostUserIds.contains(m.getUser().getId()))
+                .count();
+
+        int smallerTeam = Math.min(hostMembers.size(), guestMembers.size());
+        double overlapRatio = smallerTeam > 0 ? (double) overlap / smallerTeam : 0;
+
+        if (overlapRatio > 0.3) {
+            throw new CustomException("Hai CLB có quá nhiều thành viên trùng nhau ("
+                    + (int) Math.round(overlapRatio * 100) + "%). Không thể đấu Xếp hạng để chống gian lận (Anti-smurf).", 400);
+        }
+    }
+
+    @Override
+    @Transactional
+    public MatchRoomResponse devAssignClubs(UUID roomId, DevAssignClubsRequest request, String userEmail) {
+        User user = getUserByEmail(userEmail);
+        if (!Boolean.TRUE.equals(user.getIsDevTester()) && user.getRole() != Role.ADMIN && user.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Chỉ tài khoản DEV Tester hoặc Admin mới được sử dụng tính năng này", 403);
+        }
+
+        MatchRoom room = matchRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy phòng ghép trận", 404));
+
+        if (request.getHostClubId() != null) {
+            Club hostClub = clubRepository.findById(request.getHostClubId())
+                    .orElseThrow(() -> new CustomException("Không tìm thấy CLB Host", 404));
+            room.setHostClub(hostClub);
+        }
+
+        if (request.getGuestClubId() != null) {
+            Club guestClub = clubRepository.findById(request.getGuestClubId())
+                    .orElseThrow(() -> new CustomException("Không tìm thấy CLB Guest", 404));
+            room.setGuestClub(guestClub);
+        }
+
+        if (room.getHostClub() != null && room.getGuestClub() != null) {
+            room.setStatus(MatchStatus.MATCHED);
+            int hostElo = clubEloService.getClubElo(room.getHostClub());
+            int guestElo = clubEloService.getClubElo(room.getGuestClub());
+            String hostLevel = clubEloService.getLevelLabel(hostElo);
+            String guestLevel = clubEloService.getLevelLabel(guestElo);
+            int hostCrp = room.getHostClub().getCrp() != null ? room.getHostClub().getCrp() : 0;
+            int guestCrp = room.getGuestClub().getCrp() != null ? room.getGuestClub().getCrp() : 0;
+
+            Optional<Match> matchOpt = matchRepository.findByRoomId(room.getId());
+            Match match;
+            if (matchOpt.isPresent()) {
+                match = matchOpt.get();
+                match.setHostClub(room.getHostClub());
+                match.setGuestClub(room.getGuestClub());
+                match.setStatus(MatchStatus.MATCHED);
+                match.setHostClubEloSnapshot(hostElo);
+                match.setGuestClubEloSnapshot(guestElo);
+                match.setHostLevelSnapshot(hostLevel);
+                match.setGuestLevelSnapshot(guestLevel);
+                match.setHostCrpBeforeSnapshot(hostCrp);
+                match.setGuestCrpBeforeSnapshot(guestCrp);
+            } else {
+                match = Match.builder()
+                        .room(room)
+                        .booking(room.getBooking())
+                        .hostClub(room.getHostClub())
+                        .guestClub(room.getGuestClub())
+                        .matchType(room.getMatchType())
+                        .status(MatchStatus.MATCHED)
+                        .hostSharePercent(room.getHostSharePercent())
+                        .guestSharePercent(room.getGuestSharePercent())
+                        .guestShareAmount(room.getGuestShareAmount())
+                        .hostClubEloSnapshot(hostElo)
+                        .guestClubEloSnapshot(guestElo)
+                        .hostLevelSnapshot(hostLevel)
+                        .guestLevelSnapshot(guestLevel)
+                        .hostCrpBeforeSnapshot(hostCrp)
+                        .guestCrpBeforeSnapshot(guestCrp)
+                        .build();
+            }
+            matchRepository.save(match);
+        }
+
+        room = matchRoomRepository.save(room);
+        Optional<Match> finalMatch = matchRepository.findByRoomId(room.getId());
+        return mapToRoomResponse(room, finalMatch.orElse(null), user);
+    }
+
+    @Override
+    @Transactional
+    public MatchRoomResponse devForceFinishMatch(UUID roomId, DevForceFinishMatchRequest request, String userEmail) {
+        User user = getUserByEmail(userEmail);
+        if (!Boolean.TRUE.equals(user.getIsDevTester()) && user.getRole() != Role.ADMIN && user.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Chỉ tài khoản DEV Tester hoặc Admin mới được sử dụng tính năng này", 403);
+        }
+
+        MatchRoom room = matchRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy phòng ghép trận", 404));
+
+        if (room.getHostClub() == null || room.getGuestClub() == null) {
+            throw new CustomException("Phòng chưa có đủ 2 CLB tham gia để kết thúc trận đấu. Vui lòng gán đủ 2 CLB trước.", 400);
+        }
+
+        Match match = matchRepository.findByRoomId(room.getId()).orElseGet(() -> {
+            int hostElo = clubEloService.getClubElo(room.getHostClub());
+            int guestElo = clubEloService.getClubElo(room.getGuestClub());
+            return matchRepository.save(Match.builder()
+                    .room(room)
+                    .booking(room.getBooking())
+                    .hostClub(room.getHostClub())
+                    .guestClub(room.getGuestClub())
+                    .matchType(room.getMatchType())
+                    .status(MatchStatus.MATCHED)
+                    .hostSharePercent(room.getHostSharePercent())
+                    .guestSharePercent(room.getGuestSharePercent())
+                    .guestShareAmount(room.getGuestShareAmount())
+                    .hostClubEloSnapshot(hostElo)
+                    .guestClubEloSnapshot(guestElo)
+                    .hostLevelSnapshot(clubEloService.getLevelLabel(hostElo))
+                    .guestLevelSnapshot(clubEloService.getLevelLabel(guestElo))
+                    .hostCrpBeforeSnapshot(room.getHostClub().getCrp() != null ? room.getHostClub().getCrp() : 0)
+                    .guestCrpBeforeSnapshot(room.getGuestClub().getCrp() != null ? room.getGuestClub().getCrp() : 0)
+                    .build());
+        });
+
+        Sport sport = match.getHostClub().getSport();
+        String sportName = sport != null ? sport.getName() : "Bóng đá";
+        ScoreAdapter adapter = scoreAdapterRegistry.getAdapter(sportName);
+
+        NormalizedOutcome outcome = adapter.normalize(request.getHostScore(), request.getGuestScore(),
+                request.getRawScoreDetails());
+        double gFactor = adapter.calculateG(request.getHostScore(), request.getGuestScore(),
+                request.getRawScoreDetails());
+
+        Optional<ScoreSubmission> lastSub = scoreSubmissionRepository
+                .findFirstByMatchIdOrderByVersionDesc(match.getId());
+        int version = lastSub.map(s -> s.getVersion() + 1).orElse(1);
+
+        ScoreSubmission submission = ScoreSubmission.builder()
+                .match(match)
+                .submittedByClub(match.getHostClub())
+                .version(version)
+                .hostScore(request.getHostScore().trim())
+                .guestScore(request.getGuestScore().trim())
+                .rawScoreDetails(request.getRawScoreDetails())
+                .outcome(outcome)
+                .gFactor(gFactor)
+                .build();
+        scoreSubmissionRepository.save(submission);
+
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(config.getPairLimitWindowDays());
+        long recentRankedMatches = matchRepository.countRecentRankedMatchesBetweenClubs(
+                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo);
+
+        CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, outcome, gFactor,
+                (int) recentRankedMatches);
+
+        String scoreText = adapter.getCanonicalScoreText(request.getHostScore(), request.getGuestScore(),
+                request.getRawScoreDetails());
+        String expJson = "";
+        try {
+            expJson = objectMapper.writeValueAsString(crpRes.getExplanation());
+        } catch (Exception e) {
+            expJson = "[]";
+        }
+
+        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+        result.setOutcome(outcome);
+        result.setFinalScoreText(scoreText);
+        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+        result.setIsRankedEligible(crpRes.isRankedEligible());
+        result.setExplanationJson(expJson);
+
+        matchResultRepository.save(result);
+
+        if (crpRes.isRankedEligible()) {
+            CRPLedger hostLedger = crpLedgerRepository.findByMatchIdAndClubId(match.getId(), match.getHostClub().getId())
+                    .orElseGet(() -> CRPLedger.builder().matchId(match.getId()).clubId(match.getHostClub().getId()).build());
+            hostLedger.setBeforeCrp(crpRes.getHostCrpBefore());
+            hostLedger.setDeltaCrp(crpRes.getHostCrpDelta());
+            hostLedger.setAfterCrp(crpRes.getHostCrpAfter());
+            hostLedger.setReason("Kết quả trận đấu Ranked (DEV Force Finish) " + match.getId());
+            hostLedger.setAlgorithmVersion(config.getAlgorithmVersion());
+            crpLedgerRepository.save(hostLedger);
+
+            CRPLedger guestLedger = crpLedgerRepository.findByMatchIdAndClubId(match.getId(), match.getGuestClub().getId())
+                    .orElseGet(() -> CRPLedger.builder().matchId(match.getId()).clubId(match.getGuestClub().getId()).build());
+            guestLedger.setBeforeCrp(crpRes.getGuestCrpBefore());
+            guestLedger.setDeltaCrp(crpRes.getGuestCrpDelta());
+            guestLedger.setAfterCrp(crpRes.getGuestCrpAfter());
+            guestLedger.setReason("Kết quả trận đấu Ranked (DEV Force Finish) " + match.getId());
+            guestLedger.setAlgorithmVersion(config.getAlgorithmVersion());
+            crpLedgerRepository.save(guestLedger);
+
+            Club hostClub = match.getHostClub();
+            int currentHostCrp = hostClub.getCrp() != null ? hostClub.getCrp() : 0;
+            hostClub.setCrp(Math.max(0, currentHostCrp + crpRes.getHostCrpDelta()));
+            hostClub.setFinalMatches((hostClub.getFinalMatches() != null ? hostClub.getFinalMatches() : 0) + 1);
+            if (outcome == NormalizedOutcome.WIN_HOST) {
+                hostClub.setRankedWins((hostClub.getRankedWins() != null ? hostClub.getRankedWins() : 0) + 1);
+            }
+            clubRepository.save(hostClub);
+
+            Club guestClub = match.getGuestClub();
+            int currentGuestCrp = guestClub.getCrp() != null ? guestClub.getCrp() : 0;
+            guestClub.setCrp(Math.max(0, currentGuestCrp + crpRes.getGuestCrpDelta()));
+            guestClub.setFinalMatches((guestClub.getFinalMatches() != null ? guestClub.getFinalMatches() : 0) + 1);
+            if (outcome == NormalizedOutcome.WIN_GUEST) {
+                guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
+            }
+            clubRepository.save(guestClub);
+
+            if (request.getHostPlayerUserIds() != null && !request.getHostPlayerUserIds().isEmpty()) {
+                recordDevLineup(match, match.getHostClub(), request.getHostPlayerUserIds());
+            }
+            if (request.getGuestPlayerUserIds() != null && !request.getGuestPlayerUserIds().isEmpty()) {
+                recordDevLineup(match, match.getGuestClub(), request.getGuestPlayerUserIds());
+            }
+
+            updatePlayerElos(match, outcome);
+        }
+
+        match.setStatus(MatchStatus.RESULT_FINAL);
+        matchRepository.save(match);
+
+        room.setStatus(MatchStatus.RESULT_FINAL);
+        matchRoomRepository.save(room);
+
+        return mapToRoomResponse(room, match, user);
     }
 }

@@ -171,11 +171,13 @@ public class AuthService {
         }
 
         String otpCode = otpService.generateAndSaveOtp(email);
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA OTP] >>> EMAIL: " + email + " | MÃ OTP: " + otpCode + " <<<");
+        System.out.println("==================================================================");
         try {
             emailService.sendOtpEmail(email, otpCode);
         } catch (Exception e) {
-            System.err.println("Email send failed for " + email + ": " + e.getMessage());
-            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
+            System.err.println("WARN: Email send failed for " + email + ": " + e.getMessage() + " (Đã in mã OTP lên terminal để test)");
         }
         return otpCode;
     }
@@ -188,11 +190,13 @@ public class AuthService {
 
         // Do not check if email exists because the user is already logged in
         String otpCode = otpService.generateAndSaveOtp(email);
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA OTP CONTRACT] >>> EMAIL: " + email + " | MÃ OTP: " + otpCode + " <<<");
+        System.out.println("==================================================================");
         try {
             emailService.sendOtpEmail(email, otpCode);
         } catch (Exception e) {
-            System.err.println("Email send failed for " + email + ": " + e.getMessage());
-            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
+            System.err.println("WARN: Email send failed for " + email + ": " + e.getMessage() + " (Đã in mã OTP lên terminal để test)");
         }
         return otpCode;
     }
@@ -619,6 +623,9 @@ public class AuthService {
         ownerRegistrationRepository.save(reg);
 
         // 8. Send email with account credentials
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA OWNER APPROVED] >>> EMAIL: " + reg.getEmail() + " | PASSWORD: " + rawPassword + " <<<");
+        System.out.println("==================================================================");
         try {
             emailService.sendAccountApprovedEmail(reg.getEmail(), rawPassword);
         } catch (Exception e) {

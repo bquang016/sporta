@@ -22,6 +22,9 @@ export interface TicketSession {
   bookedSlots: number;
   sportLevel: SportLevel;
   status: TicketSessionStatus;
+  hasHostTeam?: boolean;
+  hostTeamName?: string;
+  hostTeamLevel?: SportLevel;
 }
 
 export interface UserTicket {

@@ -44,8 +44,8 @@ public class FootballScoreAdapter implements ScoreAdapter {
         int g = Integer.parseInt(guestScore.trim());
         int margin = Math.abs(h - g);
         double scale = config.getFootballScaleGoals();
-        double rawG = 0.5 + 0.5 * (margin / scale);
-        return Math.max(0.5, Math.min(1.0, rawG));
+        double rawG = 0.25 + 0.75 * (margin / scale);
+        return Math.max(0.25, Math.min(1.5, rawG));
     }
 
     @Override

@@ -77,7 +77,7 @@ export const MockChatModal = React.memo(({
     {
       id: 'm-1',
       sender: 'other',
-      text: `Chào bạn! Mình là ${chatUser.fullName}. Rất vui được kết nối giao lưu thể thao trên Sporta! 🏸⚽`,
+      text: `Chào bạn! Mình là ${chatUser.fullName}. Rất vui được kết nối giao lưu thể thao trên Sporta!`,
       timestamp: '15:20',
     },
   ]);
@@ -106,11 +106,11 @@ export const MockChatModal = React.memo(({
   const [inputText, setInputText] = useState('');
 
   const QUICK_PROMPTS = [
-    '⚽ Cáp kèo bóng đá',
-    '🏸 Giao lưu Cầu lông',
-    '🏓 Thách đấu Pickleball',
-    '⏰ Tối nay 19:30 rảnh không?',
-    '👍 Ok chốt kèo nhé!',
+    'Cáp kèo bóng đá',
+    'Giao lưu Cầu lông',
+    'Thách đấu Pickleball',
+    'Tối nay 19:30 rảnh không?',
+    'Ok chốt kèo nhé!',
   ];
 
   const sendMessage = (textToSend: string) => {

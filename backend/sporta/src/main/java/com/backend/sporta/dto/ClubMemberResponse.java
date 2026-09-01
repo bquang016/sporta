@@ -13,6 +13,8 @@ public class ClubMemberResponse {
     private String name;
     private String role; // "Trưởng nhóm", "Phó nhóm", "Thành viên"
     private Integer elo;
+    private com.backend.sporta.enums.EloStatus eloStatus;
+    private String levelLabel;
     private String avatar;
     private String status; // "PENDING", "APPROVED", "REJECTED"
     private String joinedAt;

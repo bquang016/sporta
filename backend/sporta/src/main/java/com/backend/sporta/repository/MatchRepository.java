@@ -16,7 +16,11 @@ import java.util.UUID;
 @Repository
 public interface MatchRepository extends JpaRepository<Match, UUID> {
 
-    Optional<Match> findByRoomId(UUID roomId);
+    Optional<Match> findFirstByRoomIdOrderByCreatedAtDesc(UUID roomId);
+
+    default Optional<Match> findByRoomId(UUID roomId) {
+        return findFirstByRoomIdOrderByCreatedAtDesc(roomId);
+    }
 
     List<Match> findByStatusNotIn(List<MatchStatus> statuses);
 

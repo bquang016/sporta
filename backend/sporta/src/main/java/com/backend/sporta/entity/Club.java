@@ -47,6 +47,15 @@ public class Club {
     @Builder.Default
     private Integer elo = 1000;
 
+    @Column(name = "min_elo_required")
+    @Builder.Default
+    private Integer minEloRequired = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recruitment_status", nullable = false)
+    @Builder.Default
+    private com.backend.sporta.enums.RecruitmentStatus recruitmentStatus = com.backend.sporta.enums.RecruitmentStatus.OPEN;
+
     @Column(name = "crp")
     @Builder.Default
     private Integer crp = 0;

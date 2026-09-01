@@ -5,6 +5,8 @@ import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -15,12 +17,16 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Value("${spring.mail.username:hethongthethaosporta@gmail.com}")
+    private String fromEmail;
+
     private File getLogoFile() {
         String[] candidatePaths = new String[]{
-            "d:/Sporta/sporta/mobile-user/assets/logo/logo-main_699x699.png",
+            "c:/Users/buida/sporta-platform/mobile-user/assets/logo/logo-main_699x699.png",
             "mobile-user/assets/logo/logo-main_699x699.png",
             "../mobile-user/assets/logo/logo-main_699x699.png",
-            "d:/Sporta/sporta/mobile-user/assets/logo/logo-horizontal_1600x400.png"
+            "../../mobile-user/assets/logo/logo-main_699x699.png",
+            "d:/Sporta/sporta/mobile-user/assets/logo/logo-main_699x699.png"
         };
         for (String path : candidatePaths) {
             File file = new File(path);
@@ -36,7 +42,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("shethongthethao@gmail.com", "SPORTA System");
+            helper.setFrom(fromEmail, "SPORTA System");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Mã OTP xác thực của bạn");
 
@@ -108,12 +114,13 @@ public class EmailService {
      * Send an email notifying the owner that their registration has been approved.
      * Includes login credentials (email + temporary password).
      */
+    @Async
     public void sendAccountApprovedEmail(String toEmail, String temporaryPassword) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("shethongthethao@gmail.com", "SPORTA Owner Portal");
+            helper.setFrom(fromEmail, "SPORTA Owner Portal");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Tài khoản Chủ sân của bạn đã được kích hoạt");
 
@@ -197,12 +204,13 @@ public class EmailService {
     /**
      * Send booking success confirmation email with full details to the user.
      */
+    @Async
     public void sendBookingSuccessEmail(String toEmail, com.backend.sporta.entity.Booking booking) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("shethongthethao@gmail.com", "SPORTA Booking");
+            helper.setFrom(fromEmail, "SPORTA Booking");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Xác nhận đặt sân thành công (Mã: " + booking.getBookingCode() + ")");
 

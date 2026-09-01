@@ -16,4 +16,11 @@ public class UserSportDto {
     private String sportName;
     private String sportIcon;
     private SportLevel level;
+    private Integer eloRating;
+    private com.backend.sporta.enums.EloStatus eloStatus;
+    private String levelLabel;
+    private Integer placementMatchesPlayed;
+    private Integer totalRankedMatches;
+    private Integer totalWins;
+    private Integer winRate;
 }

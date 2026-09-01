@@ -42,4 +42,12 @@ public class TicketSessionResponse {
     private Integer bookedSlots;
     private SportLevel sportLevel;
     private TicketSessionStatus status;
+    private String hostScore;
+    private String guestScore;
+    private com.backend.sporta.enums.NormalizedOutcome matchOutcome;
+    private Boolean isEloSettled;
+    private Boolean isDisputed;
+    private Boolean hasHostTeam;
+    private String hostTeamName;
+    private SportLevel hostTeamLevel;
 }
