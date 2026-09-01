@@ -73,6 +73,7 @@ export interface PublicUserProfileResponse {
     membersCount?: number;
     elo?: number;
   }[];
+  privateMode?: boolean;
 }
 
 const getToken = async (): Promise<string | null> => {
