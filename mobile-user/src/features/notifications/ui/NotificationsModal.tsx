@@ -450,7 +450,7 @@ function NotificationsModalContent({
                     onPress={() => handlePressItem(item)}
                   >
                     <View style={styles.iconWrapper}>
-                      {renderTypeIcon(item.type, (item.isRead ?? item.read))}
+                      {renderTypeIcon(item.type, !!(item.isRead ?? item.read))}
                     </View>
 
                     <View style={styles.contentGroup}>

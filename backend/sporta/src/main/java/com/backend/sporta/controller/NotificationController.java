@@ -46,6 +46,29 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getUnreadCount(user.getId()));
     }
 
+    // ── Dedicated Social Notifications Endpoints ──
+    @GetMapping("/social")
+    public ResponseEntity<Page<NotificationDTO>> getSocialNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        User user = getCurrentUser();
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(notificationService.getSocialNotifications(user.getId(), pageable));
+    }
+
+    @GetMapping("/social/unread-count")
+    public ResponseEntity<Long> getUnreadSocialCount() {
+        User user = getCurrentUser();
+        return ResponseEntity.ok(notificationService.getUnreadSocialCount(user.getId()));
+    }
+
+    @PutMapping("/social/read-all")
+    public ResponseEntity<Void> markAllSocialAsRead() {
+        User user = getCurrentUser();
+        notificationService.markAllSocialAsRead(user.getId());
+        return ResponseEntity.ok().build();
+    }
+
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
         User user = getCurrentUser();

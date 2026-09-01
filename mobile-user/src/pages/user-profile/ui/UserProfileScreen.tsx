@@ -8,89 +8,51 @@ import {
   StatusBar,
   TouchableOpacity,
   Share,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   useUserProfile,
   UserProfileHeader,
   UserSportsCard,
-  SportDetailModal,
   UserPhysicalCard,
   UserClubsCard,
-  UnfriendConfirmModal,
-  InviteOptionsModal,
-  InviteClubModal,
-  InviteMatchModal,
-  MockChatModal,
 } from '../../../features/user-profile';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../shared/config/theme';
 
 export function UserProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
-  const userId = params.id || 'quanluu08';
+  const userId = params.id || '1';
 
   const {
     profile,
-    friendStatus,
-    unfriendModalVisible,
-    inviteOptionsModalVisible,
-    inviteClubModalVisible,
-    inviteMatchModalVisible,
-    chatModalVisible,
-    selectedSportDetail,
-    pendingMatchInvite,
-    genderAgeLabel,
-    handleToggleFriend,
-    confirmUnfriend,
-    cancelUnfriend,
-    openInviteOptions,
-    closeInviteOptions,
-    openInviteClub,
-    closeInviteClub,
-    openInviteMatch,
-    closeInviteMatch,
-    openSportDetail,
-    closeSportDetail,
-    sendMatchInviteToChat,
-    openChat,
-    closeChat,
+    isLoading,
+    genderLabel,
+    joinedYearLabel,
   } = useUserProfile(userId);
 
   const handleShareProfile = async () => {
+    if (!profile) return;
     try {
       await Share.share({
-        message: `Xem hồ sơ thể thao của ${profile.fullName} (${profile.username}) trên ứng dụng Sporta!`,
+        message: `Xem hồ sơ thể thao của ${profile.fullName} trên ứng dụng Sporta!`,
       });
     } catch {
       // ignore
     }
   };
 
-  const handleMorePress = () => {
-    Alert.alert(
-      profile.fullName,
-      'Tùy chọn tương tác người dùng',
-      [
-        { text: 'Chia sẻ hồ sơ', onPress: handleShareProfile },
-        { text: 'Báo cáo tài khoản', style: 'destructive' },
-        { text: 'Hủy', style: 'cancel' },
-      ]
-    );
-  };
-
   const handleClubPress = (club: any) => {
-    Alert.alert(
-      club.name,
-      `Chức vụ: ${club.roleInClub}\nSố thành viên: ${club.memberCount} người\nMôn: ${club.sportName}`
-    );
+    if (club.clubId) {
+      router.push(`/club-detail-explore/${club.clubId}` as any);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* ── Top Header Navigation Bar ── */}
       <View style={styles.headerBar}>
@@ -99,88 +61,44 @@ export function UserProfileScreen() {
         </TouchableOpacity>
 
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {profile.fullName}
+          {profile?.fullName || 'Hồ sơ người chơi'}
         </Text>
 
         <View style={styles.headerRightActions}>
           <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={handleShareProfile}>
             <Ionicons name="share-social-outline" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={handleMorePress}>
-            <MaterialIcons name="more-vert" size={22} color={COLORS.onSurface} />
-          </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Main ScrollView ── */}
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/* 1. Integrated Profile Header */}
-        <UserProfileHeader
-          profile={profile}
-          genderAgeLabel={genderAgeLabel}
-          friendStatus={friendStatus}
-          onToggleFriend={handleToggleFriend}
-          onOpenInviteOptions={openInviteOptions}
-          onOpenChat={openChat}
-        />
+      {isLoading || !profile ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Đang tải hồ sơ người chơi...</Text>
+        </View>
+      ) : (
+        /* ── Main ScrollView ── */
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          {/* 1. Integrated Profile Header */}
+          <UserProfileHeader
+            profile={profile}
+            genderLabel={genderLabel}
+            joinedYearLabel={joinedYearLabel}
+          />
 
-        {/* 2. Sports Summary Cards */}
-        <UserSportsCard
-          sportsProfiles={profile.sportsProfiles}
-          onSelectSport={openSportDetail}
-        />
+          {/* 2. Sports Summary Cards */}
+          <UserSportsCard sports={profile.sports} />
 
-        {/* 3. Physical Stats Card */}
-        <UserPhysicalCard profile={profile} />
+          {/* 3. Physical Stats Card */}
+          <UserPhysicalCard
+            height={profile.height}
+            weight={profile.weight}
+          />
 
-        {/* 4. Joined Clubs Card */}
-        <UserClubsCard clubs={profile.joinedClubs} onClubPress={handleClubPress} />
-
-        {/* Bottom Spacing */}
-        <View style={{ height: 40 }} />
-      </ScrollView>
-
-      {/* ── Sub Modals ── */}
-      <SportDetailModal
-        visible={!!selectedSportDetail}
-        sport={selectedSportDetail}
-        onClose={closeSportDetail}
-      />
-
-      <UnfriendConfirmModal
-        visible={unfriendModalVisible}
-        userName={profile.fullName}
-        onConfirm={confirmUnfriend}
-        onCancel={cancelUnfriend}
-      />
-
-      <InviteOptionsModal
-        visible={inviteOptionsModalVisible}
-        userName={profile.fullName}
-        onSelectInviteClub={openInviteClub}
-        onSelectInviteMatch={openInviteMatch}
-        onClose={closeInviteOptions}
-      />
-
-      <InviteClubModal
-        visible={inviteClubModalVisible}
-        profile={profile}
-        onClose={closeInviteClub}
-      />
-
-      <InviteMatchModal
-        visible={inviteMatchModalVisible}
-        profile={profile}
-        onClose={closeInviteMatch}
-        onSendInviteToChat={sendMatchInviteToChat}
-      />
-
-      <MockChatModal
-        visible={chatModalVisible}
-        profile={profile}
-        initialMatchInvite={pendingMatchInvite}
-        onClose={closeChat}
-      />
+          {/* 4. Joined Clubs Card */}
+          <UserClubsCard clubs={profile.joinedClubs} onClubPress={handleClubPress} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -188,43 +106,50 @@ export function UserProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
   },
   headerBar: {
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
+    borderBottomColor: '#F1F5F9',
   },
   backButton: {
-    padding: 4,
-    marginRight: SPACING.xs,
+    padding: 6,
   },
   headerTitle: {
     ...TYPOGRAPHY.titleMd,
-    fontSize: 17,
-    fontWeight: '800',
-    color: COLORS.onSurface,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
     flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 8,
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   iconBtn: {
     padding: 6,
-    borderRadius: 18,
-    backgroundColor: COLORS.surfaceContainerLow,
   },
   scrollContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
   },
 });
-
-export default UserProfileScreen;

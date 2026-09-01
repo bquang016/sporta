@@ -1,6 +1,7 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   Modal,
   ScrollView,
@@ -9,21 +10,16 @@ import {
   PanResponder,
   Animated,
   Dimensions,
+  ActivityIndicator,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { UserProfileHeader } from './UserProfileHeader';
 import { UserSportsCard } from './UserSportsCard';
-import { SportDetailModal } from './SportDetailModal';
 import { UserPhysicalCard } from './UserPhysicalCard';
 import { UserClubsCard } from './UserClubsCard';
-import { UnfriendConfirmModal } from './UnfriendConfirmModal';
-import { InviteOptionsModal } from './InviteOptionsModal';
-import { InviteClubModal } from './InviteClubModal';
-import { InviteMatchModal } from './InviteMatchModal';
-import { MockChatModal } from './MockChatModal';
-import { CustomConfirmModal } from '../../../shared/ui/CustomConfirmModal';
 import { COLORS } from '../../../shared/config/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -53,43 +49,13 @@ function UserProfileModalContent({
   onClose: () => void;
   visible: boolean;
 }) {
+  const router = useRouter();
   const {
     profile,
-    friendStatus,
-    unfriendModalVisible,
-    inviteOptionsModalVisible,
-    inviteClubModalVisible,
-    inviteMatchModalVisible,
-    chatModalVisible,
-    selectedSportDetail,
-    pendingMatchInvite,
-    genderAgeLabel,
-    handleToggleFriend,
-    confirmUnfriend,
-    cancelUnfriend,
-    openInviteOptions,
-    closeInviteOptions,
-    openInviteClub,
-    closeInviteClub,
-    openInviteMatch,
-    closeInviteMatch,
-    openSportDetail,
-    closeSportDetail,
-    sendMatchInviteToChat,
-    openChat,
-    closeChat,
+    isLoading,
+    genderLabel,
+    joinedYearLabel,
   } = useUserProfile(userId);
-
-  // Custom Confirm Modal state (Replaces OS Alert.alert)
-  const [confirmModalData, setConfirmModalData] = useState<{
-    visible: boolean;
-    title: string;
-    message: string;
-  }>({
-    visible: false,
-    title: '',
-    message: '',
-  });
 
   const translateY = useRef(new Animated.Value(0)).current;
   const isAtTopRef = useRef(true);
@@ -196,11 +162,10 @@ function UserProfileModalContent({
   };
 
   const handleClubPress = (club: any) => {
-    setConfirmModalData({
-      visible: true,
-      title: club.name,
-      message: `Chức vụ: ${club.roleInClub}\nSố thành viên: ${club.memberCount} người\nMôn: ${club.sportName}`,
-    });
+    onClose();
+    if (club.clubId) {
+      router.push(`/club-detail-explore/${club.clubId}` as any);
+    }
   };
 
   return (
@@ -236,100 +201,51 @@ function UserProfileModalContent({
               <View style={styles.dragHandle} />
             </View>
 
-            {/* Scrollable Profile Content with Universal Touch Handlers */}
-            <ScrollView
-              style={styles.scrollContainer}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-              overScrollMode="never"
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
-            >
-              {/* 1. Integrated Profile Header */}
-              <UserProfileHeader
-                profile={profile}
-                genderAgeLabel={genderAgeLabel}
-                friendStatus={friendStatus}
-                onToggleFriend={handleToggleFriend}
-                onOpenInviteOptions={openInviteOptions}
-                onOpenChat={openChat}
-              />
+            {isLoading || !profile ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Đang tải hồ sơ người chơi...</Text>
+              </View>
+            ) : (
+              /* Scrollable Profile Content with Universal Touch Handlers */
+              <ScrollView
+                style={styles.scrollContainer}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                overScrollMode="never"
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+              >
+                {/* 1. Profile Header (Real name, avatar, gender, joined year, stats) */}
+                <UserProfileHeader
+                  profile={profile}
+                  genderLabel={genderLabel}
+                  joinedYearLabel={joinedYearLabel}
+                />
 
-              {/* 2. Sports Summary Cards (Bấm mở SportDetailModal) */}
-              <UserSportsCard
-                sportsProfiles={profile.sportsProfiles}
-                onSelectSport={openSportDetail}
-              />
+                {/* 2. Sports Summary Cards (Based on real booking count) */}
+                <UserSportsCard sports={profile.sports} />
 
-              {/* 3. Physical Stats Card */}
-              <UserPhysicalCard profile={profile} />
+                {/* 3. Physical Stats Card (Height, Weight with 'Chưa cập nhật' fallback) */}
+                <UserPhysicalCard
+                  height={profile.height}
+                  weight={profile.weight}
+                />
 
-              {/* 4. Joined Clubs Card */}
-              <UserClubsCard
-                clubs={profile.joinedClubs}
-                onClubPress={handleClubPress}
-              />
-
-              {/* Bottom Spacing */}
-              <View style={{ height: 40 }} />
-            </ScrollView>
+                {/* 4. Joined Clubs Card (2 outside, expand all, navigation on click) */}
+                <UserClubsCard
+                  clubs={profile.joinedClubs}
+                  onClubPress={handleClubPress}
+                />
+              </ScrollView>
+            )}
           </SafeAreaView>
         </Animated.View>
-
-        {/* ── Sub Modals ── */}
-        <SportDetailModal
-          visible={!!selectedSportDetail}
-          sport={selectedSportDetail}
-          onClose={closeSportDetail}
-        />
-
-        <UnfriendConfirmModal
-          visible={unfriendModalVisible}
-          userName={profile.fullName}
-          onConfirm={confirmUnfriend}
-          onCancel={cancelUnfriend}
-        />
-
-        <InviteOptionsModal
-          visible={inviteOptionsModalVisible}
-          userName={profile.fullName}
-          onSelectInviteClub={openInviteClub}
-          onSelectInviteMatch={openInviteMatch}
-          onClose={closeInviteOptions}
-        />
-
-        <InviteClubModal
-          visible={inviteClubModalVisible}
-          profile={profile}
-          onClose={closeInviteClub}
-        />
-
-        <InviteMatchModal
-          visible={inviteMatchModalVisible}
-          profile={profile}
-          onClose={closeInviteMatch}
-          onSendInviteToChat={sendMatchInviteToChat}
-        />
-
-        <MockChatModal
-          visible={chatModalVisible}
-          profile={profile}
-          initialMatchInvite={pendingMatchInvite}
-          onClose={closeChat}
-        />
-
-        <CustomConfirmModal
-          visible={confirmModalData.visible}
-          title={confirmModalData.title}
-          message={confirmModalData.message}
-          type="info"
-          confirmText="Đã hiểu"
-          onConfirm={() => setConfirmModalData((prev) => ({ ...prev, visible: false }))}
-        />
       </View>
     </Modal>
   );
@@ -346,7 +262,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sheetContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#F8FAFC',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     height: '90%',
@@ -359,14 +275,16 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#F8FAFC',
   },
   topDragArea: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 14,
-    paddingBottom: 6,
-    backgroundColor: COLORS.surface,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   dragHandle: {
     width: 44,
@@ -376,6 +294,21 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    paddingBottom: 50,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
   },
 });

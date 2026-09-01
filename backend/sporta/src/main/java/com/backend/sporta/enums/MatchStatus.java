@@ -3,6 +3,7 @@ package com.backend.sporta.enums;
 public enum MatchStatus {
     DRAFT,
     OPEN,
+    FULL,
     MATCHED,
     UPCOMING,
     SCORE_PENDING,

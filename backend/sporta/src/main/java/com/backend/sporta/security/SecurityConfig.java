@@ -42,6 +42,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/chat/**", "/api/chat/**").permitAll()
                 .requestMatchers("/api/v1/webhooks/**", "/api/webhooks/**").permitAll() // PayOS webhook - không cần JWT
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/clubs", "/api/v1/clubs/**", "/api/clubs/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/posts", "/api/v1/posts/**", "/api/posts/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/ticket-sessions", "/api/v1/ticket-sessions/**", "/api/ticket-sessions/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/matchmaking/rooms", "/api/v1/matchmaking/rooms/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/leaderboard", "/api/v1/leaderboard/**").permitAll()

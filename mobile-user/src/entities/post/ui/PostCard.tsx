@@ -1,46 +1,99 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Post, ClubInfoData } from '../model/post.types';
 import { MatchCardAttachment } from './MatchCardAttachment';
 import { VenuePromoAttachment } from './VenuePromoAttachment';
 import { VoucherPostAttachment } from '../../../features/voucher/ui/VoucherPostAttachment';
 import { PostImageViewerModal } from './PostImageViewerModal';
-import { REACTION_MAP } from '../index';
+import { PostMediaGrid } from './PostMediaGrid';
+import { REACTION_MAP } from '../model/post.constants';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface PostCardProps {
   post: Post;
   renderLikeButton?: (post: Post) => React.ReactNode;
+  onReactPost?: (postId: string, reaction: any) => void;
   onLikePress?: () => void;
   onCommentPress?: () => void;
   onSharePress?: () => void;
   onUserPress?: (userId: string) => void;
   onClubPress?: (clubInfo: ClubInfoData) => void;
   onOptionPress?: (post: Post) => void;
+  onJoinMatch?: (post: Post) => void;
+  onLeaveMatch?: (post: Post) => void;
+  onVenuePress?: (venueId?: string, venueName?: string) => void;
 }
 
 export const PostCard = React.memo(({
   post,
   renderLikeButton,
+  onReactPost,
   onLikePress,
   onCommentPress,
   onSharePress,
   onUserPress,
   onClubPress,
   onOptionPress,
+  onJoinMatch,
+  onLeaveMatch,
+  onVenuePress,
 }: PostCardProps) => {
   const [viewerVisible, setViewerVisible] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const totalReactions = post.reactionsCount
     ? Object.values(post.reactionsCount).reduce((sum, count) => sum + (count || 0), 0)
-    : (post.likeCount || post.likeCount || 0);
+    : (post.likeCount || 0);
+
+  const isMatchPost = post.type === 'MATCH_FINDING' || !!post.matchAttachment;
+  const isPromoPost = post.type === 'VENUE_PROMO' || !!post.venuePromoAttachment;
+  const isInternalClubPost =
+    (post.audience === 'CLUB' || post.audience === 'CLUB_MEMBERS' || !!post.clubInfo) &&
+    !!post.clubInfo &&
+    !isMatchPost;
 
   return (
-    <View style={styles.cardContainer}>
+    <View style={[styles.cardContainer, post.isUploading && styles.cardUploading]}>
+      {/* ── 0. Realtime Uploading Progress Bar Banner ── */}
+      {post.isUploading ? (
+        <View style={styles.uploadingProgressBanner}>
+          <View style={styles.uploadingInfoRow}>
+            <View style={styles.uploadingLeft}>
+              {post.uploadProgress === 100 ? (
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+              ) : (
+                <ActivityIndicator size="small" color="#1877F2" />
+              )}
+              <Text style={[styles.uploadingText, post.uploadProgress === 100 && { color: '#10B981', fontWeight: '700' }]}>
+                {post.uploadProgress === 100
+                  ? 'Đã tải lên bài viết thành công!'
+                  : `Đang tải lên bài viết... ${post.uploadProgress || 20}%`}
+              </Text>
+            </View>
+            <Ionicons
+              name={post.uploadProgress === 100 ? 'checkmark-done' : 'cloud-upload-outline'}
+              size={16}
+              color={post.uploadProgress === 100 ? '#10B981' : '#1877F2'}
+            />
+          </View>
+          <View style={styles.progressBarTrack}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${Math.min(post.uploadProgress || 20, 100)}%` },
+                post.uploadProgress === 100 && { backgroundColor: '#10B981' },
+              ]}
+            />
+          </View>
+        </View>
+      ) : null}
+
+      <View style={{ opacity: post.isUploading && post.uploadProgress !== 100 ? 0.65 : 1 }}>
       {/* ── 1. Post Header ── */}
       <View style={styles.header}>
-        {/* Double Avatar (Facebook Group Style) if Post belongs to a Club */}
-        {post.clubInfo ? (
+        {/* Double Avatar (Facebook Group Style) if Post is internal to a Club */}
+        {isInternalClubPost && post.clubInfo ? (
           <View style={styles.doubleAvatarContainer}>
             {/* Club Logo in Background */}
             <TouchableOpacity
@@ -48,7 +101,11 @@ export const PostCard = React.memo(({
               onPress={() => onClubPress && onClubPress(post.clubInfo!)}
             >
               <Image 
-                source={post.clubInfo.avatarUrl ? { uri: post.clubInfo.avatarUrl } : require('../../../../assets/logo/club/699x699__1_-removebg-preview.png')} 
+                source={
+                  (post.clubInfo.avatarUrl || (post.clubInfo as any).avatar || (post.clubInfo as any).avatarImage)
+                    ? { uri: post.clubInfo.avatarUrl || (post.clubInfo as any).avatar || (post.clubInfo as any).avatarImage }
+                    : require('../../../../assets/logo/club/699x699__1_-removebg-preview.png')
+                } 
                 style={styles.clubAvatar} 
               />
             </TouchableOpacity>
@@ -77,7 +134,7 @@ export const PostCard = React.memo(({
 
         {/* User / Club Title Block */}
         <View style={styles.headerTextGroup}>
-          {post.clubInfo ? (
+          {isInternalClubPost && post.clubInfo ? (
             /* Club Post Header: Author Name -> Club Name (Facebook Group Style) */
             <View style={styles.clubHeaderBlock}>
               <View style={styles.clubTitleRow}>
@@ -98,17 +155,17 @@ export const PostCard = React.memo(({
                 <Text style={styles.timestampText}>{post.createdAt}</Text>
                 <Text style={styles.dotSeparator}>•</Text>
 
-                {post.audience === 'CLUB_MEMBERS' ? (
-                  <View style={styles.clubAudienceBadge}>
-                    <Ionicons name="shield-checkmark" size={11} color={COLORS.primary} />
-                    <Text style={styles.clubAudienceBadgeText}>Nội bộ CLB</Text>
+                <View style={styles.clubAudienceBadge}>
+                  <Ionicons name="shield-checkmark" size={11} color={COLORS.primary} />
+                  <Text style={styles.clubAudienceBadgeText}>Nội bộ CLB</Text>
+                </View>
+
+                {post.sportName && !isMatchPost ? (
+                  <View style={styles.sportTagBadge}>
+                    <Ionicons name="trophy-outline" size={10} color={COLORS.primary} />
+                    <Text style={styles.sportTagBadgeText}>{post.sportName}</Text>
                   </View>
-                ) : (
-                  <View style={styles.publicAudienceBadge}>
-                    <Ionicons name="earth" size={11} color={COLORS.grayText} />
-                    <Text style={styles.publicAudienceBadgeText}>Công khai</Text>
-                  </View>
-                )}
+                ) : null}
 
                 {post.isPinned && (
                   <View style={styles.pinnedBadge}>
@@ -129,9 +186,23 @@ export const PostCard = React.memo(({
                 <Text style={styles.timestampText}>{post.createdAt}</Text>
                 <Text style={styles.dotSeparator}>•</Text>
                 <View style={styles.publicAudienceBadge}>
-                  <Ionicons name="earth" size={12} color={COLORS.grayText} />
-                  <Text style={styles.publicAudienceBadgeText}>Công khai</Text>
+                  <Ionicons
+                    name={post.audience === 'PUBLIC' ? 'earth' : 'shield-checkmark-outline'}
+                    size={12}
+                    color={post.audience === 'PUBLIC' ? COLORS.grayText : COLORS.primary}
+                  />
+                  <Text style={styles.publicAudienceBadgeText}>
+                    {post.audience === 'PUBLIC' ? 'Công khai' : 'Nội bộ CLB'}
+                  </Text>
                 </View>
+
+                {post.sportName && !isMatchPost ? (
+                  <View style={styles.sportTagBadge}>
+                    <Ionicons name="trophy-outline" size={10} color={COLORS.primary} />
+                    <Text style={styles.sportTagBadgeText}>{post.sportName}</Text>
+                  </View>
+                ) : null}
+
                 {post.isPinned && (
                   <View style={styles.pinnedBadge}>
                     <Ionicons name="pin" size={11} color={COLORS.secondary} />
@@ -152,50 +223,120 @@ export const PostCard = React.memo(({
           <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
-
-      {/* ── 2. Caption Text ── */}
-      <View style={styles.captionContainer}>
-        <Text style={styles.captionText}>{post.content}</Text>
-      </View>
+      {/* ── 2. Caption Text / Gradient Background (Full Width Edge-to-Edge like Facebook) ── */}
+      {post.backgroundGradient && post.backgroundGradient.length > 0 && (!post.mediaUrls || post.mediaUrls.length === 0) ? (
+        <LinearGradient
+          colors={post.backgroundGradient as [string, string, ...string[]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fullWidthGradientCard}
+        >
+          <Text
+            style={[
+              styles.gradientCardText,
+              post.content.length > 100
+                ? { fontSize: 17, lineHeight: 26 }
+                : post.content.length > 40
+                ? { fontSize: 21, lineHeight: 30 }
+                : { fontSize: 28, lineHeight: 38 },
+            ]}
+          >
+            {post.content}
+          </Text>
+        </LinearGradient>
+      ) : (
+        <View style={styles.captionContainer}>
+          <Text style={styles.captionText}>{post.content}</Text>
+        </View>
+      )}
 
       {/* ── 3. Embedded Attachments (Attachment Component Architecture) ── */}
       {/* 3.1 Match Finding Attachment */}
-      {post.matchAttachment ? (
-        <MatchCardAttachment data={post.matchAttachment} />
+      {isMatchPost ? (
+        <MatchCardAttachment
+          data={{
+            matchRoomId: post.matchRoomId,
+            clubId: post.clubInfo?.id,
+            clubName: post.clubInfo?.name,
+            clubAvatar: post.clubInfo?.avatarUrl,
+            sportName: post.sportName || post.matchAttachment?.sportName,
+            content: post.content,
+            venueId: (post as any).venueId || post.venue?.id,
+            venueName: post.venueName || post.venue?.name || post.matchAttachment?.venueName,
+            venue: post.venue,
+            timeSlot: post.timeSlot || post.matchAttachment?.timeSlot,
+            playDate: post.playDate,
+            startTime: post.startTime,
+            endTime: post.endTime,
+            targetLevel: post.targetLevel || post.matchAttachment?.level,
+            totalPrice: post.totalPrice,
+            memberFee: post.memberFee || post.matchAttachment?.pricePerSlot,
+            memberFeeAmount: post.memberFeeAmount,
+            note: post.note,
+            slotsNeeded: post.slotsNeeded || post.matchAttachment?.slotsLeft,
+            currentSlots: post.currentSlots,
+            matchStatus: post.matchStatus,
+            guestClubName: (post as any).guestClubName,
+            guestClubAvatar: (post as any).guestClubAvatar,
+            isJoined: post.isJoined,
+          }}
+          onClubPress={() => {
+            if (onClubPress && post.clubInfo) {
+              onClubPress(post.clubInfo);
+            }
+          }}
+          onVenuePress={(venueId) => {
+            if (onVenuePress) {
+              onVenuePress(venueId || (post as any).venueId || post.venue?.id, post.venueName || post.venue?.name);
+            }
+          }}
+          onJoinMatch={() => onJoinMatch && onJoinMatch(post)}
+          onLeaveMatch={() => onLeaveMatch && onLeaveMatch(post)}
+        />
       ) : null}
 
-      {/* 3.2 Venue Promo Attachment */}
-      {post.venuePromoAttachment ? (
-        <VenuePromoAttachment data={post.venuePromoAttachment} />
-      ) : null}
-
-      {/* 3.3 Voucher Attachment */}
-      {post.voucher ? (
-        <View style={{ paddingHorizontal: 16 }}>
-          <VoucherPostAttachment voucher={post.voucher} />
-        </View>
-      ) : null}
-
-      {/* ── 4. Media Images ── */}
+      {/* ── 4. Media Images Grid ── */}
       {post.mediaUrls && post.mediaUrls.length > 0 ? (
         <>
-          <TouchableOpacity activeOpacity={0.9} onPress={() => setViewerVisible(true)}>
-            <View style={styles.mediaContainer}>
-              <Image source={{ uri: post.mediaUrls[0] }} style={styles.mediaImage} />
-            </View>
-          </TouchableOpacity>
+          <PostMediaGrid
+            mediaUrls={post.mediaUrls}
+            onPressImage={(index) => {
+              setSelectedImageIndex(index);
+              setViewerVisible(true);
+            }}
+          />
           <PostImageViewerModal
             visible={viewerVisible}
             post={post}
-            initialIndex={0}
+            initialIndex={selectedImageIndex}
             onClose={() => setViewerVisible(false)}
-            onReact={onLikePress ? () => onLikePress() : undefined}
-            onOptionPress={onOptionPress}
-            onComment={() => {
+            onReact={(reaction) => {
+              if (onReactPost) {
+                onReactPost(post.id, reaction);
+              } else if (onLikePress) {
+                onLikePress();
+              }
+            }}
+            onUserPress={(userId) => {
               setViewerVisible(false);
               setTimeout(() => {
-                if (onCommentPress) onCommentPress();
-              }, 300);
+                if (onUserPress) onUserPress(userId);
+              }, 200);
+            }}
+            onOptionPress={(p) => {
+              setViewerVisible(false);
+              setTimeout(() => {
+                if (onOptionPress) onOptionPress(p);
+              }, 250);
+            }}
+            onComment={() => {
+              // Comment added inside viewer - updates comment count
+            }}
+            onShare={() => {
+              setViewerVisible(false);
+              setTimeout(() => {
+                if (onSharePress) onSharePress();
+              }, 200);
             }}
           />
         </>
@@ -207,10 +348,11 @@ export const PostCard = React.memo(({
           {totalReactions > 0 && (() => {
             // Facebook-pattern: only show reaction icons that have count > 0,
             // sorted by count descending, max 3 icons
-            const reactionTypes: { key: string; count: number; icon: string; color: string }[] = Object.keys(REACTION_MAP).map(key => ({
+            const reactionTypes: { key: string; count: number; icon: string; iconLib?: string; color: string }[] = Object.keys(REACTION_MAP).map(key => ({
               key,
               count: (post.reactionsCount as any)?.[key] || 0,
               icon: REACTION_MAP[key].iconName,
+              iconLib: REACTION_MAP[key].iconLib,
               color: REACTION_MAP[key].color,
             }));
             const activeReactions = reactionTypes
@@ -229,7 +371,11 @@ export const PostCard = React.memo(({
                       idx > 0 && { marginLeft: -4 },
                     ]}
                   >
-                    <Ionicons name={r.icon as any} size={10} color="#FFFFFF" />
+                    {r.iconLib === 'materialCommunity' ? (
+                      <MaterialCommunityIcons name={r.icon as any} size={11} color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name={r.icon as any} size={10} color="#FFFFFF" />
+                    )}
                   </View>
                 ))}
               </View>
@@ -245,45 +391,46 @@ export const PostCard = React.memo(({
         </View>
       </View>
 
-      {/* ── 6. Bottom Interaction Buttons Bar ── */}
+      {/* ── 6. Bottom Interaction Buttons Bar (Facebook Style) ── */}
       <View style={styles.actionsBar}>
         {renderLikeButton ? (
           renderLikeButton(post)
         ) : (
           <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onLikePress}>
-            <Ionicons
-              name={post.userReaction ? 'thumbs-up' : 'thumbs-up-outline'}
+            <MaterialCommunityIcons
+              name={post.userReaction || post.isLiked ? 'thumb-up' : 'thumb-up-outline'}
               size={19}
-              color={post.userReaction ? COLORS.primary : COLORS.onSurfaceVariant}
+              color={post.userReaction || post.isLiked ? '#1877F2' : '#64748B'}
             />
             <Text
               style={[
                 styles.actionButtonText,
-                post.userReaction && { color: COLORS.primary, fontWeight: '700' },
+                (post.userReaction || post.isLiked) && { color: '#1877F2', fontWeight: '700' },
               ]}
             >
-              {post.userReaction ? 'Đã thích' : 'Thích'}
+              {post.userReaction || post.isLiked ? 'Đã thích' : 'Thích'}
             </Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onCommentPress}>
-          <MaterialCommunityIcons
-            name="comment-outline"
-            size={19}
-            color={COLORS.onSurfaceVariant}
+          <Ionicons
+            name="chatbubble-outline"
+            size={18}
+            color="#64748B"
           />
           <Text style={styles.actionButtonText}>Bình luận</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} activeOpacity={0.7} onPress={onSharePress}>
-          <MaterialCommunityIcons
-            name="share-outline"
-            size={21}
-            color={COLORS.onSurfaceVariant}
+          <Ionicons
+            name="arrow-redo-outline"
+            size={20}
+            color="#64748B"
           />
           <Text style={styles.actionButtonText}>Chia sẻ</Text>
         </TouchableOpacity>
+      </View>
       </View>
     </View>
   );
@@ -294,6 +441,47 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     marginBottom: SPACING.xs,
     paddingTop: SPACING.md,
+  },
+  cardUploading: {
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  uploadingProgressBanner: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: SPACING.marginMobile,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    gap: 6,
+    marginBottom: SPACING.xs,
+  },
+  uploadingInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  uploadingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadingText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12.5,
+    color: '#1E40AF',
+    fontWeight: '600',
+  },
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: '#DBEAFE',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#1877F2',
+    borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
@@ -439,6 +627,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#B45309',
   },
+  sportTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: COLORS.primaryOpacity08,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  sportTagBadgeText: {
+    fontFamily: 'HankenGrotesk-Bold',
+    fontSize: 10,
+    color: COLORS.primary,
+  },
   moreButton: {
     padding: 6,
   },
@@ -521,5 +723,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.onSurfaceVariant,
     fontWeight: '600',
+  },
+  fullWidthGradientCard: {
+    width: '100%',
+    minHeight: 350,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  gradientCardText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 4,
   },
 });

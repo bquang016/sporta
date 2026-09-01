@@ -29,6 +29,9 @@ public class ClubMemberServiceImpl implements ClubMemberService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.backend.sporta.service.ai.PostFeedService postFeedService;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @Override
@@ -93,10 +96,12 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             }
             // Sole member admin leaving will delete the club
             clubRepository.delete(club);
+            postFeedService.clearFeedCache(user.getId());
             return;
         }
 
         clubMemberRepository.delete(member);
+        postFeedService.clearFeedCache(user.getId());
     }
 
     @Override
@@ -148,6 +153,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
 
         memberToApprove.setStatus(ClubMemberStatus.APPROVED);
         memberToApprove = clubMemberRepository.save(memberToApprove);
+        postFeedService.clearFeedCache(userIdToApprove);
 
         return mapToResponse(memberToApprove);
     }
@@ -199,6 +205,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         }
 
         clubMemberRepository.delete(memberToRemove);
+        postFeedService.clearFeedCache(userIdToRemove);
     }
 
     private void checkAdminPrivileges(Long clubId, Long userId) {

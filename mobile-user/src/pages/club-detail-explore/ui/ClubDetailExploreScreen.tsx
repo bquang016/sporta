@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,6 +20,7 @@ import * as SecureStore from 'expo-secure-store';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { Button, Badge, Avatar } from '../../../shared/ui';
 import { useClubs, getDefaultCover, getDefaultAvatar } from '../../../entities/club';
+import { getClubByIdApi } from '../../../shared/api/clubs';
 
 const getSportIcon = (sportName?: string) => {
   switch (sportName?.toLowerCase()) {
@@ -42,6 +44,9 @@ export function ClubDetailExploreScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { clubs, joinedClubs, joinClub } = useClubs();
 
+  const [fetchedClub, setFetchedClub] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
   // Custom Modal Alert State
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -52,9 +57,63 @@ export function ClubDetailExploreScreen() {
   const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
   const [joining, setJoining] = useState(false);
 
-  const club =
+  const cachedClub =
     clubs.find((c) => String(c.id) === String(id)) ||
     joinedClubs.find((c) => String(c.id) === String(id));
+
+  const club = cachedClub || fetchedClub;
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!cachedClub && id) {
+      setLoading(true);
+      const numId = Number(id);
+      if (!isNaN(numId)) {
+        getClubByIdApi(numId)
+          .then((data) => {
+            if (isMounted) {
+              setFetchedClub(data);
+              setLoading(false);
+            }
+          })
+          .catch((err) => {
+            console.warn('Failed to fetch club detail:', err);
+            if (isMounted) setLoading(false);
+          });
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [id, cachedClub]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            activeOpacity={0.7}
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chi tiết câu lạc bộ</Text>
+          <View style={styles.headerPlaceholder} />
+        </View>
+        <View style={styles.errorContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={[styles.errorText, { color: '#64748B', marginTop: 12 }]}>
+            Đang tải thông tin câu lạc bộ...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!club) {
     return (

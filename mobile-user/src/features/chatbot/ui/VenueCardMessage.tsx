@@ -146,7 +146,7 @@ export const VenueCardMessage: React.FC<VenueCardMessageProps> = ({ card, onActi
             activeOpacity={0.85}
           >
             <Text style={[
-              styles.buttonText, 
+              styles.actionButtonText, 
               isDraft ? styles.draftButtonText : isMatchRoom ? styles.matchButtonText : styles.actionButtonText
             ]}>
               {card.actionText}

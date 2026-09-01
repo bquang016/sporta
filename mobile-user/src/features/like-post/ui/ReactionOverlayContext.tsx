@@ -11,18 +11,17 @@ import { ReactionSelector, ReactionSelectorRef } from './ReactionSelector';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /* ── Layout Constants ── */
-const BAR_WIDTH = 280;
-const BAR_HEIGHT = 56;
+const BAR_WIDTH = 300;
+const BAR_HEIGHT = 58;
 const ITEM_WIDTH = BAR_WIDTH / 5;
 const REACTIONS = ['like', 'love', 'fire', 'muscle', 'trophy'] as const;
 type ReactionType = (typeof REACTIONS)[number];
 
 /**
  * SELECTOR_OFFSET controls how far above the touch point the bar appears.
- * Facebook places it ~80-100px above the Like button.
- * We use 100 so the user has a comfortable thumb-drag distance.
+ * 75px places the bar right above the user's thumb for natural sliding.
  */
-const SELECTOR_OFFSET = 100;
+const SELECTOR_OFFSET = 75;
 
 /* ── Context API ── */
 interface OverlayAPI {

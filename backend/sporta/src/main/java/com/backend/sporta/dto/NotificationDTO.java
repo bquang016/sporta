@@ -19,6 +19,8 @@ public class NotificationDTO {
     private String content;
     private NotificationType type;
     private String referenceId;
+    private Long actorId;
+    private String actorAvatar;
     
     @JsonProperty("isRead")
     private boolean isRead;
