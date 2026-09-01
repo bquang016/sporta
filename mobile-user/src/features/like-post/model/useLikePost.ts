@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mockCommunityDb } from '../../../shared/api/mockCommunityDb';
 import { likePostApi } from '../../../shared/api/posts';
-import { Post } from '../../../entities/post';
+import { Post } from '../../../entities/post/model/post.types';
 
 interface InfiniteFeedData {
   pages: {
@@ -25,7 +25,7 @@ export function useLikePost() {
       // Cập nhật local mock DB (dùng cho optimistic update state sync)
       mockCommunityDb.reactPost(postId, reaction);
       // Gọi API thật lên Spring Boot Backend
-      await likePostApi(postId);
+      await likePostApi(postId, reaction);
     },
     // Optimistic Update — cập nhật UI tức thì, rollback nếu lỗi
     onMutate: async ({ postId, reaction }) => {

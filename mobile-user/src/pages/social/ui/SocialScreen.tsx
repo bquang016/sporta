@@ -1,542 +1,778 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  StatusBar,
+  ScrollView,
+  Dimensions,
   Animated,
+  Image,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { CommunityFeed } from '../../../features/community-feed';
-import { CreatePostModal, PostUploadProgressBar } from '../../../features/create-post';
-import { ReactionOverlayProvider } from '../../../features/like-post';
-import { SocialSearchModal } from '../../../features/community-search';
-import { NotificationsModal, useUnreadNotificationCount } from '../../../features/notifications';
-import { MessagesListModal } from '../../../features/messages';
-import { UserProfileModal } from '../../../features/user-profile';
-import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
-import { useIsLoggedIn } from '../../../shared/hooks/useIsLoggedIn';
-import { usersApi } from '../../../shared/api/users';
-import { Post, ClubInfoModal, ClubInfoData } from '../../../entities/post';
-import { CURRENT_USER } from '../../../shared/api/mockCommunityDb';
-import { createPostApi } from '../../../shared/api/posts';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { CommunityFeed } from '../../../features/community-feed/ui/CommunityFeed';
+import { CreatePostModal } from '../../../features/create-post/ui/CreatePostModal';
+import { SocialNotificationsModal } from '../../../features/social-notifications';
+import { ReactionOverlayProvider } from '../../../features/like-post';
+import { createPostApi } from '../../../shared/api/posts';
+import { usersApi, UserProfileDto } from '../../../shared/api/users';
+import { SocialNotificationApi } from '../../../shared/api/socialNotifications';
+import { Post } from '../../../entities/post';
 
-const HEADER_HEIGHT = 56;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// 3 Core Tabs
+type SocialTabKey = 'FOR_YOU' | 'MATCH_FINDING' | 'CLUBS';
+
+interface TabItem {
+  key: SocialTabKey;
+  label: string;
+  iconName: any;
+  iconLib: 'ionicons' | 'material';
+}
+
+const TABS: TabItem[] = [
+  { key: 'FOR_YOU', label: 'Khám phá', iconName: 'sparkles-outline', iconLib: 'ionicons' },
+  { key: 'MATCH_FINDING', label: 'Săn kèo', iconName: 'flame-outline', iconLib: 'ionicons' },
+  { key: 'CLUBS', label: 'Câu lạc bộ', iconName: 'shield-checkmark-outline', iconLib: 'ionicons' },
+];
+
+interface SportBubble {
+  id: string;
+  name: string;
+  tag: string;
+  iconName: any;
+  iconLib: 'ionicons' | 'material';
+}
+
+// Exactly 4 sports as requested + Tất cả
+const SPORTS_BUBBLES: SportBubble[] = [
+  { id: 'all', name: 'Tất cả', tag: 'ALL', iconName: 'apps-outline', iconLib: 'ionicons' },
+  { id: 'football', name: 'Đá bóng', tag: 'Bóng đá', iconName: 'football-outline', iconLib: 'ionicons' },
+  { id: 'pickleball', name: 'Pickleball', tag: 'Pickleball', iconName: 'tennisball-outline', iconLib: 'ionicons' },
+  { id: 'basketball', name: 'Bóng rổ', tag: 'Bóng rổ', iconName: 'basketball-outline', iconLib: 'ionicons' },
+  { id: 'badminton', name: 'Cầu lông', tag: 'Cầu lông', iconName: 'badminton', iconLib: 'material' },
+];
 
 export function SocialScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isLoggedIn } = useIsLoggedIn();
-  const { unreadCount: unreadNotifCount } = useUnreadNotificationCount(isLoggedIn);
-  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const router = useRouter();
+
+  // Active Tab & Sport Tag
+  const [activeTab, setActiveTab] = useState<SocialTabKey>('FOR_YOU');
+  const [activeSportTag, setActiveSportTag] = useState<string>('ALL');
+
+  // User Profile
+  const [userProfile, setUserProfile] = useState<UserProfileDto | null>(null);
+
+  // Create Post Modal State & Feed Refetch Key
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createModalInitialMode, setCreateModalInitialMode] = useState<'COMMUNITY' | 'MATCH_FINDING'>('COMMUNITY');
+
+  // Social Notifications State
+  const [unreadSocialCount, setUnreadSocialCount] = useState<number>(0);
+  const [isSocialNotificationsVisible, setIsSocialNotificationsVisible] = useState(false);
+
+  // Optimistic Post & Upload Progress State
   const [newCreatedPost, setNewCreatedPost] = useState<Post | null>(null);
+  const [isPosting, setIsPosting] = useState(false);
+  const [postProgress, setPostProgress] = useState(0); // 0 -> 100
 
-  // Sync real user profile
-  const [currentUser, setCurrentUser] = useState(CURRENT_USER);
+  // Collapsible Top Controls Animation
+  const topControlsAnim = useRef(new Animated.Value(1)).current; // 1 = fully visible, 0 = collapsed
+  const isTopVisibleRef = useRef(true);
+  const lastScrollY = useRef(0);
 
-  React.useEffect(() => {
-    let isMounted = true;
-    const fetchUser = async () => {
-      try {
-        if (isLoggedIn) {
-          const profile = await usersApi.getProfile();
-          if (isMounted && profile) {
-            setCurrentUser({
-              id: String(profile.id),
-              name: profile.fullName || 'Thành viên Sporta',
-              avatar: profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-              handle: `@user_${profile.id}`,
-            });
-          }
-        }
-      } catch (e) {
-        console.log('Error loading user profile in SocialScreen:', e);
-      }
-    };
-    fetchUser();
-    return () => {
-      isMounted = false;
-    };
-  }, [isLoggedIn]);
+  // Fetch User Profile
+  const loadUserProfile = useCallback(async () => {
+    try {
+      const profile = await usersApi.getProfile();
+      if (profile) setUserProfile(profile);
+    } catch {}
+  }, []);
 
-  // Upload Overlay Progress Bar State
-  const [uploadState, setUploadState] = useState<{
-    isUploading: boolean;
-    progress: number;
-    step: string;
-    isSuccess: boolean;
-    isError: boolean;
-  }>({
-    isUploading: false,
-    progress: 0,
-    step: '',
-    isSuccess: false,
-    isError: false,
-  });
+  // Fetch Unread Social Notifications Count
+  const loadUnreadSocialCount = useCallback(async () => {
+    try {
+      const count = await SocialNotificationApi.getUnreadSocialCount();
+      setUnreadSocialCount(count);
+    } catch {}
+  }, []);
 
-  // Auth Guard state
-  const [authModal, setAuthModal] = useState<{
-    visible: boolean;
-    actionTitle: string;
-    actionDescription: string;
-    actionIcon: string;
-  }>({
-    visible: false,
-    actionTitle: '',
-    actionDescription: '',
-    actionIcon: 'lock-closed-outline',
-  });
+  useEffect(() => {
+    loadUserProfile();
+    loadUnreadSocialCount();
+    const interval = setInterval(loadUnreadSocialCount, 25000);
+    return () => clearInterval(interval);
+  }, [loadUserProfile, loadUnreadSocialCount]);
 
-  // Modals State
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
-  const [notifModalVisible, setNotifModalVisible] = useState(false);
-  const [messagesModalVisible, setMessagesModalVisible] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selectedClubInfo, setSelectedClubInfo] = useState<ClubInfoData | null>(null);
-
-  // ─── Collapsible Top Bar (Header + Compose) ───────────────────────────────
-  const COLLAPSE_HEIGHT = HEADER_HEIGHT;
-  const TOTAL_TOP_BAR_HEIGHT = insets.top + HEADER_HEIGHT + 64;
-
-  const scrollAnim = useRef(new Animated.Value(0)).current;
-
-  const clampedScrollAnim = useRef(
-    Animated.diffClamp(scrollAnim, 0, COLLAPSE_HEIGHT)
-  ).current;
-
-  const topBarTranslateY = clampedScrollAnim.interpolate({
-    inputRange: [0, COLLAPSE_HEIGHT],
-    outputRange: [0, -COLLAPSE_HEIGHT],
-    extrapolate: 'clamp',
-  });
-
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = event.nativeEvent.contentOffset.y;
-      if (y <= 0) {
-        scrollAnim.setValue(0);
-      } else {
-        scrollAnim.setValue(y);
-      }
-    },
-    [scrollAnim]
-  );
-
-  const handlePostCreated = async (postData: Partial<Post>) => {
-    const fullPost: Post = {
-      id: `post-${Date.now()}`,
-      author: currentUser,
-      content: postData.content || '',
+  const handlePostSubmit = async (postData: any) => {
+    // 1. Construct optimistic Post object with uploading status
+    const tempId = `optimistic-${Date.now()}`;
+    const optimisticPost: Post = {
+      id: tempId,
+      author: {
+        id: String(userProfile?.id || 'u-me'),
+        name: userProfile?.fullName || 'Bạn',
+        avatar:
+          userProfile?.avatarUrl ||
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        handle: `@${userProfile?.email?.split('@')[0] || 'me'}`,
+        role: userProfile?.role || 'PLAYER',
+      },
+      content: postData.content,
       mediaUrls: postData.mediaUrls,
-      createdAt: 'Vừa xong',
+      backgroundGradient: postData.backgroundGradient,
+      backgroundId: postData.backgroundId,
       type: postData.type || 'COMMUNITY',
       audience: postData.audience || 'PUBLIC',
       clubInfo: postData.clubInfo,
-      matchAttachment: postData.matchAttachment,
-      venuePromoAttachment: postData.venuePromoAttachment,
-      likeCount: 0,
-      likesCount: 0,
-      reactionsCount: { like: 0, love: 0, fire: 0, clap: 0 },
+      matchRoomId: postData.matchRoomId,
+      sportName: postData.sportName,
+      venueName: postData.venueName,
+      timeSlot: postData.timeSlot,
+      playDate: postData.playDate,
+      startTime: postData.startTime,
+      endTime: postData.endTime,
+      targetLevel: postData.targetLevel,
+      slotsNeeded: postData.slotsNeeded,
+      totalPrice: postData.totalPrice,
+      memberFee: postData.memberFee,
+      memberFeeAmount: postData.memberFeeAmount,
+      currentSlots: 0,
+      matchStatus: 'OPEN',
+      createdAt: 'Vừa xong',
+      reactionsCount: { like: 0 },
       commentsCount: 0,
       sharesCount: 0,
+      isUploading: true,
+      uploadProgress: 25,
     };
 
-    setUploadState({
-      isUploading: true,
-      progress: 25,
-      step: 'Đang xử lý nội dung...',
-      isSuccess: false,
-      isError: false,
-    });
+    // Auto-switch to matching tab and expand top header controls
+    if (postData.type === 'MATCH_FINDING') {
+      setActiveTab('MATCH_FINDING');
+      pagerRef.current?.scrollTo({ x: 1 * SCREEN_WIDTH, animated: true });
+    } else {
+      setActiveTab('FOR_YOU');
+      pagerRef.current?.scrollTo({ x: 0, animated: true });
+    }
 
-    // Smooth incremental progress interval so progress never gets stuck at 75%
-    const progressInterval = setInterval(() => {
-      setUploadState((prev) => {
-        if (!prev.isUploading) return prev;
-        if (prev.progress < 85) {
-          const nextProgress = prev.progress + 15;
-          return {
-            ...prev,
-            progress: nextProgress,
-            step: nextProgress > 50 ? 'Đang lưu bài vào hệ thống...' : 'Đang xử lý nội dung & hình ảnh...',
-          };
-        }
-        return prev;
-      });
-    }, 450);
+    if (!isTopVisibleRef.current) {
+      isTopVisibleRef.current = true;
+      Animated.timing(topControlsAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    }
+
+    // 2. Prepend immediately to Feed with uploading state
+    setNewCreatedPost(optimisticPost);
 
     try {
-      const serverPost = await createPostApi({ ...postData, author: currentUser });
+      setTimeout(() => {
+        setNewCreatedPost((prev) => (prev ? { ...prev, uploadProgress: 65 } : null));
+      }, 300);
 
-      clearInterval(progressInterval);
+      await createPostApi(postData);
 
-      const mergedPost: Post = {
-        ...fullPost,
-        ...(serverPost || {}),
-        audience: postData.audience || serverPost?.audience || 'PUBLIC',
-        clubInfo: postData.clubInfo || serverPost?.clubInfo,
-      };
+      // Finish upload: 100%
+      setNewCreatedPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              uploadProgress: 100,
+            }
+          : null
+      );
 
-      setNewCreatedPost(mergedPost);
-
-      setUploadState({
-        isUploading: false,
-        progress: 100,
-        step: 'Đã đăng bài viết thành công!',
-        isSuccess: true,
-        isError: false,
-      });
-    } catch (err: any) {
-      clearInterval(progressInterval);
-      console.log('Error creating post on backend:', err);
-      const errorMsg = err?.message?.includes('upload size')
-        ? 'Ảnh quá lớn, chọn ảnh nhỏ hơn.'
-        : 'Đăng bài thất bại. Vui lòng thử lại.';
-      setUploadState({
-        isUploading: false,
-        progress: 100,
-        step: errorMsg,
-        isSuccess: false,
-        isError: true,
-      });
+      // Settle smoothly to standard post card
+      setTimeout(() => {
+        setNewCreatedPost((prev) =>
+          prev
+            ? {
+                ...prev,
+                isUploading: false,
+                uploadProgress: undefined,
+              }
+            : null
+        );
+      }, 800);
+    } catch (e: any) {
+      console.log('Error creating post:', e);
+      setNewCreatedPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              isUploading: false,
+              uploadProgress: undefined,
+            }
+          : null
+      );
     }
   };
 
+  // Horizontal Pager ScrollView ref
+  const pagerRef = useRef<ScrollView>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  // Tab button width for underline indicator
+  const tabWidth = SCREEN_WIDTH / TABS.length;
+
+  // Real-time Underline Indicator interpolation (60FPS)
+  const indicatorTranslateX = scrollX.interpolate({
+    inputRange: [0, SCREEN_WIDTH, SCREEN_WIDTH * 2],
+    outputRange: [0, tabWidth, tabWidth * 2],
+    extrapolate: 'clamp',
+  });
+
+  // Scroll Pager when user taps a Tab
+  const handleTabPress = (tabKey: SocialTabKey, index: number) => {
+    setActiveTab(tabKey);
+    pagerRef.current?.scrollTo({
+      x: index * SCREEN_WIDTH,
+      animated: true,
+    });
+  };
+
+  // Sync activeTab state when horizontal swipe finishes
+  const handlePagerMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
+    if (pageIndex >= 0 && pageIndex < TABS.length) {
+      setActiveTab(TABS[pageIndex].key);
+    }
+  };
+
+  // Handle Feed Scroll to collapse/expand top controls
+  const handleFeedScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentY = e.nativeEvent.contentOffset.y;
+    const dy = currentY - lastScrollY.current;
+
+    if (currentY <= 15) {
+      // Near top -> always expand
+      if (!isTopVisibleRef.current) {
+        isTopVisibleRef.current = true;
+        Animated.timing(topControlsAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    } else if (dy > 10 && currentY > 40) {
+      // Scrolling down -> collapse
+      if (isTopVisibleRef.current) {
+        isTopVisibleRef.current = false;
+        Animated.timing(topControlsAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    } else if (dy < -10) {
+      // Scrolling up -> expand
+      if (!isTopVisibleRef.current) {
+        isTopVisibleRef.current = true;
+        Animated.timing(topControlsAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+    lastScrollY.current = currentY;
+  }, [topControlsAnim]);
+
+  const openCreateModal = (mode: 'COMMUNITY' | 'MATCH_FINDING' = 'COMMUNITY') => {
+    setCreateModalInitialMode(mode);
+    setIsCreateModalOpen(true);
+  };
+
+  const userAvatar =
+    userProfile?.avatarUrl ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+
+  // Interpolated values for smooth collapsible top controls
+  const collapsibleMaxHeight = topControlsAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 180],
+  });
+  const collapsibleOpacity = topControlsAnim.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 0.2, 1],
+  });
 
   return (
     <ReactionOverlayProvider>
-      <View style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
-
-        {/* ── Fixed Status Bar Background (z-index 101, che kín notch) ── */}
-        <View style={[styles.statusBarBackground, { height: insets.top }]} />
-
-        {/* ── Top Bar: Header + Compose (Absolute Position tại top: insets.top) ── */}
-        <Animated.View
-          style={[
-            styles.topBar,
-            {
-              top: insets.top,
-              transform: [{ translateY: topBarTranslateY }],
-            },
-          ]}
-        >
-          {/* ── Top Header Row (Logo + Actions) ── */}
-          <View style={styles.collapsibleHeader}>
-            <View style={styles.headerContent}>
-              {/* Horizontal Official Logo (1600x400 aspect ratio 4:1) */}
-              <View style={styles.headerBrandContainer}>
-                <Image
-                  source={require('../../../../assets/logo/logo-horizontal_1600x400.png')}
-                  style={styles.headerLogoImage}
-                  resizeMode="contain"
-                />
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>Cộng đồng</Text>
-                </View>
-              </View>
-
-              {/* Header Action Buttons Group (Search, Messages, Notifications) */}
-              <View style={styles.headerRightActions}>
-                {/* Search Button */}
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  activeOpacity={0.75}
-                  onPress={() => setSearchModalVisible(true)}
-                >
-                  <Ionicons name="search-outline" size={20} color={COLORS.onSurface} />
-                </TouchableOpacity>
-
-                {/* Messages Chat Button with Unread Badge */}
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  activeOpacity={0.75}
-                  onPress={() => router.push('/messages')}
-                >
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.onSurface} />
-                  <View style={styles.notificationDot}>
-                    <Text style={styles.dotText}>2</Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* Notifications Button with Unread Badge */}
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  activeOpacity={0.75}
-                  onPress={() => setNotifModalVisible(true)}
-                >
-                  <Ionicons name="notifications-outline" size={20} color={COLORS.onSurface} />
-                  <View style={styles.notificationDot}>
-                    <Text style={styles.dotText}>3</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* ── Quick Compose Box ── */}
-          <View style={styles.stickyQuickComposeContainer}>
-            <TouchableOpacity
-              style={styles.quickComposeCard}
-              activeOpacity={0.8}
-              onPress={() => {
-                if (!isLoggedIn) {
-                  setAuthModal({
-                    visible: true,
-                    actionTitle: 'Đăng nhập để đăng bài',
-                    actionDescription: 'Bạn cần đăng nhập để chia sẻ bài viết, hình ảnh và kết nối với cộng đồng Sporta.',
-                    actionIcon: 'create-outline',
-                  });
-                  return;
-                }
-                setCreateModalVisible(true);
-              }}
-            >
-              <Image source={{ uri: currentUser?.avatar || CURRENT_USER.avatar }} style={styles.userAvatar} />
-              <View style={styles.quickInputPlaceholder}>
-                <Text style={styles.placeholderText}>
-                  Bạn muốn chia sẻ điều gì hôm nay?
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.imageActionBtn} onPress={() => {
-                if (!isLoggedIn) {
-                  setAuthModal({
-                    visible: true,
-                    actionTitle: 'Đăng nhập để đăng ảnh',
-                    actionDescription: 'Bạn cần đăng nhập để chia sẻ hình ảnh lên Sporta.',
-                    actionIcon: 'images-outline',
-                  });
-                  return;
-                }
-                setCreateModalVisible(true);
-              }}>
-                <Ionicons name="images-outline" size={20} color={COLORS.primary} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-
-        {/* Global Floating Custom Sports Ball Upload Widget (Bottom-Right FAB) */}
-        {(uploadState.isUploading || uploadState.isSuccess || uploadState.isError) && (
-          <View style={styles.uploadOverlayContainer} pointerEvents="box-none">
-            <PostUploadProgressBar
-              progress={uploadState.progress}
-              step={uploadState.step}
-              isUploading={uploadState.isUploading}
-              isSuccess={uploadState.isSuccess}
-              isError={uploadState.isError}
-              onDismiss={() => setUploadState((prev) => ({ ...prev, isUploading: false, isSuccess: false, isError: false }))}
-            />
-          </View>
-        )}
-
-        {/* ── Single Infinite Scroll Feed ── */}
-        <View style={styles.feedWrapper}>
-          <CommunityFeed
-            newCreatedPost={newCreatedPost}
-            onScroll={handleScroll}
-            contentContainerStyle={{ paddingTop: TOTAL_TOP_BAR_HEIGHT }}
+      <SafeAreaView style={styles.container} edges={['top']}>
+      {/* ── 1. Clean Top Header Bar (Always Fixed) ── */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('../../../../assets/logo/social/social_logo.png')}
+            style={styles.headerSocialLogo}
+            resizeMode="contain"
           />
         </View>
 
-        {/* ── Modals Stack ── */}
-        <CreatePostModal
-          visible={createModalVisible}
-          onClose={() => setCreateModalVisible(false)}
-          onSubmitPost={handlePostCreated}
-          currentUser={currentUser}
-        />
-
-        <SocialSearchModal
-          visible={searchModalVisible}
-          onClose={() => setSearchModalVisible(false)}
-          onSelectClub={(clubInfo) => {
-            setSelectedClubInfo(clubInfo);
-          }}
-          newPost={newCreatedPost}
-        />
-
-        <NotificationsModal
-          visible={notifModalVisible}
-          onClose={() => setNotifModalVisible(false)}
-        />
-
-        <MessagesListModal
-          visible={messagesModalVisible}
-          onClose={() => setMessagesModalVisible(false)}
-        />
-
-        {selectedUserId && (
-          <UserProfileModal
-            visible={!!selectedUserId}
-            userId={selectedUserId}
-            onClose={() => setSelectedUserId(null)}
-          />
-        )}
-
-        {selectedClubInfo && (
-          <ClubInfoModal
-            visible={!!selectedClubInfo}
-            clubInfo={selectedClubInfo}
-            onClose={() => setSelectedClubInfo(null)}
-          />
-        )}
-
-        {/* Auth Required Modal — yêu cầu đăng nhập khi chưa đăng nhập */}
-        <AuthRequiredModal
-          visible={authModal.visible}
-          onClose={() => setAuthModal((prev) => ({ ...prev, visible: false }))}
-          actionTitle={authModal.actionTitle}
-          actionDescription={authModal.actionDescription}
-          actionIcon={authModal.actionIcon}
-        />
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            activeOpacity={0.7}
+            onPress={() => setIsSocialNotificationsVisible(true)}
+          >
+            <Ionicons name="notifications-outline" size={21} color={COLORS.onSurface} />
+            {unreadSocialCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>
+                  {unreadSocialCount > 99 ? '99+' : unreadSocialCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* ── 2. Publishing Progress Bar Banner ── */}
+      {isPosting && (
+        <View style={styles.uploadProgressBanner}>
+          <View style={styles.uploadProgressHeader}>
+            <View style={styles.uploadProgressLeft}>
+              <Ionicons
+                name={postProgress === 100 ? 'checkmark-circle' : 'cloud-upload-outline'}
+                size={16}
+                color={postProgress === 100 ? '#10B981' : COLORS.primary}
+              />
+              <Text style={styles.uploadProgressText}>
+                {postProgress === 100 ? 'Đã đăng bài viết thành công!' : 'Đang đăng bài viết lên bảng tin...'}
+              </Text>
+            </View>
+            <Text style={styles.uploadProgressPercent}>{postProgress}%</Text>
+          </View>
+          <View style={styles.progressBarTrack}>
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: `${postProgress}%`,
+                  backgroundColor: postProgress === 100 ? '#10B981' : COLORS.primary,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* ── 3. Collapsible Container: Prompt Card + Tab Bar + Sport Filter (Hides on Scroll Down) ── */}
+      <Animated.View
+        style={[
+          styles.collapsibleWrapper,
+          {
+            maxHeight: collapsibleMaxHeight,
+            opacity: collapsibleOpacity,
+          },
+        ]}
+      >
+        {/* Clean "What's on your mind?" Input Box */}
+        <View style={styles.cleanPromptCard}>
+          <TouchableOpacity
+            style={styles.promptInputRow}
+            activeOpacity={0.8}
+            onPress={() => openCreateModal('COMMUNITY')}
+          >
+            <Image source={{ uri: userAvatar }} style={styles.promptAvatar} />
+            <View style={styles.promptInputBox}>
+              <Text style={styles.promptPlaceholderText} numberOfLines={1}>
+                Bạn đang nghĩ gì? Đăng bài hoặc lên kèo...
+              </Text>
+            </View>
+            <View style={styles.promptMediaQuickBtn}>
+              <Ionicons name="images-outline" size={20} color="#10B981" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Underline Segmented Tab Bar (60FPS) */}
+        <View style={styles.tabBarContainer}>
+          {TABS.map((tab, idx) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={styles.tabButton}
+                activeOpacity={0.7}
+                onPress={() => handleTabPress(tab.key, idx)}
+              >
+                {tab.iconLib === 'material' ? (
+                  <MaterialCommunityIcons
+                    name={tab.iconName}
+                    size={16}
+                    color={isActive ? COLORS.primary : COLORS.onSurfaceVariant}
+                  />
+                ) : (
+                  <Ionicons
+                    name={tab.iconName}
+                    size={16}
+                    color={isActive ? COLORS.primary : COLORS.onSurfaceVariant}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    isActive && styles.tabLabelActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* 60FPS Underline Indicator */}
+          <Animated.View
+            style={[
+              styles.underlineIndicator,
+              {
+                width: tabWidth,
+                transform: [{ translateX: indicatorTranslateX }],
+              },
+            ]}
+          />
+        </View>
+
+        {/* 4 Sport Filter Chips (Đá bóng, Pickleball, Bóng rổ, Cầu lông) - Chỉ hiện ở tab Săn kèo */}
+        {activeTab === 'MATCH_FINDING' && (
+          <View style={styles.sportFilterSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sportFilterScroll}
+            >
+              {SPORTS_BUBBLES.map((sport) => {
+                const isSelected = activeSportTag === sport.tag;
+                return (
+                  <TouchableOpacity
+                    key={`sport-${sport.id}`}
+                    style={[
+                      styles.sportFilterChip,
+                      isSelected && styles.sportFilterChipActive,
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => setActiveSportTag(sport.tag)}
+                  >
+                    {sport.iconLib === 'material' ? (
+                      <MaterialCommunityIcons
+                        name={sport.iconName}
+                        size={15}
+                        color={isSelected ? '#FFFFFF' : COLORS.onSurfaceVariant}
+                      />
+                    ) : (
+                      <Ionicons
+                        name={sport.iconName}
+                        size={15}
+                        color={isSelected ? '#FFFFFF' : COLORS.onSurfaceVariant}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.sportFilterText,
+                        isSelected && styles.sportFilterTextActive,
+                      ]}
+                    >
+                      {sport.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* ── 4. Horizontal 60FPS Pager Content ── */}
+      <Animated.ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        bounces={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false }
+        )}
+        onMomentumScrollEnd={handlePagerMomentumScrollEnd}
+        style={styles.pagerContainer}
+      >
+        {/* Page 1: Khám phá (FOR_YOU) */}
+        <View style={styles.pageWrapper}>
+          <CommunityFeed
+            tab="FOR_YOU"
+            sportTag="ALL"
+            newCreatedPost={newCreatedPost}
+            onScroll={handleFeedScroll}
+          />
+        </View>
+
+        {/* Page 2: Săn kèo (MATCH_FINDING) */}
+        <View style={styles.pageWrapper}>
+          <CommunityFeed
+            tab="MATCH_FINDING"
+            sportTag={activeSportTag}
+            newCreatedPost={newCreatedPost}
+            onScroll={handleFeedScroll}
+          />
+        </View>
+
+        {/* Page 3: Câu lạc bộ (CLUBS) */}
+        <View style={styles.pageWrapper}>
+          <CommunityFeed
+            tab="CLUBS"
+            sportTag="ALL"
+            newCreatedPost={newCreatedPost}
+            onScroll={handleFeedScroll}
+          />
+        </View>
+      </Animated.ScrollView>
+
+      {/* ── 5. Create Post Modal ── */}
+      <CreatePostModal
+        visible={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmitPost={handlePostSubmit}
+        initialMode={createModalInitialMode}
+        currentUser={userProfile}
+      />
+
+      {/* ── 6. Dedicated Social Notifications Modal ── */}
+      <SocialNotificationsModal
+        visible={isSocialNotificationsVisible}
+        onClose={() => setIsSocialNotificationsVisible(false)}
+        onUnreadCountChange={setUnreadSocialCount}
+      />
+      </SafeAreaView>
     </ReactionOverlayProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: COLORS.surface,
-    position: 'relative',
+    backgroundColor: '#F8FAFC',
   },
-  statusBarBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.surface,
-    zIndex: 101,
-  },
-  topBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    backgroundColor: COLORS.surface,
-  },
-  collapsibleHeader: {
-    backgroundColor: COLORS.surface,
-    height: HEADER_HEIGHT,
-    overflow: 'hidden',
-  },
-  headerContent: {
-    height: HEADER_HEIGHT,
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    zIndex: 10,
   },
-  headerBrandContainer: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
   },
-  headerLogoImage: {
-    width: 120,
-    height: 30,
+  headerSocialLogo: {
+    width: 200,
+    height: 50,
   },
-  badgeContainer: {
-    backgroundColor: COLORS.primaryOpacity08,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity15,
-  },
-  badgeText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 11,
-    color: COLORS.primary,
-  },
-  headerRightActions: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 8,
   },
   headerIconButton: {
+    position: 'relative',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  uploadProgressBanner: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  uploadProgressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  uploadProgressLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  uploadProgressText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.onSurface,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  uploadProgressPercent: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  collapsibleWrapper: {
+    overflow: 'hidden',
+    backgroundColor: COLORS.surface,
+  },
+  cleanPromptCard: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  promptInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  promptAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surfaceContainerLow,
+    backgroundColor: '#F1F5F9',
+  },
+  promptInputBox: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  promptPlaceholderText: {
+    ...TYPOGRAPHY.bodySm,
+    color: '#64748B',
+    fontSize: 13,
+  },
+  promptMediaQuickBtn: {
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
-  notificationDot: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#EF4444',
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: COLORS.surface,
-  },
-  dotText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 9.5,
-    color: '#FFFFFF',
-  },
-  stickyQuickComposeContainer: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.sm,
+  tabBarContainer: {
+    flexDirection: 'row',
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerLow,
-    zIndex: 10,
+    borderBottomColor: '#F1F5F9',
+    position: 'relative',
   },
-  quickComposeCard: {
+  tabButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    gap: SPACING.xs,
-  },
-  userAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.surfaceDim,
-  },
-  quickInputPlaceholder: {
-    flex: 1,
     justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
   },
-  placeholderText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13.5,
-    color: COLORS.grayText,
+  tabLabel: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '500',
   },
-  imageActionBtn: {
-    padding: 6,
+  tabLabelActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
-  feedWrapper: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  uploadOverlayContainer: {
+  underlineIndicator: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
     bottom: 0,
-    zIndex: 9999,
+    left: 0,
+    height: 2,
+    backgroundColor: COLORS.primary,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+  sportFilterSection: {
+    backgroundColor: COLORS.surface,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sportFilterScroll: {
+    paddingHorizontal: SPACING.md,
+    gap: 6,
+  },
+  sportFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    gap: 4,
+  },
+  sportFilterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  sportFilterText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '500',
+    fontSize: 11,
+  },
+  sportFilterTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  pagerContainer: {
+    flex: 1,
+  },
+  pageWrapper: {
+    width: SCREEN_WIDTH,
+    flex: 1,
   },
 });
-
-export default SocialScreen;

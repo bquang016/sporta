@@ -51,6 +51,36 @@ export interface UpdateUserProfileRequest {
   [key: string]: any;
 }
 
+export interface PublicUserProfileResponse {
+  id: number;
+  fullName: string;
+  avatarUrl?: string;
+  gender?: string;
+  height?: number;
+  weight?: number;
+  joinedYear?: number;
+  role?: string;
+  totalBookings?: number;
+  reputationScore?: number;
+  sports?: {
+    sportId: number;
+    sportName: string;
+    sportIcon?: string;
+    bookingCount: number;
+    percentage: number;
+  }[];
+  joinedClubs?: {
+    clubId: number;
+    clubName: string;
+    avatarImage?: string;
+    coverImage?: string;
+    sportName?: string;
+    role?: string;
+    membersCount?: number;
+    elo?: number;
+  }[];
+}
+
 const getToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
@@ -65,6 +95,10 @@ const getToken = async (): Promise<string | null> => {
 export const usersApi = {
   getProfile: async (): Promise<UserProfileDto> => {
     return apiFetch<UserProfileDto>('/users/profile', { method: 'GET' }, true);
+  },
+
+  getPublicProfile: async (userId: string | number): Promise<PublicUserProfileResponse> => {
+    return apiFetch<PublicUserProfileResponse>(`/users/${userId}/public`, { method: 'GET' }, false);
   },
 
   updateProfile: async (data: UpdateUserProfileRequest, avatarUri?: string): Promise<UserProfileDto> => {

@@ -933,6 +933,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .isPaid(booking.getStatus() == BookingStatus.CONFIRMED)
                 .format("Sân tiêu chuẩn")
                 .address(addressText)
+                .venueId(booking.getVenue() != null ? booking.getVenue().getId().toString() : null)
                 .build();
 
         ClubSummaryResponse hostClubVM = mapToClubSummaryResponse(room.getHostClub());

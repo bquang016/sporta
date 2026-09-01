@@ -123,7 +123,7 @@ export function useCreatePost({ onSuccess }: UseCreatePostProps = {}) {
 
       const newPost = await mockCommunityDb.createPost({ content, mediaUrls: finalImageUrls, type });
       setUploadProgress(100);
-      setUploadStep('Đã đăng bài viết thành công! 🎉');
+      setUploadStep('Đã đăng bài viết thành công!');
       setIsSuccess(true);
       return newPost;
     },

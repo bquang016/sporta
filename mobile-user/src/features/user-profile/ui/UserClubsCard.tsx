@@ -1,144 +1,210 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { JoinedClubItem } from '../../../entities/user';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Avatar } from '../../../shared/ui';
+
+interface UserClubItem {
+  clubId: number;
+  clubName: string;
+  avatarImage?: string;
+  coverImage?: string;
+  sportName?: string;
+  role?: string;
+  membersCount?: number;
+  elo?: number;
+}
 
 interface UserClubsCardProps {
-  clubs?: JoinedClubItem[];
-  onClubPress?: (club: JoinedClubItem) => void;
+  clubs?: UserClubItem[];
+  onClubPress?: (club: UserClubItem) => void;
 }
 
 export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardProps) => {
-  if (!clubs || clubs.length === 0) return null;
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  if (!clubs || clubs.length === 0) {
+    return (
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <Ionicons name="people-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.title}>Các câu lạc bộ đã tham gia</Text>
+        </View>
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyText}>Chưa tham gia câu lạc bộ nào</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Display at most 2 clubs outside unless expanded
+  const visibleClubs = isExpanded ? clubs : clubs.slice(0, 2);
+  const hasMore = clubs.length > 2;
+
+  const getRoleLabel = (role?: string) => {
+    if (!role) return 'Thành viên';
+    if (role === 'ADMIN' || role === 'Trưởng nhóm') return 'Trưởng nhóm';
+    if (role === 'SUB_LEADER' || role === 'Phó nhóm') return 'Phó nhóm';
+    return 'Thành viên';
+  };
 
   return (
     <View style={styles.card}>
       {/* Section Header */}
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Ionicons name="people" size={20} color={COLORS.primary} />
+      <View style={styles.headerRow}>
+        <View style={styles.titleLeft}>
+          <Ionicons name="people-outline" size={18} color={COLORS.primary} />
           <Text style={styles.title}>Các câu lạc bộ đã tham gia</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{clubs.length}</Text>
-          </View>
+        </View>
+        <View style={styles.countBadge}>
+          <Text style={styles.countText}>{clubs.length}</Text>
         </View>
       </View>
 
       {/* Clubs List */}
       <View style={styles.list}>
-        {clubs.map((club, index) => (
+        {visibleClubs.map((club, index) => (
           <TouchableOpacity
-            key={club.id}
-            style={[styles.clubItem, index < clubs.length - 1 && styles.itemBorder]}
+            key={`${club.clubId}-${index}`}
+            style={[
+              styles.clubItem,
+              index < visibleClubs.length - 1 && styles.itemBorder,
+            ]}
             activeOpacity={0.7}
             onPress={() => onClubPress?.(club)}
           >
-            {/* Club Logo */}
-            <Avatar source={club.logoUrl} size={48} fallbackIcon="groups" style={styles.clubLogo} />
+            {/* Club Avatar */}
+            <Image
+              source={
+                club.avatarImage
+                  ? { uri: club.avatarImage }
+                  : require('../../../../assets/logo/club/699x699__1_-removebg-preview.png')
+              }
+              style={styles.clubAvatar}
+            />
 
             {/* Club Information */}
             <View style={styles.clubInfo}>
               <Text style={styles.clubName} numberOfLines={1}>
-                {club.name}
+                {club.clubName}
               </Text>
-              
+
               <View style={styles.metaRow}>
-                <View style={styles.sportBadge}>
-                  <Text style={styles.sportBadgeText}>{club.sportName}</Text>
-                </View>
-                <Text style={styles.roleText}>• {club.roleInClub}</Text>
+                {club.sportName && (
+                  <View style={styles.sportBadge}>
+                    <Text style={styles.sportBadgeText}>{club.sportName}</Text>
+                  </View>
+                )}
+                <Text style={styles.roleText}>• {getRoleLabel(club.role)}</Text>
               </View>
 
               <Text style={styles.memberCountText}>
-                {club.memberCount} thành viên {club.joinedDate ? `• Tham gia ${club.joinedDate}` : ''}
+                {club.membersCount || 1} thành viên
               </Text>
             </View>
 
-            {/* Chevron Action */}
-            <View style={styles.actionCircle}>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.outline} />
+            {/* Chevron Navigate Arrow */}
+            <View style={styles.actionChevron}>
+              <Ionicons name="chevron-forward" size={18} color="#64748B" />
             </View>
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* "Xem tất cả" / "Thu gọn" Button */}
+      {hasMore && (
+        <TouchableOpacity
+          style={styles.expandButton}
+          activeOpacity={0.8}
+          onPress={() => setIsExpanded(!isExpanded)}
+        >
+          <Text style={styles.expandButtonText}>
+            {isExpanded ? 'Thu gọn' : `Xem tất cả (${clubs.length} câu lạc bộ)`}
+          </Text>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color={COLORS.primary}
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: SPACING.marginMobile,
-    marginTop: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
+    backgroundColor: '#FFFFFF',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  header: {
-    marginBottom: SPACING.sm,
-  },
-  titleRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  titleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   title: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 16,
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
     fontWeight: '800',
-    color: COLORS.onSurface,
+    color: '#334155',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   countBadge: {
-    backgroundColor: COLORS.primaryOpacity08,
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.full,
   },
   countText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 12,
-    color: COLORS.primary,
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
     fontWeight: '800',
+    color: '#2563EB',
   },
   list: {
-    gap: 4,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   clubItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    gap: SPACING.sm,
+    paddingVertical: 12,
+    gap: 12,
   },
   itemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHigh,
+    borderBottomColor: '#E2E8F0',
   },
-  clubLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: COLORS.surfaceDim,
+  clubAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E2E8F0',
     borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
+    borderColor: '#CBD5E1',
   },
   clubInfo: {
     flex: 1,
-    justifyContent: 'center',
-    gap: 3,
+    gap: 2,
   },
   clubName: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 15,
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 14,
     fontWeight: '700',
-    color: COLORS.onSurface,
+    color: '#0F172A',
   },
   metaRow: {
     flexDirection: 'row',
@@ -146,33 +212,63 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sportBadge: {
-    backgroundColor: COLORS.primaryOpacity10,
-    borderRadius: 4,
+    backgroundColor: '#E2E8F0',
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   sportBadgeText: {
-    fontFamily: 'HankenGrotesk-Bold',
     fontSize: 10,
-    color: COLORS.primary,
+    fontWeight: '700',
+    color: '#334155',
   },
   roleText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
-    color: COLORS.onSurfaceVariant,
     fontWeight: '600',
+    color: '#059669',
   },
   memberCountText: {
-    ...TYPOGRAPHY.labelSm,
+    ...TYPOGRAPHY.bodySm,
     fontSize: 11,
-    color: COLORS.grayText,
+    color: '#64748B',
   },
-  actionCircle: {
+  actionChevron: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.surfaceContainerLow,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginTop: 8,
+    gap: 4,
+  },
+  expandButtonText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  emptyBox: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  emptyText: {
+    ...TYPOGRAPHY.bodySm,
+    color: '#94A3B8',
+    fontSize: 13,
   },
 });

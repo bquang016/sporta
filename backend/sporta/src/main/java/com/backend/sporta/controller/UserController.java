@@ -36,6 +36,12 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
+    @GetMapping({"/{id}/public", "/{id}"})
+    public ResponseEntity<com.backend.sporta.dto.PublicUserProfileResponse> getPublicUserProfile(@PathVariable Long id) {
+        com.backend.sporta.dto.PublicUserProfileResponse profile = userService.getPublicUserProfile(id);
+        return ResponseEntity.ok(profile);
+    }
+
     @PutMapping("/profile")
     public ResponseEntity<UserProfileDto> updateProfile(
             @RequestPart(value = "data", required = false) String dataStr,

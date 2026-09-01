@@ -472,12 +472,12 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
       {selectedVenueIdForModal && (
         <VenueDetailModal
           visible={isVenueModalVisible}
-          facilityId={selectedVenueIdForModal}
+          venueId={selectedVenueIdForModal}
           onClose={() => {
             setIsVenueModalVisible(false);
             setSelectedVenueIdForModal(null);
           }}
-          onBookPress={(venueId) => {
+          onBookNow={(venueId: string) => {
             setIsVenueModalVisible(false);
             setSelectedVenueIdForModal(null);
             handleClose();

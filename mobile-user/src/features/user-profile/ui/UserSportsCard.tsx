@@ -1,102 +1,120 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SportProfileItem } from '../../../entities/user';
+import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
-interface UserSportsCardProps {
-  sportsProfiles: SportProfileItem[];
-  onSelectSport: (sport: SportProfileItem) => void;
+interface SportStatItem {
+  sportId: number;
+  sportName: string;
+  sportIcon?: string;
+  bookingCount: number;
+  percentage: number;
 }
 
-export const UserSportsCard = React.memo(({
-  sportsProfiles,
-  onSelectSport,
-}: UserSportsCardProps) => {
-  if (!sportsProfiles || sportsProfiles.length === 0) return null;
+interface UserSportsCardProps {
+  sports?: SportStatItem[];
+}
+
+export const UserSportsCard = React.memo(({ sports }: UserSportsCardProps) => {
+  if (!sports || sports.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.sectionTitle}>HỒ SƠ BỘ MÔN THỂ THAO</Text>
+        <View style={styles.emptyCard}>
+          <Ionicons name="fitness-outline" size={28} color="#94A3B8" />
+          <Text style={styles.emptyText}>Chưa có dữ liệu đặt sân thể thao</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const getSportIconConfig = (name: string) => {
+    switch (name) {
+      case 'Bóng đá':
+      case 'Đá bóng':
+        return {
+          icon: <Ionicons name="football" size={20} color="#2563EB" />,
+          bgColor: '#EFF6FF',
+          barColor: '#2563EB',
+        };
+      case 'Cầu lông':
+      case 'Đánh cầu':
+        return {
+          icon: <MaterialCommunityIcons name="badminton" size={20} color="#0284C7" />,
+          bgColor: '#F0F9FF',
+          barColor: '#0284C7',
+        };
+      case 'Tennis':
+        return {
+          icon: <MaterialCommunityIcons name="tennis" size={20} color="#059669" />,
+          bgColor: '#ECFDF5',
+          barColor: '#059669',
+        };
+      case 'Bóng rổ':
+        return {
+          icon: <Ionicons name="basketball" size={20} color="#EA580C" />,
+          bgColor: '#FFF7ED',
+          barColor: '#EA580C',
+        };
+      case 'Pickleball':
+      default:
+        return {
+          icon: <Ionicons name="tennisball" size={20} color="#D97706" />,
+          bgColor: '#FEFCE8',
+          barColor: '#D97706',
+        };
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>HỒ SƠ BỘ MÔN THỂ THAO</Text>
+      <View style={styles.headerRow}>
+        <Ionicons name="trophy-outline" size={18} color={COLORS.primary} />
+        <Text style={styles.sectionTitle}>HỒ SƠ BỘ MÔN THỂ THAO</Text>
+      </View>
 
       <View style={styles.cardsList}>
-        {sportsProfiles.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.summaryCard}
-            activeOpacity={0.85}
-            onPress={() => onSelectSport(item)}
-          >
-            {/* Header row: Icon, Sport Name, Arrow indicator */}
-            <View style={styles.cardHeader}>
-              <View style={styles.iconCircle}>
-                <Ionicons
-                  name={
-                    item.sportName === 'Bóng đá'
-                      ? 'football'
-                      : item.sportName === 'Pickleball'
-                      ? 'tennisball'
-                      : 'fitness'
-                  }
-                  size={24}
-                  color="#FFFFFF"
+        {sports.map((item) => {
+          const config = getSportIconConfig(item.sportName);
+          return (
+            <View key={item.sportId} style={styles.sportCard}>
+              <View style={styles.sportTopRow}>
+                {/* Sport Icon & Name */}
+                <View style={styles.sportLeftGroup}>
+                  <View style={[styles.sportIconCircle, { backgroundColor: config.bgColor }]}>
+                    {config.icon}
+                  </View>
+                  <View>
+                    <Text style={styles.sportName}>{item.sportName}</Text>
+                    <Text style={styles.bookingCountText}>
+                      {item.bookingCount} lượt đặt sân
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Percentage Tag */}
+                <View style={[styles.percentageBadge, { backgroundColor: config.bgColor }]}>
+                  <Text style={[styles.percentageText, { color: config.barColor }]}>
+                    {item.percentage}% hoạt động
+                  </Text>
+                </View>
+              </View>
+
+              {/* Progress Bar */}
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${Math.min(100, Math.max(8, item.percentage))}%`,
+                      backgroundColor: config.barColor,
+                    },
+                  ]}
                 />
               </View>
-
-              <View style={styles.titleGroup}>
-                <Text style={styles.sportName}>{item.sportName}</Text>
-                <Text style={styles.sportMetaText}>
-                  {item.matchesCount || 35} trận đấu • {item.activitiesCount || 90} hoạt động
-                </Text>
-              </View>
-
-              <View style={styles.detailBtn}>
-                <Text style={styles.detailBtnText}>Chi tiết</Text>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
-              </View>
             </View>
-
-            {/* DUPR & Ratings Quick Highlights Row */}
-            <View style={styles.highlightsRow}>
-              {item.duprSingles ? (
-                <View style={styles.highlightBadge}>
-                  <View style={styles.duprMiniTag}>
-                    <Text style={styles.duprMiniTagText}>DUPR</Text>
-                  </View>
-                  <Text style={styles.highlightScore}>{item.duprSingles}</Text>
-                </View>
-              ) : null}
-
-              {item.ratingValue ? (
-                <View style={styles.highlightBadge}>
-                  <Text style={styles.highlightLabel}>Trình độ:</Text>
-                  <Text style={styles.highlightValue}>{item.ratingValue}</Text>
-                </View>
-              ) : null}
-
-              {item.position ? (
-                <View style={styles.highlightBadge}>
-                  <Text style={styles.highlightLabel}>Vị trí:</Text>
-                  <Text style={styles.highlightValue}>{item.position}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Top 3 Skill pills preview */}
-            {item.skillTags && item.skillTags.length > 0 && (
-              <View style={styles.skillPillsRow}>
-                {item.skillTags.slice(0, 3).map((tag) => (
-                  <View key={tag.id} style={styles.skillPill}>
-                    <Text style={styles.skillPillText}>{tag.label}</Text>
-                  </View>
-                ))}
-                {item.skillTags.length > 3 && (
-                  <Text style={styles.moreSkillsText}>+{item.skillTags.length - 3} kỹ năng</Text>
-                )}
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
@@ -104,141 +122,99 @@ export const UserSportsCard = React.memo(({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.marginMobile,
+    backgroundColor: '#FFFFFF',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 8,
-    borderBottomColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  sectionTitle: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
-    color: COLORS.grayText,
-    letterSpacing: 0.6,
-    fontWeight: '800',
-    marginBottom: SPACING.sm,
-  },
-  cardsList: {
-    gap: SPACING.sm,
-  },
-  summaryCard: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.surfaceContainerHigh,
-    gap: SPACING.sm,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#10B981',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleGroup: {
-    flex: 1,
-  },
-  sportName: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 17,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-  },
-  sportMetaText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
-    color: COLORS.grayText,
-    marginTop: 2,
-  },
-  detailBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: COLORS.primaryOpacity08,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  detailBtnText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  highlightsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingTop: 4,
-  },
-  highlightBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.default,
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerHigh,
-    gap: 4,
-  },
-  duprMiniTag: {
-    backgroundColor: '#1E293B',
-    borderRadius: 3,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  duprMiniTagText: {
-    fontFamily: 'HankenGrotesk-ExtraBold',
-    fontSize: 9,
-    color: '#FFFFFF',
-  },
-  highlightScore: {
-    fontFamily: 'HankenGrotesk-ExtraBold',
-    fontSize: 13,
-    color: COLORS.onSurface,
-    fontWeight: '800',
-  },
-  highlightLabel: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    color: COLORS.grayText,
-  },
-  highlightValue: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 12,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-  },
-  skillPillsRow: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap',
-    marginTop: 2,
+    marginBottom: SPACING.md,
   },
-  skillPill: {
-    backgroundColor: '#FACC15',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+  sectionTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#334155',
+    letterSpacing: 0.5,
   },
-  skillPillText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 11,
-    color: '#1E293B',
+  cardsList: {
+    gap: 10,
+  },
+  sportCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  sportTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sportLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sportIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sportName: {
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 14,
     fontWeight: '700',
+    color: '#0F172A',
   },
-  moreSkillsText: {
+  bookingCountText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  percentageBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  percentageText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
-    color: COLORS.grayText,
+    fontWeight: '700',
+  },
+  progressBarTrack: {
+    height: 5,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  emptyCard: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  emptyText: {
+    ...TYPOGRAPHY.bodySm,
+    color: '#94A3B8',
+    fontSize: 13,
   },
 });

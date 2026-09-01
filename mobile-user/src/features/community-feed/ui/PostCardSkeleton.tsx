@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
     marginRight: SPACING.sm,
   },
   headerText: {
@@ -84,13 +84,13 @@ const styles = StyleSheet.create({
     width: '40%',
     height: 16,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
   timeSkeleton: {
     width: '20%',
     height: 12,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
   body: {
     gap: SPACING.sm,
@@ -99,13 +99,13 @@ const styles = StyleSheet.create({
   textLine: {
     height: 14,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
   imageSkeleton: {
     width: '100%',
     height: 200,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
     marginTop: SPACING.sm,
   },
   footer: {
@@ -113,12 +113,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.outlineVariant,
   },
   actionSkeleton: {
     width: 60,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
 });

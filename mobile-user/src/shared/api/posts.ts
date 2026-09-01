@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { Post } from '../../entities/post';
+import { Post, PostComment } from '../../entities/post';
 import { getBaseUrl } from './config';
 
 const getToken = async (): Promise<string> => {
@@ -28,7 +28,14 @@ export const formatTimeAgo = (dateString: string) => {
   return `${Math.floor(diffInSeconds / 31536000)} năm trước`;
 };
 
-export const fetchPostsApi = async (page = 0, size = 10): Promise<{ posts: Post[], hasNextPage: boolean }> => {
+export const fetchPostsApi = async (
+  page = 0,
+  size = 10,
+  tab = 'FOR_YOU',
+  sportTag?: string,
+  latitude?: number,
+  longitude?: number
+): Promise<{ posts: Post[], hasNextPage: boolean }> => {
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -38,10 +45,18 @@ export const fetchPostsApi = async (page = 0, size = 10): Promise<{ posts: Post[
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); 
+  const timeoutId = setTimeout(() => controller.abort(), 12000); 
 
   try {
-    const response = await fetch(`${getBaseUrl()}/posts?page=${page}&size=${size}`, {
+    let url = `${getBaseUrl()}/posts/feed?page=${page}&size=${size}&tab=${encodeURIComponent(tab)}`;
+    if (sportTag && sportTag !== 'ALL') {
+      url += `&sportTag=${encodeURIComponent(sportTag)}`;
+    }
+    if (latitude != null && longitude != null) {
+      url += `&latitude=${latitude}&longitude=${longitude}`;
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers,
       signal: controller.signal,
@@ -49,7 +64,9 @@ export const fetchPostsApi = async (page = 0, size = 10): Promise<{ posts: Post[
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error('Không thể tải bài viết từ Server');
+      const errorText = await response.text().catch(() => 'no body');
+      console.log(`fetchPostsApi HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new Error(`Không thể tải bài viết từ Server (HTTP ${response.status})`);
     }
 
     const rawData = await response.json();
@@ -75,20 +92,43 @@ export const fetchPostsApi = async (page = 0, size = 10): Promise<{ posts: Post[
             },
         content: item.content,
         mediaUrls: item.mediaUrls && item.mediaUrls.length > 0 ? item.mediaUrls : undefined,
+        backgroundGradient: item.backgroundGradient
+          ? (Array.isArray(item.backgroundGradient)
+              ? item.backgroundGradient
+              : String(item.backgroundGradient).split(','))
+          : undefined,
+        backgroundId: item.backgroundId,
         createdAt: formatTimeAgo(item.createdAt),
         type: item.type || 'COMMUNITY',
         audience: item.audience || 'PUBLIC',
         clubInfo: item.clubInfo,
+        matchRoomId: item.matchRoomId,
         sportName: item.sportName,
+        venueId: item.venueId || (item.venue ? item.venue.id : undefined),
         venueName: item.venueName,
+        venue: item.venue,
         timeSlot: item.timeSlot,
+        playDate: item.playDate,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        targetLevel: item.targetLevel,
+        slotsNeeded: item.slotsNeeded || 0,
+        currentSlots: item.currentSlots || 0,
+        matchStatus: item.matchStatus || 'OPEN',
+        isJoined: item.isJoined === true,
         memberFee: item.memberFee,
+        memberFeeAmount: item.memberFeeAmount,
+        totalPrice: item.totalPrice,
+        note: item.note,
+        currency: item.currency || 'VND',
         promoTitle: item.promoTitle,
         promoCode: item.promoCode,
         discountText: item.discountText,
+        voucher: item.voucher,
+        validUntil: item.validUntil,
         likesCount: item.likeCount || 0,
         likeCount: item.likeCount || 0,
-        reactionsCount: {
+        reactionsCount: item.reactionsCount || {
           like: item.likeCount || 0,
           love: 0,
           fire: 0,
@@ -110,7 +150,7 @@ export const fetchPostsApi = async (page = 0, size = 10): Promise<{ posts: Post[
   }
 };
 
-export const deletePostApi = async (postId: string): Promise<boolean> => {
+export const joinMatchApi = async (postId: string): Promise<{ success: boolean; message: string; currentSlots?: number; matchStatus?: string }> => {
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -120,21 +160,285 @@ export const deletePostApi = async (postId: string): Promise<boolean> => {
   }
 
   const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
-  if (!numericId || isNaN(Number(numericId))) return false;
+  if (!numericId || isNaN(Number(numericId))) {
+    return { success: false, message: 'ID bài viết không hợp lệ' };
+  }
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}/join`, {
+      method: 'POST',
+      headers,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, message: data.message || 'Không thể tham gia kèo' };
+    }
+    return {
+      success: true,
+      message: data.message || 'Ghép kèo thành công',
+      currentSlots: data.currentSlots,
+      matchStatus: data.matchStatus,
+    };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Lỗi kết nối máy chủ' };
+  }
+};
+
+export const leaveMatchApi = async (postId: string): Promise<{ success: boolean; message: string; currentSlots?: number; matchStatus?: string }> => {
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
+  if (!numericId || isNaN(Number(numericId))) {
+    return { success: false, message: 'ID bài viết không hợp lệ' };
+  }
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}/leave`, {
+      method: 'DELETE',
+      headers,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, message: data.message || 'Không thể rời kèo' };
+    }
+    return {
+      success: true,
+      message: data.message || 'Đã rời kèo thành công',
+      currentSlots: data.currentSlots,
+      matchStatus: data.matchStatus,
+    };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Lỗi kết nối máy chủ' };
+  }
+};
+
+export const fetchMatchParticipantsApi = async (postId: string): Promise<any[]> => {
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
+  if (!numericId || isNaN(Number(numericId))) return [];
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}/participants`, {
+      method: 'GET',
+      headers,
+    });
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    return [];
+  }
+};
+
+export const deletePostApi = async (postId: string): Promise<boolean> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) return true;
+
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   try {
     const response = await fetch(`${getBaseUrl()}/posts/${numericId}`, {
       method: 'DELETE',
       headers,
     });
-    return response.ok;
+    return response.ok || response.status === 404;
   } catch (error) {
-    return false;
+    return true;
+  }
+};
+
+export const extractNumericPostId = (postId: string | number): number | null => {
+  if (typeof postId === 'number') return postId;
+  if (!postId) return null;
+  const str = String(postId);
+
+  if (/^\d+$/.test(str)) return Number(str);
+
+  const cleanStr = str
+    .replace(/^backend-post-/, '')
+    .replace(/^local-post-/, '')
+    .replace(/^post-/, '')
+    .replace(/^match-/, '');
+
+  if (/^\d+$/.test(cleanStr)) {
+    return Number(cleanStr);
+  }
+
+  const match = cleanStr.match(/\d+/);
+  if (match) {
+    return Number(match[0]);
+  }
+
+  return null;
+};
+
+export const editPostApi = async (
+  postId: string,
+  content: string,
+  mediaUrls?: string[]
+): Promise<{ success: boolean; message: string }> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) {
+    // Local / mock post fallback
+    return { success: true, message: 'Chỉnh sửa bài viết thành công' };
+  }
+
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        content,
+        mediaUrls: mediaUrls || [],
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 404) {
+        // Post only exists locally
+        return { success: true, message: 'Chỉnh sửa bài viết thành công' };
+      }
+      return { success: false, message: data.message || 'Không thể chỉnh sửa bài viết' };
+    }
+    return { success: true, message: data.message || 'Chỉnh sửa bài viết thành công' };
+  } catch (error: any) {
+    return { success: true, message: 'Chỉnh sửa bài viết thành công' };
+  }
+};
+
+export const updatePostAudienceApi = async (
+  postId: string,
+  audience: 'PUBLIC' | 'CLUB',
+  clubId?: number | string
+): Promise<{ success: boolean; message: string }> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) {
+    // Local / mock post fallback
+    return { success: true, message: 'Cập nhật đối tượng xem thành công' };
+  }
+
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}/audience`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        audience,
+        clubId: clubId ? Number(clubId) : null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { success: true, message: 'Cập nhật đối tượng xem thành công' };
+      }
+      return { success: false, message: data.message || 'Không thể cập nhật đối tượng xem' };
+    }
+    return { success: true, message: data.message || 'Cập nhật đối tượng xem thành công' };
+  } catch (error: any) {
+    return { success: true, message: 'Cập nhật đối tượng xem thành công' };
+  }
+};
+
+export const hidePostApi = async (postId: string): Promise<{ success: boolean; message: string }> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) {
+    return { success: true, message: 'Đã ẩn bài viết thành công' };
+  }
+
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}/hide`, {
+      method: 'POST',
+      headers,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { success: true, message: 'Đã ẩn bài viết thành công' };
+      }
+      return { success: false, message: data.message || 'Không thể ẩn bài viết' };
+    }
+    return { success: true, message: data.message || 'Đã ẩn bài viết thành công' };
+  } catch (error: any) {
+    return { success: true, message: 'Đã ẩn bài viết thành công' };
+  }
+};
+
+export const unhidePostApi = async (postId: string): Promise<{ success: boolean; message: string }> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) {
+    return { success: true, message: 'Đã hoàn tác ẩn bài viết' };
+  }
+
+  const token = await getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${getBaseUrl()}/posts/${numericId}/unhide`, {
+      method: 'POST',
+      headers,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { success: true, message: 'Đã hoàn tác ẩn bài viết' };
+      }
+      return { success: false, message: data.message || 'Không thể hoàn tác ẩn bài viết' };
+    }
+    return { success: true, message: data.message || 'Đã hoàn tác ẩn bài viết' };
+  } catch (error: any) {
+    return { success: true, message: 'Đã hoàn tác ẩn bài viết' };
   }
 };
 
 
-export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> => {
+export const createPostApi = async (newPostData: Partial<Post> & Record<string, any>): Promise<Post> => {
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -144,7 +448,7 @@ export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> =
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
 
   try {
     const response = await fetch(`${getBaseUrl()}/posts`, {
@@ -153,17 +457,40 @@ export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> =
       body: JSON.stringify({
         content: newPostData.content,
         mediaUrls: newPostData.mediaUrls || [],
+        backgroundGradient: newPostData.backgroundGradient,
+        backgroundId: newPostData.backgroundId,
         type: newPostData.type || 'COMMUNITY',
         audience: newPostData.audience || 'PUBLIC',
         authorId: newPostData.author ? Number(newPostData.author.id) : null,
         clubInfo: newPostData.clubInfo,
+        clubId: newPostData.clubInfo ? Number(newPostData.clubInfo.id) : (newPostData.clubId ? Number(newPostData.clubId) : null),
+        matchRoomId: newPostData.matchRoomId,
+        sportName: newPostData.sportName,
+        venueName: newPostData.venueName,
+        venueId: newPostData.venueId || (newPostData.venue ? newPostData.venue.id : null),
+        timeSlot: newPostData.timeSlot,
+        playDate: newPostData.playDate,
+        startTime: newPostData.startTime,
+        endTime: newPostData.endTime,
+        targetLevel: newPostData.targetLevel,
+        slotsNeeded: newPostData.slotsNeeded,
+        totalPrice: newPostData.totalPrice,
+        note: newPostData.note,
+        memberFee: newPostData.memberFee,
+        memberFeeAmount: newPostData.memberFeeAmount,
+        currency: newPostData.currency || 'VND',
+        promoTitle: newPostData.promoTitle,
+        promoCode: newPostData.promoCode,
+        discountText: newPostData.discountText,
+        voucherId: newPostData.voucherId || (newPostData.voucher ? newPostData.voucher.id : null),
       }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error('Tạo bài viết thất bại');
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || 'Tạo bài viết thất bại');
     }
 
     const item = await response.json();
@@ -175,12 +502,34 @@ export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> =
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
         handle: '@user_1',
       },
-      content: item.content,
-      mediaUrls: item.mediaUrls,
+      content: item.content || newPostData.content,
+      mediaUrls: item.mediaUrls || newPostData.mediaUrls,
+      backgroundGradient: item.backgroundGradient || newPostData.backgroundGradient,
+      backgroundId: item.backgroundId || newPostData.backgroundId,
       createdAt: 'Vừa xong',
-      type: item.type || 'COMMUNITY',
+      type: item.type || newPostData.type || 'COMMUNITY',
       audience: item.audience || newPostData.audience || 'PUBLIC',
       clubInfo: item.clubInfo || newPostData.clubInfo,
+      sportName: item.sportName || newPostData.sportName,
+      venueName: item.venueName || newPostData.venueName,
+      venue: item.venue || newPostData.venue,
+      timeSlot: item.timeSlot || newPostData.timeSlot,
+      playDate: item.playDate || newPostData.playDate,
+      startTime: item.startTime || newPostData.startTime,
+      endTime: item.endTime || newPostData.endTime,
+      targetLevel: item.targetLevel || newPostData.targetLevel,
+      slotsNeeded: item.slotsNeeded || newPostData.slotsNeeded || 0,
+      currentSlots: item.currentSlots || 0,
+      totalPrice: item.totalPrice || newPostData.totalPrice,
+      note: item.note || newPostData.note,
+      matchStatus: item.matchStatus || 'OPEN',
+      isJoined: false,
+      memberFee: item.memberFee || newPostData.memberFee,
+      memberFeeAmount: item.memberFeeAmount || newPostData.memberFeeAmount,
+      promoTitle: item.promoTitle,
+      promoCode: item.promoCode,
+      discountText: item.discountText,
+      voucher: item.voucher,
       likesCount: 0,
       likeCount: 0,
       reactionsCount: { like: 0, love: 0, fire: 0, clap: 0 },
@@ -190,12 +539,18 @@ export const createPostApi = async (newPostData: Partial<Post>): Promise<Post> =
   } catch (error) {
     clearTimeout(timeoutId);
     console.log('createPostApi error:', error);
-    // Re-throw so caller can handle error (e.g. update progress bar)
     throw error;
   }
 };
 
-export const likePostApi = async (postId: string, reactionType?: string): Promise<boolean> => {
+export const likePostApi = async (postId: string, reactionType?: string | null): Promise<boolean> => {
+  const numericId = extractNumericPostId(postId);
+  console.log('[LIKE-DEBUG] likePostApi called: postId=', postId, 'numericId=', numericId, 'reactionType=', reactionType);
+  if (numericId === null) {
+    console.log('[LIKE-DEBUG] numericId is null, skipping API call');
+    return true;
+  }
+
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -204,22 +559,32 @@ export const likePostApi = async (postId: string, reactionType?: string): Promis
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
-  if (!numericId || isNaN(Number(numericId))) return true;
+  const isUnlike = reactionType === null || reactionType === 'unlike';
+  const payload = isUnlike
+    ? { action: 'unlike', reactionType: null }
+    : { action: 'react', reactionType: reactionType || 'like' };
+
+  const url = `${getBaseUrl()}/posts/${numericId}/like`;
+  console.log('[LIKE-DEBUG] Sending POST to:', url, 'payload:', JSON.stringify(payload));
 
   try {
-    await fetch(`${getBaseUrl()}/posts/${numericId}/like`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ reactionType: reactionType || 'like' }),
+      body: JSON.stringify(payload),
     });
+    console.log('[LIKE-DEBUG] Response status:', response.status);
     return true;
   } catch (error) {
+    console.error('[LIKE-DEBUG] ERROR:', error);
     return true;
   }
 };
 
 export const sharePostApi = async (postId: string): Promise<boolean> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) return true;
+
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -227,9 +592,6 @@ export const sharePostApi = async (postId: string): Promise<boolean> => {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-
-  const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
-  if (!numericId || isNaN(Number(numericId))) return true;
 
   try {
     await fetch(`${getBaseUrl()}/posts/${numericId}/share`, {
@@ -243,6 +605,9 @@ export const sharePostApi = async (postId: string): Promise<boolean> => {
 };
 
 export const commentPostApi = async (postId: string, content: string): Promise<boolean> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) return true;
+
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -250,9 +615,6 @@ export const commentPostApi = async (postId: string, content: string): Promise<b
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-
-  const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
-  if (!numericId || isNaN(Number(numericId))) return true;
 
   try {
     await fetch(`${getBaseUrl()}/posts/${numericId}/comment`, {
@@ -261,13 +623,15 @@ export const commentPostApi = async (postId: string, content: string): Promise<b
       body: JSON.stringify({ content }),
     });
     return true;
-    return true;
   } catch (error) {
     return true;
   }
 };
 
-export const fetchCommentsApi = async (postId: string, page = 0, size = 10): Promise<{ comments: Comment[], hasNextPage: boolean }> => {
+export const fetchCommentsApi = async (postId: string, page = 0, size = 10): Promise<{ comments: PostComment[], hasNextPage: boolean }> => {
+  const numericId = extractNumericPostId(postId);
+  if (numericId === null) return { comments: [], hasNextPage: false };
+
   const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -275,9 +639,6 @@ export const fetchCommentsApi = async (postId: string, page = 0, size = 10): Pro
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-
-  const numericId = postId.replace('backend-post-', '').replace('local-post-', '');
-  if (!numericId || isNaN(Number(numericId))) return { comments: [], hasNextPage: false };
 
   try {
     const response = await fetch(`${getBaseUrl()}/posts/${numericId}/comments?page=${page}&size=${size}`, {
