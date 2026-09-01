@@ -124,17 +124,27 @@ export function UserProfileScreen() {
           onOpenChat={openChat}
         />
 
-        {/* 2. Sports Summary Cards */}
+        {/* 2. Sports Summary Cards (Luôn hiển thị trình độ) */}
         <UserSportsCard
           sportsProfiles={profile.sportsProfiles}
           onSelectSport={openSportDetail}
         />
 
-        {/* 3. Physical Stats Card */}
-        <UserPhysicalCard profile={profile} />
+        {profile.privateMode ? (
+          <View style={styles.privateModeContainer}>
+            <MaterialIcons name="lock" size={48} color={COLORS.outline} />
+            <Text style={styles.privateModeTitle}>Tài khoản riêng tư</Text>
+            <Text style={styles.privateModeDesc}>Các thông tin cá nhân và lịch sử hoạt động của người dùng này đã bị ẩn.</Text>
+          </View>
+        ) : (
+          <>
+            {/* 3. Physical Stats Card */}
+            <UserPhysicalCard profile={profile} />
 
-        {/* 4. Joined Clubs Card */}
-        <UserClubsCard clubs={profile.joinedClubs} onClubPress={handleClubPress} />
+            {/* 4. Joined Clubs Card */}
+            <UserClubsCard clubs={profile.joinedClubs} onClubPress={handleClubPress} />
+          </>
+        )}
 
         {/* Bottom Spacing */}
         <View style={{ height: 40 }} />
@@ -224,6 +234,29 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  privateModeContainer: {
+    margin: SPACING.marginMobile,
+    padding: SPACING.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  privateModeTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  privateModeDesc: {
+    ...TYPOGRAPHY.bodyMd,
+    color: COLORS.onSurfaceVariant,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

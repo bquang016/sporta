@@ -28,4 +28,9 @@ public class UserProfileDto {
     private Integer height;
     private Double weight;
     private List<UserSportDto> sports;
+    private Boolean notifBooking;
+    private Boolean notifPromo;
+    private Boolean notifMatchmake;
+    private Boolean enableBiometrics;
+    private Boolean privateMode;
 }

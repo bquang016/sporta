@@ -56,7 +56,7 @@ export function ProfileScreen() {
   }, [router]);
 
   const handleSettings = useCallback(() => {
-    router.push('/profile/settings' as any);
+    router.push('/account-settings' as any);
   }, [router]);
 
   if (!isAuthenticated) {

@@ -58,4 +58,14 @@ public class UserController {
         UserProfileDto updatedProfile = userService.updateUserProfile(user.getId(), request, avatar);
         return ResponseEntity.ok(updatedProfile);
     }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<?> deleteProfile() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+        
+        userService.softDeleteAccount(user.getId());
+        return ResponseEntity.ok().build();
+    }
 }

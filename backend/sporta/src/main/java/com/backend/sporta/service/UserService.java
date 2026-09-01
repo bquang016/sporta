@@ -7,4 +7,5 @@ import org.springframework.web.multipart.MultipartFile;
 public interface UserService {
     UserProfileDto getUserProfile(Long userId);
     UserProfileDto updateUserProfile(Long userId, UpdateUserProfileRequest request, MultipartFile avatar);
+    void softDeleteAccount(Long userId);
 }

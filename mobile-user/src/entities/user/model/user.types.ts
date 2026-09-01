@@ -23,6 +23,7 @@ export interface BackendUserDTO {
   role: Role;
   status: UserStatus;
   createdAt?: string;
+  privateMode?: boolean;
 }
 
 /**

@@ -70,6 +70,24 @@ public class UserServiceImpl implements UserService {
             user.setWeight(request.getWeight());
         }
 
+        // --- Update Settings Flags ---
+        if (request.getNotifBooking() != null) {
+            user.setNotifBooking(request.getNotifBooking());
+        }
+        if (request.getNotifPromo() != null) {
+            user.setNotifPromo(request.getNotifPromo());
+        }
+        if (request.getNotifMatchmake() != null) {
+            user.setNotifMatchmake(request.getNotifMatchmake());
+        }
+        if (request.getEnableBiometrics() != null) {
+            user.setEnableBiometrics(request.getEnableBiometrics());
+        }
+        if (request.getPrivateMode() != null) {
+            user.setPrivateMode(request.getPrivateMode());
+        }
+        // -----------------------------
+
         if (avatar != null && !avatar.isEmpty()) {
             String avatarUrl = fileStorageService.uploadFile(avatar, "avatar");
             user.setAvatarUrl(avatarUrl);
@@ -105,6 +123,20 @@ public class UserServiceImpl implements UserService {
                 .role(user.getRole())
                 .status(user.getStatus())
                 .sports(sportsDto)
+                .notifBooking(user.getNotifBooking())
+                .notifPromo(user.getNotifPromo())
+                .notifMatchmake(user.getNotifMatchmake())
+                .enableBiometrics(user.getEnableBiometrics())
+                .privateMode(user.getPrivateMode())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+        user.setIsDeleted(true);
+        userRepository.save(user);
     }
 }

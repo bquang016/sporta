@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../../shared/config/theme';
-import { Avatar } from '../../../../../shared/ui/Avatar/Avatar';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { Avatar } from '../../../shared/ui/Avatar/Avatar';
 
 interface ProfileInfoGroupProps {
   avatarUri: string | null;
