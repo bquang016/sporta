@@ -27,6 +27,7 @@ public enum NotificationType {
     // SOCIAL
     POST_LIKED,
     POST_COMMENTED,
+    POST_REACTED,
 
     // WALLET & VOUCHER
     WALLET_DEPOSIT_SUCCESS,

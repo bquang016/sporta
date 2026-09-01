@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Comment } from '../../../entities/post';
+import { PostComment } from '../../../entities/post';
 import { commentPostApi, fetchCommentsApi } from '../../../shared/api/posts';
 
 export function useCommentPost(postId: string, currentUser?: any) {
@@ -29,7 +29,7 @@ export function useCommentPost(postId: string, currentUser?: any) {
       // Real API call to save comment
       await commentPostApi(postId, content);
       
-      const newComment: Comment = {
+      const newComment: PostComment = {
         id: `temp-comment-${Date.now()}`,
         postId,
         author: currentUser || {
@@ -47,7 +47,7 @@ export function useCommentPost(postId: string, currentUser?: any) {
     onMutate: async (content: string) => {
       await queryClient.cancelQueries({ queryKey: ['post-comments', postId] });
 
-      const optimisticComment: Comment = {
+      const optimisticComment: PostComment = {
         id: `temp-${Date.now()}`,
         postId,
         author: currentUser || {

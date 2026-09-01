@@ -29,6 +29,10 @@ public class InMemoryCache {
         cache.remove(key);
     }
 
+    public void removeByPrefix(String prefix) {
+        cache.keySet().removeIf(k -> k.startsWith(prefix));
+    }
+
     // Returns the incremented value, 1 if newly created
     public Long increment(String key, long ttl, TimeUnit unit) {
         Long newValue = (Long) cache.compute(key, (k, v) -> {

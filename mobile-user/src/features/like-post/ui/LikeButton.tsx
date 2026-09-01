@@ -1,9 +1,9 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, Animated, PanResponder, Easing } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useReactionOverlay } from './ReactionOverlayContext';
-import { Post } from '../../../entities/post';
-import { REACTION_MAP } from '../../../entities/post';
+import { Post } from '../../../entities/post/model/post.types';
+import { REACTION_MAP } from '../../../entities/post/model/post.constants';
 import { COLORS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface LikeButtonProps {
@@ -41,21 +41,45 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
     };
   }, []);
 
-  /* ── Tap animation (quick like toggle) ── */
+  /* ── Tap animation (instant tactile feedback on quick tap) ── */
   const animateTap = useCallback(() => {
     buttonScale.setValue(1);
     Animated.sequence([
       Animated.timing(buttonScale, {
-        toValue: 0.78,
-        duration: 70,
+        toValue: 0.76,
+        duration: 80,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
       Animated.spring(buttonScale, {
+        toValue: 1.22,
+        damping: 8,
+        stiffness: 340,
+        mass: 0.4,
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonScale, {
         toValue: 1,
-        damping: 6,
-        stiffness: 320,
-        mass: 0.45,
+        damping: 12,
+        stiffness: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [buttonScale]);
+
+  /* ── Hold-Triggered Pop Animation (when long press activates) ── */
+  const animateHoldTrigger = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(buttonScale, {
+        toValue: 1.16,
+        duration: 100,
+        easing: Easing.out(Easing.back(1.5)),
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonScale, {
+        toValue: 1.0,
+        damping: 10,
+        stiffness: 280,
         useNativeDriver: true,
       }),
     ]).start();
@@ -63,11 +87,11 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
 
   /* ── Select animation (reaction chosen from overlay) ── */
   const animateSelect = useCallback(() => {
-    buttonScale.setValue(0.92);
+    buttonScale.setValue(0.85);
     Animated.spring(buttonScale, {
       toValue: 1,
       damping: 10,
-      stiffness: 240,
+      stiffness: 260,
       mass: 0.4,
       useNativeDriver: true,
     }).start();
@@ -75,41 +99,43 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
 
   const animateTapRef = useRef(animateTap);
   animateTapRef.current = animateTap;
+  const animateHoldTriggerRef = useRef(animateHoldTrigger);
+  animateHoldTriggerRef.current = animateHoldTrigger;
   const animateSelectRef = useRef(animateSelect);
   animateSelectRef.current = animateSelect;
 
-  /* ── PanResponder: single-touch Facebook-style gesture ── */
+  /* ── PanResponder: Facebook-style hold-and-glide gesture ── */
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      // Lock responder once long-press fires (block scroll)
       onPanResponderTerminationRequest: () => !longPressActiveRef.current,
 
       onPanResponderGrant: (e) => {
         touchYRef.current = e.nativeEvent.pageY;
 
-        // Subtle press-down
+        // Subtle initial press-down scale
         Animated.timing(buttonScale, {
-          toValue: 0.92,
-          duration: 80,
+          toValue: 0.90,
+          duration: 90,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }).start();
 
-        // Start 400ms long-press detection
+        // 300ms long-press detection (snappy like Facebook)
         timerRef.current = setTimeout(() => {
           longPressActiveRef.current = true;
+          animateHoldTriggerRef.current();
 
           overlayRef.current.show(touchYRef.current, (reaction: string) => {
             animateSelectRef.current();
             handleApplyReaction(reaction);
           });
-        }, 400);
+        }, 300);
       },
 
       onPanResponderMove: (e, gs) => {
         if (!longPressActiveRef.current) {
-          // Cancel long-press if finger drifts > 8px before timer
+          // If finger drifts before timer fires, cancel long press
           if (Math.abs(gs.dx) > 8 || Math.abs(gs.dy) > 8) {
             if (timerRef.current) {
               clearTimeout(timerRef.current);
@@ -117,13 +143,14 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
             }
             Animated.timing(buttonScale, {
               toValue: 1,
-              duration: 80,
+              duration: 90,
               useNativeDriver: true,
             }).start();
           }
           return;
         }
-        // Forward absolute screen coords to overlay for hover detection
+
+        // Forward absolute screen coordinates to floating reaction selector for live hover
         overlayRef.current.updateHover(
           e.nativeEvent.pageX,
           e.nativeEvent.pageY,
@@ -137,11 +164,11 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
         }
 
         if (longPressActiveRef.current) {
-          // Commit whatever reaction is hovered (or cancel if none)
+          // Commit hovered reaction selection
           overlayRef.current.commitSelection();
           longPressActiveRef.current = false;
         } else {
-          // Short tap → toggle standard like
+          // Quick tap -> Toggle like/unlike
           animateTapRef.current();
           const p = postRef.current;
           const nextReaction = p.userReaction || p.isLiked ? null : 'like';
@@ -177,12 +204,16 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
         style={[styles.inner, { transform: [{ scale: buttonScale }] }]}
       >
         {active ? (
-          <Ionicons name={active.iconName} size={20} color={active.color} />
+          active.iconLib === 'materialCommunity' ? (
+            <MaterialCommunityIcons name={active.iconName} size={20} color={active.color} />
+          ) : (
+            <Ionicons name={active.iconName} size={20} color={active.color} />
+          )
         ) : (
-          <Ionicons
-            name={isLikedStandard ? 'thumbs-up' : 'thumbs-up-outline'}
+          <MaterialCommunityIcons
+            name={isLikedStandard ? 'thumb-up' : 'thumb-up-outline'}
             size={20}
-            color={isLikedStandard ? COLORS.primary : COLORS.onSurfaceVariant}
+            color={isLikedStandard ? '#1877F2' : '#64748B'}
           />
         )}
         <Text
@@ -200,7 +231,11 @@ export function LikeButton({ post, onReactPost }: LikeButtonProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -211,11 +246,12 @@ const styles = StyleSheet.create({
   },
   label: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
     fontSize: 13,
+    fontWeight: '600',
   },
   labelLiked: {
-    color: COLORS.primary,
+    color: '#1877F2',
     fontWeight: '700',
   },
 });

@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
     marginRight: SPACING.sm,
   },
   content: {
@@ -68,17 +68,17 @@ const styles = StyleSheet.create({
     width: 100,
     height: 14,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
   time: {
     width: 40,
     height: 12,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
   textLine: {
     height: 14,
     borderRadius: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.outlineVariant,
   },
 });

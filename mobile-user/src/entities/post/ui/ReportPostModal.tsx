@@ -5,9 +5,9 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
@@ -20,11 +20,11 @@ export const ReportPostModal = React.memo(({ visible, onClose }: ReportPostModal
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
   const REASONS = [
-    '⚡ Kèo đấu ảo / Không có thật',
-    '🚨 Spam hoặc quảng cáo sai sự thật',
-    '💬 Ngôn từ xúc phạm, thiếu văn hóa',
-    '💸 Lừa đảo tiền đặt cọc sân',
-    '❌ Khác',
+    { id: 'fake_match', label: 'Kèo đấu ảo / Không có thật', icon: 'flash-outline' },
+    { id: 'spam', label: 'Spam hoặc quảng cáo sai sự thật', icon: 'alert-circle-outline' },
+    { id: 'abusive', label: 'Ngôn từ xúc phạm, thiếu văn hóa', icon: 'chatbubble-ellipses-outline' },
+    { id: 'fraud', label: 'Lừa đảo tiền đặt cọc sân', icon: 'cash-outline' },
+    { id: 'other', label: 'Lý do khác', icon: 'ellipsis-horizontal-circle-outline' },
   ];
 
   const handleSubmitReport = () => {
@@ -34,7 +34,7 @@ export const ReportPostModal = React.memo(({ visible, onClose }: ReportPostModal
     }
 
     Alert.alert(
-      'Cảm ơn bạn đã báo cáo! 🙏',
+      'Cảm ơn bạn đã báo cáo',
       'Đội ngũ quản trị Sporta sẽ kiểm tra bài viết này trong thời gian sớm nhất để duy trì môi trường thể thao văn minh.',
       [{ text: 'Đóng', onPress: onClose }]
     );
@@ -59,21 +59,24 @@ export const ReportPostModal = React.memo(({ visible, onClose }: ReportPostModal
             </Text>
 
             <View style={styles.reasonsList}>
-              {REASONS.map((reason) => {
-                const isSelected = selectedReason === reason;
+              {REASONS.map((item) => {
+                const isSelected = selectedReason === item.id;
                 return (
                   <TouchableOpacity
-                    key={reason}
+                    key={item.id}
                     style={[styles.reasonItem, isSelected && styles.reasonItemSelected]}
                     activeOpacity={0.8}
-                    onPress={() => setSelectedReason(reason)}
+                    onPress={() => setSelectedReason(item.id)}
                   >
-                    <Text style={[styles.reasonText, isSelected && styles.reasonTextSelected]}>
-                      {reason}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <Ionicons name={item.icon as any} size={18} color={isSelected ? COLORS.primary : COLORS.grayText} />
+                      <Text style={[styles.reasonText, isSelected && styles.reasonTextSelected]}>
+                        {item.label}
+                      </Text>
+                    </View>
                     <Ionicons
                       name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
+                      size={20}
                       color={isSelected ? COLORS.primary : COLORS.outline}
                     />
                   </TouchableOpacity>

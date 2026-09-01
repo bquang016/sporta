@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
+import { createPostApi } from '../../../../shared/api/posts';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 
 export function MatchDetailScreen() {
@@ -45,6 +46,7 @@ export function MatchDetailScreen() {
   const [isVoteModalVisible, setIsVoteModalVisible] = useState<boolean>(false);
   const [voteTargetClubId, setVoteTargetClubId] = useState<string | number | null>(null);
   const [voteSending, setVoteSending] = useState<boolean>(false);
+  const [sharing, setSharing] = useState<boolean>(false);
 
   // Custom Modal Alert / Confirm State
   const [modalConfig, setModalConfig] = useState<{
@@ -297,6 +299,49 @@ export function MatchDetailScreen() {
   const minAmount = Math.round((booking.totalPrice * minSharePercent) / 100);
   const maxAmount = booking.totalPrice - minAmount;
 
+  const handleShareToCommunity = async () => {
+    if (!room) return;
+    showConfirm(
+      'Chia sẻ lên Bảng tin',
+      `Bạn có muốn chia sẻ thông tin kèo đấu tại "${booking.facilityName}" lên mục Săn kèo của Bảng tin Cộng đồng không?`,
+      async () => {
+        setSharing(true);
+        try {
+          await createPostApi({
+            content: `Kèo ghép trận ${booking.sportName || 'thể thao'} tại ${booking.facilityName} - ${booking.courtName}! Cần tìm đối thủ giao lưu vui vẻ hoặc tranh hạng!`,
+            type: 'MATCH_FINDING',
+            audience: 'PUBLIC',
+            matchRoomId: String(room.id),
+            sportName: booking.sportName || 'Pickleball',
+            venueName: `${booking.facilityName} - ${booking.courtName}`,
+            timeSlot: `${booking.date} • ${booking.startTime} - ${booking.endTime}`,
+            playDate: booking.date,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            targetLevel: room.desiredLevels && room.desiredLevels.length > 0 ? room.desiredLevels.join(', ') : 'Tương đương',
+            slotsNeeded: 1,
+            memberFee: `Chia ${room.hostSharePercent}% / ${room.guestSharePercent}% (~${maxAmount.toLocaleString()}đ)`,
+            memberFeeAmount: maxAmount,
+            currency: 'VND',
+          });
+          showAlert(
+            'Đã chia sẻ thành công',
+            'Bài viết ghép kèo đã được đăng lên Bảng tin Cộng đồng!',
+            'success',
+            () => router.push('/(tabs)/social' as any)
+          );
+        } catch (err: any) {
+          showAlert('Không thể chia sẻ', err.message || 'Lỗi khi tạo bài viết trên Cộng đồng', 'danger');
+        } finally {
+          setSharing(false);
+        }
+      },
+      'info',
+      'Chia sẻ ngay',
+      'Để sau'
+    );
+  };
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -316,9 +361,18 @@ export function MatchDetailScreen() {
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>
-          <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn}>
-            <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <TouchableOpacity onPress={handleShareToCommunity} style={styles.headerIconBtn} disabled={sharing}>
+              {sharing ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Ionicons name="share-social-outline" size={20} color={COLORS.primary} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn}>
+              <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

@@ -40,6 +40,12 @@ public class Notification {
     @Column(name = "reference_id")
     private String referenceId; // Can be booking ID, match ID, ticket ID, etc.
 
+    @Column(name = "actor_id")
+    private Long actorId;
+
+    @Column(name = "actor_avatar", columnDefinition = "TEXT")
+    private String actorAvatar;
+
     @Builder.Default
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;

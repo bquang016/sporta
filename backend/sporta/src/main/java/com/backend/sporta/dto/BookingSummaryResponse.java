@@ -22,4 +22,5 @@ public class BookingSummaryResponse {
     private Boolean isPaid;
     private String format;
     private String address;
+    private String venueId;
 }
