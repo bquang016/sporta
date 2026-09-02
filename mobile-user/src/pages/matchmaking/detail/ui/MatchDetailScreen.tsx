@@ -26,15 +26,19 @@ import { createPostApi } from '../../../../shared/api/posts';
 import { usersApi, UserProfileDto } from '../../../../shared/api/users';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 import { DevMatchTestPanel } from '../../../../features/matchmaking/ui/DevMatchTestPanel';
+import { LineupPicker } from '../../../../features/matchmaking/ui/LineupPicker';
+import { EditLineupModal } from '../../../../features/matchmaking/ui/EditLineupModal';
+import { UserAvatar } from '../../../../shared/ui/UserAvatar';
 
 interface ApplicantItemRowProps {
   req: any;
   canManage: boolean;
   onAccept: (id: string, name: string) => void;
   onReject: (id: string, name: string) => void;
+  onViewLineup: (lineup: any) => void;
 }
 
-function ApplicantItemRow({ req, canManage, onAccept, onReject }: ApplicantItemRowProps) {
+function ApplicantItemRow({ req, canManage, onAccept, onReject, onViewLineup }: ApplicantItemRowProps) {
   const [imgError, setImgError] = useState<boolean>(false);
   const club = req.applicantClub;
   const avatarUri = club?.avatarUrl || club?.logoUrl || club?.avatarImage;
@@ -76,12 +80,45 @@ function ApplicantItemRow({ req, canManage, onAccept, onReject }: ApplicantItemR
       </View>
 
       {req.lineup && (
-        <View style={styles.applicantLineupBadge}>
-          <Ionicons name="shield-checkmark-outline" size={13} color="#059669" />
-          <Text style={styles.applicantLineupText}>
-            Đội hình: <Text style={{ fontWeight: '800' }}>{req.lineup.name}</Text> • Trình độ đội: <Text style={{ fontWeight: '800' }}>{req.lineup.eloAvg}</Text> ({req.lineup.memberCount} người)
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={styles.applicantLineupBox}
+          activeOpacity={0.85}
+          onPress={() => onViewLineup(req.lineup)}
+        >
+          <View style={styles.applicantLineupHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+              <Ionicons name="shield-checkmark" size={15} color="#059669" />
+              <Text style={styles.applicantLineupTitle} numberOfLines={1}>
+                {req.lineup.name || 'Đội hình thách đấu'}
+              </Text>
+            </View>
+            <View style={styles.applicantEloPill}>
+              <Ionicons name="star" size={10} color="#FFFFFF" />
+              <Text style={styles.applicantEloText}>{req.lineup.eloAvg || 1200} ELO</Text>
+            </View>
+          </View>
+
+          <View style={styles.applicantLineupBottom}>
+            <View style={styles.applicantAvatarStack}>
+              {req.lineup.members?.slice(0, 4).map((m: any, idx: number) => (
+                <UserAvatar
+                  key={m.userId || idx}
+                  uri={m.avatarUrl || m.avatar}
+                  name={m.fullName || m.name}
+                  size={22}
+                  style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                />
+              ))}
+            </View>
+            <Text style={styles.applicantLineupCountText}>
+              {req.lineup.members?.length || req.lineup.memberCount || 0} cầu thủ ra sân
+            </Text>
+            <View style={styles.applicantViewAction}>
+              <Text style={styles.applicantViewActionText}>Xem đội hình</Text>
+              <Ionicons name="chevron-forward" size={12} color="#059669" />
+            </View>
+          </View>
+        </TouchableOpacity>
       )}
 
       {req.note && (
@@ -150,6 +187,7 @@ export function MatchDetailScreen() {
   const [isJoinModalVisible, setIsJoinModalVisible] = useState<boolean>(false);
   const [myClubs, setMyClubs] = useState<any[]>([]);
   const [selectedClubId, setSelectedClubId] = useState<string | number | null>(null);
+  const [selectedLineup, setSelectedLineup] = useState<any | null>(null);
   const [requestNote, setRequestNote] = useState<string>('');
   const [loadingClubs, setLoadingClubs] = useState<boolean>(false);
 
@@ -158,6 +196,17 @@ export function MatchDetailScreen() {
   const [voteTargetClubId, setVoteTargetClubId] = useState<string | number | null>(null);
   const [voteSending, setVoteSending] = useState<boolean>(false);
   const [sharing, setSharing] = useState<boolean>(false);
+
+  // Lineup Detail Modal states
+  const [viewingLineup, setViewingLineup] = useState<any | null>(null);
+  const [viewingLineupIsEditable, setViewingLineupIsEditable] = useState<boolean>(false);
+  const [isLineupDetailModalVisible, setIsLineupDetailModalVisible] = useState<boolean>(false);
+
+  const handleOpenLineupDetail = (lineup: any, isEditable = false) => {
+    setViewingLineup(lineup);
+    setViewingLineupIsEditable(isEditable);
+    setIsLineupDetailModalVisible(true);
+  };
 
   // Custom Modal Alert / Confirm State
   const [modalConfig, setModalConfig] = useState<{
@@ -355,6 +404,7 @@ export function MatchDetailScreen() {
 
       setMyClubs(leaderClubs);
       setSelectedClubId(leaderClubs[0]?.id || null);
+      setSelectedLineup(null);
       setIsJoinModalVisible(true);
     } catch (e: any) {
       showAlert('Lỗi', e.message || 'Không thể nạp danh sách CLB của bạn', 'danger');
@@ -368,9 +418,21 @@ export function MatchDetailScreen() {
       showAlert('Vui lòng chọn CLB', 'Bạn cần chọn CLB bạn đại diện để gửi yêu cầu.', 'warning');
       return;
     }
+    if (!selectedLineup?.id) {
+      showAlert(
+        'Chưa chọn đội hình ra sân',
+        'CLB của bạn cần chọn một Đội hình ra sân (Lineup) đủ quân số để tham gia thách đấu. Bạn có thể tạo biểu quyết chốt đội hình trong mục Quản lý CLB.',
+        'warning'
+      );
+      return;
+    }
     setRequesting(true);
     try {
-      await requestJoin(String(selectedClubId), requestNote || 'CLB của chúng tôi muốn xin ghép trận!');
+      await requestJoin(
+        String(selectedClubId),
+        requestNote || 'CLB của chúng tôi muốn xin ghép trận!',
+        Number(selectedLineup.id)
+      );
       setIsJoinModalVisible(false);
       await refetch();
       showAlert('Đã gửi yêu cầu ghép trận', 'Vui lòng chờ Chủ room (Bên A) phê duyệt.', 'success');
@@ -694,97 +756,109 @@ export function MatchDetailScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sectionTitle}>Đội Hình Ra Sân</Text>
                   <Text style={styles.subtext}>
-                    Điểm trình độ được tính dựa trên các thành viên thực tế thi đấu
+                    Chạm vào đội hình để xem chi tiết danh sách cầu thủ & ELO
                   </Text>
                 </View>
               </View>
 
               <View style={styles.lineupArenaRow}>
                 {/* Host Lineup */}
-                <View style={[styles.lineupTeamCol, { borderTopColor: '#059669' }]}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => room.hostLineup && handleOpenLineupDetail(room.hostLineup, isHost)}
+                  style={[styles.lineupTeamCol, { borderTopColor: '#059669' }]}
+                >
                   <View style={styles.lineupTeamTop}>
                     <Text style={styles.lineupTeamName} numberOfLines={1}>
                       {room.hostLineup?.name || 'Chủ phòng'}
                     </Text>
                     <View style={styles.lineupEloBadge}>
+                      <Ionicons name="star" size={10} color="#059669" />
                       <Text style={styles.lineupEloText}>
-                        Trình độ: {room.hostLineup?.eloAvg || host.clubElo}
+                        {room.hostLineup?.eloAvg || host.clubElo} ELO
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.lineupMemberCount}>
-                    {room.hostLineup?.memberCount || 0} cầu thủ đăng ký
-                  </Text>
 
-                  <View style={styles.lineupMembersList}>
-                    {room.hostLineup?.members?.map((m) => (
-                      <View key={m.userId} style={styles.lineupMemberRow}>
-                        <View style={styles.lineupMemberAvatar}>
-                          {m.avatarUrl ? (
-                            <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
-                          ) : (
-                            <Text style={styles.lineupAvatarText}>
-                              {(m.fullName || 'U').charAt(0).toUpperCase()}
-                            </Text>
-                          )}
-                        </View>
-                        <Text style={styles.lineupMemberName} numberOfLines={1}>
-                          {m.fullName}
-                        </Text>
-                        <Text style={styles.lineupMemberElo}>{m.elo} điểm</Text>
-                      </View>
-                    ))}
+                  <View style={styles.lineupInteractiveRow}>
+                    <View style={styles.lineupAvatarStack}>
+                      {room.hostLineup?.members?.slice(0, 4).map((m: any, idx: number) => (
+                        <UserAvatar
+                          key={m.userId || idx}
+                          uri={m.avatarUrl || m.avatar}
+                          name={m.fullName || m.name}
+                          size={22}
+                          style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.lineupMemberCount}>
+                      {room.hostLineup?.memberCount || room.hostLineup?.members?.length || 0} cầu thủ
+                    </Text>
                   </View>
-                </View>
+
+                  <View style={styles.lineupActionPill}>
+                    <Text style={styles.lineupActionPillText}>
+                      {isHost ? 'Chi tiết / Đổi người' : 'Xem chi tiết'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={11} color="#059669" />
+                  </View>
+                </TouchableOpacity>
 
                 {/* Guest Lineup or Waiting */}
-                <View style={[styles.lineupTeamCol, { borderTopColor: guest ? '#0284C7' : '#CBD5E1' }]}>
-                  {room.guestLineup ? (
-                    <>
-                      <View style={styles.lineupTeamTop}>
-                        <Text style={styles.lineupTeamName} numberOfLines={1}>
-                          {room.guestLineup.name}
-                        </Text>
-                        <View style={[styles.lineupEloBadge, { backgroundColor: '#E0F2FE' }]}>
-                          <Text style={[styles.lineupEloText, { color: '#0284C7' }]}>
-                            Trình độ: {room.guestLineup.eloAvg}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.lineupMemberCount}>
-                        {room.guestLineup.memberCount} cầu thủ đăng ký
+                {room.guestLineup ? (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => handleOpenLineupDetail(room.guestLineup, false)}
+                    style={[styles.lineupTeamCol, { borderTopColor: '#0284C7' }]}
+                  >
+                    <View style={styles.lineupTeamTop}>
+                      <Text style={styles.lineupTeamName} numberOfLines={1}>
+                        {room.guestLineup.name}
                       </Text>
+                      <View style={[styles.lineupEloBadge, { backgroundColor: '#E0F2FE' }]}>
+                        <Ionicons name="star" size={10} color="#0284C7" />
+                        <Text style={[styles.lineupEloText, { color: '#0284C7' }]}>
+                          {room.guestLineup.eloAvg} ELO
+                        </Text>
+                      </View>
+                    </View>
 
-                      <View style={styles.lineupMembersList}>
-                        {room.guestLineup.members?.map((m) => (
-                          <View key={m.userId} style={styles.lineupMemberRow}>
-                            <View style={[styles.lineupMemberAvatar, { backgroundColor: '#0284C7' }]}>
-                              {m.avatarUrl ? (
-                                <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
-                              ) : (
-                                <Text style={styles.lineupAvatarText}>
-                                  {(m.fullName || 'U').charAt(0).toUpperCase()}
-                                </Text>
-                              )}
-                            </View>
-                            <Text style={styles.lineupMemberName} numberOfLines={1}>
-                              {m.fullName}
-                            </Text>
-                            <Text style={styles.lineupMemberElo}>{m.elo} điểm</Text>
-                          </View>
+                    <View style={styles.lineupInteractiveRow}>
+                      <View style={styles.lineupAvatarStack}>
+                        {room.guestLineup.members?.slice(0, 4).map((m: any, idx: number) => (
+                          <UserAvatar
+                            key={m.userId || idx}
+                            uri={m.avatarUrl || m.avatar}
+                            name={m.fullName || m.name}
+                            size={22}
+                            style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                          />
                         ))}
                       </View>
-                    </>
-                  ) : (
+                      <Text style={styles.lineupMemberCount}>
+                        {room.guestLineup.memberCount || room.guestLineup.members?.length || 0} cầu thủ
+                      </Text>
+                    </View>
+
+                    <View style={[styles.lineupActionPill, { backgroundColor: '#E0F2FE' }]}>
+                      <Text style={[styles.lineupActionPillText, { color: '#0284C7' }]}>
+                        Xem chi tiết
+                      </Text>
+                      <Ionicons name="chevron-forward" size={11} color="#0284C7" />
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={[styles.lineupTeamCol, { borderTopColor: '#CBD5E1', justifyContent: 'center' }]}>
                     <View style={styles.lineupWaitingBox}>
-                      <Ionicons name="time-outline" size={24} color="#94A3B8" />
+                      <Ionicons name="time-outline" size={22} color="#94A3B8" />
                       <Text style={styles.lineupWaitingTitle}>Chờ đối thủ</Text>
                       <Text style={styles.lineupWaitingSubtitle}>
                         Chưa chốt đội hình đối thủ
                       </Text>
                     </View>
-                  )}
-                </View>
+                  </View>
+                )}
               </View>
 
               {/* Lineup Balance Bar */}
@@ -792,7 +866,7 @@ export function MatchDetailScreen() {
                 <View style={styles.lineupBalanceBar}>
                   <Ionicons name="git-compare-outline" size={14} color="#D97706" />
                   <Text style={styles.lineupBalanceText}>
-                    Chênh lệch: {Math.abs((room.hostLineup.eloAvg || 0) - (room.guestLineup.eloAvg || 0))} Elo
+                    Chênh lệch: {Math.abs((room.hostLineup.eloAvg || 0) - (room.guestLineup.eloAvg || 0))} ELO
                     {room.balanceLabel ? ` • ${room.balanceLabel}` : ''}
                   </Text>
                 </View>
@@ -873,6 +947,7 @@ export function MatchDetailScreen() {
                     canManage={canManage}
                     onAccept={handleAcceptApplicant}
                     onReject={handleRejectApplicant}
+                    onViewLineup={(lineup) => handleOpenLineupDetail(lineup, false)}
                   />
                 );
               })}
@@ -1081,7 +1156,7 @@ export function MatchDetailScreen() {
                     </View>
                   </View>
 
-                  <Text style={styles.sheetSectionLabel}>CHỌN CLB BẠN ĐẠI DIỆN:</Text>
+                  <Text style={styles.sheetSectionLabel}>1. CHỌN CLB BẠN ĐẠI DIỆN:</Text>
 
                   <View style={styles.clubListContainer}>
                     {myClubs.map((club) => {
@@ -1091,7 +1166,12 @@ export function MatchDetailScreen() {
                         <TouchableOpacity
                           key={club.id}
                           activeOpacity={0.88}
-                          onPress={() => setSelectedClubId(club.id)}
+                          onPress={() => {
+                            if (String(selectedClubId) !== String(club.id)) {
+                              setSelectedClubId(club.id);
+                              setSelectedLineup(null);
+                            }
+                          }}
                           style={[styles.clubCardItem, isSelected && styles.clubCardItemActive]}
                         >
                           <View style={styles.modalClubAvatarWrap}>
@@ -1127,7 +1207,25 @@ export function MatchDetailScreen() {
                     })}
                   </View>
 
-                  <Text style={styles.sheetSectionLabel}>LỜI NHẮN GỬI CHỦ ROOM (TÙY CHỌN):</Text>
+                  {/* Section 2: Choose Lineup */}
+                  {selectedClubId && (
+                    <View style={{ marginTop: SPACING.md }}>
+                      <LineupPicker
+                        clubId={selectedClubId}
+                        clubName={myClubs.find((c) => String(c.id) === String(selectedClubId))?.name}
+                        sportId={room.booking?.sportId || host.sportId}
+                        selectedLineupId={selectedLineup?.id}
+                        onSelectLineup={setSelectedLineup}
+                        onNavigateToClub={() => {
+                          setIsJoinModalVisible(false);
+                          router.push(`/club/${selectedClubId}` as any);
+                        }}
+                        stepNumber={2}
+                      />
+                    </View>
+                  )}
+
+                  <Text style={[styles.sheetSectionLabel, { marginTop: SPACING.lg }]}>3. LỜI NHẮN GỬI CHỦ ROOM (TÙY CHỌN):</Text>
                   <View style={styles.inputContainer}>
                     <TextInput
                       style={styles.sheetTextInput}
@@ -1173,6 +1271,15 @@ export function MatchDetailScreen() {
 
       {/* Custom Confirm / Alert Modal */}
       <CustomConfirmModal {...modalConfig} />
+
+      {/* Edit / Inspect Lineup Modal */}
+      <EditLineupModal
+        visible={isLineupDetailModalVisible}
+        lineup={viewingLineup}
+        onClose={() => setIsLineupDetailModalVisible(false)}
+        isLeaderOrSubLeader={viewingLineupIsEditable}
+        mode="MATCHMAKING"
+      />
     </SafeAreaView>
   );
 }
@@ -2302,5 +2409,92 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: '#B45309',
     fontWeight: '700',
+  },
+  lineupInteractiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 4,
+  },
+  lineupAvatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lineupActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.sm,
+    marginTop: 6,
+  },
+  lineupActionPillText: {
+    ...TYPOGRAPHY.caption,
+    color: '#059669',
+    fontWeight: '700',
+    fontSize: 10.5,
+  },
+  applicantLineupBox: {
+    marginTop: 6,
+    backgroundColor: '#F0FDF4',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    padding: 8,
+  },
+  applicantLineupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  applicantLineupTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  applicantEloPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  applicantEloText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  applicantLineupBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  applicantAvatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  applicantLineupCountText: {
+    flex: 1,
+    ...TYPOGRAPHY.caption,
+    color: '#475569',
+    fontSize: 10.5,
+  },
+  applicantViewAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  applicantViewActionText: {
+    ...TYPOGRAPHY.caption,
+    color: '#059669',
+    fontWeight: '700',
+    fontSize: 11,
   },
 });

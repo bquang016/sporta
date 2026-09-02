@@ -93,8 +93,16 @@ export function MatchResultScreen() {
   };
 
   const outcome = result.outcome;
+  const isHostWin = outcome === 'WIN_A' || (outcome as string) === 'WIN_HOST';
+  const isGuestWin = outcome === 'WIN_B' || (outcome as string) === 'WIN_GUEST';
   const isDraw = outcome === 'DRAW';
-  const winnerName = outcome === 'WIN_A' ? host.name : outcome === 'WIN_B' ? (guest?.name || 'Đội khách') : null;
+  const winnerName = isHostWin ? host.name : isGuestWin ? (guest?.name || 'Đội bạn') : null;
+
+  const hostDisplayElo = room.hostLineup?.averageElo || room.hostLineup?.eloAvg || host.clubElo || 1200;
+  const hostDisplayLabel = (room.hostLineup?.averageElo || room.hostLineup?.eloAvg) ? 'Đội hình' : host.levelLabel || 'TB';
+
+  const guestDisplayElo = room.guestLineup?.averageElo || room.guestLineup?.eloAvg || guest?.clubElo || 1200;
+  const guestDisplayLabel = (room.guestLineup?.averageElo || room.guestLineup?.eloAvg) ? 'Đội hình' : guest?.levelLabel || 'TB';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -143,7 +151,7 @@ export function MatchResultScreen() {
                       <Text style={styles.avatarFallbackText}>{(host.name || 'A').charAt(0).toUpperCase()}</Text>
                     </View>
                   )}
-                  {outcome === 'WIN_A' && (
+                  {isHostWin && (
                     <View style={styles.winnerBadgePill}>
                       <Ionicons name="trophy" size={10} color="#FFFFFF" />
                     </View>
@@ -153,8 +161,8 @@ export function MatchResultScreen() {
                   {host.name}
                 </Text>
                 <View style={styles.teamMetaPill}>
-                  <Text style={styles.teamEloText}>{host.clubElo} Elo</Text>
-                  <Text style={styles.teamLevelText}>• {host.levelLabel}</Text>
+                  <Text style={styles.teamEloText}>{hostDisplayElo} Elo</Text>
+                  <Text style={styles.teamLevelText}>• {hostDisplayLabel}</Text>
                 </View>
               </View>
 
@@ -181,7 +189,7 @@ export function MatchResultScreen() {
                       <Text style={styles.avatarFallbackText}>{(guest?.name || 'B').charAt(0).toUpperCase()}</Text>
                     </View>
                   )}
-                  {outcome === 'WIN_B' && (
+                  {isGuestWin && (
                     <View style={styles.winnerBadgePill}>
                       <Ionicons name="trophy" size={10} color="#FFFFFF" />
                     </View>
@@ -191,8 +199,8 @@ export function MatchResultScreen() {
                   {guest?.name || 'Đội bạn'}
                 </Text>
                 <View style={styles.teamMetaPill}>
-                  <Text style={styles.teamEloText}>{guest?.clubElo || 1200} Elo</Text>
-                  <Text style={styles.teamLevelText}>• {guest?.levelLabel || 'Trung bình'}</Text>
+                  <Text style={styles.teamEloText}>{guestDisplayElo} Elo</Text>
+                  <Text style={styles.teamLevelText}>• {guestDisplayLabel}</Text>
                 </View>
               </View>
             </View>
@@ -292,13 +300,13 @@ export function MatchResultScreen() {
       </ScrollView>
 
       {/* CRP Explanation Sheet Modal */}
-      {preview && (
-        <CrpExplanationSheet
-          visible={showExplanation}
-          preview={preview}
-          onClose={() => setShowExplanation(false)}
-        />
-      )}
+      <CrpExplanationSheet
+        visible={showExplanation}
+        result={result}
+        room={room}
+        preview={preview}
+        onClose={() => setShowExplanation(false)}
+      />
     </SafeAreaView>
   );
 }

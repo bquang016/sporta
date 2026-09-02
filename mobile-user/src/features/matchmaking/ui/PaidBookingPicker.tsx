@@ -9,9 +9,10 @@ interface PaidBookingPickerProps {
   selectedBookingId?: string;
   onSelectBooking: (booking: BookingSummaryVM) => void;
   selectedSportName?: string;
+  stepNumber?: number;
 }
 
-export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking, selectedSportName }: PaidBookingPickerProps) {
+export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking, selectedSportName, stepNumber = 3 }: PaidBookingPickerProps) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -19,7 +20,7 @@ export function PaidBookingPicker({ bookings, selectedBookingId, onSelectBooking
           <Ionicons name="calendar" size={16} color={COLORS.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>2. Chọn Sân Đã Đặt</Text>
+          <Text style={styles.sectionTitle}>{stepNumber}. Chọn Sân Đã Đặt</Text>
           <Text style={styles.subtext}>
             Chỉ những lịch sân <Text style={{ fontWeight: '800', color: COLORS.primary }}>đã thanh toán thành công (CONFIRMED)</Text> mới có thể dùng để tạo kèo.
           </Text>

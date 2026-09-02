@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { MatchPollVM, PollOptionVM, LineupVM, LineupMemberVM } from '../../../../entities/match/model/match.types';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
+import { DevPollVoteModal } from './DevPollVoteModal';
+import { EditLineupModal } from '../../../../features/matchmaking/ui/EditLineupModal';
+import { UserAvatar } from '../../../../shared/ui/UserAvatar';
 
 export interface PollVoter {
   userId: number;
@@ -24,6 +28,9 @@ export interface PollCardProps {
   onDeletePoll: (pollId: number) => void;
   onCreatePollPress: () => void;
   votingPollId?: number | null;
+  members?: any[];
+  onRefreshPolls?: () => void;
+  isDevUser?: boolean;
 }
 
 export function PollCard({
@@ -36,9 +43,23 @@ export function PollCard({
   onDeletePoll,
   onCreatePollPress,
   votingPollId,
+  members = [],
+  onRefreshPolls,
+  isDevUser = false,
 }: PollCardProps) {
+  const { showAlert } = useAlert();
   const [expandedPollId, setExpandedPollId] = useState<number | null>(null);
   const [expandedOptionId, setExpandedOptionId] = useState<number | null>(null);
+  const [isDevModalVisible, setIsDevModalVisible] = useState(false);
+
+  // Edit Lineup Modal State
+  const [isEditLineupModalVisible, setIsEditLineupModalVisible] = useState(false);
+  const [editLineupMode, setEditLineupMode] = useState<'INTERNAL' | 'MATCHMAKING'>('MATCHMAKING');
+  const [selectedGtLineup, setSelectedGtLineup] = useState<any>(null);
+  const [selectedEditLineupA, setSelectedEditLineupA] = useState<any>(null);
+  const [selectedEditLineupB, setSelectedEditLineupB] = useState<any>(null);
+
+  const canShowDev = isDevUser || __DEV__;
 
   if (!polls || polls.length === 0) {
     return (
@@ -48,6 +69,17 @@ export function PollCard({
             <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
             <Text style={styles.sectionTitle}>Biểu quyết & Đội hình</Text>
           </View>
+
+          {canShowDev && (
+            <TouchableOpacity
+              style={styles.devBtn}
+              activeOpacity={0.8}
+              onPress={() => setIsDevModalVisible(true)}
+            >
+              <Ionicons name="construct" size={12} color="#4338CA" />
+              <Text style={styles.devBtnText}>DEV: Gán Vote</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.emptyCard}>
@@ -73,6 +105,18 @@ export function PollCard({
             </View>
           )}
         </View>
+
+        {/* DEV Panel Modal in Empty State */}
+        <DevPollVoteModal
+          visible={isDevModalVisible}
+          onClose={() => setIsDevModalVisible(false)}
+          polls={polls || []}
+          members={members}
+          onSuccess={() => {
+            showAlert('Thành công', 'Đã gán vote DEV cho các thành viên thành công!');
+            if (onRefreshPolls) onRefreshPolls();
+          }}
+        />
       </View>
     );
   }
@@ -81,19 +125,33 @@ export function PollCard({
     <View style={styles.pollSection}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.sectionTitleCol}>
-          <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Biểu quyết & Đội hình ({polls.length})</Text>
+          <MaterialIcons name="how-to-vote" size={18} color={COLORS.primary} />
+          <Text style={styles.sectionTitle} numberOfLines={1}>Biểu quyết ({polls.length})</Text>
         </View>
-        {isLeaderOrSubLeader && (
-          <TouchableOpacity
-            style={styles.headerCreateBtn}
-            activeOpacity={0.8}
-            onPress={onCreatePollPress}
-          >
-            <Ionicons name="add" size={16} color={COLORS.primary} />
-            <Text style={styles.headerCreateBtnText}>Tạo mới</Text>
-          </TouchableOpacity>
-        )}
+
+        <View style={styles.headerRightActions}>
+          {canShowDev && (
+            <TouchableOpacity
+              style={styles.devBtn}
+              activeOpacity={0.8}
+              onPress={() => setIsDevModalVisible(true)}
+            >
+              <Ionicons name="construct" size={11} color="#4338CA" />
+              <Text style={styles.devBtnText}>DEV: Vote</Text>
+            </TouchableOpacity>
+          )}
+
+          {isLeaderOrSubLeader && (
+            <TouchableOpacity
+              style={styles.headerCreateBtn}
+              activeOpacity={0.8}
+              onPress={onCreatePollPress}
+            >
+              <Ionicons name="add" size={15} color={COLORS.primary} />
+              <Text style={styles.headerCreateBtnText}>Tạo mới</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {polls.map((poll) => {
@@ -255,17 +313,11 @@ export function PollCard({
                       <View style={styles.votersList}>
                         {opt.voters.map((voter) => (
                           <View key={voter.userId} style={styles.voterRow}>
-                            <View style={styles.voterAvatarWrap}>
-                              {voter.avatarUrl ? (
-                                <Image source={{ uri: voter.avatarUrl }} style={styles.voterAvatar} />
-                              ) : (
-                                <View style={styles.voterAvatarFallback}>
-                                  <Text style={styles.voterAvatarText}>
-                                    {(voter.fullName || 'U').charAt(0).toUpperCase()}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
+                            <UserAvatar
+                              uri={voter.avatarUrl}
+                              name={voter.fullName}
+                              size={32}
+                            />
                             <View style={{ flex: 1 }}>
                               <Text style={styles.voterName} numberOfLines={1}>
                                 {voter.fullName}
@@ -284,81 +336,108 @@ export function PollCard({
               })}
             </View>
 
-            {/* ── Internal Split Result Display ── */}
+            {/* ── Compact Internal Split Result Display ── */}
             {isInternal && internalTeamsA && internalTeamsB && (
-              <View style={styles.lineupResultBox}>
-                <View style={styles.lineupResultHeader}>
-                  <Ionicons name="git-branch" size={16} color={COLORS.primary} />
-                  <Text style={styles.lineupResultTitle}>Đội hình thi đấu nội bộ cân bằng</Text>
+              <TouchableOpacity
+                style={styles.compactInternalBanner}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setSelectedEditLineupA(internalTeamsA);
+                  setSelectedEditLineupB(internalTeamsB);
+                  setEditLineupMode('INTERNAL');
+                  setIsEditLineupModalVisible(true);
+                }}
+              >
+                <View style={styles.compactInternalHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="git-branch" size={15} color="#0284C7" />
+                    <Text style={styles.compactInternalTitle}>Đội hình 2 bên cân ELO</Text>
+                  </View>
+                  <View style={styles.compactViewActionInternal}>
+                    <Text style={styles.compactViewActionTextInternal}>
+                      {isLeaderOrSubLeader ? 'Xem & Hoán đổi' : 'Xem chi tiết'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={13} color="#0284C7" />
+                  </View>
                 </View>
 
-                <View style={styles.teamsArenaRow}>
+                <View style={styles.compactInternalMatchupRow}>
                   {/* Team A */}
-                  <View style={[styles.teamBox, { borderTopColor: '#0284C7' }]}>
-                    <Text style={styles.teamBoxTitle}>{internalTeamsA.name}</Text>
-                    <View style={styles.teamEloBadge}>
-                      <Text style={styles.teamEloText}>Trình độ đội: {internalTeamsA.eloAvg}</Text>
-                    </View>
-                    <Text style={styles.teamCountText}>{internalTeamsA.members?.length || 0} thành viên</Text>
-                    <View style={styles.teamMembersPreview}>
-                      {internalTeamsA.members?.map((m) => (
-                        <Text key={m.userId} style={styles.memberTag} numberOfLines={1}>
-                          • {m.fullName} ({m.elo} điểm)
-                        </Text>
-                      ))}
-                    </View>
+                  <View style={styles.compactInternalTeamA}>
+                    <Text style={styles.compactInternalTeamName} numberOfLines={1}>
+                      {internalTeamsA.name || 'Đội A'}
+                    </Text>
+                    <Text style={styles.compactInternalTeamElo}>⭐ {internalTeamsA.eloAvg || 1200} ELO • {internalTeamsA.members?.length || 0} người</Text>
                   </View>
 
-                  <View style={styles.vsBox}>
-                    <Text style={styles.vsText}>VS</Text>
+                  <View style={styles.compactVsPill}>
+                    <Text style={styles.compactVsPillText}>VS</Text>
                   </View>
 
                   {/* Team B */}
-                  <View style={[styles.teamBox, { borderTopColor: '#E11D48' }]}>
-                    <Text style={styles.teamBoxTitle}>{internalTeamsB.name}</Text>
-                    <View style={[styles.teamEloBadge, { backgroundColor: '#FFE4E6' }]}>
-                      <Text style={[styles.teamEloText, { color: '#E11D48' }]}>Trình độ đội: {internalTeamsB.eloAvg}</Text>
-                    </View>
-                    <Text style={styles.teamCountText}>{internalTeamsB.members?.length || 0} thành viên</Text>
-                    <View style={styles.teamMembersPreview}>
-                      {internalTeamsB.members?.map((m) => (
-                        <Text key={m.userId} style={styles.memberTag} numberOfLines={1}>
-                          • {m.fullName} ({m.elo} điểm)
-                        </Text>
-                      ))}
-                    </View>
+                  <View style={styles.compactInternalTeamB}>
+                    <Text style={styles.compactInternalTeamName} numberOfLines={1}>
+                      {internalTeamsB.name || 'Đội B'}
+                    </Text>
+                    <Text style={styles.compactInternalTeamElo}>⭐ {internalTeamsB.eloAvg || 1200} ELO • {internalTeamsB.members?.length || 0} người</Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
 
-            {/* ── Matchmaking Lineup Display ── */}
+            {/* ── Compact Matchmaking Lineup Display ── */}
             {!isInternal && gtLineup && (
-              <View style={styles.gtLineupCard}>
-                <View style={styles.gtLineupHeader}>
-                  <View style={styles.gtLineupTitleRow}>
-                    <Ionicons name="shield-checkmark" size={17} color="#059669" />
-                    <Text style={styles.gtLineupTitle}>Đội hình thi đấu: {gtLineup.name}</Text>
+              <TouchableOpacity
+                style={styles.compactLineupBanner}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setSelectedGtLineup(gtLineup);
+                  setEditLineupMode('MATCHMAKING');
+                  setIsEditLineupModalVisible(true);
+                }}
+              >
+                <View style={styles.compactBannerLeft}>
+                  <View style={styles.compactIconCircle}>
+                    <Ionicons name="shield-checkmark" size={18} color="#059669" />
                   </View>
-                  <View style={styles.gtEloBadge}>
-                    <Text style={styles.gtEloText}>Trình độ: {gtLineup.eloAvg}</Text>
-                  </View>
-                </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.compactTitleRow}>
+                      <Text style={styles.compactLineupName} numberOfLines={1}>
+                        {gtLineup.name || 'Đội hình Ghép trận'}
+                      </Text>
+                      <View style={styles.compactEloBadge}>
+                        <Ionicons name="star" size={10} color="#FFFFFF" />
+                        <Text style={styles.compactEloText}>{gtLineup.eloAvg || 1200} ELO</Text>
+                      </View>
+                    </View>
 
-                <Text style={styles.gtMemberCountText}>
-                  {gtLineup.members?.length || 0} thành viên đã sẵn sàng ra sân thi đấu
-                </Text>
-
-                <View style={styles.gtMembersRow}>
-                  {gtLineup.members?.map((m) => (
-                    <View key={m.userId} style={styles.gtMemberChip}>
-                      <Text style={styles.gtMemberChipText} numberOfLines={1}>
-                        {m.fullName} ({m.elo} điểm)
+                    {/* Avatar Stack + Count */}
+                    <View style={styles.compactMetaRow}>
+                      <View style={styles.compactAvatarStack}>
+                        {gtLineup.members?.slice(0, 4).map((m: any, idx: number) => (
+                          <UserAvatar
+                            key={m.userId || idx}
+                            uri={m.avatarUrl || m.avatar}
+                            name={m.fullName || m.name}
+                            size={22}
+                            style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.compactCountText}>
+                        {gtLineup.members?.length || 0} cầu thủ ra sân
                       </Text>
                     </View>
-                  ))}
+                  </View>
                 </View>
-              </View>
+
+                <View style={styles.compactViewAction}>
+                  <Text style={styles.compactViewActionText}>
+                    {isLeaderOrSubLeader ? 'Đổi người' : 'Chi tiết'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#059669" />
+                </View>
+              </TouchableOpacity>
             )}
 
             {/* Admin Action Bar for this poll */}
@@ -386,7 +465,7 @@ export function PollCard({
                           const minReq = (poll.minPlayers && poll.minPlayers > 2) ? poll.minPlayers : 2;
                           const currentJoin = poll.joinVotesCount || 0;
                           if (currentJoin < minReq) {
-                            Alert.alert(
+                            showAlert(
                               'Chưa đủ thành viên',
                               `Cần tối thiểu ${minReq} thành viên chọn tham gia để chia 2 đội ra sân. Hiện tại mới có ${currentJoin} người.`
                             );
@@ -411,7 +490,7 @@ export function PollCard({
                           const minReq = poll.minPlayers || 1;
                           const currentJoin = poll.joinVotesCount || 0;
                           if (currentJoin < minReq) {
-                            Alert.alert(
+                            showAlert(
                               'Chưa đủ thành viên',
                               `Cần tối thiểu ${minReq} thành viên chọn tham gia để chốt đội hình ra sân. Hiện tại mới có ${currentJoin} người.`
                             );
@@ -442,6 +521,34 @@ export function PollCard({
           </View>
         );
       })}
+
+      {/* DEV Panel Modal */}
+      <DevPollVoteModal
+        visible={isDevModalVisible}
+        onClose={() => setIsDevModalVisible(false)}
+        polls={polls}
+        members={members}
+        onSuccess={() => {
+          showAlert('Thành công', 'Đã gán vote DEV cho các thành viên thành công!');
+          if (onRefreshPolls) onRefreshPolls();
+        }}
+      />
+
+      {/* Edit Lineup Modal */}
+      <EditLineupModal
+        visible={isEditLineupModalVisible}
+        onClose={() => setIsEditLineupModalVisible(false)}
+        mode={editLineupMode}
+        lineup={selectedGtLineup}
+        lineupA={selectedEditLineupA}
+        lineupB={selectedEditLineupB}
+        clubId={polls[0]?.clubId ? Number(polls[0].clubId) : 0}
+        clubMembers={members}
+        isLeaderOrSubLeader={isLeaderOrSubLeader}
+        onSuccess={() => {
+          if (onRefreshPolls) onRefreshPolls();
+        }}
+      />
     </View>
   );
 }
@@ -467,6 +574,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  devBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#4338CA',
   },
   headerCreateBtn: {
     flexDirection: 'row',
@@ -887,83 +1015,174 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 6,
   },
-  teamMembersPreview: {
-    gap: 2,
-  },
-  memberTag: {
-    ...TYPOGRAPHY.caption,
-    color: '#334155',
-    fontSize: 10.5,
-  },
-  vsBox: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vsText: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '900',
-    color: '#94A3B8',
-  },
-  gtLineupCard: {
+  compactInternalBanner: {
     marginTop: SPACING.md,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#F0F9FF',
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BAE6FD',
     padding: 12,
   },
-  gtLineupHeader: {
+  compactInternalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  gtLineupTitleRow: {
+  compactInternalTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  compactViewActionInternal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  compactViewActionTextInternal: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  compactInternalMatchupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E0F2FE',
+    gap: 8,
+  },
+  compactInternalTeamA: {
+    flex: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: '#0284C7',
+    paddingLeft: 6,
+  },
+  compactInternalTeamB: {
+    flex: 1,
+    borderRightWidth: 3,
+    borderRightColor: '#E11D48',
+    paddingRight: 6,
+    alignItems: 'flex-end',
+  },
+  compactInternalTeamName: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  compactInternalTeamElo: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  compactVsPill: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  compactVsPillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  compactLineupBanner: {
+    marginTop: SPACING.md,
+    backgroundColor: '#F0FDF4',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  compactBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  compactIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 4,
+    flexWrap: 'wrap',
   },
-  gtLineupTitle: {
+  compactLineupName: {
     ...TYPOGRAPHY.labelSm,
+    fontSize: 13,
     fontWeight: '800',
     color: '#065F46',
   },
-  gtEloBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  gtEloText: {
-    ...TYPOGRAPHY.caption,
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 11,
-  },
-  gtMemberCountText: {
-    ...TYPOGRAPHY.caption,
-    color: '#047857',
-    fontSize: 11,
-    marginBottom: 8,
-  },
-  gtMembersRow: {
+  compactEloBadge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  gtMemberChip: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
   },
-  gtMemberChipText: {
+  compactEloText: {
     ...TYPOGRAPHY.caption,
-    color: '#065F46',
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  compactMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactAvatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#CBD5E1',
+  },
+  compactCountText: {
+    ...TYPOGRAPHY.caption,
     fontSize: 11,
+    color: '#047857',
+    fontWeight: '600',
+  },
+  compactViewAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  compactViewActionText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
   },
   adminActionRow: {
     flexDirection: 'row',

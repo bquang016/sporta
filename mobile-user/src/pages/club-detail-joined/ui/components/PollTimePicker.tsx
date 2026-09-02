@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 
 export interface PollTimePickerProps {
   selectedHour: number;
@@ -16,160 +17,167 @@ export function PollTimePicker({
   onChangeHour,
   onChangeMinute,
 }: PollTimePickerProps) {
-  const handleDecreaseHour = () => {
-    onChangeHour(selectedHour === 0 ? 23 : selectedHour - 1);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Construct a Date object for the DateTimePicker
+  const timeDate = new Date();
+  timeDate.setHours(selectedHour, selectedMinute, 0, 0);
+
+  const handleTimeChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setIsExpanded(false);
+    }
+    if (date) {
+      onChangeHour(date.getHours());
+      onChangeMinute(date.getMinutes());
+    }
   };
 
-  const handleIncreaseHour = () => {
-    onChangeHour(selectedHour === 23 ? 0 : selectedHour + 1);
-  };
-
-  const handleDecreaseMinute = () => {
-    onChangeMinute(selectedMinute === 0 ? 45 : selectedMinute - 15);
-  };
-
-  const handleIncreaseMinute = () => {
-    onChangeMinute(selectedMinute === 45 ? 0 : selectedMinute + 15);
-  };
+  const formattedTime = `${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
 
   return (
     <View style={styles.container}>
-      <View style={styles.labelRow}>
-        <Text style={styles.fieldLabel}>Giờ kết thúc biểu quyết</Text>
-        <Text style={styles.timePreview}>
-          {String(selectedHour).padStart(2, '0')}:{String(selectedMinute).padStart(2, '0')}
-        </Text>
-      </View>
-
-      <View style={styles.timePickerContainer}>
-        {/* Hour Stepper Box */}
-        <View style={styles.timeUnitBox}>
-          <Text style={styles.timeUnitLabel}>Giờ (00 - 23)</Text>
-          <View style={styles.timeStepper}>
-            <TouchableOpacity
-              style={styles.timeStepperBtn}
-              onPress={handleDecreaseHour}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="remove" size={16} color="#1E293B" />
-            </TouchableOpacity>
-
-            <Text style={styles.timeValueText}>
-              {String(selectedHour).padStart(2, '0')}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.timeStepperBtn}
-              onPress={handleIncreaseHour}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={16} color="#1E293B" />
-            </TouchableOpacity>
+      {/* Time Card Header */}
+      <TouchableOpacity
+        style={[styles.card, isExpanded && styles.cardActive]}
+        activeOpacity={0.8}
+        onPress={() => setIsExpanded(!isExpanded)}
+      >
+        <View style={styles.leftCol}>
+          <View style={styles.iconBox}>
+            <Ionicons name="time-outline" size={18} color={COLORS.primary} />
           </View>
+          <Text style={styles.title}>Giờ kết thúc biểu quyết</Text>
         </View>
 
-        {/* Separator Colon */}
-        <Text style={styles.timeColon}>:</Text>
-
-        {/* Minute Stepper Box */}
-        <View style={styles.timeUnitBox}>
-          <Text style={styles.timeUnitLabel}>Phút (bước 15p)</Text>
-          <View style={styles.timeStepper}>
-            <TouchableOpacity
-              style={styles.timeStepperBtn}
-              onPress={handleDecreaseMinute}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="remove" size={16} color="#1E293B" />
-            </TouchableOpacity>
-
-            <Text style={styles.timeValueText}>
-              {String(selectedMinute).padStart(2, '0')}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.timeStepperBtn}
-              onPress={handleIncreaseMinute}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={16} color="#1E293B" />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.timePill}>
+          <Text style={styles.timePillText}>{formattedTime}</Text>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={COLORS.primary}
+          />
         </View>
-      </View>
+      </TouchableOpacity>
+
+      {/* iOS Wheel Spinner / Time Picker Dropdown */}
+      {isExpanded && (
+        <View style={styles.pickerContainer}>
+          <DateTimePicker
+            value={timeDate}
+            mode="time"
+            is24Hour={true}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleTimeChange}
+            textColor={COLORS.onSurface}
+            style={styles.picker}
+          />
+
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.doneBtn}
+              onPress={() => setIsExpanded(false)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+              <Text style={styles.doneBtnText}>Xác nhận giờ</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  labelRow: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  fieldLabel: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '700',
-    color: '#1E293B',
-    fontSize: 13,
-  },
-  timePreview: {
-    ...TYPOGRAPHY.caption,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontSize: 13,
-  },
-  timePickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: 10,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  timeUnitBox: {
-    alignItems: 'center',
+  cardActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#F8FAFC',
   },
-  timeUnitLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  timeStepper: {
+  leftCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: BORDER_RADIUS.md,
-    padding: 3,
+    gap: 10,
+    flex: 1,
   },
-  timeStepperBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: BORDER_RADIUS.sm,
+  iconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timeValueText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    paddingHorizontal: 12,
+  title: {
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.onSurface,
   },
-  timeColon: {
-    fontSize: 22,
+  timePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timePillText: {
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#64748B',
-    marginTop: 16,
+    color: COLORS.primary,
+  },
+  pickerContainer: {
+    marginTop: 8,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  picker: {
+    width: '100%',
+    height: 160,
+  },
+  doneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 6,
+    width: '100%',
+    paddingVertical: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  doneBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
 });

@@ -57,11 +57,12 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
     fetchClubs();
   };
 
-  const handleSelectClub = async (clubId: string) => {
+  const handleSelectClub = async (clubId: string | number) => {
     try {
       setLoadingAction(true);
       setIsClubModalVisible(false);
-      const params = assigningSide === 'HOST' ? { hostClubId: clubId } : { guestClubId: clubId };
+      const numericId = Number(clubId);
+      const params = assigningSide === 'HOST' ? { hostClubId: numericId } : { guestClubId: numericId };
       await MatchmakingApiRepository.devAssignClubs(room.id, params);
       Alert.alert('DEV Thành Công', `Đã gán CLB cho ${assigningSide === 'HOST' ? 'Đội Chủ Nhà (Side A)' : 'Đội Khách (Side B)'}!`);
       onRefresh();
@@ -540,8 +541,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#C084FC',
-    marginHorizontal: 16,
-    marginVertical: 10,
+    marginHorizontal: 0,
+    marginVertical: 6,
     overflow: 'hidden',
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },

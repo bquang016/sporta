@@ -25,4 +25,6 @@ public interface MatchPollService {
     MatchPollResponse splitInternalTeams(Long pollId, String userEmail);
 
     MatchPollResponse formMatchmakingLineup(Long pollId, String userEmail);
+
+    MatchPollResponse devAssignVotes(Long pollId, com.backend.sporta.dto.DevAssignVotesRequest request, String userEmail);
 }

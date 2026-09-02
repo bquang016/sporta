@@ -16,6 +16,7 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/c
 import { MatchmakingApiRepository } from '../../../../shared/api/matchmaking';
 import { ClubSummaryVM, BookingSummaryVM, MatchType } from '../../../../entities/match/model/match.types';
 import { ClubSelector } from '../../../../features/matchmaking/ui/ClubSelector';
+import { LineupPicker } from '../../../../features/matchmaking/ui/LineupPicker';
 import { PaidBookingPicker } from '../../../../features/matchmaking/ui/PaidBookingPicker';
 import { FeeSplitSelector } from '../../../../features/matchmaking/ui/FeeSplitSelector';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
@@ -63,6 +64,7 @@ export function CreateMatchScreen() {
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   const [selectedClub, setSelectedClub] = useState<ClubSummaryVM | undefined>();
+  const [selectedLineup, setSelectedLineup] = useState<any | undefined>();
   const [selectedBooking, setSelectedBooking] = useState<BookingSummaryVM | undefined>();
   const [matchType, setMatchType] = useState<MatchType>('RANKED');
   const [hostSharePercent, setHostSharePercent] = useState<number>(70);
@@ -123,6 +125,10 @@ export function CreateMatchScreen() {
       showAlert('Chưa đủ thành viên', 'CLB đại diện cần có ít nhất 8 thành viên ACTIVE.', 'warning');
       return;
     }
+    if (!selectedLineup) {
+      showAlert('Chưa có đội hình ra sân', 'CLB cần chọn đội hình ra sân sẵn sàng để tạo kèo tìm đối thủ.', 'warning');
+      return;
+    }
     if (!selectedBooking) {
       showAlert('Chưa chọn sân', 'Vui lòng chọn lịch sân đã đặt (PAID).', 'warning');
       return;
@@ -141,6 +147,7 @@ export function CreateMatchScreen() {
       const created = await MatchmakingApiRepository.createRoom({
         bookingId: selectedBooking.id,
         hostClubId: selectedClub.id,
+        lineupId: selectedLineup.id,
         matchType,
         hostSharePercent,
         desiredLevels: [desiredLevel],
@@ -195,7 +202,21 @@ export function CreateMatchScreen() {
               onSelectClub={setSelectedClub}
             />
 
-            {/* Section 2: Choose Booking */}
+            {/* Section 2: Choose Lineup */}
+            <LineupPicker
+              clubId={selectedClub?.id}
+              clubName={selectedClub?.name}
+              sportId={selectedClub?.sportId}
+              selectedLineupId={selectedLineup?.id}
+              onSelectLineup={setSelectedLineup}
+              onNavigateToClub={() => {
+                if (selectedClub?.id) {
+                  router.push(`/club/${selectedClub.id}` as any);
+                }
+              }}
+            />
+
+            {/* Section 3: Choose Booking */}
             <PaidBookingPicker
               bookings={availableBookings}
               selectedBookingId={selectedBooking?.id}
@@ -203,14 +224,14 @@ export function CreateMatchScreen() {
               selectedSportName={selectedClub?.sportName}
             />
 
-            {/* Section 3: Match Type Selector */}
+            {/* Section 4: Match Type Selector */}
             <View style={styles.sectionCard}>
               <View style={styles.headerRow}>
                 <View style={styles.sectionIconCircle}>
                   <Ionicons name="trophy" size={16} color="#D97706" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>3. Loại Trận Đấu</Text>
+                  <Text style={styles.sectionTitle}>4. Loại Trận Đấu</Text>
                   <Text style={styles.subtext}>Chọn thể thức tính điểm xếp hạng</Text>
                 </View>
               </View>
@@ -264,7 +285,7 @@ export function CreateMatchScreen() {
               </View>
             </View>
 
-            {/* Section 4: Fee Split Selector */}
+            {/* Section 5: Fee Split Selector */}
             {selectedBooking && (
               <FeeSplitSelector
                 totalPrice={selectedBooking.totalPrice}
@@ -273,14 +294,14 @@ export function CreateMatchScreen() {
               />
             )}
 
-            {/* Section 5: Opponent Level Target */}
+            {/* Section 6: Opponent Level Target */}
             <View style={styles.sectionCard}>
               <View style={styles.headerRow}>
                 <View style={styles.sectionIconCircle}>
                   <Ionicons name="speedometer" size={16} color="#7C3AED" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>4. Trình Độ Đối Thủ Mong Muốn</Text>
+                  <Text style={styles.sectionTitle}>6. Trình Độ Đối Thủ Mong Muốn</Text>
                   <Text style={styles.subtext}>
                     Hệ thống sẽ gắn huy hiệu "Cân kèo" cho đối thủ phù hợp
                   </Text>
@@ -306,14 +327,14 @@ export function CreateMatchScreen() {
               </View>
             </View>
 
-            {/* Section 6: Note */}
+            {/* Section 7: Note */}
             <View style={styles.sectionCard}>
               <View style={styles.headerRow}>
                 <View style={styles.sectionIconCircle}>
                   <Ionicons name="chatbox-ellipses" size={16} color="#059669" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>5. Lời Nhắn Gửi Đối Thủ (Tùy chọn)</Text>
+                  <Text style={styles.sectionTitle}>7. Lời Nhắn Gửi Đối Thủ (Tùy chọn)</Text>
                 </View>
               </View>
 

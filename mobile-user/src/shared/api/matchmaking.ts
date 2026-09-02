@@ -285,6 +285,24 @@ export class MatchmakingApiRepository {
   }
 
   /**
+   * Đội đối thủ (Bên B) hoặc Bên A từ chối tỷ số / khiếu nại
+   */
+  static async disagreeScore(
+    roomId: string,
+    reasonCode?: string,
+    description?: string
+  ): Promise<MatchRoomVM> {
+    return apiFetch<MatchRoomVM>(
+      `/matchmaking/matches/${roomId}/disagree-score`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reasonCode: reasonCode || 'DISAGREE_SCORE', description }),
+      },
+      true
+    );
+  }
+
+  /**
    * Lấy thông tin xem trước tính toán điểm xếp hạng
    */
   static async getRankingPreview(roomId: string): Promise<RankingCalculationPreview> {

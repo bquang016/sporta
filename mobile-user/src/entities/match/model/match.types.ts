@@ -14,7 +14,7 @@ export type MatchStatus =
 
 export type MatchType = 'FRIENDLY' | 'RANKED';
 
-export type NormalizedOutcome = 'WIN_A' | 'WIN_B' | 'DRAW';
+export type NormalizedOutcome = 'WIN_A' | 'WIN_B' | 'WIN_HOST' | 'WIN_GUEST' | 'DRAW';
 
 export interface ClubSummaryVM {
   id: string;
@@ -64,6 +64,7 @@ export interface LineupVM {
   sourcePollId?: number;
   name: string;
   eloAvg: number;
+  averageElo?: number;
   lineupType: 'INTERNAL_A' | 'INTERNAL_B' | 'MATCHMAKING';
   status: 'ACTIVE' | 'IN_MATCH' | 'COMPLETED' | 'DISBANDED';
   matchRoomId?: string;

@@ -56,6 +56,12 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private ClubPollVoteRepository clubPollVoteRepository;
 
+    @Autowired
+    private LineupMemberRepository lineupMemberRepository;
+
+    @Autowired
+    private MatchLineupRepository matchLineupRepository;
+
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Override
@@ -582,17 +588,29 @@ public class UserServiceImpl implements UserService {
                     }
 
                     // 3. Strict Check: User MUST have participated in the lineup of this match
-                    Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(userClub.getId(), match.getId());
-                    if (pollOpt.isEmpty()) {
-                        continue; // No lineup record -> user did not play in this match
+                    boolean userPlayedInLineup = false;
+
+                    // 3a. Check official MatchLineup from Room
+                    if (match.getRoom() != null) {
+                        var side = isHost ? com.backend.sporta.enums.TeamSide.HOST : com.backend.sporta.enums.TeamSide.GUEST;
+                        var lineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(match.getRoom().getId(), side);
+                        if (lineupOpt.isPresent()) {
+                            userPlayedInLineup = lineupMemberRepository.findByLineupIdAndUserId(lineupOpt.get().getId(), userId).isPresent();
+                        }
                     }
 
-                    boolean hasJoined = clubPollVoteRepository.findByPollIdAndUserId(pollOpt.get().getId(), userId)
-                            .filter(v -> v.getOption() == com.backend.sporta.enums.PollVoteOption.JOIN)
-                            .isPresent();
+                    // 3b. Fallback: Check ClubPoll
+                    if (!userPlayedInLineup) {
+                        Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(userClub.getId(), match.getId());
+                        if (pollOpt.isPresent()) {
+                            userPlayedInLineup = clubPollVoteRepository.findByPollIdAndUserId(pollOpt.get().getId(), userId)
+                                    .filter(v -> v.getOption() == com.backend.sporta.enums.PollVoteOption.JOIN)
+                                    .isPresent();
+                        }
+                    }
 
-                    if (!hasJoined) {
-                        continue; // User did not participate in this match
+                    if (!userPlayedInLineup) {
+                        continue; // User was not in the lineup of this match
                     }
 
                     String userSide = isHost ? "HOST" : "GUEST";

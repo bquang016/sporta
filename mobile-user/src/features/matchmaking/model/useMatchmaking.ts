@@ -129,6 +129,13 @@ export function useMatchDetail(roomId: string) {
     return updated;
   };
 
+  const disagreeScore = async (reasonCode?: string, description?: string) => {
+    if (!roomId) return;
+    const updated = await MatchmakingApiRepository.disagreeScore(roomId, reasonCode, description);
+    setRoom(updated);
+    return updated;
+  };
+
   const rejectRequest = async (requestId: string, reason?: string) => {
     if (!roomId) return;
     await MatchmakingApiRepository.rejectJoinRequest(requestId, reason);
@@ -144,5 +151,6 @@ export function useMatchDetail(roomId: string) {
     rejectRequest,
     submitScore,
     confirmScore,
+    disagreeScore,
   };
 }

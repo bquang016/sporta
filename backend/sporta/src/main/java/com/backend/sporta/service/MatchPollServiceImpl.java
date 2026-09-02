@@ -326,12 +326,6 @@ public class MatchPollServiceImpl implements MatchPollService {
         int count = 0;
         for (PollVote vote : joinVotes) {
             User u = vote.getUser();
-            try {
-                lineupConflictValidator.validateNoConflict(u.getId(), lineup);
-            } catch (Exception ignored) {
-                // Nếu người này bị xung đột CLB khác cùng ngày, tạm bỏ qua để không crash cả đội
-                continue;
-            }
             int userElo = getUserEloForClub(u.getId(), poll.getClub());
             LineupMember lm = LineupMember.builder()
                     .lineup(lineup)
@@ -518,6 +512,61 @@ public class MatchPollServiceImpl implements MatchPollService {
 
         autoFormMatchmakingTeam(poll);
         return mapToResponse(poll, user);
+    }
+
+    @Override
+    @Transactional
+    public MatchPollResponse devAssignVotes(Long pollId, DevAssignVotesRequest request, String userEmail) {
+        User currentUser = getUserByEmail(userEmail);
+        MatchPoll poll = matchPollRepository.findById(pollId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy biểu quyết", 404));
+
+        PollOption selectedOption = pollOptionRepository.findById(request.getOptionId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy lựa chọn biểu quyết", 404));
+
+        if (!selectedOption.getPoll().getId().equals(pollId)) {
+            throw new CustomException("Lựa chọn không thuộc biểu quyết này", 400);
+        }
+
+        boolean isSelectedDefault = Boolean.TRUE.equals(selectedOption.getIsDefault())
+                || "Có".equalsIgnoreCase(selectedOption.getLabel())
+                || "Không".equalsIgnoreCase(selectedOption.getLabel());
+
+        if (request.getUserIds() != null) {
+            for (Long uid : request.getUserIds()) {
+                User targetUser = userRepository.findById(uid).orElse(null);
+                if (targetUser == null) continue;
+
+                List<PollVote> userVotes = pollVoteRepository.findByPollIdAndUserId(pollId, targetUser.getId());
+
+                if (Boolean.TRUE.equals(request.getClearExisting())) {
+                    pollVoteRepository.deleteByPollIdAndUserId(pollId, targetUser.getId());
+                } else if (isSelectedDefault) {
+                    for (PollVote v : userVotes) {
+                        boolean vIsDefault = Boolean.TRUE.equals(v.getOption().getIsDefault())
+                                || "Có".equalsIgnoreCase(v.getOption().getLabel())
+                                || "Không".equalsIgnoreCase(v.getOption().getLabel());
+                        if (vIsDefault) {
+                            pollVoteRepository.delete(v);
+                        }
+                    }
+                }
+
+                boolean alreadyVoted = pollVoteRepository.findByPollIdAndUserId(pollId, targetUser.getId()).stream()
+                        .anyMatch(v -> v.getOption().getId().equals(selectedOption.getId()));
+
+                if (!alreadyVoted) {
+                    PollVote newVote = PollVote.builder()
+                            .poll(poll)
+                            .user(targetUser)
+                            .option(selectedOption)
+                            .build();
+                    pollVoteRepository.save(newVote);
+                }
+            }
+        }
+
+        return mapToResponse(poll, currentUser);
     }
 
     @Override

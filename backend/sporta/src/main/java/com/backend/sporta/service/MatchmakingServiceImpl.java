@@ -97,6 +97,9 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     @Autowired
     private MatchLineupRepository matchLineupRepository;
 
+    @Autowired
+    private LineupMemberRepository lineupMemberRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private User getUserByEmail(String email) {
@@ -278,6 +281,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         String desiredLevelsStr = request.getDesiredLevels() != null ? String.join(",", request.getDesiredLevels())
                 : "";
 
+        if (request.getLineupId() == null) {
+            throw new CustomException("Vui lòng chọn đội hình ra sân của CLB để tạo kèo tìm đối thủ.", 400);
+        }
+
         MatchRoom room = MatchRoom.builder()
                 .booking(booking)
                 .hostClub(hostClub)
@@ -293,9 +300,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         room = matchRoomRepository.save(room);
 
-        if (request.getLineupId() != null) {
-            lineupService.attachLineupToRoom(request.getLineupId(), room.getId(), TeamSide.HOST);
-        }
+        lineupService.attachLineupToRoom(request.getLineupId(), room.getId(), TeamSide.HOST);
 
         return mapToRoomResponse(room, null, user);
     }
@@ -475,6 +480,21 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             if (!applicantLineup.getClub().getId().equals(applicantClub.getId())) {
                 throw new CustomException("Đội hình đăng ký không thuộc CLB của bạn", 400);
             }
+
+            // Cross-lineup member collision check with Host Lineup
+            Optional<MatchLineup> hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), TeamSide.HOST);
+            if (hostLineupOpt.isPresent() && hostLineupOpt.get().getMembers() != null && applicantLineup.getMembers() != null) {
+                java.util.Set<Long> hostUserIds = hostLineupOpt.get().getMembers().stream()
+                        .map(m -> m.getUser().getId())
+                        .collect(java.util.stream.Collectors.toSet());
+                for (LineupMember gm : applicantLineup.getMembers()) {
+                    if (gm.getUser() != null && hostUserIds.contains(gm.getUser().getId())) {
+                        String name = gm.getUser().getFullName() != null ? gm.getUser().getFullName() : "Thành viên";
+                        throw new CustomException("Thành viên " + name 
+                                + " đã có mặt trong đội hình của CLB chủ nhà. Một người không thể thi đấu cho cả 2 bên.", 400);
+                    }
+                }
+            }
         }
 
         JoinRequest joinReq = JoinRequest.builder()
@@ -578,6 +598,22 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         Club guestClub = acceptedReq.getApplicantClub();
 
+        // Cross-lineup member collision check between Host Lineup and Guest Lineup
+        Optional<MatchLineup> hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), TeamSide.HOST);
+        if (hostLineupOpt.isPresent() && acceptedReq.getLineup() != null
+                && hostLineupOpt.get().getMembers() != null && acceptedReq.getLineup().getMembers() != null) {
+            java.util.Set<Long> hostUserIds = hostLineupOpt.get().getMembers().stream()
+                    .map(m -> m.getUser().getId())
+                    .collect(java.util.stream.Collectors.toSet());
+            for (LineupMember gm : acceptedReq.getLineup().getMembers()) {
+                if (gm.getUser() != null && hostUserIds.contains(gm.getUser().getId())) {
+                    String name = gm.getUser().getFullName() != null ? gm.getUser().getFullName() : "Thành viên";
+                    throw new CustomException("Thành viên " + name 
+                            + " đang có mặt ở cả 2 đội hình thi đấu. Một người không thể thi đấu cho cả 2 bên.", 400);
+                }
+            }
+        }
+
         if (room.getMatchType() == MatchType.RANKED) {
             validateAntiSmurf(room.getHostClub(), guestClub);
         }
@@ -625,7 +661,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             lineupService.attachLineupToRoom(acceptedReq.getLineup().getId(), room.getId(), TeamSide.GUEST);
         }
 
-        Optional<MatchLineup> hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), TeamSide.HOST);
+        hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), TeamSide.HOST);
         int hostElo = (hostLineupOpt.isPresent() && hostLineupOpt.get().getEloAvg() != null && hostLineupOpt.get().getEloAvg() > 0)
                 ? hostLineupOpt.get().getEloAvg() : clubEloService.getClubElo(room.getHostClub());
 
@@ -779,6 +815,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .guestCrpAfter(crpRes.getGuestCrpAfter())
                 .isRankedEligible(crpRes.isRankedEligible())
                 .explanationJson(expJson)
+                .confirmedAt(LocalDateTime.now())
                 .build();
 
         matchResultRepository.save(result);
@@ -1157,7 +1194,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                         .guestCrpDelta(r.getGuestCrpDelta())
                         .guestCrpAfter(r.getGuestCrpAfter())
                         .explanation(expList)
-                        .confirmedAt(r.getConfirmedAt().toString())
+                        .confirmedAt(r.getConfirmedAt() != null ? r.getConfirmedAt().toString() : java.time.LocalDateTime.now().toString())
                         .build();
             }
         }
@@ -1375,6 +1412,30 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
     private List<ClubMember> getMatchLineup(Match match, Club club) {
         if (match != null && club != null) {
+            // 1. Check official MatchLineup from MatchRoom
+            if (match.getRoom() != null) {
+                boolean isHost = club.getId().equals(match.getHostClub().getId());
+                var side = isHost ? com.backend.sporta.enums.TeamSide.HOST : com.backend.sporta.enums.TeamSide.GUEST;
+                var lineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(match.getRoom().getId(), side);
+                if (lineupOpt.isPresent()) {
+                    List<com.backend.sporta.entity.LineupMember> lms = lineupMemberRepository.findByLineupId(lineupOpt.get().getId());
+                    if (lms != null && !lms.isEmpty()) {
+                        Set<Long> userIds = lms.stream()
+                                .filter(lm -> lm.getUser() != null)
+                                .map(lm -> lm.getUser().getId())
+                                .collect(Collectors.toSet());
+                        List<ClubMember> members = clubMemberRepository.findByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED)
+                                .stream()
+                                .filter(m -> m.getUser() != null && userIds.contains(m.getUser().getId()))
+                                .collect(Collectors.toList());
+                        if (!members.isEmpty()) {
+                            return members;
+                        }
+                    }
+                }
+            }
+
+            // 2. Check ClubPoll
             Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(club.getId(), match.getId());
             if (pollOpt.isPresent()) {
                 List<ClubPollVote> joinVotes = clubPollVoteRepository.findByPollIdAndOption(pollOpt.get().getId(), PollVoteOption.JOIN);
@@ -1655,6 +1716,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
         result.setIsRankedEligible(crpRes.isRankedEligible());
         result.setExplanationJson(expJson);
+        result.setConfirmedAt(LocalDateTime.now());
 
         matchResultRepository.save(result);
 

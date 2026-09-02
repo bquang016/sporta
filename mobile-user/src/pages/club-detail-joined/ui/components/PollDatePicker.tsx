@@ -25,13 +25,15 @@ export function PollDatePicker({
     return `${dayName}, ${dd}/${mm}/${yyyy}`;
   };
 
-  // Embedded Calendar Grid calculation
+  // Embedded Calendar Grid calculation (7-column strict grid)
   const calendarGrid = useMemo(() => {
     const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay(); // 0 is Sunday
     const startCol = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // 0 = Mon ... 6 = Sun
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
     const cells: Array<{ day: number | null; dateObj: Date | null; isPast: boolean; isSelected: boolean }> = [];
+    
+    // Leading empty cells
     for (let i = 0; i < startCol; i++) {
       cells.push({ day: null, dateObj: null, isPast: false, isSelected: false });
     }
@@ -49,6 +51,15 @@ export function PollDatePicker({
         selectedDate.getFullYear() === viewYear;
 
       cells.push({ day, dateObj: cellDate, isPast, isSelected });
+    }
+
+    // Trailing empty cells to complete the 7-column grid
+    const remainder = cells.length % 7;
+    if (remainder !== 0) {
+      const remaining = 7 - remainder;
+      for (let i = 0; i < remaining; i++) {
+        cells.push({ day: null, dateObj: null, isPast: false, isSelected: false });
+      }
     }
 
     return cells;
@@ -82,53 +93,41 @@ export function PollDatePicker({
 
   return (
     <View style={styles.container}>
-      <View style={styles.labelRow}>
-        <Text style={styles.fieldLabel}>Ngày kết thúc biểu quyết</Text>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => setIsExpanded(!isExpanded)}
-          style={styles.toggleBtn}
-        >
-          <Ionicons
-            name={isExpanded ? 'chevron-up' : 'calendar-outline'}
-            size={14}
-            color={COLORS.primary}
-          />
-          <Text style={styles.toggleBtnText}>
-            {isExpanded ? 'Đóng lịch' : 'Mở lịch'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Date Summary Card */}
+      {/* Date Card Header */}
       <TouchableOpacity
-        style={[styles.dateSelectorCard, isExpanded && styles.dateSelectorCardActive]}
+        style={[styles.card, isExpanded && styles.cardActive]}
         activeOpacity={0.8}
         onPress={() => setIsExpanded(!isExpanded)}
       >
-        <View style={styles.dateSelectorLeft}>
-          <View style={styles.calendarIconCircle}>
-            <Ionicons name="calendar" size={18} color={COLORS.primary} />
+        <View style={styles.leftCol}>
+          <View style={styles.iconBox}>
+            <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
           </View>
-          <View>
-            <Text style={styles.dateSelectorSub}>Chạm để chọn ngày</Text>
-            <Text style={styles.dateSelectorTitle}>{formatDateDisplay(selectedDate)}</Text>
+          <View style={styles.textBox}>
+            <Text style={styles.title}>Ngày kết thúc biểu quyết</Text>
+            <Text style={styles.subtitle}>{formatDateDisplay(selectedDate)}</Text>
           </View>
         </View>
-        <Ionicons
-          name={isExpanded ? 'chevron-up' : 'chevron-forward'}
-          size={16}
-          color="#94A3B8"
-        />
+
+        <View style={styles.togglePill}>
+          <Text style={styles.togglePillText}>
+            {isExpanded ? 'Đóng' : 'Đổi ngày'}
+          </Text>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={COLORS.primary}
+          />
+        </View>
       </TouchableOpacity>
 
-      {/* Embedded Calendar View */}
+      {/* Embedded Calendar Dropdown */}
       {isExpanded && (
-        <View style={styles.embeddedCalendarCard}>
+        <View style={styles.calendarCard}>
           {/* Month Header */}
-          <View style={styles.calendarMonthHeader}>
+          <View style={styles.calendarHeader}>
             <TouchableOpacity
-              style={[styles.calendarNavBtn, isAtCurrentMonth && styles.calendarNavBtnDisabled]}
+              style={[styles.navBtn, isAtCurrentMonth && styles.navBtnDisabled]}
               disabled={isAtCurrentMonth}
               onPress={handlePrevMonth}
               activeOpacity={0.7}
@@ -136,72 +135,73 @@ export function PollDatePicker({
               <Ionicons
                 name="chevron-back"
                 size={16}
-                color={isAtCurrentMonth ? '#CBD5E1' : '#1E293B'}
+                color={isAtCurrentMonth ? '#CBD5E1' : COLORS.onSurface}
               />
             </TouchableOpacity>
 
-            <Text style={styles.calendarMonthTitle}>
+            <Text style={styles.monthTitle}>
               Tháng {viewMonth + 1}, {viewYear}
             </Text>
 
             <TouchableOpacity
-              style={styles.calendarNavBtn}
+              style={styles.navBtn}
               onPress={handleNextMonth}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-forward" size={16} color="#1E293B" />
+              <Ionicons name="chevron-forward" size={16} color={COLORS.onSurface} />
             </TouchableOpacity>
           </View>
 
           {/* Weekday Row */}
-          <View style={styles.calendarWeekdaysRow}>
+          <View style={styles.weekdaysRow}>
             {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((wd, i) => (
-              <Text key={i} style={styles.calendarWeekdayText}>
-                {wd}
-              </Text>
+              <View key={i} style={styles.weekdayCol}>
+                <Text style={styles.weekdayText}>{wd}</Text>
+              </View>
             ))}
           </View>
 
-          {/* Days Grid */}
-          <View style={styles.calendarDaysGrid}>
+          {/* Days Grid - Strict 7 Columns */}
+          <View style={styles.daysGrid}>
             {calendarGrid.map((cell, index) => {
               if (!cell.day) {
-                return <View key={index} style={styles.calendarDayEmpty} />;
+                return <View key={index} style={styles.dayCol} />;
               }
 
               return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.calendarDayCell,
-                    cell.isSelected && styles.calendarDayCellSelected,
-                  ]}
-                  disabled={cell.isPast}
-                  onPress={() => cell.dateObj && handleSelectDay(cell.dateObj)}
-                  activeOpacity={0.7}
-                >
-                  <Text
+                <View key={index} style={styles.dayCol}>
+                  <TouchableOpacity
                     style={[
-                      styles.calendarDayText,
-                      cell.isPast && styles.calendarDayTextPast,
-                      cell.isSelected && styles.calendarDayTextSelected,
+                      styles.dayCircle,
+                      cell.isSelected && styles.dayCircleSelected,
                     ]}
+                    disabled={cell.isPast}
+                    onPress={() => cell.dateObj && handleSelectDay(cell.dateObj)}
+                    activeOpacity={0.7}
                   >
-                    {cell.day}
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.dayText,
+                        cell.isPast && styles.dayTextPast,
+                        cell.isSelected && styles.dayTextSelected,
+                      ]}
+                    >
+                      {cell.day}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
 
-          {/* Confirm Button */}
+          {/* Done Button */}
           <TouchableOpacity
-            style={styles.calendarDoneBtn}
+            style={styles.doneBtn}
             onPress={() => setIsExpanded(false)}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-            <Text style={styles.calendarDoneBtnText}>Xác nhận ngày</Text>
+            <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+            <Text style={styles.doneBtnText}>Xác nhận ngày này</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -211,152 +211,157 @@ export function PollDatePicker({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  labelRow: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  fieldLabel: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '700',
-    color: '#1E293B',
-    fontSize: 13,
-  },
-  toggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  toggleBtnText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  dateSelectorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
     borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  dateSelectorCardActive: {
+  cardActive: {
     borderColor: COLORS.primary,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#F8FAFC',
   },
-  dateSelectorLeft: {
+  leftCol: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     flex: 1,
   },
-  calendarIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateSelectorSub: {
-    ...TYPOGRAPHY.caption,
-    color: '#64748B',
-    fontSize: 10.5,
-  },
-  dateSelectorTitle: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontSize: 13,
-    marginTop: 1,
-  },
-  embeddedCalendarCard: {
-    marginTop: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  calendarMonthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  calendarNavBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  iconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  calendarNavBtnDisabled: {
+  textBox: {
+    flex: 1,
+  },
+  title: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.onSurface,
+  },
+  subtitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+    fontWeight: '600',
+  },
+  togglePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  togglePillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  calendarCard: {
+    marginTop: 8,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 8,
+  },
+  navBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  navBtnDisabled: {
     opacity: 0.3,
   },
-  calendarMonthTitle: {
-    fontSize: 13.5,
+  monthTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: COLORS.onSurface,
   },
-  calendarWeekdaysRow: {
+  weekdaysRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     marginBottom: 6,
   },
-  calendarWeekdayText: {
-    width: 32,
-    textAlign: 'center',
-    fontSize: 11,
+  weekdayCol: {
+    width: '14.285%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekdayText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#94A3B8',
   },
-  calendarDaysGrid: {
+  daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
   },
-  calendarDayEmpty: {
-    width: 32,
-    height: 32,
-    marginVertical: 2,
+  dayCol: {
+    width: '14.285%',
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  calendarDayCell: {
+  dayCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 2,
   },
-  calendarDayCellSelected: {
+  dayCircleSelected: {
     backgroundColor: COLORS.primary,
   },
-  calendarDayText: {
-    fontSize: 12.5,
+  dayText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#0F172A',
+    color: COLORS.onSurface,
   },
-  calendarDayTextPast: {
+  dayTextPast: {
     color: '#CBD5E1',
   },
-  calendarDayTextSelected: {
+  dayTextSelected: {
     color: '#FFFFFF',
     fontWeight: '800',
   },
-  calendarDoneBtn: {
+  doneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -364,9 +369,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 8,
     backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 8,
   },
-  calendarDoneBtnText: {
+  doneBtnText: {
+    ...TYPOGRAPHY.labelMd,
     color: '#FFFFFF',
     fontSize: 12.5,
     fontWeight: '700',

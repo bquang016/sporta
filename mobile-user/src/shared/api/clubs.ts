@@ -212,6 +212,19 @@ export const addCustomPollOptionApi = async (pollId: number, label: string): Pro
   });
 };
 
+export interface DevAssignVotesPayload {
+  userIds: number[];
+  optionId: number;
+  clearExisting?: boolean;
+}
+
+export const devAssignVotesApi = async (pollId: number, payload: DevAssignVotesPayload): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/dev-assign-votes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
 // ================= LINEUP API (v2.0) =================
 export const getClubLineupsApi = async (clubId: number): Promise<any[]> => {
   return requestApi(`/clubs/${clubId}/lineups`, { method: 'GET' });

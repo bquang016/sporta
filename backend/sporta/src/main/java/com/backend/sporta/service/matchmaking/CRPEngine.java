@@ -109,6 +109,7 @@ public class CRPEngine {
 
         int hostElo = match.getHostClubEloSnapshot() != null ? match.getHostClubEloSnapshot() : 1000;
         int guestElo = match.getGuestClubEloSnapshot() != null ? match.getGuestClubEloSnapshot() : 1000;
+
         int deltaElo = Math.abs(hostElo - guestElo);
         int upset = deltaElo / config.getUpsetStepElo();
 

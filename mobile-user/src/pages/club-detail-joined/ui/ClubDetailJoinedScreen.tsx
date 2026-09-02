@@ -31,6 +31,7 @@ import {
   CreateMatchPollPayload,
 } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
+import { usersApi, UserProfileDto } from '../../../shared/api/users';
 
 // Mock Members for Joined Clubs to look premium
 const MOCK_MEMBERS: MemberItem[] = [
@@ -103,6 +104,13 @@ export function ClubDetailJoinedScreen() {
   const [isCreatePollModalVisible, setIsCreatePollModalVisible] = useState(false);
 
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfileDto | null>(null);
+
+  useEffect(() => {
+    usersApi.getProfile().then(setCurrentUserProfile).catch(() => {});
+  }, []);
+
+  const isDevUser = __DEV__ || !!currentUserProfile?.isDevTester || currentUserProfile?.role === 'ADMIN' || currentUserProfile?.role === 'SUPER_ADMIN';
 
   const club = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
 
@@ -249,6 +257,7 @@ export function ClubDetailJoinedScreen() {
   useEffect(() => {
     if (club?.id) {
       fetchClubPolls();
+      fetchMembers();
       fetchMatches();
     }
   }, [club?.id]);
@@ -559,6 +568,9 @@ export function ClubDetailJoinedScreen() {
             onFormGTLineup={handleFormGTLineup}
             onDeletePoll={handleDeletePoll}
             onCreatePollPress={() => setIsCreatePollModalVisible(true)}
+            members={members}
+            onRefreshPolls={fetchClubPolls}
+            isDevUser={isDevUser}
           />
         </View>
       </ScrollView>

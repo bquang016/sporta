@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
-  ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 import { CreateMatchPollPayload } from '../../../../shared/api/clubs';
 import { PollMaxPlayersStepper } from './PollMaxPlayersStepper';
 import { PollDatePicker } from './PollDatePicker';
@@ -34,7 +35,7 @@ export function CreatePollModal({
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Minimum and Max Players based on sport
+  // Minimum and Default Max Players
   const getMinPlayersHint = (sport?: string) => {
     if (!sport) return 1;
     const s = sport.toLowerCase();
@@ -105,7 +106,10 @@ export function CreatePollModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
+      >
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
 
         <View style={styles.modalContent}>
@@ -121,9 +125,11 @@ export function CreatePollModal({
           </View>
 
           <ScrollView
+            style={styles.scroll}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollBody}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             {/* Poll Type Tabs */}
             <View style={styles.typeTabsContainer}>
@@ -168,9 +174,11 @@ export function CreatePollModal({
               </Text>
             </View>
 
-            {/* Section 1: Title Input (No Suggestions) */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.fieldLabel}>Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text></Text>
+            {/* Title Input Card */}
+            <View style={styles.inputCard}>
+              <Text style={styles.fieldLabel}>
+                Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text>
+              </Text>
               <TextInput
                 style={styles.textInput}
                 value={title}
@@ -180,7 +188,7 @@ export function CreatePollModal({
               />
             </View>
 
-            {/* Section 2: Dedicated Max Players Component (Only for Matchmaking) */}
+            {/* Max Players Stepper (Only for Matchmaking) */}
             {pollType === 'MATCHMAKING' && (
               <PollMaxPlayersStepper
                 value={maxPlayers}
@@ -190,13 +198,13 @@ export function CreatePollModal({
               />
             )}
 
-            {/* Section 3: Dedicated Date Picker Component */}
+            {/* Date Picker */}
             <PollDatePicker
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
 
-            {/* Section 4: Dedicated Time Picker Component */}
+            {/* Time Picker */}
             <PollTimePicker
               selectedHour={selectedHour}
               selectedMinute={selectedMinute}
@@ -204,14 +212,14 @@ export function CreatePollModal({
               onChangeMinute={setSelectedMinute}
             />
 
-            {/* Section 5: Poll Options (Có, Không + Custom) */}
-            <View style={styles.sectionBlock}>
-              <View style={styles.fieldLabelRow}>
+            {/* Poll Options Section */}
+            <View style={styles.optionsSection}>
+              <View style={styles.sectionHeaderRow}>
                 <Text style={styles.fieldLabel}>Lựa chọn biểu quyết</Text>
                 <Text style={styles.fieldHint}>2 lựa chọn mặc định cố định</Text>
               </View>
 
-              {/* Fixed Option 1: Có */}
+              {/* Option 1: Có */}
               <View style={styles.lockedOptionCard}>
                 <View style={styles.lockedOptionLeft}>
                   <Ionicons name="checkmark-circle" size={18} color="#10B981" />
@@ -223,7 +231,7 @@ export function CreatePollModal({
                 </View>
               </View>
 
-              {/* Fixed Option 2: Không */}
+              {/* Option 2: Không */}
               <View style={styles.lockedOptionCard}>
                 <View style={styles.lockedOptionLeft}>
                   <Ionicons name="close-circle" size={18} color="#EF4444" />
@@ -252,56 +260,44 @@ export function CreatePollModal({
                 </View>
               ))}
 
-              {/* Add Custom Option Input Row */}
-              <View style={styles.addOptionWrapper}>
-                <Text style={styles.addOptionHeader}>Thêm lựa chọn bổ sung (không giới hạn):</Text>
-                <View style={styles.addOptionRow}>
-                  <TextInput
-                    style={styles.addOptionInput}
-                    value={newOptionInput}
-                    onChangeText={setNewOptionInput}
-                    placeholder="Ví dụ: Đến muộn 15 phút, Chưa chắc chắn..."
-                    placeholderTextColor="#94A3B8"
-                    onSubmitEditing={handleAddCustomOption}
-                    returnKeyType="done"
-                  />
-                  <TouchableOpacity
-                    style={[styles.addOptionBtn, !newOptionInput.trim() && styles.addOptionBtnDisabled]}
-                    disabled={!newOptionInput.trim()}
-                    onPress={handleAddCustomOption}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add" size={18} color="#FFFFFF" />
-                    <Text style={styles.addOptionBtnText}>Thêm</Text>
-                  </TouchableOpacity>
-                </View>
+              {/* Add Custom Option Input */}
+              <View style={styles.addOptionRow}>
+                <TextInput
+                  style={styles.addOptionInput}
+                  value={newOptionInput}
+                  onChangeText={setNewOptionInput}
+                  placeholder="Thêm lựa chọn khác (VD: Đến muộn 15p)..."
+                  placeholderTextColor="#94A3B8"
+                  onSubmitEditing={handleAddCustomOption}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={[styles.addOptionBtn, !newOptionInput.trim() && styles.addOptionBtnDisabled]}
+                  disabled={!newOptionInput.trim()}
+                  onPress={handleAddCustomOption}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Text style={styles.addOptionBtnText}>Thêm</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
 
           {/* Footer Submit Button */}
           <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                (!title.trim() || isSubmitting) && styles.submitBtnDisabled,
-              ]}
+            <Button
+              title="Tạo biểu quyết"
+              variant="primary"
+              size="lg"
+              loading={isSubmitting}
               disabled={!title.trim() || isSubmitting}
-              activeOpacity={0.85}
               onPress={handleCreate}
-            >
-              {isSubmitting ? (
-                <View style={styles.submitLoadingRow}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>Đang tạo biểu quyết...</Text>
-                </View>
-              ) : (
-                <Text style={styles.submitBtnText}>Tạo biểu quyết</Text>
-              )}
-            </TouchableOpacity>
+              style={styles.submitBtn}
+            />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -319,8 +315,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '92%',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    height: '88%',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -345,9 +343,14 @@ const styles = StyleSheet.create({
   closeBtn: {
     padding: 4,
   },
+  scroll: {
+    flex: 1,
+    flexShrink: 1,
+  },
   scrollBody: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg,
   },
   typeTabsContainer: {
     flexDirection: 'row',
@@ -396,8 +399,14 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontSize: 12,
   },
-  sectionBlock: {
-    marginBottom: 14,
+  inputCard: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
   fieldLabel: {
     ...TYPOGRAPHY.labelSm,
@@ -408,7 +417,21 @@ const styles = StyleSheet.create({
   requiredStar: {
     color: '#EF4444',
   },
-  fieldLabelRow: {
+  textInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13.5,
+    color: '#0F172A',
+  },
+  optionsSection: {
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -419,16 +442,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 11,
     fontWeight: '600',
-  },
-  textInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
   },
   lockedOptionCard: {
     flexDirection: 'row',
@@ -495,19 +508,11 @@ const styles = StyleSheet.create({
   removeOptionBtn: {
     padding: 4,
   },
-  addOptionWrapper: {
-    marginTop: 6,
-  },
-  addOptionHeader: {
-    ...TYPOGRAPHY.caption,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 6,
-  },
   addOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 4,
   },
   addOptionInput: {
     flex: 1,
@@ -541,25 +546,12 @@ const styles = StyleSheet.create({
   modalFooter: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
+    paddingBottom: Platform.OS === 'ios' ? SPACING.md + 4 : SPACING.sm,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   submitBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnDisabled: {
-    backgroundColor: '#94A3B8',
-  },
-  submitBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  submitLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    width: '100%',
   },
 });

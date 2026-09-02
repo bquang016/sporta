@@ -95,6 +95,13 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Bỏ qua việc xóa constraint courts_status_check.");
         }
 
+        try {
+            jdbcTemplate.execute("ALTER TABLE poll_votes DROP CONSTRAINT IF EXISTS uq_poll_user_vote");
+            jdbcTemplate.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_poll_user_option_vote') THEN ALTER TABLE poll_votes ADD CONSTRAINT uq_poll_user_option_vote UNIQUE (poll_id, user_id, option_id); END IF; END $$;");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc cập nhật constraint poll_votes: " + e.getMessage());
+        }
+
         // Fix for all orphaned NOT NULL constraints on "courts" due to schema migration
         try {
             java.util.List<String> validColumns = java.util.Arrays.asList("id", "venue_id", "name", "price", "status", "created_at", "updated_at");
