@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { PublicUserProfile } from '../../../entities/user';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { Avatar } from '../../../shared/ui';
 
 export interface MockChatMessage {
   id: string;
@@ -59,7 +60,7 @@ export const MockChatModal = React.memo(({
       return {
         id: user.id || 'user-default',
         fullName: user.name || user.fullName || 'Người dùng Sporta',
-        avatarUrl: user.avatar || user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatarUrl: user.avatar || user.avatarUrl || null,
         handle: user.handle || '@user',
         isVerified: true,
       };
@@ -67,7 +68,7 @@ export const MockChatModal = React.memo(({
     return {
       id: 'user-default',
       fullName: 'Người dùng Sporta',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      avatarUrl: null,
       handle: '@user',
       isVerified: true,
     };
@@ -189,7 +190,7 @@ export const MockChatModal = React.memo(({
               }}
             >
               <View style={styles.avatarWrapper}>
-                <Image source={{ uri: chatUser.avatarUrl }} style={styles.headerAvatar} />
+                <Avatar size={40} source={chatUser.avatarUrl} fallbackType="user" />
                 <View style={styles.onlineDot} />
               </View>
 

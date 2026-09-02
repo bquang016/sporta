@@ -25,6 +25,7 @@ import { UserProfileModal } from '../../user-profile';
 import { CommentItem } from '../../../entities/post';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { CommentSkeleton } from './CommentSkeleton';
+import { Avatar } from '../../../shared/ui';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -233,9 +234,7 @@ function CommentSectionModalContent({
     setSelectedUserId(userId);
   };
 
-  const userAvatar =
-    currentUser?.avatar ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+  const userAvatar = currentUser?.avatar || currentUser?.avatarUrl || null;
 
   return (
     <View style={styles.overlay}>
@@ -346,7 +345,7 @@ function CommentSectionModalContent({
 
               {/* ── 4. Floating Capsule Input Bar ── */}
               <View style={styles.inputBarWrapper}>
-                <Image source={{ uri: userAvatar }} style={styles.inputAvatar} />
+                <Avatar size={34} source={userAvatar} fallbackType="user" />
                 <View style={styles.inputCapsule}>
                   <TextInput
                     style={styles.input}

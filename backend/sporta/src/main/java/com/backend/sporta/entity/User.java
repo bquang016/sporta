@@ -88,6 +88,9 @@ public class User {
         return this.mustChangePassword != null && this.mustChangePassword;
     }
 
+    @Column(name = "password_snooze_until")
+    private LocalDateTime passwordSnoozeUntil;
+
     @Column(name = "is_deleted")
     @Builder.Default
     private Boolean isDeleted = false;

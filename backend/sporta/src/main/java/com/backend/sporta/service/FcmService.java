@@ -3,8 +3,8 @@ package com.backend.sporta.service;
 import com.backend.sporta.entity.DeviceToken;
 import com.backend.sporta.repository.DeviceTokenRepository;
 import com.google.firebase.messaging.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,11 +14,16 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FcmService {
 
     private final FirebaseMessaging firebaseMessaging;
     private final DeviceTokenRepository deviceTokenRepository;
+
+    public FcmService(@Autowired(required = false) FirebaseMessaging firebaseMessaging,
+                      DeviceTokenRepository deviceTokenRepository) {
+        this.firebaseMessaging = firebaseMessaging;
+        this.deviceTokenRepository = deviceTokenRepository;
+    }
 
     /**
      * Gửi Push Notification tới tất cả thiết bị đã đăng ký của một người dùng.
