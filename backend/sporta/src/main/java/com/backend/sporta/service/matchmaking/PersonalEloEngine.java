@@ -12,10 +12,10 @@ public class PersonalEloEngine {
 
     public static final int PLACEMENT_THRESHOLD = 5;
     public static final int VETERAN_THRESHOLD = 30;
-    public static final int K_FACTOR_PLACEMENT = 56; // Fast drop on upset loss, steady gain on win (+20 to +28)
-    public static final int K_FACTOR_NEWBIE = 28;    // Moderate steady calibration (+14 to +20)
+    public static final int K_FACTOR_PLACEMENT = 48; // Fast drop on upset loss, steady gain on win (+20 to +28)
+    public static final int K_FACTOR_NEWBIE = 24;    // Moderate steady calibration (+14 to +20)
     public static final int K_FACTOR_VETERAN = 16;   // Stable veteran Elo (+8 to +12)
-    public static final int K_FACTOR_XE_VE = 20;
+    public static final int K_FACTOR_XE_VE = 16;
 
     /**
      * Standard Elo Rating formula with Margin of Victory:
@@ -31,6 +31,10 @@ public class PersonalEloEngine {
         }
         double delta = kFactor * (actualScore - expectedScore) * marginFactor;
         return (int) Math.round(myElo + delta);
+    }
+
+    public int calculateNewElo(int myElo, int opponentElo, double actualScore, int kFactor) {
+        return calculateNewElo(myElo, opponentElo, actualScore, kFactor, 0);
     }
 
     public int getKFactor(UserSport userSport, EloSourceType matchType) {
