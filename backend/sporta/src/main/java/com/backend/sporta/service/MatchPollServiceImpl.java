@@ -239,25 +239,39 @@ public class MatchPollServiceImpl implements MatchPollService {
             throw new CustomException("Lựa chọn không thuộc biểu quyết này", 400);
         }
 
-        Optional<PollVote> existingVote = pollVoteRepository.findByPollIdAndUserId(pollId, user.getId());
-        if (existingVote.isPresent()) {
-            PollVote v = existingVote.get();
-            if (v.getOption().getId().equals(selectedOption.getId())) {
-                // Nhấn lại lựa chọn cũ -> hủy vote
-                pollVoteRepository.delete(v);
-            } else {
-                // Đổi lựa chọn
-                v.setOption(selectedOption);
-                v.setVotedAt(LocalDateTime.now());
-                pollVoteRepository.save(v);
-            }
+        // Lấy tất cả các vote hiện tại của user trong biểu quyết này
+        List<PollVote> userVotes = pollVoteRepository.findByPollIdAndUserId(pollId, user.getId());
+
+        boolean isSelectedDefault = Boolean.TRUE.equals(selectedOption.getIsDefault())
+                || "Có".equalsIgnoreCase(selectedOption.getLabel())
+                || "Không".equalsIgnoreCase(selectedOption.getLabel());
+
+        boolean isAlreadyVotedThisOption = userVotes.stream()
+                .anyMatch(v -> v.getOption().getId().equals(selectedOption.getId()));
+
+        if (isAlreadyVotedThisOption) {
+            // Nhấn lại lựa chọn đã chọn -> Hủy vote cho lựa chọn này
+            pollVoteRepository.deleteByPollIdAndUserIdAndOptionId(pollId, user.getId(), selectedOption.getId());
         } else {
-            PollVote v = PollVote.builder()
+            // Nếu đây là lựa chọn mặc định ("Có" hoặc "Không"):
+            if (isSelectedDefault) {
+                // Xóa lựa chọn mặc định khác nếu có (chỉ được chọn 1 giữa Có hoặc Không)
+                for (PollVote v : userVotes) {
+                    boolean vIsDefault = Boolean.TRUE.equals(v.getOption().getIsDefault())
+                            || "Có".equalsIgnoreCase(v.getOption().getLabel())
+                            || "Không".equalsIgnoreCase(v.getOption().getLabel());
+                    if (vIsDefault) {
+                        pollVoteRepository.delete(v);
+                    }
+                }
+            }
+            // Thêm vote mới cho lựa chọn này
+            PollVote newVote = PollVote.builder()
                     .poll(poll)
                     .user(user)
                     .option(selectedOption)
                     .build();
-            pollVoteRepository.save(v);
+            pollVoteRepository.save(newVote);
         }
 
         // Kiểm tra tự động đóng vote nếu là MATCHMAKING và đã đủ maxPlayers
@@ -383,6 +397,16 @@ public class MatchPollServiceImpl implements MatchPollService {
             throw new CustomException("Chỉ Trưởng hoặc Phó nhóm mới có quyền chia đội hình", 403);
         }
 
+        Optional<PollOption> joinOpt = pollOptionRepository.findByPollIdAndIsJoinOptionTrue(poll.getId());
+        long joinCount = joinOpt.isPresent()
+                ? pollVoteRepository.findByPollId(poll.getId()).stream().filter(v -> v.getOption().getId().equals(joinOpt.get().getId())).count()
+                : 0;
+
+        int minReq = (poll.getMinPlayers() != null && poll.getMinPlayers() > 2) ? poll.getMinPlayers() : 2;
+        if (joinCount < minReq) {
+            throw new CustomException("Chưa đạt đủ số lượng thành viên tối thiểu (" + minReq + " người) để chia 2 đội ra sân. Hiện tại chỉ có " + joinCount + " người chọn tham gia.", 400);
+        }
+
         splitInternalTeamsLogic(poll);
         return mapToResponse(poll, user);
     }
@@ -482,6 +506,16 @@ public class MatchPollServiceImpl implements MatchPollService {
             throw new CustomException("Chỉ Trưởng hoặc Phó nhóm mới có quyền tạo đội hình ghép trận", 403);
         }
 
+        Optional<PollOption> joinOpt = pollOptionRepository.findByPollIdAndIsJoinOptionTrue(poll.getId());
+        long joinCount = joinOpt.isPresent()
+                ? pollVoteRepository.findByPollId(poll.getId()).stream().filter(v -> v.getOption().getId().equals(joinOpt.get().getId())).count()
+                : 0;
+
+        int minReq = poll.getMinPlayers() != null ? poll.getMinPlayers() : 1;
+        if (joinCount < minReq) {
+            throw new CustomException("Chưa đạt đủ số lượng thành viên tối thiểu (" + minReq + " người) để chốt đội hình ra sân. Hiện tại chỉ có " + joinCount + " người chọn tham gia.", 400);
+        }
+
         autoFormMatchmakingTeam(poll);
         return mapToResponse(poll, user);
     }
@@ -539,13 +573,16 @@ public class MatchPollServiceImpl implements MatchPollService {
         Map<Long, List<PollVote>> votesByOption = allVotes.stream()
                 .collect(Collectors.groupingBy(v -> v.getOption().getId()));
 
+        List<Long> myVotedOptionIds = new ArrayList<>();
         Long myVoteOptionId = null;
         if (currentUser != null) {
-            myVoteOptionId = allVotes.stream()
+            myVotedOptionIds = allVotes.stream()
                     .filter(v -> v.getUser().getId().equals(currentUser.getId()))
                     .map(v -> v.getOption().getId())
-                    .findFirst()
-                    .orElse(null);
+                    .collect(Collectors.toList());
+            if (!myVotedOptionIds.isEmpty()) {
+                myVoteOptionId = myVotedOptionIds.get(0);
+            }
         }
 
         int joinCount = 0;
@@ -602,6 +639,7 @@ public class MatchPollServiceImpl implements MatchPollService {
                 .status(poll.getStatus())
                 .options(optionDtos)
                 .myVoteOptionId(myVoteOptionId)
+                .myVotedOptionIds(myVotedOptionIds)
                 .totalVotes(allVotes.size())
                 .joinVotesCount(joinCount)
                 .lineups(lineupDtos)

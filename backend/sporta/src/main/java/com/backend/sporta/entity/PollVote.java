@@ -7,10 +7,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "poll_votes",
-       uniqueConstraints = @UniqueConstraint(name = "uq_poll_user_vote", columnNames = {"poll_id", "user_id"}),
+       uniqueConstraints = @UniqueConstraint(name = "uq_poll_user_option_vote", columnNames = {"poll_id", "user_id", "option_id"}),
        indexes = {
            @Index(name = "idx_poll_votes_poll", columnList = "poll_id"),
-           @Index(name = "idx_poll_votes_user", columnList = "user_id")
+           @Index(name = "idx_poll_votes_user", columnList = "user_id"),
+           @Index(name = "idx_poll_votes_option", columnList = "option_id")
        })
 @Getter
 @Setter

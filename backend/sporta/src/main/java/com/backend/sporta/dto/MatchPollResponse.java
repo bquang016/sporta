@@ -26,6 +26,7 @@ public class MatchPollResponse {
     private PollStatus status;
     private List<PollOptionDto> options;
     private Long myVoteOptionId;
+    private List<Long> myVotedOptionIds;
     private Integer totalVotes;
     private Integer joinVotesCount;
     private List<LineupResponse> lineups;

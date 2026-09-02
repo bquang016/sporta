@@ -12,11 +12,15 @@ public interface PollVoteRepository extends JpaRepository<PollVote, Long> {
 
     List<PollVote> findByPollId(Long pollId);
 
-    Optional<PollVote> findByPollIdAndUserId(Long pollId, Long userId);
+    List<PollVote> findByPollIdAndUserId(Long pollId, Long userId);
+
+    Optional<PollVote> findByPollIdAndUserIdAndOptionId(Long pollId, Long userId, Long optionId);
 
     long countByPollIdAndOptionId(Long pollId, Long optionId);
 
     void deleteByPollId(Long pollId);
 
     void deleteByPollIdAndUserId(Long pollId, Long userId);
+
+    void deleteByPollIdAndUserIdAndOptionId(Long pollId, Long userId, Long optionId);
 }

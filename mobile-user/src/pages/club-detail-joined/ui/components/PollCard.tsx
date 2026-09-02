@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { MatchPollVM, PollOptionVM, LineupVM, LineupMemberVM } from '../../../../entities/match/model/match.types';
@@ -187,7 +187,9 @@ export function PollCard({
             {/* Options List */}
             <View style={styles.optionsContainer}>
               {poll.options?.map((opt) => {
-                const isSelected = poll.myVoteOptionId === opt.id;
+                const isSelected = (poll.myVotedOptionIds && poll.myVotedOptionIds.length > 0)
+                  ? poll.myVotedOptionIds.includes(opt.id)
+                  : poll.myVoteOptionId === opt.id;
                 const percent = totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
                 const isOptionExpanded = expandedOptionId === opt.id;
 
@@ -375,9 +377,23 @@ export function PollCard({
 
                     {isInternal && (
                       <TouchableOpacity
-                        style={styles.splitActionBtn}
+                        style={[
+                          styles.splitActionBtn,
+                          (poll.joinVotesCount || 0) < ((poll.minPlayers && poll.minPlayers > 2) ? poll.minPlayers : 2) && { opacity: 0.65 }
+                        ]}
                         activeOpacity={0.8}
-                        onPress={() => onSplitInternalTeams(poll.id)}
+                        onPress={() => {
+                          const minReq = (poll.minPlayers && poll.minPlayers > 2) ? poll.minPlayers : 2;
+                          const currentJoin = poll.joinVotesCount || 0;
+                          if (currentJoin < minReq) {
+                            Alert.alert(
+                              'Chưa đủ thành viên',
+                              `Cần tối thiểu ${minReq} thành viên chọn tham gia để chia 2 đội ra sân. Hiện tại mới có ${currentJoin} người.`
+                            );
+                            return;
+                          }
+                          onSplitInternalTeams(poll.id);
+                        }}
                       >
                         <Ionicons name="git-branch-outline" size={15} color="#FFFFFF" />
                         <Text style={styles.splitActionBtnText}>Chia 2 đội cân sức</Text>
@@ -386,9 +402,23 @@ export function PollCard({
 
                     {!isInternal && (
                       <TouchableOpacity
-                        style={styles.formGtActionBtn}
+                        style={[
+                          styles.formGtActionBtn,
+                          (poll.joinVotesCount || 0) < (poll.minPlayers || 1) && { opacity: 0.65 }
+                        ]}
                         activeOpacity={0.8}
-                        onPress={() => onFormGTLineup(poll.id)}
+                        onPress={() => {
+                          const minReq = poll.minPlayers || 1;
+                          const currentJoin = poll.joinVotesCount || 0;
+                          if (currentJoin < minReq) {
+                            Alert.alert(
+                              'Chưa đủ thành viên',
+                              `Cần tối thiểu ${minReq} thành viên chọn tham gia để chốt đội hình ra sân. Hiện tại mới có ${currentJoin} người.`
+                            );
+                            return;
+                          }
+                          onFormGTLineup(poll.id);
+                        }}
                       >
                         <Ionicons name="trophy-outline" size={15} color="#FFFFFF" />
                         <Text style={styles.splitActionBtnText}>Chốt đội hình ra sân</Text>

@@ -105,6 +105,7 @@ export interface MatchPollVM {
   status: 'OPEN' | 'CLOSED' | 'TEAM_FORMED';
   options: PollOptionVM[];
   myVoteOptionId?: number;
+  myVotedOptionIds?: number[];
   totalVotes: number;
   joinVotesCount: number;
   lineups: LineupVM[];

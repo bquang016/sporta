@@ -335,9 +335,11 @@ export function ClubDetailJoinedScreen() {
     if (!club) return;
     try {
       await createMatchPollApi(Number(club.id), payload);
-      await fetchClubPolls();
       setIsCreatePollModalVisible(false);
-      showAlert('Thành công', 'Đã tạo biểu quyết mới thành công!');
+      await fetchClubPolls();
+      setTimeout(() => {
+        showAlert('Thành công', 'Đã tạo biểu quyết mới thành công!');
+      }, 350);
     } catch (err: any) {
       showAlert('Lỗi', err.message || 'Không thể tạo biểu quyết mới.');
     }
