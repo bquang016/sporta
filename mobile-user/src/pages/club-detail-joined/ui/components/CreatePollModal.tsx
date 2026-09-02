@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { CreateMatchPollPayload } from '../../../../shared/api/clubs';
 
 export interface CreatePollModalProps {
@@ -29,7 +29,6 @@ export function CreatePollModal({
 }: CreatePollModalProps) {
   const [pollType, setPollType] = useState<'MATCHMAKING' | 'INTERNAL'>('MATCHMAKING');
   const [title, setTitle] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Stepper state for Max Players
@@ -64,29 +63,6 @@ export function CreatePollModal({
   const [customOptions, setCustomOptions] = useState<string[]>([]);
   const [newOptionInput, setNewOptionInput] = useState('');
 
-  const PRESETS = [
-    { type: 'MATCHMAKING', title: 'Giao lưu ghép trận cuối tuần' },
-    { type: 'MATCHMAKING', title: 'Tìm đối thủ thi đấu cọ sát phong trào' },
-    { type: 'MATCHMAKING', title: 'Tuyển quân đá giao hữu' },
-    { type: 'MATCHMAKING', title: 'Giao lưu thi đấu đối kháng buổi tối' },
-    { type: 'INTERNAL', title: 'Chia 2 đội giao lưu nội bộ CLB' },
-    { type: 'INTERNAL', title: 'Buổi tập và thi đấu đối kháng' },
-    { type: 'INTERNAL', title: 'Đấu tập nội bộ cuối tuần' },
-    { type: 'INTERNAL', title: 'Giao lưu nội bộ tính điểm xếp hạng' },
-  ];
-
-  const filteredPresets = useMemo(() => {
-    return PRESETS.filter((p) => p.type === pollType);
-  }, [pollType]);
-
-  const quickPlayerPresets = useMemo(() => {
-    const s = (clubSportName || '').toLowerCase();
-    if (s.includes('bóng đá') || s.includes('football')) return [5, 7, 11];
-    if (s.includes('bóng rổ') || s.includes('basketball')) return [3, 5];
-    if (s.includes('cầu lông') || s.includes('badminton') || s.includes('pickleball')) return [2, 4];
-    return [2, 4, 6];
-  }, [clubSportName]);
-
   const handleAddCustomOption = () => {
     const trimmed = newOptionInput.trim();
     if (!trimmed) return;
@@ -99,23 +75,15 @@ export function CreatePollModal({
     setCustomOptions(customOptions.filter((_, i) => i !== index));
   };
 
-  const handleApplyDatePreset = (daysFromNow: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysFromNow);
-    setSelectedDate(d);
-    setViewYear(d.getFullYear());
-    setViewMonth(d.getMonth());
-  };
-
   const formatDateDisplay = (d: Date) => {
-    const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
     const dayName = days[d.getDay()];
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yyyy = d.getFullYear();
     const hh = String(selectedHour).padStart(2, '0');
     const min = String(selectedMinute).padStart(2, '0');
-    return `${dayName}, ${dd}/${mm}/${yyyy} • ${hh}:${min}`;
+    return `${dayName}, ${dd}/${mm}/${yyyy} lúc ${hh}:${min}`;
   };
 
   // Embedded Calendar Grid calculation
@@ -191,7 +159,6 @@ export function CreatePollModal({
       setTitle('');
       setCustomOptions([]);
       setNewOptionInput('');
-      setShowSuggestions(false);
       setIsCalendarExpanded(false);
     } catch (err) {
       // Handled by parent
@@ -199,15 +166,6 @@ export function CreatePollModal({
       setIsSubmitting(false);
     }
   };
-
-  const TIME_PRESETS = [
-    { hour: 6, min: 0, label: '06:00' },
-    { hour: 7, min: 30, label: '07:30' },
-    { hour: 17, min: 0, label: '17:00' },
-    { hour: 18, min: 0, label: '18:00' },
-    { hour: 19, min: 30, label: '19:30' },
-    { hour: 20, min: 0, label: '20:00' },
-  ];
 
   const now = new Date();
   const isAtCurrentMonth = viewYear === now.getFullYear() && viewMonth <= now.getMonth();
@@ -218,24 +176,14 @@ export function CreatePollModal({
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
 
         <View style={styles.modalContent}>
-          {/* Drag Handle */}
-          <View style={styles.dragHandleWrap}>
-            <View style={styles.dragHandle} />
-          </View>
-
           {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <View style={styles.modalTitleRow}>
-              <View style={styles.headerIconCircle}>
-                <Ionicons name="stats-chart" size={16} color="#064E3B" />
-              </View>
-              <View>
-                <Text style={styles.modalTitle}>Tạo biểu quyết</Text>
-                <Text style={styles.modalSubTitle}>Lấy ý kiến & chốt đội hình</Text>
-              </View>
+            <View style={styles.headerTitleRow}>
+              <Ionicons name="stats-chart" size={18} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Tạo biểu quyết mới</Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
-              <MaterialIcons name="close" size={18} color="#64748B" />
+              <MaterialIcons name="close" size={22} color="#64748B" />
             </TouchableOpacity>
           </View>
 
@@ -244,7 +192,7 @@ export function CreatePollModal({
             contentContainerStyle={styles.scrollBody}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Poll Type Segmented Control */}
+            {/* Poll Type Tabs */}
             <View style={styles.typeTabsContainer}>
               <TouchableOpacity
                 activeOpacity={0.85}
@@ -253,7 +201,7 @@ export function CreatePollModal({
               >
                 <Ionicons
                   name="trophy"
-                  size={13}
+                  size={14}
                   color={pollType === 'MATCHMAKING' ? '#FFFFFF' : '#64748B'}
                 />
                 <Text style={[styles.typeTabText, pollType === 'MATCHMAKING' && styles.typeTabTextActive]}>
@@ -268,7 +216,7 @@ export function CreatePollModal({
               >
                 <Ionicons
                   name="people"
-                  size={13}
+                  size={14}
                   color={pollType === 'INTERNAL' ? '#FFFFFF' : '#64748B'}
                 />
                 <Text style={[styles.typeTabText, pollType === 'INTERNAL' && styles.typeTabTextActive]}>
@@ -279,30 +227,17 @@ export function CreatePollModal({
 
             {/* Explainer Card */}
             <View style={styles.explainerCard}>
-              <Ionicons name="information-circle" size={15} color="#064E3B" />
+              <Ionicons name="information-circle-outline" size={16} color="#64748B" />
               <Text style={styles.explainerText}>
                 {pollType === 'MATCHMAKING'
-                  ? 'Đủ quân số sẽ chốt danh sách thi đấu đại diện CLB tìm đối thủ giao lưu.'
-                  : 'Tự động phân phối thành viên thành 2 đội thi đấu cân sức theo trình độ.'}
+                  ? 'Khi đủ quân số đăng ký, hệ thống sẽ chốt danh sách thi đấu đại diện CLB tìm đối thủ giao lưu.'
+                  : 'Hệ thống tự động phân phối các thành viên thành 2 đội thi đấu cân sức theo trình độ.'}
               </Text>
             </View>
 
-            {/* Section 1: Title Input */}
+            {/* Section 1: Title Input (No suggestions) */}
             <View style={styles.sectionBlock}>
-              <View style={styles.fieldLabelRow}>
-                <Text style={styles.fieldLabel}>Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text></Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setShowSuggestions(!showSuggestions)}
-                  style={styles.suggestionLinkBtn}
-                >
-                  <Ionicons name={showSuggestions ? "chevron-up" : "bulb-outline"} size={13} color="#059669" />
-                  <Text style={styles.suggestionLinkText}>
-                    {showSuggestions ? 'Ẩn gợi ý' : `Gợi ý mẫu (${filteredPresets.length})`}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
+              <Text style={styles.fieldLabel}>Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text></Text>
               <TextInput
                 style={styles.textInput}
                 value={title}
@@ -310,143 +245,85 @@ export function CreatePollModal({
                 placeholder="Nhập tiêu đề biểu quyết..."
                 placeholderTextColor="#94A3B8"
               />
-
-              {/* Suggestions List */}
-              {showSuggestions && (
-                <View style={styles.presetChipsContainer}>
-                  {filteredPresets.map((p, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[styles.presetChip, title === p.title && styles.presetChipActive]}
-                      onPress={() => setTitle(p.title)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.presetChipText, title === p.title && styles.presetChipTextActive]}>
-                        {p.title}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
             </View>
 
             {/* Section 2: Max Players Stepper (Only for Matchmaking) */}
             {pollType === 'MATCHMAKING' && (
               <View style={styles.sectionBlock}>
                 <View style={styles.fieldLabelRow}>
-                  <Text style={styles.fieldLabel}>Quân số ra sân tối đa</Text>
-                  <Text style={styles.fieldHint}>Tối thiểu môn {clubSportName || ''}: {minPlayers} người</Text>
+                  <Text style={styles.fieldLabel}>Số lượng thành viên ra sân tối đa</Text>
+                  <Text style={styles.fieldHint}>Tối thiểu: {minPlayers} người</Text>
                 </View>
 
-                {/* Compact Inline Stepper + Quick Presets */}
-                <View style={styles.stepperRow}>
-                  <View style={styles.stepperControl}>
-                    <TouchableOpacity
-                      style={[styles.stepperBtn, maxPlayers <= minPlayers && styles.stepperBtnDisabled]}
-                      disabled={maxPlayers <= minPlayers}
-                      onPress={() => setMaxPlayers(Math.max(minPlayers, maxPlayers - 1))}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name="remove"
-                        size={15}
-                        color={maxPlayers <= minPlayers ? '#CBD5E1' : '#064E3B'}
-                      />
-                    </TouchableOpacity>
+                {/* Stepper Control */}
+                <View style={styles.stepperContainer}>
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, maxPlayers <= minPlayers && styles.stepperBtnDisabled]}
+                    disabled={maxPlayers <= minPlayers}
+                    onPress={() => setMaxPlayers(Math.max(minPlayers, maxPlayers - 1))}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={18}
+                      color={maxPlayers <= minPlayers ? '#CBD5E1' : '#1E293B'}
+                    />
+                  </TouchableOpacity>
 
-                    <View style={styles.stepperValueContainer}>
-                      <Text style={styles.stepperValueText}>{maxPlayers}</Text>
-                      <Text style={styles.stepperUnitText}>người</Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.stepperBtn}
-                      onPress={() => setMaxPlayers(maxPlayers + 1)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={15} color="#064E3B" />
-                    </TouchableOpacity>
+                  <View style={styles.stepperValueBox}>
+                    <Text style={styles.stepperValueText}>{maxPlayers}</Text>
+                    <Text style={styles.stepperUnitText}>thành viên</Text>
                   </View>
 
-                  {/* Inline Quick Presets */}
-                  <View style={styles.quickPresetsInline}>
-                    <Text style={styles.quickPresetsLabel}>Gợi ý:</Text>
-                    {quickPlayerPresets.map((qty) => (
-                      <TouchableOpacity
-                        key={qty}
-                        style={[styles.quickPresetPill, maxPlayers === qty && styles.quickPresetPillActive]}
-                        onPress={() => setMaxPlayers(qty)}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={[styles.quickPresetPillText, maxPlayers === qty && styles.quickPresetPillTextActive]}>
-                          {qty}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => setMaxPlayers(maxPlayers + 1)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={18} color="#1E293B" />
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
 
-            {/* Section 3: Deadline & Embedded Calendar */}
+            {/* Section 3: Date Selector & Embedded Calendar */}
             <View style={styles.sectionBlock}>
               <View style={styles.fieldLabelRow}>
-                <Text style={styles.fieldLabel}>Hạn kết thúc biểu quyết</Text>
+                <Text style={styles.fieldLabel}>Ngày kết thúc biểu quyết</Text>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => setIsCalendarExpanded(!isCalendarExpanded)}
-                  style={styles.dateActionBtn}
+                  style={styles.openCalendarBtn}
                 >
-                  <Ionicons name={isCalendarExpanded ? 'chevron-up' : 'calendar-outline'} size={13} color="#064E3B" />
-                  <Text style={styles.dateActionBtnText}>
-                    {isCalendarExpanded ? 'Đóng lịch' : 'Chọn ngày'}
+                  <Ionicons name={isCalendarExpanded ? 'chevron-up' : 'calendar-outline'} size={14} color={COLORS.primary} />
+                  <Text style={styles.openCalendarBtnText}>
+                    {isCalendarExpanded ? 'Đóng lịch' : 'Mở lịch'}
                   </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Date Display Pill */}
+              {/* Date Display Card */}
               <TouchableOpacity
-                style={[styles.dateSelectorCard, isCalendarExpanded && styles.dateSelectorCardActive]}
+                style={styles.dateSelectorCard}
                 activeOpacity={0.8}
                 onPress={() => setIsCalendarExpanded(!isCalendarExpanded)}
               >
                 <View style={styles.dateSelectorLeft}>
-                  <View style={styles.calendarIconMini}>
-                    <Ionicons name="calendar" size={14} color="#064E3B" />
+                  <View style={styles.calendarIconCircle}>
+                    <Ionicons name="calendar" size={18} color={COLORS.primary} />
                   </View>
-                  <Text style={styles.dateSelectorTitle}>{formatDateDisplay(selectedDate)}</Text>
+                  <View>
+                    <Text style={styles.dateSelectorSub}>Thời hạn biểu quyết</Text>
+                    <Text style={styles.dateSelectorTitle}>{formatDateDisplay(selectedDate)}</Text>
+                  </View>
                 </View>
-                <Ionicons name="chevron-down" size={14} color="#94A3B8" />
+                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
               </TouchableOpacity>
 
-              {/* Embedded Calendar View */}
+              {/* Embedded Interactive Calendar */}
               {isCalendarExpanded && (
                 <View style={styles.embeddedCalendarCard}>
-                  {/* Quick Presets */}
-                  <View style={styles.calendarQuickPresets}>
-                    <TouchableOpacity style={styles.calendarQuickBtn} onPress={() => handleApplyDatePreset(0)}>
-                      <Text style={styles.calendarQuickBtnText}>Hôm nay</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.calendarQuickBtn} onPress={() => handleApplyDatePreset(1)}>
-                      <Text style={styles.calendarQuickBtnText}>Ngày mai</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.calendarQuickBtn} onPress={() => handleApplyDatePreset(3)}>
-                      <Text style={styles.calendarQuickBtnText}>+3 ngày</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.calendarQuickBtn}
-                      onPress={() => {
-                        const d = new Date();
-                        const day = d.getDay();
-                        const diff = (6 - day + 7) % 7 || 7;
-                        handleApplyDatePreset(diff);
-                      }}
-                    >
-                      <Text style={styles.calendarQuickBtnText}>Cuối tuần</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Month Header */}
+                  {/* Month Navigation */}
                   <View style={styles.calendarMonthHeader}>
                     <TouchableOpacity
                       style={[styles.calendarNavBtn, isAtCurrentMonth && styles.calendarNavBtnDisabled]}
@@ -454,7 +331,7 @@ export function CreatePollModal({
                       onPress={handlePrevMonth}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="chevron-back" size={15} color={isAtCurrentMonth ? '#CBD5E1' : '#064E3B'} />
+                      <Ionicons name="chevron-back" size={16} color={isAtCurrentMonth ? '#CBD5E1' : '#1E293B'} />
                     </TouchableOpacity>
 
                     <Text style={styles.calendarMonthTitle}>
@@ -462,11 +339,11 @@ export function CreatePollModal({
                     </Text>
 
                     <TouchableOpacity style={styles.calendarNavBtn} onPress={handleNextMonth} activeOpacity={0.7}>
-                      <Ionicons name="chevron-forward" size={15} color="#064E3B" />
+                      <Ionicons name="chevron-forward" size={16} color="#1E293B" />
                     </TouchableOpacity>
                   </View>
 
-                  {/* Weekday Row */}
+                  {/* Weekdays */}
                   <View style={styles.calendarWeekdaysRow}>
                     {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((wd, i) => (
                       <Text key={i} style={styles.calendarWeekdayText}>{wd}</Text>
@@ -502,59 +379,87 @@ export function CreatePollModal({
                     })}
                   </View>
 
-                  {/* Confirm Day Button */}
+                  {/* Confirm Date Button */}
                   <TouchableOpacity
                     style={styles.calendarDoneBtn}
                     onPress={() => setIsCalendarExpanded(false)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="checkmark" size={14} color="#064E3B" />
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                     <Text style={styles.calendarDoneBtnText}>Xác nhận ngày</Text>
                   </TouchableOpacity>
                 </View>
               )}
+            </View>
 
-              {/* Time Presets Row */}
-              <View style={styles.timeSection}>
-                <Text style={styles.timeLabel}>Giờ kết thúc:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeChipsRow}>
-                  {TIME_PRESETS.map((tp, idx) => {
-                    const isSelected = selectedHour === tp.hour && selectedMinute === tp.min;
-                    return (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[styles.timePresetChip, isSelected && styles.timePresetChipActive]}
-                        onPress={() => {
-                          setSelectedHour(tp.hour);
-                          setSelectedMinute(tp.min);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[styles.timePresetChipText, isSelected && styles.timePresetChipTextActive]}>
-                          {tp.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+            {/* Section 4: Dedicated Time Selector (Giờ kết thúc) */}
+            <View style={styles.sectionBlock}>
+              <Text style={styles.fieldLabel}>Giờ kết thúc biểu quyết</Text>
+              
+              <View style={styles.timePickerContainer}>
+                {/* Hour Stepper */}
+                <View style={styles.timeUnitBox}>
+                  <Text style={styles.timeUnitLabel}>Giờ</Text>
+                  <View style={styles.timeStepper}>
+                    <TouchableOpacity
+                      style={styles.timeStepperBtn}
+                      onPress={() => setSelectedHour((prev) => (prev === 0 ? 23 : prev - 1))}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="remove" size={16} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.timeValueText}>{String(selectedHour).padStart(2, '0')}</Text>
+                    <TouchableOpacity
+                      style={styles.timeStepperBtn}
+                      onPress={() => setSelectedHour((prev) => (prev === 23 ? 0 : prev + 1))}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add" size={16} color="#1E293B" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={styles.timeColon}>:</Text>
+
+                {/* Minute Stepper */}
+                <View style={styles.timeUnitBox}>
+                  <Text style={styles.timeUnitLabel}>Phút</Text>
+                  <View style={styles.timeStepper}>
+                    <TouchableOpacity
+                      style={styles.timeStepperBtn}
+                      onPress={() => setSelectedMinute((prev) => (prev === 0 ? 45 : prev - 15))}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="remove" size={16} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.timeValueText}>{String(selectedMinute).padStart(2, '0')}</Text>
+                    <TouchableOpacity
+                      style={styles.timeStepperBtn}
+                      onPress={() => setSelectedMinute((prev) => (prev === 45 ? 0 : prev + 15))}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add" size={16} color="#1E293B" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
             </View>
 
-            {/* Section 4: Poll Options */}
+            {/* Section 5: Poll Options */}
             <View style={styles.sectionBlock}>
               <View style={styles.fieldLabelRow}>
                 <Text style={styles.fieldLabel}>Lựa chọn biểu quyết</Text>
-                <Text style={styles.fieldHint}>Có / Không cố định</Text>
+                <Text style={styles.fieldHint}>2 lựa chọn mặc định cố định</Text>
               </View>
 
               {/* Fixed Option 1: Có */}
               <View style={styles.lockedOptionCard}>
                 <View style={styles.lockedOptionLeft}>
-                  <View style={styles.dotGreen} />
-                  <Text style={styles.lockedOptionTitle}>Có (Tham gia)</Text>
+                  <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                  <Text style={styles.lockedOptionTitle}>Có (Tham gia thi đấu)</Text>
                 </View>
                 <View style={styles.lockedBadge}>
-                  <Ionicons name="lock-closed" size={10} color="#064E3B" />
+                  <Ionicons name="lock-closed" size={11} color="#64748B" />
                   <Text style={styles.lockedBadgeText}>Mặc định</Text>
                 </View>
               </View>
@@ -562,11 +467,11 @@ export function CreatePollModal({
               {/* Fixed Option 2: Không */}
               <View style={styles.lockedOptionCard}>
                 <View style={styles.lockedOptionLeft}>
-                  <View style={styles.dotRed} />
-                  <Text style={styles.lockedOptionTitle}>Không (Bận / Vắng)</Text>
+                  <Ionicons name="close-circle" size={18} color="#EF4444" />
+                  <Text style={styles.lockedOptionTitle}>Không (Bận / Vắng mặt)</Text>
                 </View>
                 <View style={styles.lockedBadge}>
-                  <Ionicons name="lock-closed" size={10} color="#064E3B" />
+                  <Ionicons name="lock-closed" size={11} color="#64748B" />
                   <Text style={styles.lockedBadgeText}>Mặc định</Text>
                 </View>
               </View>
@@ -575,39 +480,42 @@ export function CreatePollModal({
               {customOptions.map((opt, i) => (
                 <View key={i} style={styles.customOptionCard}>
                   <View style={styles.customOptionLeft}>
-                    <Ionicons name="checkbox-outline" size={14} color="#059669" />
+                    <Ionicons name="radio-button-on" size={16} color={COLORS.primary} />
                     <Text style={styles.customOptionText} numberOfLines={1}>{opt}</Text>
                   </View>
                   <TouchableOpacity
                     onPress={() => handleRemoveOption(i)}
                     style={styles.removeOptionBtn}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
               ))}
 
               {/* Add Custom Option Input Row */}
-              <View style={styles.addOptionRow}>
-                <TextInput
-                  style={styles.addOptionInput}
-                  value={newOptionInput}
-                  onChangeText={setNewOptionInput}
-                  placeholder="Thêm lựa chọn khác (VD: Đến muộn 15p)..."
-                  placeholderTextColor="#94A3B8"
-                  onSubmitEditing={handleAddCustomOption}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity
-                  style={[styles.addOptionBtn, !newOptionInput.trim() && styles.addOptionBtnDisabled]}
-                  disabled={!newOptionInput.trim()}
-                  onPress={handleAddCustomOption}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="add" size={16} color="#FFFFFF" />
-                  <Text style={styles.addOptionBtnText}>Thêm</Text>
-                </TouchableOpacity>
+              <View style={styles.addOptionWrapper}>
+                <Text style={styles.addOptionHeader}>Thêm lựa chọn bổ sung (không giới hạn):</Text>
+                <View style={styles.addOptionRow}>
+                  <TextInput
+                    style={styles.addOptionInput}
+                    value={newOptionInput}
+                    onChangeText={setNewOptionInput}
+                    placeholder="Ví dụ: Đến muộn 15 phút, Chưa chắc chắn..."
+                    placeholderTextColor="#94A3B8"
+                    onSubmitEditing={handleAddCustomOption}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    style={[styles.addOptionBtn, !newOptionInput.trim() && styles.addOptionBtnDisabled]}
+                    disabled={!newOptionInput.trim()}
+                    onPress={handleAddCustomOption}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add" size={18} color="#FFFFFF" />
+                    <Text style={styles.addOptionBtnText}>Thêm</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </ScrollView>
@@ -642,7 +550,7 @@ export function CreatePollModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
@@ -650,136 +558,93 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  dragHandleWrap: {
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 2,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    maxHeight: '92%',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  modalTitleRow: {
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  headerIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ECFDF5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
+    gap: 8,
   },
   modalTitle: {
+    ...TYPOGRAPHY.labelMd,
     fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.3,
-  },
-  modalSubTitle: {
-    fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
   },
   closeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    padding: 4,
   },
   scrollBody: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
   typeTabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    padding: 2.5,
-    marginBottom: 10,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 4,
+    marginBottom: SPACING.sm,
+    gap: 4,
   },
   typeTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 7,
-    borderRadius: 8,
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
   },
   typeTabActive: {
-    backgroundColor: '#064E3B',
-    shadowColor: '#064E3B',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: COLORS.primary,
   },
   typeTabText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...TYPOGRAPHY.labelSm,
     color: '#64748B',
+    fontWeight: '700',
+    fontSize: 12,
   },
   typeTabTextActive: {
     color: '#FFFFFF',
-    fontWeight: '700',
   },
   explainerCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 10,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: '#E2E8F0',
   },
   explainerText: {
+    ...TYPOGRAPHY.caption,
+    color: '#475569',
     flex: 1,
-    fontSize: 11.5,
-    color: '#064E3B',
     lineHeight: 16,
-    fontWeight: '500',
+    fontSize: 12,
   },
   sectionBlock: {
-    marginBottom: 14,
+    marginBottom: SPACING.md,
   },
   fieldLabel: {
-    fontSize: 12.5,
+    ...TYPOGRAPHY.labelSm,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#1E293B',
+    marginBottom: 6,
   },
   requiredStar: {
     color: '#EF4444',
@@ -788,240 +653,146 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   fieldHint: {
-    fontSize: 11,
+    ...TYPOGRAPHY.caption,
     color: '#64748B',
-    fontWeight: '500',
-  },
-  suggestionLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  suggestionLinkText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#059669',
+    fontSize: 11,
+    fontWeight: '600',
   },
   textInput: {
     backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  presetChipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  presetChip: {
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0F172A',
   },
-  presetChipActive: {
-    backgroundColor: '#064E3B',
-    borderColor: '#064E3B',
-  },
-  presetChipText: {
-    fontSize: 11.5,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  presetChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  stepperRow: {
+  stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-  },
-  stepperControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 3,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 7,
-    backgroundColor: '#ECFDF5',
+    width: 36,
+    height: 36,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  stepperBtnDisabled: {
-    backgroundColor: '#F1F5F9',
-  },
-  stepperValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 3,
-    paddingHorizontal: 10,
-  },
-  stepperValueText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#064E3B',
-  },
-  stepperUnitText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  quickPresetsInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  quickPresetsLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  quickPresetPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  quickPresetPillActive: {
-    backgroundColor: '#064E3B',
-    borderColor: '#064E3B',
+  stepperBtnDisabled: {
+    opacity: 0.4,
   },
-  quickPresetPillText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  quickPresetPillTextActive: {
-    color: '#FFFFFF',
-  },
-  dateActionBtn: {
-    flexDirection: 'row',
+  stepperValueBox: {
     alignItems: 'center',
-    gap: 3,
   },
-  dateActionBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#064E3B',
+  stepperValueText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  stepperUnitText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
   },
   dateSelectorCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  dateSelectorCardActive: {
-    borderColor: '#064E3B',
-    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 12,
   },
   dateSelectorLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
   },
-  calendarIconMini: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: '#ECFDF5',
-    justifyContent: 'center',
+  calendarIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateSelectorSub: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 10.5,
   },
   dateSelectorTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
     color: '#0F172A',
+    fontSize: 13,
+  },
+  openCalendarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  openCalendarBtnText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   embeddedCalendarCard: {
     marginTop: 8,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1.5,
-    borderColor: '#D1FAE5',
-    shadowColor: '#064E3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  calendarQuickPresets: {
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 8,
-  },
-  calendarQuickBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 4,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 6,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
-  },
-  calendarQuickBtnText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#064E3B',
+    borderColor: '#E2E8F0',
   },
   calendarMonthHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 3,
-    marginBottom: 6,
+    paddingVertical: 4,
+    marginBottom: 8,
   },
   calendarNavBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#F0FDF4',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   calendarNavBtnDisabled: {
-    backgroundColor: '#F8FAFC',
+    opacity: 0.3,
   },
   calendarMonthTitle: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '800',
-    color: '#064E3B',
+    color: '#0F172A',
   },
   calendarWeekdaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   calendarWeekdayText: {
-    width: 30,
+    width: 32,
     textAlign: 'center',
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     color: '#94A3B8',
   },
@@ -1031,23 +802,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   calendarDayEmpty: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     marginVertical: 2,
   },
   calendarDayCell: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 2,
   },
   calendarDayCellSelected: {
-    backgroundColor: '#064E3B',
+    backgroundColor: COLORS.primary,
   },
   calendarDayText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
     color: '#0F172A',
   },
@@ -1062,48 +833,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    marginTop: 8,
-    paddingVertical: 6,
-    backgroundColor: '#ECFDF5',
-    borderRadius: 8,
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
   },
   calendarDoneBtnText: {
-    fontSize: 11.5,
+    color: '#FFFFFF',
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#064E3B',
   },
-  timeSection: {
-    marginTop: 8,
-  },
-  timeLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  timeChipsRow: {
-    gap: 5,
-  },
-  timePresetChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
-    borderRadius: 7,
-    backgroundColor: '#F1F5F9',
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: 10,
+    gap: 12,
   },
-  timePresetChipActive: {
-    backgroundColor: '#064E3B',
-    borderColor: '#064E3B',
+  timeUnitBox: {
+    alignItems: 'center',
   },
-  timePresetChipText: {
+  timeUnitLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  timePresetChipTextActive: {
-    color: '#FFFFFF',
+  timeStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 3,
+  },
+  timeStepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeValueText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    paddingHorizontal: 12,
+  },
+  timeColon: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#64748B',
+    marginTop: 16,
   },
   lockedOptionCard: {
     flexDirection: 'row',
@@ -1112,58 +900,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 5,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 6,
   },
   lockedOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  dotGreen: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#10B981',
-  },
-  dotRed: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#EF4444',
-  },
   lockedOptionTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
     color: '#0F172A',
+    fontSize: 13.5,
   },
   lockedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
   },
   lockedBadgeText: {
-    fontSize: 10,
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 10.5,
     fontWeight: '600',
-    color: '#064E3B',
   },
   customOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#F0F9FF',
     borderWidth: 1,
-    borderColor: '#D1FAE5',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginBottom: 5,
+    borderColor: '#BAE6FD',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 6,
   },
   customOptionLeft: {
     flexDirection: 'row',
@@ -1172,78 +950,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   customOptionText: {
-    fontSize: 12,
-    color: '#0F172A',
-    fontWeight: '600',
-    flex: 1,
+    ...TYPOGRAPHY.bodySm,
+    color: '#0369A1',
+    fontWeight: '700',
+    fontSize: 13,
   },
   removeOptionBtn: {
-    padding: 2,
+    padding: 4,
+  },
+  addOptionWrapper: {
+    marginTop: 6,
+  },
+  addOptionHeader: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 6,
   },
   addOptionRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 4,
+    alignItems: 'center',
+    gap: 8,
   },
   addOptionInput: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
     color: '#0F172A',
   },
   addOptionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#064E3B',
-    borderRadius: 8,
-    paddingHorizontal: 11,
-    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
   },
   addOptionBtnDisabled: {
     backgroundColor: '#94A3B8',
   },
   addOptionBtnText: {
+    ...TYPOGRAPHY.labelSm,
     color: '#FFFFFF',
-    fontSize: 12,
     fontWeight: '700',
+    fontSize: 12,
   },
   modalFooter: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
   },
   submitBtn: {
-    backgroundColor: '#064E3B',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#064E3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   submitBtnDisabled: {
     backgroundColor: '#94A3B8',
-    shadowOpacity: 0,
-    elevation: 0,
   },
   submitBtnText: {
+    ...TYPOGRAPHY.labelMd,
     color: '#FFFFFF',
-    fontSize: 14.5,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   submitLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
 });
