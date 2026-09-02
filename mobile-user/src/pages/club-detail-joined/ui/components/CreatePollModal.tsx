@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { CreateMatchPollPayload } from '../../../../shared/api/clubs';
+import { PollMaxPlayersStepper } from './PollMaxPlayersStepper';
+import { PollDatePicker } from './PollDatePicker';
+import { PollTimePicker } from './PollTimePicker';
 
 export interface CreatePollModalProps {
   visible: boolean;
@@ -31,7 +34,7 @@ export function CreatePollModal({
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Stepper state for Max Players
+  // Minimum and Max Players based on sport
   const getMinPlayersHint = (sport?: string) => {
     if (!sport) return 1;
     const s = sport.toLowerCase();
@@ -53,11 +56,6 @@ export function CreatePollModal({
   });
   const [selectedHour, setSelectedHour] = useState<number>(18);
   const [selectedMinute, setSelectedMinute] = useState<number>(0);
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState<boolean>(false);
-
-  // Embedded Calendar viewing year & month
-  const [viewYear, setViewYear] = useState<number>(() => selectedDate.getFullYear());
-  const [viewMonth, setViewMonth] = useState<number>(() => selectedDate.getMonth()); // 0-11
 
   // Custom options (unlimited)
   const [customOptions, setCustomOptions] = useState<string[]>([]);
@@ -73,68 +71,6 @@ export function CreatePollModal({
 
   const handleRemoveOption = (index: number) => {
     setCustomOptions(customOptions.filter((_, i) => i !== index));
-  };
-
-  const formatDateDisplay = (d: Date) => {
-    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-    const dayName = days[d.getDay()];
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const hh = String(selectedHour).padStart(2, '0');
-    const min = String(selectedMinute).padStart(2, '0');
-    return `${dayName}, ${dd}/${mm}/${yyyy} lúc ${hh}:${min}`;
-  };
-
-  // Embedded Calendar Grid calculation
-  const calendarGrid = useMemo(() => {
-    const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay(); // 0 is Sunday
-    const startCol = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // 0 = Mon ... 6 = Sun
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-    const cells: Array<{ day: number | null; dateObj: Date | null; isPast: boolean; isSelected: boolean }> = [];
-    for (let i = 0; i < startCol; i++) {
-      cells.push({ day: null, dateObj: null, isPast: false, isSelected: false });
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const cellDate = new Date(viewYear, viewMonth, day);
-      cellDate.setHours(0, 0, 0, 0);
-      const isPast = cellDate < today;
-      const isSelected =
-        selectedDate.getDate() === day &&
-        selectedDate.getMonth() === viewMonth &&
-        selectedDate.getFullYear() === viewYear;
-
-      cells.push({ day, dateObj: cellDate, isPast, isSelected });
-    }
-
-    return cells;
-  }, [viewYear, viewMonth, selectedDate]);
-
-  const handlePrevMonth = () => {
-    const now = new Date();
-    const isCurrentOrPastMonth = viewYear === now.getFullYear() && viewMonth <= now.getMonth();
-    if (isCurrentOrPastMonth) return;
-
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear(viewYear - 1);
-    } else {
-      setViewMonth(viewMonth - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear(viewYear + 1);
-    } else {
-      setViewMonth(viewMonth + 1);
-    }
   };
 
   const handleCreate = async () => {
@@ -156,19 +92,16 @@ export function CreatePollModal({
 
       await onSubmit(payload);
 
+      // Reset form
       setTitle('');
       setCustomOptions([]);
       setNewOptionInput('');
-      setIsCalendarExpanded(false);
     } catch (err) {
-      // Handled by parent
+      // Handled by caller
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const now = new Date();
-  const isAtCurrentMonth = viewYear === now.getFullYear() && viewMonth <= now.getMonth();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -235,7 +168,7 @@ export function CreatePollModal({
               </Text>
             </View>
 
-            {/* Section 1: Title Input (No suggestions) */}
+            {/* Section 1: Title Input (No Suggestions) */}
             <View style={styles.sectionBlock}>
               <Text style={styles.fieldLabel}>Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text></Text>
               <TextInput
@@ -247,205 +180,31 @@ export function CreatePollModal({
               />
             </View>
 
-            {/* Section 2: Max Players Stepper (Only for Matchmaking) */}
+            {/* Section 2: Dedicated Max Players Component (Only for Matchmaking) */}
             {pollType === 'MATCHMAKING' && (
-              <View style={styles.sectionBlock}>
-                <View style={styles.fieldLabelRow}>
-                  <Text style={styles.fieldLabel}>Số lượng thành viên ra sân tối đa</Text>
-                  <Text style={styles.fieldHint}>Tối thiểu: {minPlayers} người</Text>
-                </View>
-
-                {/* Stepper Control */}
-                <View style={styles.stepperContainer}>
-                  <TouchableOpacity
-                    style={[styles.stepperBtn, maxPlayers <= minPlayers && styles.stepperBtnDisabled]}
-                    disabled={maxPlayers <= minPlayers}
-                    onPress={() => setMaxPlayers(Math.max(minPlayers, maxPlayers - 1))}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="remove"
-                      size={18}
-                      color={maxPlayers <= minPlayers ? '#CBD5E1' : '#1E293B'}
-                    />
-                  </TouchableOpacity>
-
-                  <View style={styles.stepperValueBox}>
-                    <Text style={styles.stepperValueText}>{maxPlayers}</Text>
-                    <Text style={styles.stepperUnitText}>thành viên</Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.stepperBtn}
-                    onPress={() => setMaxPlayers(maxPlayers + 1)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add" size={18} color="#1E293B" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <PollMaxPlayersStepper
+                value={maxPlayers}
+                minPlayers={minPlayers}
+                onChange={setMaxPlayers}
+                sportName={clubSportName}
+              />
             )}
 
-            {/* Section 3: Date Selector & Embedded Calendar */}
-            <View style={styles.sectionBlock}>
-              <View style={styles.fieldLabelRow}>
-                <Text style={styles.fieldLabel}>Ngày kết thúc biểu quyết</Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setIsCalendarExpanded(!isCalendarExpanded)}
-                  style={styles.openCalendarBtn}
-                >
-                  <Ionicons name={isCalendarExpanded ? 'chevron-up' : 'calendar-outline'} size={14} color={COLORS.primary} />
-                  <Text style={styles.openCalendarBtnText}>
-                    {isCalendarExpanded ? 'Đóng lịch' : 'Mở lịch'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            {/* Section 3: Dedicated Date Picker Component */}
+            <PollDatePicker
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
 
-              {/* Date Display Card */}
-              <TouchableOpacity
-                style={styles.dateSelectorCard}
-                activeOpacity={0.8}
-                onPress={() => setIsCalendarExpanded(!isCalendarExpanded)}
-              >
-                <View style={styles.dateSelectorLeft}>
-                  <View style={styles.calendarIconCircle}>
-                    <Ionicons name="calendar" size={18} color={COLORS.primary} />
-                  </View>
-                  <View>
-                    <Text style={styles.dateSelectorSub}>Thời hạn biểu quyết</Text>
-                    <Text style={styles.dateSelectorTitle}>{formatDateDisplay(selectedDate)}</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
-              </TouchableOpacity>
+            {/* Section 4: Dedicated Time Picker Component */}
+            <PollTimePicker
+              selectedHour={selectedHour}
+              selectedMinute={selectedMinute}
+              onChangeHour={setSelectedHour}
+              onChangeMinute={setSelectedMinute}
+            />
 
-              {/* Embedded Interactive Calendar */}
-              {isCalendarExpanded && (
-                <View style={styles.embeddedCalendarCard}>
-                  {/* Month Navigation */}
-                  <View style={styles.calendarMonthHeader}>
-                    <TouchableOpacity
-                      style={[styles.calendarNavBtn, isAtCurrentMonth && styles.calendarNavBtnDisabled]}
-                      disabled={isAtCurrentMonth}
-                      onPress={handlePrevMonth}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="chevron-back" size={16} color={isAtCurrentMonth ? '#CBD5E1' : '#1E293B'} />
-                    </TouchableOpacity>
-
-                    <Text style={styles.calendarMonthTitle}>
-                      Tháng {viewMonth + 1}, {viewYear}
-                    </Text>
-
-                    <TouchableOpacity style={styles.calendarNavBtn} onPress={handleNextMonth} activeOpacity={0.7}>
-                      <Ionicons name="chevron-forward" size={16} color="#1E293B" />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Weekdays */}
-                  <View style={styles.calendarWeekdaysRow}>
-                    {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((wd, i) => (
-                      <Text key={i} style={styles.calendarWeekdayText}>{wd}</Text>
-                    ))}
-                  </View>
-
-                  {/* Days Grid */}
-                  <View style={styles.calendarDaysGrid}>
-                    {calendarGrid.map((cell, index) => {
-                      if (!cell.day) {
-                        return <View key={index} style={styles.calendarDayEmpty} />;
-                      }
-
-                      return (
-                        <TouchableOpacity
-                          key={index}
-                          style={[styles.calendarDayCell, cell.isSelected && styles.calendarDayCellSelected]}
-                          disabled={cell.isPast}
-                          onPress={() => cell.dateObj && setSelectedDate(cell.dateObj)}
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            style={[
-                              styles.calendarDayText,
-                              cell.isPast && styles.calendarDayTextPast,
-                              cell.isSelected && styles.calendarDayTextSelected,
-                            ]}
-                          >
-                            {cell.day}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Confirm Date Button */}
-                  <TouchableOpacity
-                    style={styles.calendarDoneBtn}
-                    onPress={() => setIsCalendarExpanded(false)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    <Text style={styles.calendarDoneBtnText}>Xác nhận ngày</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* Section 4: Dedicated Time Selector (Giờ kết thúc) */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.fieldLabel}>Giờ kết thúc biểu quyết</Text>
-              
-              <View style={styles.timePickerContainer}>
-                {/* Hour Stepper */}
-                <View style={styles.timeUnitBox}>
-                  <Text style={styles.timeUnitLabel}>Giờ</Text>
-                  <View style={styles.timeStepper}>
-                    <TouchableOpacity
-                      style={styles.timeStepperBtn}
-                      onPress={() => setSelectedHour((prev) => (prev === 0 ? 23 : prev - 1))}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="remove" size={16} color="#1E293B" />
-                    </TouchableOpacity>
-                    <Text style={styles.timeValueText}>{String(selectedHour).padStart(2, '0')}</Text>
-                    <TouchableOpacity
-                      style={styles.timeStepperBtn}
-                      onPress={() => setSelectedHour((prev) => (prev === 23 ? 0 : prev + 1))}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={16} color="#1E293B" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <Text style={styles.timeColon}>:</Text>
-
-                {/* Minute Stepper */}
-                <View style={styles.timeUnitBox}>
-                  <Text style={styles.timeUnitLabel}>Phút</Text>
-                  <View style={styles.timeStepper}>
-                    <TouchableOpacity
-                      style={styles.timeStepperBtn}
-                      onPress={() => setSelectedMinute((prev) => (prev === 0 ? 45 : prev - 15))}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="remove" size={16} color="#1E293B" />
-                    </TouchableOpacity>
-                    <Text style={styles.timeValueText}>{String(selectedMinute).padStart(2, '0')}</Text>
-                    <TouchableOpacity
-                      style={styles.timeStepperBtn}
-                      onPress={() => setSelectedMinute((prev) => (prev === 45 ? 0 : prev + 15))}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={16} color="#1E293B" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Section 5: Poll Options */}
+            {/* Section 5: Poll Options (Có, Không + Custom) */}
             <View style={styles.sectionBlock}>
               <View style={styles.fieldLabelRow}>
                 <Text style={styles.fieldLabel}>Lựa chọn biểu quyết</Text>
@@ -638,7 +397,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   sectionBlock: {
-    marginBottom: SPACING.md,
+    marginBottom: 14,
   },
   fieldLabel: {
     ...TYPOGRAPHY.labelSm,
@@ -670,228 +429,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: '#0F172A',
-  },
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  stepperBtnDisabled: {
-    opacity: 0.4,
-  },
-  stepperValueBox: {
-    alignItems: 'center',
-  },
-  stepperValueText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  stepperUnitText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  dateSelectorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
-  },
-  dateSelectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  calendarIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateSelectorSub: {
-    ...TYPOGRAPHY.caption,
-    color: '#64748B',
-    fontSize: 10.5,
-  },
-  dateSelectorTitle: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontSize: 13,
-  },
-  openCalendarBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  openCalendarBtnText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  embeddedCalendarCard: {
-    marginTop: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  calendarMonthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  calendarNavBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calendarNavBtnDisabled: {
-    opacity: 0.3,
-  },
-  calendarMonthTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  calendarWeekdaysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 6,
-  },
-  calendarWeekdayText: {
-    width: 32,
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94A3B8',
-  },
-  calendarDaysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-  },
-  calendarDayEmpty: {
-    width: 32,
-    height: 32,
-    marginVertical: 2,
-  },
-  calendarDayCell: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 2,
-  },
-  calendarDayCellSelected: {
-    backgroundColor: COLORS.primary,
-  },
-  calendarDayText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  calendarDayTextPast: {
-    color: '#CBD5E1',
-  },
-  calendarDayTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  calendarDoneBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingVertical: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  calendarDoneBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  timePickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  timeUnitBox: {
-    alignItems: 'center',
-  },
-  timeUnitLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  timeStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: BORDER_RADIUS.md,
-    padding: 3,
-  },
-  timeStepperBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeValueText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    paddingHorizontal: 12,
-  },
-  timeColon: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#64748B',
-    marginTop: 16,
   },
   lockedOptionCard: {
     flexDirection: 'row',
