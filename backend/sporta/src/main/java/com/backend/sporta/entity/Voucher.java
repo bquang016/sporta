@@ -108,7 +108,7 @@ public class Voucher {
     @Builder.Default
     private List<VoucherVenue> applicableVenues = new ArrayList<>();
 
-    @Column(name = "is_push_sent", nullable = false)
+    @Column(name = "is_push_sent")
     @Builder.Default
     private Boolean isPushSent = false;
 

@@ -394,7 +394,13 @@ public class DataSeeder implements CommandLineRunner {
 
                 // Ensure club has a vibrant sporty avatar
                 if (club.getAvatarImage() == null || club.getAvatarImage().isBlank()) {
-                    String sport = club.getSport() != null ? club.getSport().getName().toLowerCase() : "";
+                    String sport = "";
+                    try {
+                        if (club.getSport() != null && club.getSport().getName() != null) {
+                            sport = club.getSport().getName().toLowerCase();
+                        }
+                    } catch (Exception ignored) {}
+
                     if (sport.contains("cầu lông") || sport.contains("badminton")) {
                         club.setAvatarImage("https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=200&auto=format&fit=crop&q=80");
                     } else if (sport.contains("pickleball")) {
