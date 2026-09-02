@@ -62,6 +62,28 @@ public class User {
     @Builder.Default
     private Boolean mustChangePassword = false;
 
+    // --- Cờ cài đặt (Settings Flags) ---
+    @Column(name = "notif_booking")
+    @Builder.Default
+    private Boolean notifBooking = true;
+
+    @Column(name = "notif_promo")
+    @Builder.Default
+    private Boolean notifPromo = true;
+
+    @Column(name = "notif_matchmake")
+    @Builder.Default
+    private Boolean notifMatchmake = true;
+
+    @Column(name = "enable_biometrics")
+    @Builder.Default
+    private Boolean enableBiometrics = true;
+
+    @Column(name = "private_mode")
+    @Builder.Default
+    private Boolean privateMode = false;
+    // ------------------------------------
+
     public boolean isMustChangePassword() {
         return this.mustChangePassword != null && this.mustChangePassword;
     }

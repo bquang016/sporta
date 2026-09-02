@@ -78,18 +78,24 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // Also add user sports registered if they don't have bookings yet
+        // Also add user sports registered if they don't have bookings yet, and update levels
         List<UserSport> userSports = userSportRepository.findByUserId(userId);
         if (userSports != null) {
             for (UserSport us : userSports) {
-                if (us.getSport() != null && !sportStatsMap.containsKey(us.getSport().getId())) {
-                    sportStatsMap.put(us.getSport().getId(), PublicUserProfileResponse.SportBookingStatDto.builder()
-                            .sportId(us.getSport().getId())
-                            .sportName(us.getSport().getName())
-                            .sportIcon(null)
-                            .bookingCount(0)
-                            .percentage(0)
-                            .build());
+                if (us.getSport() != null) {
+                    String levelStr = us.getLevel() != null ? us.getLevel().name() : null;
+                    if (!sportStatsMap.containsKey(us.getSport().getId())) {
+                        sportStatsMap.put(us.getSport().getId(), PublicUserProfileResponse.SportBookingStatDto.builder()
+                                .sportId(us.getSport().getId())
+                                .sportName(us.getSport().getName())
+                                .sportIcon(null)
+                                .bookingCount(0)
+                                .percentage(0)
+                                .level(levelStr)
+                                .build());
+                    } else {
+                        sportStatsMap.get(us.getSport().getId()).setLevel(levelStr);
+                    }
                 }
             }
         }
@@ -128,19 +134,30 @@ public class UserServiceImpl implements UserService {
         // 3. User joined year
         int joinedYear = user.getCreatedAt() != null ? user.getCreatedAt().getYear() : 2025;
 
+        // 4. Handle Private Mode
+        boolean isPrivate = Boolean.TRUE.equals(user.getPrivateMode());
+        if (isPrivate) {
+            joinedClubs.clear();
+            for (var stat : sportsList) {
+                stat.setBookingCount(0);
+                stat.setPercentage(0);
+            }
+        }
+
         return PublicUserProfileResponse.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
                 .avatarUrl(user.getAvatarUrl())
                 .gender(user.getGender() != null ? user.getGender().name() : null)
-                .height(user.getHeight())
-                .weight(user.getWeight())
+                .height(isPrivate ? null : user.getHeight())
+                .weight(isPrivate ? null : user.getWeight())
                 .joinedYear(joinedYear)
                 .role(user.getRole() != null ? user.getRole().name() : "PLAYER")
-                .totalBookings(totalBookings)
+                .totalBookings(isPrivate ? 0 : totalBookings)
                 .reputationScore(100)
                 .sports(sportsList)
                 .joinedClubs(joinedClubs)
+                .privateMode(isPrivate)
                 .build();
     }
 
@@ -178,6 +195,24 @@ public class UserServiceImpl implements UserService {
             user.setWeight(request.getWeight());
         }
 
+        // --- Update Settings Flags ---
+        if (request.getNotifBooking() != null) {
+            user.setNotifBooking(request.getNotifBooking());
+        }
+        if (request.getNotifPromo() != null) {
+            user.setNotifPromo(request.getNotifPromo());
+        }
+        if (request.getNotifMatchmake() != null) {
+            user.setNotifMatchmake(request.getNotifMatchmake());
+        }
+        if (request.getEnableBiometrics() != null) {
+            user.setEnableBiometrics(request.getEnableBiometrics());
+        }
+        if (request.getPrivateMode() != null) {
+            user.setPrivateMode(request.getPrivateMode());
+        }
+        // -----------------------------
+
         if (avatar != null && !avatar.isEmpty()) {
             String avatarUrl = fileStorageService.uploadFile(avatar, "avatar");
             user.setAvatarUrl(avatarUrl);
@@ -213,6 +248,20 @@ public class UserServiceImpl implements UserService {
                 .role(user.getRole())
                 .status(user.getStatus())
                 .sports(sportsDto)
+                .notifBooking(user.getNotifBooking())
+                .notifPromo(user.getNotifPromo())
+                .notifMatchmake(user.getNotifMatchmake())
+                .enableBiometrics(user.getEnableBiometrics())
+                .privateMode(user.getPrivateMode())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+        user.setIsDeleted(true);
+        userRepository.save(user);
     }
 }

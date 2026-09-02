@@ -44,4 +44,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("SELECT DISTINCT b.user.id FROM Booking b WHERE b.venue.owner.id = :ownerId AND b.status IN ('CONFIRMED', 'COMPLETED') AND b.user.notifPromo = true")
+    List<Long> findUserIdsByOwnerBooking(@Param("ownerId") UUID ownerId);
+
+    @Query("SELECT DISTINCT b.user.id FROM Booking b WHERE b.venue.id IN :venueIds AND b.status IN ('CONFIRMED', 'COMPLETED') AND b.user.notifPromo = true")
+    List<Long> findUserIdsByVenueIds(@Param("venueIds") List<UUID> venueIds);
 }

@@ -15,6 +15,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { UserProfileHeader } from './UserProfileHeader';
 import { UserSportsCard } from './UserSportsCard';
@@ -228,20 +229,32 @@ function UserProfileModalContent({
                   joinedYearLabel={joinedYearLabel}
                 />
 
-                {/* 2. Sports Summary Cards (Based on real booking count) */}
-                <UserSportsCard sports={profile.sports} />
+                {profile.privateMode ? (
+                  <View style={styles.privateModeContainer}>
+                    <Ionicons name="lock-closed" size={48} color="#94A3B8" />
+                    <Text style={styles.privateModeTitle}>Tài khoản ẩn</Text>
+                    <Text style={styles.privateModeDesc}>
+                      Các thông tin chi tiết đã được bảo mật bởi người dùng.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    {/* 2. Sports Summary Cards (Based on real booking count) */}
+                    <UserSportsCard sports={profile.sports} />
 
-                {/* 3. Physical Stats Card (Height, Weight with 'Chưa cập nhật' fallback) */}
-                <UserPhysicalCard
-                  height={profile.height}
-                  weight={profile.weight}
-                />
+                    {/* 3. Physical Stats Card (Height, Weight with 'Chưa cập nhật' fallback) */}
+                    <UserPhysicalCard
+                      height={profile.height}
+                      weight={profile.weight}
+                    />
 
-                {/* 4. Joined Clubs Card (2 outside, expand all, navigation on click) */}
-                <UserClubsCard
-                  clubs={profile.joinedClubs}
-                  onClubPress={handleClubPress}
-                />
+                    {/* 4. Joined Clubs Card (2 outside, expand all, navigation on click) */}
+                    <UserClubsCard
+                      clubs={profile.joinedClubs}
+                      onClubPress={handleClubPress}
+                    />
+                  </>
+                )}
               </ScrollView>
             )}
           </SafeAreaView>
@@ -310,5 +323,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     fontWeight: '500',
+  },
+  privateModeContainer: {
+    margin: 16,
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 40,
+    gap: 8,
+  },
+  privateModeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 12,
+  },
+  privateModeDesc: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
 });

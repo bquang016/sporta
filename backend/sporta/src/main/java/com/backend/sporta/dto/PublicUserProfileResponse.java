@@ -26,6 +26,9 @@ public class PublicUserProfileResponse {
     // Các câu lạc bộ đã tham gia
     private List<UserClubSummaryDto> joinedClubs;
 
+    // Trạng thái riêng tư
+    private Boolean privateMode;
+
     @Getter
     @Setter
     @NoArgsConstructor
@@ -35,6 +38,7 @@ public class PublicUserProfileResponse {
         private Long sportId;
         private String sportName;
         private String sportIcon;
+        private String level; // Trình độ (VD: BEGINNER, INTERMEDIATE...)
         private Integer bookingCount; // Số lượt đặt sân
         private Integer percentage; // Tỷ lệ %
     }

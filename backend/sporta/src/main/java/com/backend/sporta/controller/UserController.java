@@ -39,6 +39,7 @@ public class UserController {
     @GetMapping({"/{id}/public", "/{id}"})
     public ResponseEntity<com.backend.sporta.dto.PublicUserProfileResponse> getPublicUserProfile(@PathVariable Long id) {
         com.backend.sporta.dto.PublicUserProfileResponse profile = userService.getPublicUserProfile(id);
+        System.out.println("DEBUG PUBLIC PROFILE FOR ID " + id + ": privateMode=" + profile.getPrivateMode());
         return ResponseEntity.ok(profile);
     }
 
@@ -63,5 +64,15 @@ public class UserController {
         
         UserProfileDto updatedProfile = userService.updateUserProfile(user.getId(), request, avatar);
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<?> deleteProfile() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+        
+        userService.softDeleteAccount(user.getId());
+        return ResponseEntity.ok().build();
     }
 }

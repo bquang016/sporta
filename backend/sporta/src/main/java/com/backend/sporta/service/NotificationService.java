@@ -44,6 +44,26 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final FcmService fcmService;
 
+    private boolean isBookingType(NotificationType type) {
+        if (type == null) return false;
+        return type == NotificationType.BOOKING_SUCCESS ||
+               type == NotificationType.BOOKING_CANCELLED ||
+               type == NotificationType.BOOKING_REMINDER;
+    }
+
+    private boolean isMatchmakeType(NotificationType type) {
+        if (type == null) return false;
+        return type == NotificationType.MATCH_INVITE ||
+               type == NotificationType.MATCH_REQUEST_JOIN ||
+               type == NotificationType.MATCH_JOIN_ACCEPTED ||
+               type == NotificationType.MATCH_JOIN_REJECTED ||
+               type == NotificationType.MATCH_REMINDER ||
+               type == NotificationType.MATCH_CANCELLED ||
+               type == NotificationType.CLUB_INVITE ||
+               type == NotificationType.CLUB_JOIN_REQUEST ||
+               type == NotificationType.CLUB_JOIN_ACCEPTED;
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void createNotification(Long recipientId, Role role, String title, String content, NotificationType type, String referenceId, Long actorId, String actorAvatar) {
         try {
@@ -76,7 +96,24 @@ public class NotificationService {
             }
             dataPayload.put("notificationId", String.valueOf(saved.getId()));
 
-            fcmService.sendPushToUser(recipientId, title, content, dataPayload);
+            boolean shouldSendPush = true;
+            if ((role == null || role == Role.PLAYER) && type != null) {
+                User user = userRepository.findById(recipientId).orElse(null);
+                if (user != null) {
+                    if (isBookingType(type) && Boolean.FALSE.equals(user.getNotifBooking())) {
+                        shouldSendPush = false;
+                        log.info("Skipping FCM push for recipient {} due to notifBooking=false", recipientId);
+                    }
+                    if (isMatchmakeType(type) && Boolean.FALSE.equals(user.getNotifMatchmake())) {
+                        shouldSendPush = false;
+                        log.info("Skipping FCM push for recipient {} due to notifMatchmake=false", recipientId);
+                    }
+                }
+            }
+
+            if (shouldSendPush) {
+                fcmService.sendPushToUser(recipientId, title, content, dataPayload);
+            }
         } catch (Exception e) {
             log.error("Lỗi tạo notification cho recipientId {}: {}", recipientId, e.getMessage());
         }
@@ -84,6 +121,14 @@ public class NotificationService {
 
     public void createNotification(Long recipientId, Role role, String title, String content, NotificationType type, String referenceId) {
         createNotification(recipientId, role, title, content, type, referenceId, null, null);
+    }
+
+    @org.springframework.scheduling.annotation.Async
+    public void sendBulkPromotionNotification(List<Long> recipientIds, String title, String content, String referenceId) {
+        if (recipientIds == null || recipientIds.isEmpty()) return;
+        for (Long userId : recipientIds) {
+            createNotification(userId, Role.PLAYER, title, content, NotificationType.PROMOTION, referenceId);
+        }
     }
 
     // System (non-social) notifications

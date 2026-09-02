@@ -56,37 +56,55 @@ export const UserProfileHeader = React.memo(({
               <Text style={styles.yearBadgeText}>Gia nhập {joinedYearLabel}</Text>
             </View>
           </View>
+
+          {/* Sports Level Badges */}
+          {profile.sports && profile.sports.length > 0 && (
+            <View style={styles.sportBadgesRow}>
+              {profile.sports.map(sport => (
+                <View key={sport.sportId} style={styles.sportLevelBadge}>
+                   <Ionicons name="trophy-outline" size={12} color="#D97706" />
+                   <Text style={styles.sportLevelBadgeText}>
+                     {sport.sportName}: {sport.level || 'Chưa xác định'}
+                   </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </View>
 
       {/* ── Public Stats Grid (Lượt đặt sân & Điểm uy tín) ── */}
-      <View style={styles.statsGrid}>
-        {/* Total Bookings Stat */}
-        <View style={styles.statCard}>
-          <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
-            <Ionicons name="football-outline" size={18} color="#2563EB" />
+      {!profile.privateMode && (
+        <View style={styles.statsGrid}>
+          {/* Total Bookings Stat */}
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="football-outline" size={18} color="#2563EB" />
+            </View>
+            <View style={styles.statTextBox}>
+              <Text style={styles.statValue}>
+                {profile.totalBookings || 0}
+              </Text>
+              <Text style={styles.statLabel}>Lượt đặt sân</Text>
+            </View>
           </View>
-          <View style={styles.statTextBox}>
-            <Text style={styles.statValue}>{profile.totalBookings || 0}</Text>
-            <Text style={styles.statLabel}>Lượt đặt sân</Text>
+
+          <View style={styles.statDivider} />
+
+          {/* Clubs Joined Count */}
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: '#FDF4FF' }]}>
+              <Ionicons name="people-outline" size={18} color="#A855F7" />
+            </View>
+            <View style={styles.statTextBox}>
+              <Text style={[styles.statValue, { color: '#9333EA' }]}>
+                {(profile.joinedClubs || []).length}
+              </Text>
+              <Text style={styles.statLabel}>CLB tham gia</Text>
+            </View>
           </View>
         </View>
-
-        <View style={styles.statDivider} />
-
-        {/* Clubs Joined Count */}
-        <View style={styles.statCard}>
-          <View style={[styles.statIconBox, { backgroundColor: '#FDF4FF' }]}>
-            <Ionicons name="people-outline" size={18} color="#A855F7" />
-          </View>
-          <View style={styles.statTextBox}>
-            <Text style={[styles.statValue, { color: '#9333EA' }]}>
-              {(profile.joinedClubs || []).length}
-            </Text>
-            <Text style={styles.statLabel}>CLB tham gia</Text>
-          </View>
-        </View>
-      </View>
+      )}
     </View>
   );
 });
@@ -231,5 +249,28 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: '#E2E8F0',
+  },
+  sportBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  sportLevelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEFCE8',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+    gap: 4,
+  },
+  sportLevelBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#A16207',
   },
 });

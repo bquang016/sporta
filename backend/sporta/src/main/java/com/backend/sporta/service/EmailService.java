@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import org.springframework.scheduling.annotation.Async;
 
 @Service
 public class EmailService {
@@ -31,6 +32,7 @@ public class EmailService {
         return null;
     }
 
+    @Async
     public void sendOtpEmail(String toEmail, String otpCode) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -108,6 +110,7 @@ public class EmailService {
      * Send an email notifying the owner that their registration has been approved.
      * Includes login credentials (email + temporary password).
      */
+    @Async
     public void sendAccountApprovedEmail(String toEmail, String temporaryPassword) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -197,6 +200,7 @@ public class EmailService {
     /**
      * Send booking success confirmation email with full details to the user.
      */
+    @Async
     public void sendBookingSuccessEmail(String toEmail, com.backend.sporta.entity.Booking booking) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

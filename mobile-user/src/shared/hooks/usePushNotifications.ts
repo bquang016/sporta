@@ -5,6 +5,7 @@ import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { NotificationApi } from '../api/notifications';
+import { usersApi } from '../api/users';
 import { NOTIFICATION_KEYS } from '../../features/notifications/model/useNotifications';
 import { useIsLoggedIn } from './useIsLoggedIn';
 
@@ -81,8 +82,27 @@ export function usePushNotifications() {
             lastNotificationIdRef.current = latest.id;
           } else if (latest.id > lastNotificationIdRef.current) {
             lastNotificationIdRef.current = latest.id;
-            // Bắn banner thông báo nổi lên đỉnh màn hình
-            await showLocalNotification(latest.title, latest.content, latest);
+            
+            // Lấy profile để check cài đặt thông báo của user
+            let shouldShow = true;
+            try {
+              const profile = await usersApi.getProfile();
+              if (profile) {
+                const isBooking = latest.type?.includes('BOOKING');
+                const isMatchmake = latest.type?.includes('CLUB') || latest.type?.includes('MATCH');
+                
+                if (isBooking && profile.notifBooking === false) shouldShow = false;
+                if (isMatchmake && profile.notifMatchmake === false) shouldShow = false;
+              }
+            } catch (err) {
+              console.warn('Could not fetch user profile to check notification flags');
+            }
+
+            if (shouldShow) {
+              // Bắn banner thông báo nổi lên đỉnh màn hình
+              await showLocalNotification(latest.title, latest.content, latest);
+            }
+            
             queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.all });
           }
         }

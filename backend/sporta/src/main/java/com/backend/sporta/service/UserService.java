@@ -9,4 +9,5 @@ public interface UserService {
     UserProfileDto getUserProfile(Long userId);
     PublicUserProfileResponse getPublicUserProfile(Long userId);
     UserProfileDto updateUserProfile(Long userId, UpdateUserProfileRequest request, MultipartFile avatar);
+    void softDeleteAccount(Long userId);
 }
