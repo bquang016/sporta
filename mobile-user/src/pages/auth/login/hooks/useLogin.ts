@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
 import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
+import { saveUserSession } from '../../../../shared/lib/userSession';
 
 export function useLogin() {
   const [email, setEmail] = useState('');
@@ -50,13 +51,6 @@ export function useLogin() {
             fullName: res.fullName,
           },
         });
-      } else {
-        if (Platform.OS === 'web') {
-          localStorage.setItem('accessToken', res.accessToken);
-        } else {
-          await SecureStore.setItemAsync('accessToken', res.accessToken);
-        }
-
         let realFullName = res.fullName;
         let realAvatar: string | null = null;
         try {
@@ -70,23 +64,12 @@ export function useLogin() {
           console.log('Profile sync on Google Login warning:', profileErr);
         }
 
-        if (Platform.OS === 'web') {
-          localStorage.setItem('userEmail', res.email);
-          localStorage.setItem('userName', realFullName);
-          if (realAvatar) {
-            localStorage.setItem('userAvatar', realAvatar);
-          } else {
-            localStorage.removeItem('userAvatar');
-          }
-        } else {
-          await SecureStore.setItemAsync('userEmail', res.email);
-          await SecureStore.setItemAsync('userName', realFullName);
-          if (realAvatar) {
-            await SecureStore.setItemAsync('userAvatar', realAvatar);
-          } else {
-            await SecureStore.deleteItemAsync('userAvatar');
-          }
-        }
+        await saveUserSession({
+          accessToken: res.accessToken,
+          userEmail: res.email,
+          userName: realFullName,
+          userAvatar: realAvatar,
+        });
 
         router.replace('/(tabs)');
       }
@@ -120,12 +103,6 @@ export function useLogin() {
       realFullName = realFullName.charAt(0).toUpperCase() + realFullName.slice(1);
       let realAvatar: string | null = null;
 
-      if (Platform.OS === 'web') {
-        localStorage.setItem('accessToken', response.accessToken);
-      } else {
-        await SecureStore.setItemAsync('accessToken', response.accessToken);
-      }
-
       // Sync real profile from backend
       try {
         const { usersApi } = require('../../../../shared/api/users');
@@ -138,23 +115,13 @@ export function useLogin() {
         console.log('Profile sync on login warning:', err);
       }
       
-      if (Platform.OS === 'web') {
-        localStorage.setItem('userEmail', trimmedEmail);
-        localStorage.setItem('userName', realFullName);
-        if (realAvatar) {
-          localStorage.setItem('userAvatar', realAvatar);
-        } else {
-          localStorage.removeItem('userAvatar');
-        }
-      } else {
-        await SecureStore.setItemAsync('userEmail', trimmedEmail);
-        await SecureStore.setItemAsync('userName', realFullName);
-        if (realAvatar) {
-          await SecureStore.setItemAsync('userAvatar', realAvatar);
-        } else {
-          await SecureStore.deleteItemAsync('userAvatar');
-        }
-      }
+      await saveUserSession({
+        accessToken: response.accessToken,
+        userEmail: trimmedEmail,
+        userName: realFullName,
+        userAvatar: realAvatar,
+      });
+
       router.replace('/(tabs)');
     } catch (error: any) {
       showAlert('Lỗi', error.message || 'Email hoặc mật khẩu không đúng.');

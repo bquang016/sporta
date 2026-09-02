@@ -80,7 +80,12 @@ export function MatchHistoryCard({ match, club }: MatchHistoryCardProps) {
  
         {/* Right: Opponent */}
         <View style={[styles.teamCol, { alignItems: 'flex-end' }]}>
-          <Image source={{ uri: match.opponentAvatar }} style={styles.opponentAvatarImage} />
+          <Avatar 
+            size={36} 
+            source={match.opponentAvatar} 
+            fallbackType="club" 
+            style={styles.opponentAvatarImage} 
+          />
           <Text style={[styles.teamName, { textAlign: 'right' }]} numberOfLines={1} ellipsizeMode="tail">
             {match.opponentName}
           </Text>

@@ -28,6 +28,7 @@ import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { MatchRoomVM } from '../../../entities/match/model/match.types';
 import { Post, PostAudience, POST_BACKGROUNDS, PostBackground } from '../../../entities/post';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { Avatar } from '../../../shared/ui';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COOLDOWN_DURATION_MS = 30 * 60 * 1000; // 30 phút
@@ -399,7 +400,7 @@ function CreatePostModalContent({
     }
   };
 
-  const userAvatar = userProfile?.avatarUrl || currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+  const userAvatar = userProfile?.avatarUrl || currentUser?.avatarUrl || null;
   const userName = userProfile?.fullName || currentUser?.name || 'Thành viên Sporta';
 
   return (
@@ -466,7 +467,7 @@ function CreatePostModalContent({
           >
             {/* ── 2. User Info Line ── */}
             <View style={[styles.userSection, selectedBackground && { paddingHorizontal: SPACING.md }]}>
-              <Image source={{ uri: userAvatar }} style={styles.userAvatar} />
+              <Avatar size={42} source={userAvatar} fallbackType="user" />
               <View style={styles.userMetaCol}>
                 <Text style={styles.userName}>{userName}</Text>
 

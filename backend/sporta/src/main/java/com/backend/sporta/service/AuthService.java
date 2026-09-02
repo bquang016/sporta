@@ -237,6 +237,7 @@ public class AuthService {
                 .fullName(request.getFullName())
                 .gender(request.getGender())
                 .dateOfBirth(request.getDateOfBirth())
+                .avatarUrl(request.getAvatarUrl())
                 .role(Role.PLAYER) // Default role
                 .status(UserStatus.ACTIVE)
                 .build();

@@ -18,7 +18,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button } from '../../../shared/ui';
+import { Button, Avatar } from '../../../shared/ui';
 import { useClubs, ClubCard, getDefaultCover, getDefaultAvatar } from '../../../entities/club';
 import { useDebounce } from '../../../shared/lib/useDebounce';
 import {
@@ -392,7 +392,7 @@ export function ClubsScreen() {
                     }
                   >
                     <View style={styles.joinedClubAvatarWrapper}>
-                      <Image source={{ uri: avatar }} style={styles.joinedClubAvatar} />
+                      <Avatar source={club.avatarImage} fallbackType="club" size={40} />
                     </View>
 
                     <View style={styles.joinedClubInfo}>
@@ -520,7 +520,7 @@ export function ClubsScreen() {
                     <View style={styles.featuredBody}>
                       <View style={styles.featuredAvatarRow}>
                         <View style={styles.featuredAvatarWrapper}>
-                          <Image source={{ uri: avatar }} style={styles.featuredAvatarImg} />
+                          <Avatar source={club.avatarImage} fallbackType="club" size={38} />
                         </View>
                         <View style={styles.featuredTitleCol}>
                           <Text style={styles.featuredClubName} numberOfLines={1}>

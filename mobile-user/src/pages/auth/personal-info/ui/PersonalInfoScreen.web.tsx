@@ -14,6 +14,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 
@@ -27,6 +28,7 @@ export function PersonalInfoScreen() {
   const [fullName, setFullName] = useState(
     typeof initialFullName === 'string' ? initialFullName : ''
   );
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(new Date(2000, 0, 1));
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
   const [dateInputText, setDateInputText] = useState('01/01/2000');
@@ -34,6 +36,29 @@ export function PersonalInfoScreen() {
   const [isFocusedDate, setIsFocusedDate] = useState(false);
 
   const heroBg = require('../../../../../assets/auth/sport_auth_hero.jpg');
+
+  const handlePickAvatar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert('Quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.log('Pick avatar error:', e);
+    }
+  };
 
   const handleDateTextChange = (text: string) => {
     let cleaned = text.replace(/[^0-9/]/g, '');
@@ -85,7 +110,8 @@ export function PersonalInfoScreen() {
   };
 
   const handleNext = () => {
-    if (!fullName.trim()) {
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
       showAlert('Thiếu thông tin', 'Vui lòng nhập họ và tên.');
       return;
     }
@@ -107,9 +133,10 @@ export function PersonalInfoScreen() {
         registrationToken,
         email,
         password,
-        fullName,
+        fullName: trimmedName,
         dateOfBirth: formattedDob,
         gender,
+        avatarUri: avatarUri || '',
       },
     });
   };
@@ -176,17 +203,24 @@ export function PersonalInfoScreen() {
               </View>
             </View>
 
-            {/* Avatar Placeholder / Selector */}
+            {/* Avatar Selector with Aura Ring */}
             <View style={styles.avatarSection}>
-              <View style={styles.avatarWrapper}>
+              <TouchableOpacity
+                style={styles.avatarWrapper}
+                onPress={handlePickAvatar}
+                activeOpacity={0.85}
+              >
                 <View style={styles.avatarAura} />
                 <Image
-                  source={DEFAULT_PLAYER_AVATAR}
+                  source={avatarUri ? { uri: avatarUri } : DEFAULT_PLAYER_AVATAR}
                   style={styles.avatarImage}
                   resizeMode="cover"
                 />
-              </View>
-              <Text style={styles.avatarHint}>Ảnh đại diện Sporta</Text>
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.avatarHint}>Chạm để chọn ảnh đại diện (Tùy chọn)</Text>
             </View>
 
             {/* Form Inputs */}
@@ -488,6 +522,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 46,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#064E3B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatarHint: {
     fontSize: 12,
