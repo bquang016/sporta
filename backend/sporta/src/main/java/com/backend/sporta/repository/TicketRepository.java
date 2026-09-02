@@ -13,11 +13,13 @@ import java.util.UUID;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     List<Ticket> findBySessionId(UUID sessionId);
+    Optional<Ticket> findBySessionIdAndUserId(UUID sessionId, Long userId);
+    Optional<Ticket> findFirstBySessionIdAndIsCaptainTrue(UUID sessionId);
     Optional<Ticket> findByShortCode(String shortCode);
     boolean existsByShortCode(String shortCode);
     
     @Query("SELECT t FROM Ticket t JOIN FETCH t.session s JOIN FETCH s.venue v JOIN FETCH s.court c WHERE t.user.id = :userId ORDER BY t.createdAt DESC")
-    List<Ticket> findByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId);
+    List<Ticket> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 
     @Query("SELECT t FROM Ticket t JOIN FETCH t.session s JOIN FETCH s.venue v JOIN FETCH s.court c WHERE t.user.email = :email ORDER BY t.createdAt DESC")
     List<Ticket> findByUserEmailOrderByCreatedAtDesc(@Param("email") String email);

@@ -46,6 +46,9 @@ public class UserTicketResponse {
     
     private String qrCodeToken;
     private String shortCode;
+    private com.backend.sporta.enums.TeamSide team;
+    private Boolean isCaptain;
+    private Boolean isScoreConfirmed;
     
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;

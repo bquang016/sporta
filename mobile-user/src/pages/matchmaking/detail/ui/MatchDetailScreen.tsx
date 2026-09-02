@@ -9,15 +9,119 @@ import {
   StatusBar,
   Modal,
   TextInput,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
+import { MatchmakingService } from '../../../../shared/api/matchmaking';
 import { createPostApi } from '../../../../shared/api/posts';
+import { usersApi, UserProfileDto } from '../../../../shared/api/users';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
+import { DevMatchTestPanel } from '../../../../features/matchmaking/ui/DevMatchTestPanel';
+
+interface ApplicantItemRowProps {
+  req: any;
+  canManage: boolean;
+  onAccept: (id: string, name: string) => void;
+  onReject: (id: string, name: string) => void;
+}
+
+function ApplicantItemRow({ req, canManage, onAccept, onReject }: ApplicantItemRowProps) {
+  const [imgError, setImgError] = useState<boolean>(false);
+  const club = req.applicantClub;
+  const avatarUri = club?.avatarUrl || club?.logoUrl || club?.avatarImage;
+
+  return (
+    <View style={styles.applicantCard}>
+      <View style={styles.applicantHeader}>
+        <View style={styles.applicantAvatarWrap}>
+          {avatarUri && !imgError ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.applicantAvatarImg}
+              resizeMode="cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <View style={styles.applicantAvatarFallback}>
+              <Text style={styles.applicantAvatarText}>{(club?.name || 'B').charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.applicantInfo}>
+          <View style={styles.applicantNameRow}>
+            <Text style={styles.applicantName} numberOfLines={1}>{club.name}</Text>
+            <View style={styles.levelBadgeMini}>
+              <Text style={styles.levelBadgeText}>{club.levelLabel || 'Cân bằng'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.applicantStatsRow}>
+            <Ionicons name="trophy-outline" size={12} color="#D97706" />
+            <Text style={styles.statTagText}>{club.clubElo || 1200} Elo</Text>
+            <Text style={styles.statDot}>•</Text>
+            <Ionicons name="people-outline" size={12} color="#0284C7" />
+            <Text style={styles.statTagText}>{club.activeMemberCount || 10} thành viên</Text>
+          </View>
+        </View>
+      </View>
+
+      {req.lineup && (
+        <View style={styles.applicantLineupBadge}>
+          <Ionicons name="shield-checkmark-outline" size={13} color="#059669" />
+          <Text style={styles.applicantLineupText}>
+            Đội hình: <Text style={{ fontWeight: '800' }}>{req.lineup.name}</Text> • Trình độ đội: <Text style={{ fontWeight: '800' }}>{req.lineup.eloAvg}</Text> ({req.lineup.memberCount} người)
+          </Text>
+        </View>
+      )}
+
+      {req.note && (
+        <View style={styles.applicantNoteBox}>
+          <Ionicons name="chatbubble-ellipses-outline" size={13} color="#64748B" />
+          <Text style={styles.applicantNoteText}>"{req.note}"</Text>
+        </View>
+      )}
+
+      {req.status === 'PENDING' && (
+        canManage ? (
+          <View style={styles.applicantActionRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => onReject(req.id, club.name)}
+              style={styles.rejectBtn}
+            >
+              <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+              <Text style={styles.rejectBtnText}>Từ chối</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => onAccept(req.id, club.name)}
+              style={styles.acceptBtn}
+            >
+              <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
+              <Text style={styles.acceptBtnText}>Chấp nhận ghép</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.pendingStatusBadge}>
+            <Ionicons name="time-outline" size={14} color="#92400E" />
+            <Text style={styles.pendingStatusText}>Đang chờ Chủ room phê duyệt</Text>
+          </View>
+        )
+      )}
+    </View>
+  );
+}
 
 export function MatchDetailScreen() {
   const router = useRouter();
@@ -34,6 +138,13 @@ export function MatchDetailScreen() {
   );
 
   const [requesting, setRequesting] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<UserProfileDto | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      usersApi.getProfile().then(setCurrentUser).catch(() => {});
+    }, [])
+  );
 
   // Club selector modal states for Side B
   const [isJoinModalVisible, setIsJoinModalVisible] = useState<boolean>(false);
@@ -42,7 +153,7 @@ export function MatchDetailScreen() {
   const [requestNote, setRequestNote] = useState<string>('');
   const [loadingClubs, setLoadingClubs] = useState<boolean>(false);
 
-  // Vote Share Modal states for Rule 2
+  // Vote Share Modal states
   const [isVoteModalVisible, setIsVoteModalVisible] = useState<boolean>(false);
   const [voteTargetClubId, setVoteTargetClubId] = useState<string | number | null>(null);
   const [voteSending, setVoteSending] = useState<boolean>(false);
@@ -140,14 +251,43 @@ export function MatchDetailScreen() {
   const booking = room.booking;
 
   const isHost = !room.permissions?.canRequestJoin;
-  const hasSentRequest = room.applicants?.some((req: any) =>
+  const pendingApplicants = (room.applicants || []).filter((req: any) => req.status === 'PENDING');
+  const hasSentPendingRequest = pendingApplicants.some((req: any) =>
     myClubs.some((c: any) => String(c.id) === String(req.applicantClub?.id))
   ) || (room.myRequest && room.myRequest.status === 'PENDING');
+  const isRejectedRequest = room.myRequest && room.myRequest.status === 'REJECTED' && !hasSentPendingRequest;
 
   const openJoinModal = async () => {
     setLoadingClubs(true);
     try {
-      const clubs = await getJoinedClubsApi();
+      let clubs: any[] = [];
+      try {
+        clubs = await MatchmakingService.getEligibleClubs(room.booking.sportId);
+      } catch {
+        clubs = [];
+      }
+
+      if (!clubs || clubs.length === 0) {
+        const joined = await getJoinedClubsApi();
+        if (joined && joined.length > 0) {
+          clubs = joined.map((c: any) => ({
+            id: String(c.id),
+            name: c.name,
+            sportId: c.sportId ? String(c.sportId) : (c.sport && typeof c.sport === 'object' && c.sport.id ? String(c.sport.id) : '1'),
+            sportName: c.sportName || (typeof c.sport === 'string' ? c.sport : (c.sport && c.sport.name ? c.sport.name : 'Bóng đá')),
+            logoUrl: c.avatarImage,
+            avatarUrl: c.avatarImage,
+            activeMemberCount: c.members ?? c.activeMemberCount ?? c.memberCount ?? 1,
+            isEligibleForMatchmaking: true,
+            clubElo: c.elo || 1200,
+            levelLabel: c.levelLabel || 'TB',
+            crp: c.crp || 0,
+            userStatus: c.userStatus,
+            isLeaderOrSubLeader: c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER',
+          }));
+        }
+      }
+
       if (!clubs || clubs.length === 0) {
         showConfirm(
           'Chưa có CLB nào',
@@ -173,23 +313,22 @@ export function MatchDetailScreen() {
         return;
       }
 
-      // 1. Kiểm tra môn thể thao
       const sameSportClubs = notHostClubs.filter((c: any) => {
-        if (!host.sportId && !host.sportName) return true;
-        const hostSportId = String(host.sportId || '');
-        const hostSportName = (host.sportName || '').toLowerCase().trim();
-        const clubSportId = String(c.sportId || (c.sport && c.sport.id) || '');
-        const clubSportName = (c.sport ? (typeof c.sport === 'string' ? c.sport : c.sport.name) : (c.sportName || '')).toLowerCase().trim();
+        if (!host.sportId && !host.sportName && !booking.sportName) return true;
+        const hostSportId = String(host.sportId || booking.sportId || '');
+        const hostSportName = (host.sportName || booking.sportName || '').toLowerCase().trim();
+        const clubSportId = String(c.sportId || '');
+        const clubSportName = (c.sportName || (typeof c.sport === 'string' ? c.sport : (c.sport && c.sport.name ? c.sport.name : ''))).toLowerCase().trim();
 
         if (hostSportId && clubSportId && hostSportId === clubSportId) return true;
         if (hostSportName && clubSportName && (hostSportName.includes(clubSportName) || clubSportName.includes(hostSportName))) return true;
-        return false;
+        return currentUser?.isDevTester || false;
       });
 
       if (sameSportClubs.length === 0) {
         showConfirm(
           'Khác môn thể thao',
-          `Bài đăng ghép trận thuộc môn "${host.sportName || 'Thể thao'}". Bạn chưa có CLB nào thuộc môn này để xin ghép trận.`,
+          `Bài đăng ghép trận thuộc môn "${booking.sportName || host.sportName || 'Thể thao'}". Bạn chưa có CLB nào thuộc môn này để xin ghép trận.`,
           () => router.push('/(tabs)/club' as any),
           'warning',
           'Tạo/Tham gia CLB',
@@ -198,15 +337,14 @@ export function MatchDetailScreen() {
         return;
       }
 
-      // 2. Kiểm tra vai trò Trưởng/Phó nhóm
       const leaderClubs = sameSportClubs.filter((c: any) =>
-        c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER'
+        c.isLeaderOrSubLeader || c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER' || currentUser?.isDevTester
       );
 
       if (leaderClubs.length === 0) {
         showConfirm(
           'Chưa có quyền Trưởng/Phó nhóm',
-          `Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB gửi yêu cầu ghép trận. Bạn hiện là thành viên thường trong các CLB môn ${host.sportName || ''}.`,
+          `Chỉ Trưởng nhóm hoặc Phó nhóm mới có quyền đại diện CLB gửi yêu cầu ghép trận. Bạn hiện là thành viên thường trong các CLB môn ${booking.sportName || host.sportName || ''}.`,
           () => router.push('/(tabs)/club' as any),
           'warning',
           'Đến trang CLB',
@@ -342,6 +480,32 @@ export function MatchDetailScreen() {
     );
   };
 
+  const handleCancelRoomPress = () => {
+    showConfirm(
+      'Hủy phòng ghép kèo',
+      'Bạn có chắc chắn muốn hủy phòng ghép kèo này? Sân bạn đã đặt vẫn được giữ nguyên và thuộc quyền sử dụng của bạn.',
+      async () => {
+        try {
+          setRequesting(true);
+          await MatchmakingService.cancelRoom(room.id);
+          showAlert(
+            'Đã hủy phòng ghép',
+            'Phòng ghép kèo đã được đóng. Sân bạn đã đặt vẫn thuộc quyền sử dụng của bạn!',
+            'success'
+          );
+          refetch();
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Không thể hủy phòng ghép kèo', 'danger');
+        } finally {
+          setRequesting(false);
+        }
+      },
+      'danger',
+      'Xác nhận hủy',
+      'Quay lại'
+    );
+  };
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -352,49 +516,59 @@ export function MatchDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header Bar */}
+      {/* ── 1. Header Bar ── */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi Tiết Bài Ghép Kèo</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <TouchableOpacity onPress={handleShareToCommunity} style={styles.headerIconBtn} disabled={sharing}>
+          <Text style={styles.headerTitle}>Chi Tiết Kèo Đấu</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TouchableOpacity
+              onPress={handleShareToCommunity}
+              style={styles.headerIconBtn}
+              disabled={sharing}
+              activeOpacity={0.7}
+            >
               {sharing ? (
                 <ActivityIndicator size="small" color={COLORS.primary} />
               ) : (
-                <Ionicons name="share-social-outline" size={20} color={COLORS.primary} />
+                <Ionicons name="share-social-outline" size={19} color={COLORS.primary} />
               )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn}>
+            <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn} activeOpacity={0.7}>
               <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.responsiveContainer}>
-          {/* Stadium Hero Banner Card - Enriched */}
+          {/* ── [DEV] Tester Control Panel ── */}
+          {(currentUser?.isDevTester || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+            <DevMatchTestPanel room={room} onRefresh={refetch} />
+          )}
+
+          {/* ── 2. Stadium Hero Card ── */}
           <View style={styles.heroCard}>
-            <View style={styles.badgeRow}>
+            <View style={styles.heroTopRow}>
               <View style={[styles.typeBadge, isRanked ? styles.rankedBadge : styles.friendlyBadge]}>
                 <Ionicons
                   name={isRanked ? 'trophy' : 'people'}
-                  size={13}
-                  color={isRanked ? '#92400E' : '#075985'}
-                  style={{ marginRight: 4 }}
+                  size={12}
+                  color={isRanked ? '#FDE68A' : '#BAE6FD'}
                 />
                 <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-                  {isRanked ? 'Trận Xếp hạng (Tích CRP)' : 'Trận Giao hữu'}
+                  {isRanked ? 'Xếp hạng CRP' : 'Trận Giao hữu'}
                 </Text>
               </View>
+
               {room.balanceLabel && (
                 <View style={styles.balanceBadge}>
-                  <Ionicons name="flash" size={12} color={COLORS.white} />
+                  <Ionicons name="flash" size={12} color="#F59E0B" />
                   <Text style={styles.balanceText}>{room.balanceLabel}</Text>
                 </View>
               )}
@@ -402,210 +576,304 @@ export function MatchDetailScreen() {
 
             <Text style={styles.venueTitle} numberOfLines={1}>{booking.facilityName}</Text>
 
-            {/* Address & Host Info */}
-            <View style={styles.heroMetaGroup}>
-              {booking.address && (
-                <View style={styles.heroMetaRow}>
-                  <Ionicons name="location-outline" size={14} color="rgba(255, 255, 255, 0.9)" />
-                  <Text style={styles.heroMetaText} numberOfLines={1}>{booking.address}</Text>
-                </View>
-              )}
+            {booking.address && (
               <View style={styles.heroMetaRow}>
-                <Ionicons name="shield-checkmark-outline" size={14} color="rgba(255, 255, 255, 0.9)" />
-                <Text style={styles.heroMetaText}>Chủ room: <Text style={{ fontWeight: '900', color: COLORS.white }}>{host.name}</Text></Text>
+                <Ionicons name="location" size={13} color="rgba(255, 255, 255, 0.75)" />
+                <Text style={styles.heroMetaText} numberOfLines={1}>{booking.address}</Text>
               </View>
-            </View>
+            )}
 
-            {/* Time Box */}
+            {/* Time Box Highlight */}
             <View style={styles.timeBox}>
-              <Ionicons name="calendar-outline" size={15} color={COLORS.white} />
+              <Ionicons name="time" size={15} color="#FFFFFF" />
               <Text style={styles.timeBoxText}>
-                {booking.date} • {booking.startTime} - {booking.endTime}
+                {booking.date} • <Text style={{ fontWeight: '900' }}>{booking.startTime} - {booking.endTime}</Text>
               </Text>
             </View>
 
-            {/* Format & Total Fee Info Chips */}
+            {/* Chip row: Court format & Total fee */}
             <View style={styles.heroChipRow}>
               <View style={styles.heroChip}>
-                <Ionicons name="fitness-outline" size={13} color={COLORS.white} />
+                <Ionicons name="football-outline" size={13} color="#FFFFFF" />
                 <Text style={styles.heroChipText}>{booking.courtName} ({booking.format})</Text>
               </View>
               <View style={styles.heroChipGold}>
-                <Ionicons name="cash-outline" size={13} color="#78350F" />
+                <Ionicons name="cash-outline" size={13} color="#FDE68A" />
                 <Text style={styles.heroChipGoldText}>Tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
               </View>
             </View>
           </View>
 
-          {/* Versus Battle Card */}
+          {/* ── 3. Versus Battle Arena Card ── */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Đối Đầu & Trình Độ CLB</Text>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIconCircle}>
+                <Ionicons name="flame" size={16} color="#EA580C" />
+              </View>
+              <Text style={styles.sectionTitle}>Tương Quan Đối Đầu</Text>
+            </View>
 
             <View style={styles.vsRow}>
               {/* Host Club */}
               <View style={styles.vsClubCol}>
-                <View style={styles.clubAvatarHost}>
-                  <Text style={styles.clubAvatarText}>{host.name.charAt(4) || 'A'}</Text>
+                <View style={styles.clubAvatarWrap}>
+                  {(host.avatarUrl || host.logoUrl || (host as any).avatarImage) ? (
+                    <Image
+                      source={{ uri: host.avatarUrl || host.logoUrl || (host as any).avatarImage }}
+                      style={styles.clubAvatarImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.clubAvatarHost}>
+                      <Text style={styles.clubAvatarText}>{(host.name || 'A').charAt(0).toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={styles.hostBadgeDot}>
+                    <Ionicons name="shield-checkmark" size={10} color="#FFFFFF" />
+                  </View>
                 </View>
                 <Text style={styles.vsClubName} numberOfLines={1}>{host.name}</Text>
                 <View style={styles.vsLevelTag}>
                   <Text style={styles.vsLevelText}>{host.levelLabel}</Text>
                 </View>
-                <Text style={styles.vsEloText}>{host.clubElo} Elo</Text>
-                <Text style={styles.vsCrpText}>• {host.crp} CRP</Text>
+                <Text style={styles.vsEloText}>{host.clubElo} Elo <Text style={styles.vsCrpText}>• {host.crp} CRP</Text></Text>
               </View>
 
-              <View style={styles.vsBadgeCircle}>
-                <Text style={styles.vsText}>VS</Text>
+              {/* Center VS Emblem */}
+              <View style={styles.vsCenterCol}>
+                <View style={styles.vsCircle}>
+                  <Text style={styles.vsText}>VS</Text>
+                </View>
               </View>
 
-              {/* Guest Club */}
+              {/* Guest Club or Seeking slot */}
               {guest ? (
                 <View style={styles.vsClubCol}>
-                  <View style={styles.clubAvatarGuest}>
-                    <Text style={styles.clubAvatarText}>{guest.name.charAt(4) || 'B'}</Text>
+                  <View style={styles.clubAvatarWrap}>
+                    {(guest.avatarUrl || guest.logoUrl || (guest as any)?.avatarImage) ? (
+                      <Image
+                        source={{ uri: guest.avatarUrl || guest.logoUrl || (guest as any)?.avatarImage }}
+                        style={styles.clubAvatarImg}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.clubAvatarHost, { backgroundColor: '#0284C7' }]}>
+                        <Text style={styles.clubAvatarText}>{(guest.name || 'B').charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.vsClubName} numberOfLines={1}>{guest.name}</Text>
-                  <View style={styles.vsLevelTag}>
-                    <Text style={styles.vsLevelText}>{guest.levelLabel}</Text>
+                  <View style={[styles.vsLevelTag, { backgroundColor: '#E0F2FE' }]}>
+                    <Text style={[styles.vsLevelText, { color: '#0369A1' }]}>{guest.levelLabel}</Text>
                   </View>
-                  <Text style={styles.vsEloText}>{guest.clubElo} Elo</Text>
-                  <Text style={styles.vsCrpText}>• {guest.crp} CRP</Text>
+                  <Text style={styles.vsEloText}>{guest.clubElo} Elo <Text style={styles.vsCrpText}>• {guest.crp} CRP</Text></Text>
                 </View>
               ) : (
                 <View style={styles.vsClubCol}>
                   <View style={styles.emptyGuestAvatar}>
-                    <Ionicons name="person-add-outline" size={22} color={COLORS.outline} />
+                    <Ionicons name="person-add-outline" size={20} color={COLORS.primary} />
                   </View>
-                  <Text style={styles.emptyGuestName}>Đang tìm đối thủ...</Text>
-                  <Text style={styles.emptyGuestSub}>Trình độ: {room.desiredLevels.join(', ')}</Text>
+                  <Text style={styles.emptyGuestName}>Đang tìm đối thủ</Text>
+                  <View style={styles.seekingLevelTag}>
+                    <Text style={styles.seekingLevelText} numberOfLines={1}>
+                      Trình độ: {room.desiredLevels && room.desiredLevels.length > 0 ? room.desiredLevels.join(', ') : 'Tương đương'}
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
           </View>
 
-          {/* Fee Split Card - Fixed Overflow */}
+          {/* ── 3.1. Match Lineups Card (v2.0) ── */}
+          {(room.hostLineup || room.guestLineup) && (
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#ECFDF5' }]}>
+                  <Ionicons name="people" size={16} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Đội Hình Ra Sân</Text>
+                  <Text style={styles.subtext}>
+                    Điểm trình độ được tính dựa trên các thành viên thực tế thi đấu
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.lineupArenaRow}>
+                {/* Host Lineup */}
+                <View style={[styles.lineupTeamCol, { borderTopColor: '#059669' }]}>
+                  <View style={styles.lineupTeamTop}>
+                    <Text style={styles.lineupTeamName} numberOfLines={1}>
+                      {room.hostLineup?.name || 'Chủ phòng'}
+                    </Text>
+                    <View style={styles.lineupEloBadge}>
+                      <Text style={styles.lineupEloText}>
+                        Trình độ: {room.hostLineup?.eloAvg || host.clubElo}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.lineupMemberCount}>
+                    {room.hostLineup?.memberCount || 0} cầu thủ đăng ký
+                  </Text>
+
+                  <View style={styles.lineupMembersList}>
+                    {room.hostLineup?.members?.map((m) => (
+                      <View key={m.userId} style={styles.lineupMemberRow}>
+                        <View style={styles.lineupMemberAvatar}>
+                          {m.avatarUrl ? (
+                            <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
+                          ) : (
+                            <Text style={styles.lineupAvatarText}>
+                              {(m.fullName || 'U').charAt(0).toUpperCase()}
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={styles.lineupMemberName} numberOfLines={1}>
+                          {m.fullName}
+                        </Text>
+                        <Text style={styles.lineupMemberElo}>{m.elo} điểm</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Guest Lineup or Waiting */}
+                <View style={[styles.lineupTeamCol, { borderTopColor: guest ? '#0284C7' : '#CBD5E1' }]}>
+                  {room.guestLineup ? (
+                    <>
+                      <View style={styles.lineupTeamTop}>
+                        <Text style={styles.lineupTeamName} numberOfLines={1}>
+                          {room.guestLineup.name}
+                        </Text>
+                        <View style={[styles.lineupEloBadge, { backgroundColor: '#E0F2FE' }]}>
+                          <Text style={[styles.lineupEloText, { color: '#0284C7' }]}>
+                            Trình độ: {room.guestLineup.eloAvg}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.lineupMemberCount}>
+                        {room.guestLineup.memberCount} cầu thủ đăng ký
+                      </Text>
+
+                      <View style={styles.lineupMembersList}>
+                        {room.guestLineup.members?.map((m) => (
+                          <View key={m.userId} style={styles.lineupMemberRow}>
+                            <View style={[styles.lineupMemberAvatar, { backgroundColor: '#0284C7' }]}>
+                              {m.avatarUrl ? (
+                                <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
+                              ) : (
+                                <Text style={styles.lineupAvatarText}>
+                                  {(m.fullName || 'U').charAt(0).toUpperCase()}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.lineupMemberName} numberOfLines={1}>
+                              {m.fullName}
+                            </Text>
+                            <Text style={styles.lineupMemberElo}>{m.elo} điểm</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.lineupWaitingBox}>
+                      <Ionicons name="time-outline" size={24} color="#94A3B8" />
+                      <Text style={styles.lineupWaitingTitle}>Chờ đối thủ</Text>
+                      <Text style={styles.lineupWaitingSubtitle}>
+                        Chưa chốt đội hình đối thủ
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Lineup Balance Bar */}
+              {room.hostLineup && room.guestLineup && (
+                <View style={styles.lineupBalanceBar}>
+                  <Ionicons name="git-compare-outline" size={14} color="#D97706" />
+                  <Text style={styles.lineupBalanceText}>
+                    Chênh lệch: {Math.abs((room.hostLineup.eloAvg || 0) - (room.guestLineup.eloAvg || 0))} Elo
+                    {room.balanceLabel ? ` • ${room.balanceLabel}` : ''}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ── 4. Fee Split Rule Card ── */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Chi Phí Sân & Quy Tắc Thắng Trả Ít Hơn</Text>
-            <Text style={styles.subtext}>Tổng giá trị tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIconCircle}>
+                <Ionicons name="wallet-outline" size={16} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>Quy Tắc Chia Tiền Sân</Text>
+                <Text style={styles.subtext}>Tổng tiền sân: {booking.totalPrice.toLocaleString('vi-VN')}đ</Text>
+              </View>
+            </View>
 
             <View style={styles.feeSplitBox}>
               <View style={styles.feeSplitRow}>
                 <View style={styles.feeSplitLabelGroup}>
                   <Ionicons name="trophy" size={15} color="#15803D" />
-                  <Text style={styles.feeSplitLabel} numberOfLines={1}>
-                    Đội Thắng chỉ trả ({minSharePercent}%):
-                  </Text>
+                  <Text style={styles.feeSplitLabel}>Đội Thắng chỉ trả ({minSharePercent}%):</Text>
                 </View>
-                <Text style={styles.feeSplitValueHighlight}>~{minAmount.toLocaleString('vi-VN')}đ</Text>
+                <Text style={styles.feeSplitValueWin}>~{minAmount.toLocaleString('vi-VN')}đ</Text>
               </View>
 
               <View style={styles.feeSplitRow}>
                 <View style={styles.feeSplitLabelGroup}>
                   <Ionicons name="alert-circle" size={15} color="#B91C1C" />
-                  <Text style={styles.feeSplitLabel} numberOfLines={1}>
-                    Đội Thua trả phần còn lại ({maxSharePercent}%):
-                  </Text>
+                  <Text style={styles.feeSplitLabel}>Đội Thua trả ({maxSharePercent}%):</Text>
                 </View>
-                <Text style={styles.feeSplitValue}>~{maxAmount.toLocaleString('vi-VN')}đ</Text>
+                <Text style={styles.feeSplitValueLose}>~{maxAmount.toLocaleString('vi-VN')}đ</Text>
               </View>
 
               <View style={styles.paymentNoteBox}>
-                <Ionicons name="information-circle-outline" size={16} color={COLORS.primary} />
+                <Ionicons name="information-circle-outline" size={15} color={COLORS.primary} />
                 <Text style={styles.paymentNoteText}>
-                  Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> khoản tiền sân ngoài đời cho Chủ sân theo kết quả trận đấu.
+                  Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> phần tiền sân tương ứng ngoài đời cho Chủ sân theo kết quả trận.
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Host Note */}
+          {/* ── 5. Host Note (If any) ── */}
           {room.note && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Lời Nhắn Từ Chủ Room</Text>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} color="#0284C7" />
+                </View>
+                <Text style={styles.sectionTitle}>Lời Nhắn Từ Chủ Room</Text>
+              </View>
               <Text style={styles.noteText}>"{room.note}"</Text>
             </View>
           )}
 
-          {/* Applicants List */}
-          {room.status === 'OPEN' && room.applicants.length > 0 && (
+          {/* ── 6. Applicants Section (For Host Approval) ── */}
+          {room.status === 'OPEN' && pendingApplicants.length > 0 && (
             <View style={styles.sectionCard}>
-              <View style={styles.applicantSectionHeader}>
-                <View style={styles.applicantHeaderTitleRow}>
-                  <Ionicons name="people-circle-outline" size={22} color={COLORS.primary} />
-                  <Text style={styles.sectionTitle}>Danh Sách Yêu Cầu Ghép Trận ({room.applicants.length})</Text>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="people" size={16} color={COLORS.primary} />
                 </View>
-                <Text style={styles.applicantSubHint}>Chủ room chọn đối thủ phù hợp nhất để chốt trận</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Đơn Xin Ghép Trận ({pendingApplicants.length})</Text>
+                  <Text style={styles.subtext}>Chủ room chọn đối thủ phù hợp nhất để chốt kèo</Text>
+                </View>
               </View>
 
-              {room.applicants.map((req: any) => {
+              {pendingApplicants.map((req: any) => {
                 const canManage = !!room.permissions?.canManageApplicants;
                 return (
-                  <View key={req.id} style={styles.applicantCardNew}>
-                    <View style={styles.applicantHeaderNew}>
-                      {/* Club Avatar */}
-                      <View style={styles.applicantAvatarNew}>
-                        <Text style={styles.applicantAvatarTextNew}>{req.applicantClub.name?.charAt(0) || 'B'}</Text>
-                      </View>
-
-                      <View style={styles.applicantInfoNew}>
-                        <View style={styles.applicantNameRow}>
-                          <Text style={styles.applicantNameNew} numberOfLines={1}>{req.applicantClub.name}</Text>
-                          <View style={styles.levelBadgeMini}>
-                            <Text style={styles.levelBadgeText}>{req.applicantClub.levelLabel || 'Cân bằng'}</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.applicantStatsRow}>
-                          <View style={styles.statTag}>
-                            <Ionicons name="trophy-outline" size={12} color="#D97706" />
-                            <Text style={styles.statTagText}>{req.applicantClub.clubElo || 1200} Elo</Text>
-                          </View>
-
-                          <View style={styles.statTag}>
-                            <Ionicons name="people-outline" size={12} color={COLORS.primary} />
-                            <Text style={styles.statTagText}>{req.applicantClub.activeMemberCount || 10} TV</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-
-                    {req.note && (
-                      <View style={styles.applicantNoteBox}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.onSurfaceVariant} />
-                        <Text style={styles.applicantNoteText}>"{req.note}"</Text>
-                      </View>
-                    )}
-
-                    {req.status === 'PENDING' && (
-                      canManage ? (
-                        <View style={styles.applicantActionRowNew}>
-                          <TouchableOpacity
-                            activeOpacity={0.8}
-                            onPress={() => handleRejectApplicant(req.id, req.applicantClub.name)}
-                            style={styles.rejectBtnNew}
-                          >
-                            <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                            <Text style={styles.rejectBtnTextNew} numberOfLines={1}>Từ chối</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            activeOpacity={0.85}
-                            onPress={() => handleAcceptApplicant(req.id, req.applicantClub.name)}
-                            style={styles.acceptBtnNew}
-                          >
-                            <Ionicons name="checkmark-circle-outline" size={15} color={COLORS.white} />
-                            <Text style={styles.acceptBtnTextNew} numberOfLines={1}>Chấp nhận</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={styles.pendingStatusBadgeNew}>
-                          <Ionicons name="hourglass-outline" size={14} color="#92400E" />
-                          <Text style={styles.pendingStatusTextNew} numberOfLines={1}>Đang chờ Chủ room (Bên A) phê duyệt</Text>
-                        </View>
-                      )
-                    )}
-                  </View>
+                  <ApplicantItemRow
+                    key={req.id}
+                    req={req}
+                    canManage={canManage}
+                    onAccept={handleAcceptApplicant}
+                    onReject={handleRejectApplicant}
+                  />
                 );
               })}
             </View>
@@ -613,20 +881,31 @@ export function MatchDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Role-Based Bottom Bar - Compact & Tidy Alignment */}
+      {/* ── 7. Role-Based Bottom Bar ── */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomBarInner}>
           {room.status === 'OPEN' && (
             isHost ? (
-              <View style={styles.hostBottomBanner}>
-                <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
-                <Text style={styles.hostBottomBannerText} numberOfLines={1}>
-                  {room.applicants.length > 0
-                    ? `Bạn là Chủ room • ${room.applicants.length} CLB xin ghép (Xem trên)`
-                    : 'Bạn là Chủ room • Phòng ghép đang mở'}
-                </Text>
+              <View style={{ gap: 8 }}>
+                <View style={styles.hostBottomBanner}>
+                  <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
+                  <Text style={styles.hostBottomBannerText} numberOfLines={1}>
+                    {pendingApplicants.length > 0
+                      ? `Bạn là Chủ room • ${pendingApplicants.length} CLB xin ghép (Xem trên)`
+                      : 'Bạn là Chủ room • Kèo đang mở tìm đối thủ'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  disabled={requesting}
+                  activeOpacity={0.85}
+                  onPress={handleCancelRoomPress}
+                  style={styles.cancelRoomBtn}
+                >
+                  <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                  <Text style={styles.cancelRoomBtnText}>Hủy phòng ghép kèo</Text>
+                </TouchableOpacity>
               </View>
-            ) : hasSentRequest ? (
+            ) : hasSentPendingRequest ? (
               <View style={styles.pendingBottomBanner}>
                 <Ionicons name="time-outline" size={16} color="#92400E" />
                 <Text style={styles.pendingBottomBannerText} numberOfLines={1}>
@@ -634,21 +913,33 @@ export function MatchDetailScreen() {
                 </Text>
               </View>
             ) : (
-              <TouchableOpacity
-                disabled={requesting || loadingClubs}
-                activeOpacity={0.88}
-                onPress={openJoinModal}
-                style={styles.actionBtn}
-              >
-                {requesting || loadingClubs ? (
-                  <ActivityIndicator color={COLORS.white} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="paper-plane-outline" size={16} color={COLORS.white} />
-                    <Text style={styles.actionBtnText} numberOfLines={1}>Gửi yêu cầu ghép trận ngay</Text>
-                  </>
+              <View style={{ gap: 8 }}>
+                {isRejectedRequest && (
+                  <View style={styles.rejectedBanner}>
+                    <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+                    <Text style={styles.rejectedBannerText}>
+                      Đơn xin ghép từ CLB "{room.myRequest?.applicantClub?.name || 'của bạn'}" đã bị từ chối. Bạn có thể chọn CLB khác để gửi lại!
+                    </Text>
+                  </View>
                 )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={requesting || loadingClubs}
+                  activeOpacity={0.88}
+                  onPress={openJoinModal}
+                  style={styles.actionBtn}
+                >
+                  {requesting || loadingClubs ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="paper-plane" size={16} color="#FFFFFF" />
+                      <Text style={styles.actionBtnText}>
+                        {isRejectedRequest ? 'Gửi Lại Yêu Cầu Ghép Trận' : 'Gửi yêu cầu ghép trận ngay'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             )
           )}
 
@@ -660,8 +951,8 @@ export function MatchDetailScreen() {
                 onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
                 style={styles.scoreBtn}
               >
-                <Ionicons name="trophy-outline" size={16} color={COLORS.white} />
-                <Text style={styles.actionBtnText} numberOfLines={1}>Nhập tỷ số trận đấu (Chủ room)</Text>
+                <Ionicons name="trophy" size={16} color="#FFFFFF" />
+                <Text style={styles.actionBtnText}>Nhập tỷ số trận đấu (Chủ room)</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.matchedWaitingBanner}>
@@ -681,14 +972,14 @@ export function MatchDetailScreen() {
                 onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
                 style={styles.confirmScoreActionBtn}
               >
-                <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.white} />
-                <Text style={styles.actionBtnText} numberOfLines={1}>Duyệt & Xác nhận tỷ số (Bên B)</Text>
+                <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" />
+                <Text style={styles.actionBtnText}>Duyệt & Xác nhận tỷ số (Bên B)</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.pendingBottomBanner}>
                 <Ionicons name="hourglass-outline" size={16} color="#92400E" />
                 <Text style={styles.pendingBottomBannerText} numberOfLines={1}>
-                  Đã gửi tỷ số • Chờ Bên B ({room.guestClub?.name || 'Đối thủ'}) duyệt
+                  Đã gửi tỷ số • Chờ Bên B duyệt
                 </Text>
               </View>
             )
@@ -700,229 +991,187 @@ export function MatchDetailScreen() {
               onPress={() => router.push(`/matchmaking/${room.id}/result` as any)}
               style={styles.resultBtn}
             >
-              <Ionicons name="ribbon-outline" size={16} color={COLORS.white} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Xem Kết Quả & Thưởng CRP</Text>
+              <Ionicons name="ribbon" size={16} color="#FFFFFF" />
+              <Text style={styles.actionBtnText}>Xem Kết Quả & Thưởng CRP</Text>
             </TouchableOpacity>
+          )}
+
+          {/* Status EXPIRED */}
+          {room.status === 'EXPIRED' && (
+            <View style={styles.statusNoticeBanner}>
+              <Ionicons name="time-outline" size={20} color="#64748B" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statusNoticeTitle}>
+                  {room.statusLabel || (isHost ? 'Kèo đấu đã quá hạn' : 'Không tìm được đối thủ')}
+                </Text>
+                <Text style={styles.statusNoticeSub}>
+                  {isHost
+                    ? 'Kèo đấu đã quá giờ tìm đối thủ. Sân đã đặt vẫn thuộc quyền sử dụng của bạn.'
+                    : 'Phòng ghép trận này đã hết hạn mà không tìm được đối thủ.'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Status CANCELLED */}
+          {room.status === 'CANCELLED' && (
+            <View style={[styles.statusNoticeBanner, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.statusNoticeTitle, { color: '#DC2626' }]}>Kèo đấu đã bị hủy</Text>
+                <Text style={[styles.statusNoticeSub, { color: '#7F1D1D' }]}>
+                  {room.cancellationReason
+                    ? `Lý do: ${room.cancellationReason}`
+                    : 'Phòng ghép kèo đã được đóng. Sân đã đặt vẫn thuộc quyền sở hữu của chủ phòng.'}
+                </Text>
+              </View>
+            </View>
           )}
         </View>
       </View>
 
-      {/* 1. SELECT CLUB BOTTOM SHEET MODAL */}
+      {/* ── 8. Join Match Modal ── */}
       <Modal
         visible={isJoinModalVisible}
         transparent
         animationType="slide"
         onRequestClose={() => setIsJoinModalVisible(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setIsJoinModalVisible(false)}
-          style={styles.modalOverlay}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingView}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.bottomSheetContainer}>
-            <View style={styles.grabHandle} />
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+              Keyboard.dismiss();
+              setIsJoinModalVisible(false);
+            }}
+            style={styles.modalOverlay}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.bottomSheetContainer}>
+                <View style={styles.grabHandle} />
 
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderTitleRow}>
-                <View style={styles.headerIconBadge}>
-                  <Ionicons name="shield-checkmark" size={18} color={COLORS.white} />
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle}>Chọn CLB Đại Diện Thách Đấu</Text>
+                    <Text style={styles.modalSubtitle}>Gửi yêu cầu ghép kèo tới Chủ room</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setIsJoinModalVisible(false)} style={styles.closeBtn}>
+                    <Ionicons name="close" size={20} color="#64748B" />
+                  </TouchableOpacity>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>Chọn CLB Đại Diện Thách Đấu</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => setIsJoinModalVisible(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={20} color={COLORS.onSurfaceVariant} />
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.targetHostBanner}>
-              <Ionicons name="sparkles-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.targetHostText}>
-                Thách đấu với Chủ room: <Text style={{ fontWeight: '900', color: COLORS.primary }}>{host.name}</Text> ({host.levelLabel})
-              </Text>
-            </View>
-
-            <Text style={styles.sheetSectionLabel}>CHỌN CLB CỦA BẠN (CÙNG CLB KHÔNG THỂ GHÉP CÙNG KÈO):</Text>
-
-            <ScrollView style={styles.clubListScroll} showsVerticalScrollIndicator={false}>
-              {myClubs.map((club) => {
-                const isSelected = String(selectedClubId) === String(club.id);
-                return (
-                  <TouchableOpacity
-                    key={club.id}
-                    activeOpacity={0.88}
-                    onPress={() => setSelectedClubId(club.id)}
-                    style={[styles.clubCardItem, isSelected && styles.clubCardItemActive]}
-                  >
-                    <View style={styles.clubAvatarCircle}>
-                      <Text style={styles.clubAvatarLetter}>{club.name?.charAt(0) || 'C'}</Text>
+                <ScrollView
+                  style={styles.modalBodyScroll}
+                  contentContainerStyle={styles.modalBodyScrollContent}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.targetHostBanner}>
+                    <View style={styles.targetHostIconCircle}>
+                      <Ionicons name="shield-checkmark" size={15} color={COLORS.primary} />
                     </View>
-
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={[styles.clubCardName, isSelected && styles.clubCardNameActive]}>
-                        {club.name}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.targetHostLabel}>Đối thủ thách đấu:</Text>
+                      <Text style={styles.targetHostName} numberOfLines={1}>
+                        {host.name} <Text style={styles.targetHostLevel}>({host.levelLabel} • {host.clubElo} Elo)</Text>
                       </Text>
-                      <View style={styles.clubMetaRow}>
-                        <View style={styles.eloBadge}>
-                          <Ionicons name="trophy-outline" size={10} color="#92400E" style={{ marginRight: 2 }} />
-                          <Text style={styles.eloBadgeText}>{club.clubElo || 1200} Elo</Text>
-                        </View>
-                        <View style={styles.memberBadge}>
-                          <Ionicons name="people-outline" size={10} color="#0369A1" style={{ marginRight: 2 }} />
-                          <Text style={styles.memberBadgeText}>{club.activeMemberCount || 10} thành viên</Text>
-                        </View>
-                      </View>
                     </View>
+                  </View>
 
-                    <View style={[styles.radioOuterRing, isSelected && styles.radioOuterRingActive]}>
-                      {isSelected && <View style={styles.radioInnerDot} />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                  <Text style={styles.sheetSectionLabel}>CHỌN CLB BẠN ĐẠI DIỆN:</Text>
 
-            <Text style={styles.sheetSectionLabel}>LỜI NHẮN GỬI CHỦ ROOM (TÙY CHỌN):</Text>
-            <TextInput
-              style={styles.sheetTextInput}
-              placeholder="VD: CLB mình muốn giao lưu vui vẻ, thi đấu 2 hiệp 30 phút..."
-              placeholderTextColor={COLORS.outline}
-              value={requestNote}
-              onChangeText={setRequestNote}
-              multiline
-              numberOfLines={2}
-            />
+                  <View style={styles.clubListContainer}>
+                    {myClubs.map((club) => {
+                      const isSelected = String(selectedClubId) === String(club.id);
+                      const clubAvatar = club.avatarUrl || club.logoUrl || (club as any).avatarImage;
+                      return (
+                        <TouchableOpacity
+                          key={club.id}
+                          activeOpacity={0.88}
+                          onPress={() => setSelectedClubId(club.id)}
+                          style={[styles.clubCardItem, isSelected && styles.clubCardItemActive]}
+                        >
+                          <View style={styles.modalClubAvatarWrap}>
+                            {clubAvatar ? (
+                              <Image source={{ uri: clubAvatar }} style={styles.modalClubAvatarImg} resizeMode="cover" />
+                            ) : (
+                              <View style={styles.clubAvatarCircle}>
+                                <Text style={styles.clubAvatarLetter}>{(club.name || 'C').charAt(0).toUpperCase()}</Text>
+                              </View>
+                            )}
+                          </View>
 
-            <View style={styles.sheetActionRow}>
-              <TouchableOpacity
-                onPress={() => setIsJoinModalVisible(false)}
-                style={styles.sheetCancelBtn}
-              >
-                <Text style={styles.sheetCancelText}>Hủy</Text>
-              </TouchableOpacity>
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <Text style={[styles.clubCardName, isSelected && styles.clubCardNameActive]} numberOfLines={1}>
+                              {club.name}
+                            </Text>
+                            <View style={styles.clubCardMetaRow}>
+                              <Ionicons name="trophy-outline" size={11} color="#D97706" />
+                              <Text style={styles.clubCardMetaText}>{club.clubElo || 1200} Elo</Text>
+                              <Text style={styles.metaDot}>•</Text>
+                              <Ionicons name="people-outline" size={11} color="#0284C7" />
+                              <Text style={styles.clubCardMetaText}>{club.activeMemberCount || 10} TV</Text>
+                              <Text style={styles.metaDot}>•</Text>
+                              <Text style={styles.clubCardLevelText}>{club.levelLabel || 'TB'}</Text>
+                            </View>
+                          </View>
 
-              <TouchableOpacity
-                disabled={requesting || !selectedClubId}
-                onPress={handleConfirmSendRequest}
-                style={[styles.sheetSubmitBtn, (!selectedClubId || requesting) && { opacity: 0.6 }]}
-              >
-                {requesting ? (
-                  <ActivityIndicator color={COLORS.white} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="send-outline" size={15} color={COLORS.white} />
-                    <Text style={styles.sheetSubmitText}>Gửi Yêu Cầu Ghép Trận</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+                          <View style={[styles.radioOuterRing, isSelected && styles.radioOuterRingActive]}>
+                            {isSelected && <View style={styles.radioInnerDot} />}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
 
-      {/* 2. SHARE TO CLUB FOR VOTING BOTTOM SHEET MODAL */}
-      <Modal
-        visible={isVoteModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsVoteModalVisible(false)}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setIsVoteModalVisible(false)}
-          style={styles.modalOverlay}
-        >
-          <TouchableOpacity activeOpacity={1} style={styles.bottomSheetContainer}>
-            <View style={styles.grabHandle} />
+                  <Text style={styles.sheetSectionLabel}>LỜI NHẮN GỬI CHỦ ROOM (TÙY CHỌN):</Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.sheetTextInput}
+                      placeholder="VD: CLB mình muốn giao lưu vui vẻ, fair-play..."
+                      placeholderTextColor="#94A3B8"
+                      value={requestNote}
+                      onChangeText={setRequestNote}
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                    />
+                  </View>
+                </ScrollView>
 
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderTitleRow}>
-                <View style={styles.voteIconBadge}>
-                  <Ionicons name="stats-chart-outline" size={18} color={COLORS.white} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>Chia Sẻ Vào CLB Để Biểu Quyết</Text>
-                  <Text style={styles.modalSubtitle}>Đăng khảo sát ý kiến các thành viên trước khi chốt đi trận đấu</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => setIsVoteModalVisible(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={20} color={COLORS.onSurfaceVariant} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.sheetSectionLabel}>CHỌN CLB CỦA BẠN ĐỂ GỬI BÌNH CHỌN:</Text>
-            <ScrollView style={{ maxHeight: 150 }} showsVerticalScrollIndicator={false}>
-              {myClubs.map((club) => {
-                const isSelected = String(voteTargetClubId) === String(club.id);
-                return (
+                <View style={styles.sheetActionRow}>
                   <TouchableOpacity
-                    key={club.id}
-                    activeOpacity={0.88}
-                    onPress={() => setVoteTargetClubId(club.id)}
-                    style={[styles.clubCardItem, isSelected && styles.clubCardItemActive]}
+                    onPress={() => setIsJoinModalVisible(false)}
+                    style={styles.sheetCancelBtn}
                   >
-                    <View style={styles.clubAvatarCircle}>
-                      <Text style={styles.clubAvatarLetter}>{club.name?.charAt(0) || 'C'}</Text>
-                    </View>
-                    <Text style={[styles.clubCardName, { flex: 1 }, isSelected && styles.clubCardNameActive]}>
-                      {club.name}
-                    </Text>
-                    <View style={[styles.radioOuterRing, isSelected && styles.radioOuterRingActive]}>
-                      {isSelected && <View style={styles.radioInnerDot} />}
-                    </View>
+                    <Text style={styles.sheetCancelText}>Hủy</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
 
-            <Text style={styles.sheetSectionLabel}>XEM TRƯỚC NỘI DUNG BIỂU QUYẾT (POLL):</Text>
-            <View style={styles.pollPreviewCard}>
-              <Text style={styles.pollPreviewQuestion}>
-                Kèo trận đấu: <Text style={{ fontWeight: '800', color: COLORS.primary }}>{booking.facilityName}</Text> ({booking.date} • {booking.startTime})
-              </Text>
-              <View style={styles.pollOptionBox}>
-                <Ionicons name="checkmark-circle-outline" size={14} color="#16A34A" />
-                <Text style={styles.pollOptionText}>1. Tham gia (Đồng ý đi ghép trận)</Text>
+                  <TouchableOpacity
+                    disabled={requesting || !selectedClubId}
+                    onPress={handleConfirmSendRequest}
+                    style={[styles.sheetSubmitBtn, (!selectedClubId || requesting) && { opacity: 0.6 }]}
+                  >
+                    {requesting ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="paper-plane" size={15} color="#FFFFFF" />
+                        <Text style={styles.sheetSubmitText}>Gửi Yêu Cầu Ghép</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.pollOptionBox}>
-                <Ionicons name="help-circle-outline" size={14} color="#D97706" />
-                <Text style={styles.pollOptionText}>2. Phân vân / Cần xem lịch</Text>
-              </View>
-              <View style={styles.pollOptionBox}>
-                <Ionicons name="close-circle-outline" size={14} color="#DC2626" />
-                <Text style={styles.pollOptionText}>3. Bận / Không đi được</Text>
-              </View>
-            </View>
-
-            <View style={styles.sheetActionRow}>
-              <TouchableOpacity
-                onPress={() => setIsVoteModalVisible(false)}
-                style={styles.sheetCancelBtn}
-              >
-                <Text style={styles.sheetCancelText}>Đóng</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                disabled={voteSending || !voteTargetClubId}
-                onPress={handleSendVotePoll}
-                style={[styles.voteSubmitBtn, (!voteTargetClubId || voteSending) && { opacity: 0.6 }]}
-              >
-                {voteSending ? (
-                  <ActivityIndicator color={COLORS.onSecondary} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="stats-chart" size={15} color={COLORS.onSecondary} />
-                    <Text style={styles.voteSubmitText}>Đăng Biểu Quyết Ngay</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+            </TouchableWithoutFeedback>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* Project Custom Confirm / Alert Modal */}
+      {/* Custom Confirm / Alert Modal */}
       <CustomConfirmModal {...modalConfig} />
     </SafeAreaView>
   );
@@ -931,12 +1180,12 @@ export function MatchDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+    borderBottomColor: '#F1F5F9',
   },
   headerInner: {
     maxWidth: 760,
@@ -945,14 +1194,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 10,
   },
   headerIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(6, 78, 59, 0.06)',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -960,7 +1209,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 17,
+    fontSize: 16.5,
   },
   centerContainer: {
     flex: 1,
@@ -970,10 +1219,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
   },
   scrollContent: {
-    padding: SPACING.marginMobile,
+    padding: SPACING.md,
     paddingBottom: 110,
   },
   responsiveContainer: {
@@ -983,17 +1232,17 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   heroCard: {
-    backgroundColor: COLORS.primary,
-    padding: SPACING.md,
+    backgroundColor: '#064E3B',
+    padding: 16,
     borderRadius: BORDER_RADIUS.xl,
     gap: 10,
-    shadowColor: COLORS.primary,
+    shadowColor: '#064E3B',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
     elevation: 4,
   },
-  badgeRow: {
+  heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1001,475 +1250,491 @@ const styles = StyleSheet.create({
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
   },
   rankedBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.25)',
   },
   friendlyBadge: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: 'rgba(56, 189, 248, 0.25)',
   },
   typeText: {
     ...TYPOGRAPHY.labelSm,
-    fontWeight: '800',
     fontSize: 11,
+    fontWeight: '800',
   },
   rankedText: {
-    color: '#92400E',
+    color: '#FDE68A',
   },
   friendlyText: {
-    color: '#075985',
+    color: '#BAE6FD',
   },
   balanceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
   },
   balanceText: {
     ...TYPOGRAPHY.labelSm,
-    color: COLORS.white,
+    color: '#FDE68A',
     fontWeight: '800',
     fontSize: 11,
   },
   venueTitle: {
-    ...TYPOGRAPHY.headlineMd,
+    ...TYPOGRAPHY.titleLg,
     fontWeight: '900',
-    color: COLORS.white,
-    fontSize: 22,
-  },
-  heroMetaGroup: {
-    gap: 4,
+    color: '#FFFFFF',
+    fontSize: 19,
   },
   heroMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   heroMetaText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: 'rgba(255, 255, 255, 0.9)',
+    ...TYPOGRAPHY.bodySm,
+    color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 12.5,
     flex: 1,
+  },
+  timeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  timeBoxText: {
+    ...TYPOGRAPHY.bodyMd,
+    color: '#FFFFFF',
+    fontSize: 13,
   },
   heroChipRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
-    marginTop: 2,
   },
   heroChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.sm,
   },
   heroChipText: {
     ...TYPOGRAPHY.labelSm,
-    color: COLORS.white,
-    fontWeight: '700',
+    color: '#FFFFFF',
     fontSize: 11.5,
+    fontWeight: '700',
   },
   heroChipGold: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: COLORS.secondary,
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.25)',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.sm,
   },
   heroChipGoldText: {
     ...TYPOGRAPHY.labelSm,
-    color: '#78350F',
-    fontWeight: '800',
+    color: '#FDE68A',
     fontSize: 11.5,
-  },
-  timeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.default,
-  },
-  timeBoxText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
     fontWeight: '800',
-    fontSize: 13,
   },
   sectionCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
-    gap: SPACING.sm,
-    shadowColor: '#064E3B',
+    borderColor: '#E2E8F0',
+    gap: 12,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 16,
+    fontSize: 15.5,
   },
   subtext: {
     ...TYPOGRAPHY.bodyMd,
+    color: '#64748B',
     fontSize: 12,
-    color: COLORS.onSurfaceVariant,
   },
   vsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
-    marginTop: 4,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   vsClubCol: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
+  },
+  clubAvatarWrap: {
+    position: 'relative',
+    marginBottom: 2,
+  },
+  clubAvatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#E2E8F0',
   },
   clubAvatarHost: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: COLORS.primary,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  clubAvatarGuest: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#0284C7',
     justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#0284C7',
+    borderColor: '#FFFFFF',
   },
   clubAvatarText: {
-    ...TYPOGRAPHY.headlineMd,
-    color: COLORS.white,
+    ...TYPOGRAPHY.titleMd,
+    color: '#FFFFFF',
     fontWeight: '800',
+    fontSize: 18,
+  },
+  hostBadgeDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: COLORS.primary,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   vsClubName: {
-    ...TYPOGRAPHY.labelMd,
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 13.5,
     fontWeight: '800',
     color: COLORS.onSurface,
     textAlign: 'center',
-    fontSize: 13,
+    maxWidth: 110,
   },
   vsLevelTag: {
-    backgroundColor: 'rgba(6, 78, 59, 0.1)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: BORDER_RADIUS.sm,
   },
   vsLevelText: {
     ...TYPOGRAPHY.labelSm,
     color: COLORS.primary,
+    fontSize: 10.5,
     fontWeight: '800',
-    fontSize: 10,
   },
   vsEloText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  vsCrpText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 11,
     fontWeight: '700',
-    color: '#B45309',
+    color: '#D97706',
   },
-  vsBadgeCircle: {
+  vsCrpText: {
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  vsCenterCol: {
+    width: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vsCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: COLORS.outlineVariant,
-    justifyContent: 'center',
+    backgroundColor: '#0F172A',
     alignItems: 'center',
-    marginHorizontal: 4,
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   vsText: {
-    ...TYPOGRAPHY.labelMd,
+    color: '#FFFFFF',
     fontWeight: '900',
-    color: COLORS.outline,
-    fontSize: 12,
+    fontSize: 13,
   },
   emptyGuestAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.outlineVariant,
-    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(6, 78, 59, 0.04)',
+    marginBottom: 2,
   },
   emptyGuestName: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    fontStyle: 'italic',
-  },
-  emptyGuestSub: {
     ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  seekingLevelTag: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  seekingLevelText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#6D28D9',
+    fontWeight: '700',
     fontSize: 10,
-    color: COLORS.outline,
+    maxWidth: 100,
   },
   feeSplitBox: {
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
-    gap: 8,
+    padding: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   feeSplitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
   },
   feeSplitLabelGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flex: 1,
   },
   feeSplitLabel: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 12.5,
-    color: COLORS.onSurfaceVariant,
-    flex: 1,
+    fontSize: 13,
+    color: COLORS.onSurface,
+    fontWeight: '600',
   },
-  feeSplitValue: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: '#B91C1C',
-  },
-  feeSplitValueHighlight: {
+  feeSplitValueWin: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '900',
     color: '#15803D',
-    fontSize: 15,
+    fontSize: 14,
+  },
+  feeSplitValueLose: {
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '900',
+    color: '#B91C1C',
+    fontSize: 14,
   },
   paymentNoteBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(6, 78, 59, 0.06)',
-    padding: 8,
-    borderRadius: BORDER_RADIUS.sm,
-    marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   paymentNoteText: {
-    ...TYPOGRAPHY.bodyMd,
+    ...TYPOGRAPHY.bodySm,
     fontSize: 11.5,
-    color: COLORS.primary,
+    color: '#475569',
     flex: 1,
     lineHeight: 16,
   },
   noteText: {
     ...TYPOGRAPHY.bodyMd,
+    color: '#475569',
+    fontSize: 13,
     fontStyle: 'italic',
-    color: COLORS.onSurfaceVariant,
+    lineHeight: 18,
   },
-  applicantSectionHeader: {
-    gap: 2,
-    marginBottom: 8,
-  },
-  applicantHeaderTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  applicantSubHint: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-  },
-  applicantCardNew: {
+  applicantCard: {
     backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(6, 78, 59, 0.12)',
-    padding: SPACING.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     gap: 10,
-    marginTop: 8,
   },
-  applicantHeaderNew: {
+  applicantHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  applicantAvatarNew: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.primary,
-    borderWidth: 2,
-    borderColor: 'rgba(6, 78, 59, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  applicantAvatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
   },
-  applicantAvatarTextNew: {
-    ...TYPOGRAPHY.headlineLgMobile,
-    color: COLORS.white,
-    fontWeight: '900',
+  applicantAvatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E2E8F0',
+  },
+  applicantAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applicantAvatarText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
     fontSize: 17,
   },
-  applicantInfoNew: {
+  applicantInfo: {
     flex: 1,
     gap: 3,
   },
   applicantNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 6,
   },
-  applicantNameNew: {
-    ...TYPOGRAPHY.titleMd,
-    fontWeight: '900',
+  applicantName: {
+    ...TYPOGRAPHY.titleSm,
+    fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 14.5,
-    flex: 1,
+    fontSize: 13.5,
+    flexShrink: 1,
   },
   levelBadgeMini: {
-    backgroundColor: 'rgba(6, 78, 59, 0.1)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BORDER_RADIUS.sm,
   },
   levelBadgeText: {
-    ...TYPOGRAPHY.labelSm,
+    color: '#6D28D9',
     fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.primary,
+    fontWeight: '700',
   },
   applicantStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  statTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    gap: 5,
   },
   statTagText: {
     ...TYPOGRAPHY.labelSm,
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statDot: {
+    color: '#CBD5E1',
+    fontSize: 10,
   },
   applicantNoteBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    backgroundColor: '#FFFFFF',
+    padding: 8,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#E2E8F0',
   },
   applicantNoteText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 11.5,
+    ...TYPOGRAPHY.bodySm,
+    color: '#475569',
+    fontSize: 12,
     fontStyle: 'italic',
-    color: COLORS.onSurfaceVariant,
-    flex: 1,
   },
-  applicantActionRowNew: {
+  applicantActionRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 2,
   },
-  rejectBtnNew: {
+  rejectBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: BORDER_RADIUS.full,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#FEE2E2',
   },
-  rejectBtnTextNew: {
-    ...TYPOGRAPHY.labelMd,
+  rejectBtnText: {
+    ...TYPOGRAPHY.labelSm,
     color: '#DC2626',
-    fontWeight: '800',
-    fontSize: 12.5,
+    fontWeight: '700',
+    fontSize: 12,
   },
-  acceptBtnNew: {
-    flex: 1.4,
+  acceptBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: BORDER_RADIUS.full,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  acceptBtnTextNew: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 12.5,
+  acceptBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
   },
-  pendingStatusBadgeNew: {
+  pendingStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.full,
-    alignSelf: 'stretch',
     justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFFBEB',
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
   },
-  pendingStatusTextNew: {
-    ...TYPOGRAPHY.labelMd,
-    color: '#92400E',
-    fontWeight: '800',
+  pendingStatusText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#B45309',
+    fontWeight: '700',
     fontSize: 11.5,
   },
   bottomBar: {
@@ -1477,31 +1742,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: COLORS.outlineVariant,
+    borderTopColor: '#F1F5F9',
+    paddingHorizontal: SPACING.md,
+    paddingTop: 10,
+    paddingBottom: 24,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 6,
   },
   bottomBarInner: {
     maxWidth: 760,
     width: '100%',
     alignSelf: 'center',
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: 10,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.full,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
   },
   hostBottomBanner: {
     flexDirection: 'row',
@@ -1509,37 +1765,87 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(6, 78, 59, 0.2)',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: BORDER_RADIUS.full,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.xl,
   },
   hostBottomBannerText: {
     ...TYPOGRAPHY.labelMd,
     color: COLORS.primary,
-    fontWeight: '900',
-    fontSize: 12.5,
-    flexShrink: 1,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  cancelRoomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  cancelRoomBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  statusNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  statusNoticeTitle: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#334155',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  statusNoticeSub: {
+    ...TYPOGRAPHY.bodySm,
+    color: '#64748B',
+    fontSize: 11.5,
+    marginTop: 2,
   },
   pendingBottomBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1.5,
-    borderColor: '#FCD34D',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#FFFBEB',
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.xl,
   },
   pendingBottomBannerText: {
     ...TYPOGRAPHY.labelMd,
-    color: '#92400E',
-    fontWeight: '900',
-    fontSize: 12.5,
-    flexShrink: 1,
+    color: '#B45309',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  rejectedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  rejectedBannerText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 11.5,
+    flex: 1,
   },
   matchedWaitingBanner: {
     flexDirection: 'row',
@@ -1547,142 +1853,111 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: '#E0F2FE',
-    borderWidth: 1.5,
-    borderColor: '#7DD3FC',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: BORDER_RADIUS.full,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.xl,
   },
   matchedWaitingText: {
     ...TYPOGRAPHY.labelMd,
     color: '#0369A1',
-    fontWeight: '900',
-    fontSize: 12.5,
-    flexShrink: 1,
+    fontWeight: '800',
+    fontSize: 13,
   },
-  confirmScoreActionBtn: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: COLORS.primary,
-    borderWidth: 1.5,
-    borderColor: COLORS.secondary,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.full,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.xl,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
+  },
+  actionBtnText: {
+    ...TYPOGRAPHY.titleSm,
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 14.5,
   },
   scoreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#0284C7',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.full,
-    shadowColor: '#0284C7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    gap: 8,
+    backgroundColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  confirmScoreActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EA580C',
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.xl,
   },
   resultBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#D97706',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.full,
-    shadowColor: '#D97706',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    gap: 8,
+    backgroundColor: '#0F172A',
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.xl,
   },
-  actionBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 13.5,
+  keyboardAvoidingView: {
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
   bottomSheetContainer: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: SPACING.lg,
-    paddingBottom: 36,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    maxHeight: '90%',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowRadius: 12,
+    elevation: 8,
   },
   grabHandle: {
-    width: 44,
-    height: 5,
-    borderRadius: 3,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: '#CBD5E1',
     alignSelf: 'center',
-    marginBottom: 4,
+    marginBottom: 10,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 8,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-  },
-  modalHeaderTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  headerIconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voteIconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#D97706',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   modalTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '900',
     color: COLORS.onSurface,
-    fontSize: 16.5,
+    fontSize: 16,
   },
   modalSubtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
+    ...TYPOGRAPHY.bodySm,
+    color: '#64748B',
+    fontSize: 11.5,
+    marginTop: 1,
   },
   closeBtn: {
     width: 32,
@@ -1692,233 +1967,340 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  modalBodyScroll: {
+    maxHeight: 380,
+  },
+  modalBodyScrollContent: {
+    paddingVertical: 10,
+    gap: 8,
+  },
   targetHostBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: 'rgba(6, 78, 59, 0.06)',
+    padding: 10,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.default,
+    borderColor: 'rgba(6, 78, 59, 0.12)',
   },
-  targetHostText: {
-    ...TYPOGRAPHY.bodyMd,
+  targetHostIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(6, 78, 59, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetHostLabel: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  targetHostName: {
+    ...TYPOGRAPHY.titleSm,
     fontSize: 12.5,
+    fontWeight: '800',
     color: COLORS.onSurface,
+  },
+  targetHostLevel: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
   sheetSectionLabel: {
     ...TYPOGRAPHY.labelSm,
-    fontWeight: '900',
-    color: COLORS.onSurfaceVariant,
+    color: '#475569',
+    fontWeight: '800',
     fontSize: 11,
-    letterSpacing: 0.6,
-    marginTop: 4,
+    letterSpacing: 0.5,
+    marginTop: 6,
+    marginBottom: 2,
   },
-  clubListScroll: {
-    maxHeight: 220,
+  clubListContainer: {
+    gap: 8,
   },
   clubCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
+    gap: 10,
+    padding: 10,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    marginBottom: 8,
   },
   clubCardItemActive: {
     borderColor: COLORS.primary,
     backgroundColor: 'rgba(6, 78, 59, 0.04)',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
+  },
+  modalClubAvatarWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  modalClubAvatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E2E8F0',
   },
   clubAvatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.white,
   },
   clubAvatarLetter: {
-    ...TYPOGRAPHY.titleMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
   },
   clubCardName: {
-    ...TYPOGRAPHY.labelMd,
+    ...TYPOGRAPHY.titleSm,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 14,
+    fontSize: 13,
   },
   clubCardNameActive: {
     color: COLORS.primary,
-    fontWeight: '900',
   },
-  clubMetaRow: {
+  clubCardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
-  eloBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  eloBadgeText: {
+  clubCardMetaText: {
     ...TYPOGRAPHY.labelSm,
-    color: '#92400E',
-    fontWeight: '800',
-    fontSize: 10.5,
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '600',
   },
-  memberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E0F2FE',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
+  metaDot: {
+    color: '#CBD5E1',
+    fontSize: 10,
   },
-  memberBadgeText: {
+  clubCardLevelText: {
     ...TYPOGRAPHY.labelSm,
-    color: '#0369A1',
-    fontWeight: '800',
+    color: '#6D28D9',
     fontSize: 10.5,
+    fontWeight: '700',
   },
   radioOuterRing: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioOuterRingActive: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.white,
   },
   radioInnerDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 5.5,
-    backgroundColor: COLORS.secondary,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  inputContainer: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   sheetTextInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
-    fontSize: 13,
+    ...TYPOGRAPHY.bodySm,
     color: COLORS.onSurface,
-    minHeight: 64,
+    fontSize: 12.5,
+    minHeight: 65,
     textAlignVertical: 'top',
   },
   sheetActionRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: 10,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   sheetCancelBtn: {
     flex: 1,
-    paddingVertical: 13,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#F1F5F9',
   },
   sheetCancelText: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '800',
-    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '700',
+    fontSize: 13,
   },
   sheetSubmitBtn: {
-    flex: 1.8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  sheetSubmitText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 14,
-  },
-  pollPreviewCard: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1.5,
-    borderColor: '#FDE68A',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
-    gap: 8,
-  },
-  pollPreviewQuestion: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12.5,
-    color: '#78350F',
-    lineHeight: 18,
-  },
-  pollOptionBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    padding: 8,
-    borderRadius: BORDER_RADIUS.sm,
-  },
-  pollOptionText: {
-    ...TYPOGRAPHY.labelSm,
-    color: '#92400E',
-    fontWeight: '700',
-    fontSize: 11.5,
-  },
-  voteSubmitBtn: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.secondary,
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  voteSubmitText: {
+  sheetSubmitText: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSecondary,
-    fontWeight: '900',
-    fontSize: 14.5,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  applicantLineupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginTop: 4,
+  },
+  applicantLineupText: {
+    ...TYPOGRAPHY.caption,
+    color: '#065F46',
+    fontSize: 11,
+  },
+  lineupArenaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  lineupTeamCol: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderTopWidth: 3,
+    padding: 10,
+  },
+  lineupTeamTop: {
+    marginBottom: 4,
+  },
+  lineupTeamName: {
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  lineupEloBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  lineupEloText: {
+    ...TYPOGRAPHY.caption,
+    color: '#059669',
+    fontWeight: '800',
+    fontSize: 10.5,
+  },
+  lineupMemberCount: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 10.5,
+    marginBottom: 8,
+  },
+  lineupMembersList: {
+    gap: 6,
+  },
+  lineupMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  lineupMemberAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lineupAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  lineupAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  lineupMemberName: {
+    flex: 1,
+    ...TYPOGRAPHY.caption,
+    color: '#1E293B',
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  lineupMemberElo: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontWeight: '700',
+    fontSize: 10,
+  },
+  lineupWaitingBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  lineupWaitingTitle: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  lineupWaitingSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  lineupBalanceBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: 10,
+  },
+  lineupBalanceText: {
+    ...TYPOGRAPHY.caption,
+    color: '#B45309',
+    fontWeight: '700',
   },
 });

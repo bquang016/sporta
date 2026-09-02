@@ -27,6 +27,7 @@ public class UserProfileDto {
     private UserStatus status;
     private Integer height;
     private Double weight;
+    private Boolean isDevTester;
     private List<UserSportDto> sports;
     private Boolean notifBooking;
     private Boolean notifPromo;

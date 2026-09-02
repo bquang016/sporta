@@ -58,6 +58,10 @@ public class User {
     @Column(nullable = false)
     private UserStatus status;
 
+    @Column(name = "is_dev_tester")
+    @Builder.Default
+    private Boolean isDevTester = false;
+
     @Column(name = "must_change_password")
     @Builder.Default
     private Boolean mustChangePassword = false;

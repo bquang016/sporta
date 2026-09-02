@@ -15,6 +15,7 @@ public class ClubSummaryResponse {
     private String sportId;
     private String sportName;
     private String logoUrl;
+    private String avatarUrl;
     private Integer activeMemberCount;
     private Boolean isEligibleForMatchmaking;
     private Integer clubElo;

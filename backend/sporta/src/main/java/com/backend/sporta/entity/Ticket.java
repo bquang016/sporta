@@ -44,6 +44,18 @@ public class Ticket {
     @Builder.Default
     private Integer quantity = 1;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "team")
+    private com.backend.sporta.enums.TeamSide team;
+
+    @Column(name = "is_captain", nullable = false)
+    @Builder.Default
+    private Boolean isCaptain = false;
+
+    @Column(name = "is_score_confirmed", nullable = false)
+    @Builder.Default
+    private Boolean isScoreConfirmed = false;
+
     public int getQuantity() {
         return this.quantity != null ? this.quantity : 1;
     }

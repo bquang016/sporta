@@ -10,5 +10,9 @@ import java.util.UUID;
 @Repository
 public interface MatchResultRepository extends JpaRepository<MatchResult, UUID> {
 
-    Optional<MatchResult> findByMatchId(UUID matchId);
+    Optional<MatchResult> findFirstByMatchIdOrderByConfirmedAtDesc(UUID matchId);
+
+    default Optional<MatchResult> findByMatchId(UUID matchId) {
+        return findFirstByMatchIdOrderByConfirmedAtDesc(matchId);
+    }
 }

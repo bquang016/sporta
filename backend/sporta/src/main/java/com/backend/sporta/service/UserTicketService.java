@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -64,6 +65,18 @@ public class UserTicketService {
 
     @Autowired
     private UserVoucherRepository userVoucherRepository;
+
+    @Autowired
+    private com.backend.sporta.service.matchmaking.ScoreAdapterRegistry scoreAdapterRegistry;
+
+    @Autowired
+    private com.backend.sporta.service.matchmaking.PersonalEloEngine personalEloEngine;
+
+    @Autowired
+    private UserSportRepository userSportRepository;
+
+    @Autowired
+    private SportRepository sportRepository;
 
     public List<TicketSessionResponse> getAvailableSessions(Double userLat, 
                                                             Double userLng, 
@@ -174,7 +187,10 @@ public class UserTicketService {
         double finalPriceDouble = Math.max(0.0, rawTotalPriceDouble - discount);
         long finalPriceLong = Math.round(finalPriceDouble);
 
-        // 2. Increment booked slots by quantity
+        // 2. Determine if caller is first buyer BEFORE incrementing
+        boolean isFirstBuyer = (session.getBookedSlots() == 0) || (ticketRepository.findBySessionId(session.getId()).isEmpty());
+
+        // Increment booked slots by quantity
         session.setBookedSlots(session.getBookedSlots() + quantity);
         if (session.getBookedSlots() >= session.getMaxSlots()) {
             session.setStatus(TicketSessionStatus.FULL);
@@ -190,6 +206,9 @@ public class UserTicketService {
                 .quantity(quantity)
                 .status(TicketStatus.UNUSED)
                 .shortCode(shortCode)
+                .team(Boolean.TRUE.equals(session.getHasHostTeam()) ? TeamSide.GUEST : null)
+                .isCaptain(isFirstBuyer)
+                .isScoreConfirmed(false)
                 .build();
 
         Ticket savedTicket = ticketRepository.save(ticket);
@@ -374,6 +393,378 @@ public class UserTicketService {
         return R * c;
     }
 
+    public List<UserTicketResponse> getParticipants(UUID sessionId) {
+        List<Ticket> tickets = ticketRepository.findBySessionId(sessionId);
+        return tickets.stream().map(this::mapToTicketResponse).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public UserTicketResponse assignTeam(UUID sessionId, com.backend.sporta.dto.AssignTeamRequest request, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        TicketSession session = ticketSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy ca xé vé", 404));
+
+        Ticket targetTicket = ticketRepository.findById(request.getTicketId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy vé cần gán đội", 404));
+
+        if (!targetTicket.getSession().getId().equals(sessionId)) {
+            throw new CustomException("Vé không thuộc ca xé vé này", 400);
+        }
+
+        // Verify if caller is Captain or the ticket owner
+        Optional<Ticket> callerTicketOpt = ticketRepository.findBySessionIdAndUserId(sessionId, user.getId());
+        boolean isCaptain = callerTicketOpt.isPresent() && Boolean.TRUE.equals(callerTicketOpt.get().getIsCaptain());
+        boolean isOwner = targetTicket.getUser().getId().equals(user.getId());
+
+        if (!isCaptain && !isOwner) {
+            throw new CustomException("Chỉ Trưởng ca (Captain) hoặc chủ vé mới được phân đội", 403);
+        }
+
+        targetTicket.setTeam(request.getTeam());
+        targetTicket = ticketRepository.save(targetTicket);
+        return mapToTicketResponse(targetTicket);
+    }
+
+    @Transactional
+    public TicketSessionResponse declareScore(UUID sessionId, com.backend.sporta.dto.DeclareScoreRequest request, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        TicketSession session = ticketSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy ca xé vé", 404));
+
+        Optional<Ticket> captainTicketOpt = ticketRepository.findBySessionIdAndUserId(sessionId, user.getId());
+        if (captainTicketOpt.isEmpty() || !Boolean.TRUE.equals(captainTicketOpt.get().getIsCaptain())) {
+            throw new CustomException("Chỉ Trưởng ca (Captain) mới có quyền khai báo tỷ số trận đấu", 403);
+        }
+
+        if (session.getPlayDate().isAfter(LocalDate.now())) {
+            throw new CustomException("Chưa đến ngày diễn ra ca xé vé để khai báo tỷ số", 400);
+        }
+
+        String sportName = session.getVenue() != null && session.getVenue().getSport() != null
+                ? session.getVenue().getSport().getName() : "Bóng đá";
+        com.backend.sporta.service.matchmaking.ScoreAdapter adapter = scoreAdapterRegistry.getAdapter(sportName);
+
+        var val = adapter.validate(request.getHostScore(), request.getGuestScore(), request.getRawScoreDetails());
+        if (!val.isValid()) {
+            throw new CustomException("Tỷ số không hợp lệ: " + val.getErrorMessage(), 400);
+        }
+
+        NormalizedOutcome outcome = adapter.normalize(request.getHostScore(), request.getGuestScore(), request.getRawScoreDetails());
+
+        session.setHostScore(request.getHostScore().trim());
+        session.setGuestScore(request.getGuestScore().trim());
+        session.setMatchOutcome(outcome);
+        session.setScoreDeclaredAt(LocalDateTime.now());
+        session.setScoreConfirmedCount(1);
+        session.setIsDisputed(false);
+
+        // Mark Captain's ticket as confirmed
+        Ticket capTicket = captainTicketOpt.get();
+        capTicket.setIsScoreConfirmed(true);
+        ticketRepository.save(capTicket);
+
+        session = ticketSessionRepository.save(session);
+
+        // Check if there are only 1 or 2 participants, auto settle
+        List<Ticket> allTickets = ticketRepository.findBySessionId(sessionId);
+        if (allTickets.size() <= 1) {
+            settleXeVeElo(session);
+        }
+
+        return mapToSessionResponse(session);
+    }
+
+    @Transactional
+    public TicketSessionResponse confirmTicketScore(UUID sessionId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        TicketSession session = ticketSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy ca xé vé", 404));
+
+        if (session.getScoreDeclaredAt() == null || session.getMatchOutcome() == null) {
+            throw new CustomException("Chưa có tỷ số được khai báo để xác nhận", 400);
+        }
+
+        if (Boolean.TRUE.equals(session.getIsDisputed())) {
+            throw new CustomException("Ca xé vé đang có tranh chấp khiếu nại tỷ số", 400);
+        }
+
+        Ticket userTicket = ticketRepository.findBySessionIdAndUserId(sessionId, user.getId())
+                .orElseThrow(() -> new CustomException("Bạn không tham gia ca xé vé này", 403));
+
+        if (Boolean.TRUE.equals(userTicket.getIsScoreConfirmed())) {
+            return mapToSessionResponse(session);
+        }
+
+        userTicket.setIsScoreConfirmed(true);
+        ticketRepository.save(userTicket);
+
+        int count = session.getScoreConfirmedCount() != null ? session.getScoreConfirmedCount() + 1 : 1;
+        session.setScoreConfirmedCount(count);
+        session = ticketSessionRepository.save(session);
+
+        List<Ticket> allTickets = ticketRepository.findBySessionId(sessionId);
+        if (count >= Math.ceil(allTickets.size() / 2.0)) {
+            settleXeVeElo(session);
+        }
+
+        return mapToSessionResponse(session);
+    }
+
+    @Transactional
+    public TicketSessionResponse flagDispute(UUID sessionId, String reason, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        TicketSession session = ticketSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy ca xé vé", 404));
+
+        ticketRepository.findBySessionIdAndUserId(sessionId, user.getId())
+                .orElseThrow(() -> new CustomException("Bạn không tham gia ca xé vé này để khiếu nại", 403));
+
+        session.setIsDisputed(true);
+        session.setIsEloSettled(false);
+        session = ticketSessionRepository.save(session);
+        return mapToSessionResponse(session);
+    }
+
+    @Transactional
+    public void settleXeVeElo(TicketSession session) {
+        if (session == null || Boolean.TRUE.equals(session.getIsEloSettled()) || Boolean.TRUE.equals(session.getIsDisputed())) {
+            return;
+        }
+        if (session.getMatchOutcome() == null) {
+            return;
+        }
+
+        Long sportId = session.getVenue() != null && session.getVenue().getSport() != null
+                ? session.getVenue().getSport().getId() : null;
+        if (sportId == null) return;
+
+        List<Ticket> tickets = ticketRepository.findBySessionId(session.getId());
+        List<User> hostUsers = tickets.stream()
+                .filter(t -> t.getTeam() == com.backend.sporta.enums.TeamSide.HOST && t.getUser() != null)
+                .map(Ticket::getUser).collect(Collectors.toList());
+        List<User> guestUsers = tickets.stream()
+                .filter(t -> t.getTeam() == com.backend.sporta.enums.TeamSide.GUEST && t.getUser() != null)
+                .map(Ticket::getUser).collect(Collectors.toList());
+
+        // If hasHostTeam is true and no tickets specifically marked as GUEST, all participants are challengers (GUEST)
+        if (Boolean.TRUE.equals(session.getHasHostTeam()) && guestUsers.isEmpty()) {
+            guestUsers = tickets.stream()
+                    .filter(t -> t.getUser() != null)
+                    .map(Ticket::getUser).collect(Collectors.toList());
+        }
+
+        int avgHostElo;
+        if (hostUsers.isEmpty() && Boolean.TRUE.equals(session.getHasHostTeam())) {
+            SportLevel lvl = session.getHostTeamLevel() != null ? session.getHostTeamLevel() : session.getSportLevel();
+            avgHostElo = switch (lvl) {
+                case GOOD -> 2100;
+                case AVERAGE_GOOD -> 1800;
+                case AVERAGE -> 1500;
+                case WEAK_AVERAGE -> 1200;
+                case WEAK -> 900;
+                default -> 1500;
+            };
+        } else if (!hostUsers.isEmpty()) {
+            avgHostElo = calculateUsersAvgElo(hostUsers, sportId);
+        } else {
+            return;
+        }
+
+        if (guestUsers.isEmpty()) {
+            return;
+        }
+
+        int avgGuestElo = calculateUsersAvgElo(guestUsers, sportId);
+
+        int scoreDiff = 0;
+        try {
+            if (session.getHostScore() != null && session.getGuestScore() != null) {
+                int h = Integer.parseInt(session.getHostScore().trim());
+                int g = Integer.parseInt(session.getGuestScore().trim());
+                scoreDiff = Math.abs(h - g);
+            }
+        } catch (Exception ignored) {}
+
+        double hostScore = (session.getMatchOutcome() == NormalizedOutcome.WIN_HOST) ? 1.0
+                : (session.getMatchOutcome() == NormalizedOutcome.DRAW ? 0.5 : 0.0);
+        double guestScore = (session.getMatchOutcome() == NormalizedOutcome.WIN_GUEST) ? 1.0
+                : (session.getMatchOutcome() == NormalizedOutcome.DRAW ? 0.5 : 0.0);
+
+        for (User u : hostUsers) {
+            updateIndividualElo(u, sportId, avgGuestElo, hostScore, session, scoreDiff);
+        }
+        for (User u : guestUsers) {
+            updateIndividualElo(u, sportId, avgHostElo, guestScore, session, scoreDiff);
+        }
+
+        session.setIsEloSettled(true);
+        ticketSessionRepository.save(session);
+    }
+
+    @Transactional
+    public TicketSessionResponse devForceFinishXeVe(UUID sessionId, com.backend.sporta.dto.DevForceFinishXeVeRequest request, String userEmail) {
+        User requester = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        if (!Boolean.TRUE.equals(requester.getIsDevTester()) && requester.getRole() != Role.ADMIN && requester.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Chỉ tài khoản DEV Tester hoặc Admin mới được sử dụng tính năng này", 403);
+        }
+
+        TicketSession session = ticketSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy ca xé vé", 404));
+
+        boolean isFixedHost = Boolean.TRUE.equals(session.getHasHostTeam());
+        if (!isFixedHost && (request.getHostUserIds() == null || request.getHostUserIds().isEmpty())) {
+            throw new CustomException("Vui lòng chỉ định danh sách người chơi cho Đội A (Host)", 400);
+        }
+        if (request.getGuestUserIds() == null || request.getGuestUserIds().isEmpty()) {
+            throw new CustomException("Vui lòng chỉ định danh sách người chơi cho Đội Thách Đấu (Guest)", 400);
+        }
+
+        // Add or update tickets for Side A (Host)
+        if (request.getHostUserIds() != null && !request.getHostUserIds().isEmpty()) {
+            for (int i = 0; i < request.getHostUserIds().size(); i++) {
+                Long uid = request.getHostUserIds().get(i);
+                boolean isCap = (i == 0);
+                Optional<User> uOpt = userRepository.findById(uid);
+                if (uOpt.isPresent()) {
+                    User u = uOpt.get();
+                    Ticket t = ticketRepository.findBySessionIdAndUserId(sessionId, u.getId())
+                            .orElseGet(() -> Ticket.builder()
+                                    .session(session)
+                                    .user(u)
+                                    .quantity(1)
+                                    .qrCodeToken("DEV_" + UUID.randomUUID().toString().substring(0, 8))
+                                    .shortCode(generateUniqueShortCode())
+                                    .status(com.backend.sporta.enums.TicketStatus.USED)
+                                    .build());
+                    t.setTeam(com.backend.sporta.enums.TeamSide.HOST);
+                    t.setIsCaptain(isCap);
+                    t.setIsScoreConfirmed(true);
+                    ticketRepository.save(t);
+                }
+            }
+        }
+
+        // Add or update tickets for Side B (Guest)
+        for (Long uid : request.getGuestUserIds()) {
+            Optional<User> uOpt = userRepository.findById(uid);
+            if (uOpt.isPresent()) {
+                User u = uOpt.get();
+                Ticket t = ticketRepository.findBySessionIdAndUserId(sessionId, u.getId())
+                        .orElseGet(() -> Ticket.builder()
+                                .session(session)
+                                .user(u)
+                                .quantity(1)
+                                .qrCodeToken("DEV_" + UUID.randomUUID().toString().substring(0, 8))
+                                .shortCode(generateUniqueShortCode())
+                                .status(com.backend.sporta.enums.TicketStatus.USED)
+                                .build());
+                t.setTeam(com.backend.sporta.enums.TeamSide.GUEST);
+                t.setIsCaptain(false);
+                t.setIsScoreConfirmed(true);
+                ticketRepository.save(t);
+            }
+        }
+
+        String sportName = session.getVenue() != null && session.getVenue().getSport() != null
+                ? session.getVenue().getSport().getName() : "Bóng đá";
+        com.backend.sporta.service.matchmaking.ScoreAdapter adapter = scoreAdapterRegistry.getAdapter(sportName);
+
+        NormalizedOutcome outcome = adapter.normalize(request.getHostScore(), request.getGuestScore(), request.getRawScoreDetails());
+
+        int hostCount = (request.getHostUserIds() != null ? request.getHostUserIds().size() : 0);
+        session.setHostScore(request.getHostScore().trim());
+        session.setGuestScore(request.getGuestScore().trim());
+        session.setMatchOutcome(outcome);
+        session.setScoreDeclaredAt(LocalDateTime.now());
+        session.setScoreConfirmedCount(hostCount + request.getGuestUserIds().size());
+        session.setIsDisputed(false);
+        session.setStatus(com.backend.sporta.enums.TicketSessionStatus.FULL);
+        session.setIsEloSettled(false); // Reset so settleXeVeElo calculates fresh Elo
+
+        TicketSession savedSession = ticketSessionRepository.save(session);
+
+        // Run Elo settlement
+        settleXeVeElo(savedSession);
+
+        return mapToSessionResponse(savedSession);
+    }
+
+    public List<com.backend.sporta.dto.DevUserSummaryDto> getDevUsers(String keyword) {
+        List<User> users;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            users = userRepository.findBySearch(keyword.trim());
+        } else {
+            users = userRepository.findAllActiveOrderByCreatedAtDesc();
+        }
+
+        return users.stream()
+                .filter(u -> u.getStatus() == com.backend.sporta.enums.UserStatus.ACTIVE)
+                .map(u -> {
+                    var sports = userSportRepository.findByUserId(u.getId());
+                    int elo = 1500;
+                    String level = "Trung bình";
+                    if (!sports.isEmpty()) {
+                        elo = sports.get(0).getEffectiveElo();
+                        level = sports.get(0).getLevel() != null ? sports.get(0).getLevel().name() : "Trung bình";
+                    }
+                    return com.backend.sporta.dto.DevUserSummaryDto.builder()
+                            .id(u.getId())
+                            .fullName(u.getFullName())
+                            .email(u.getEmail())
+                            .avatarUrl(u.getAvatarUrl())
+                            .role(u.getRole() != null ? u.getRole().name() : "PLAYER")
+                            .elo(elo)
+                            .level(level)
+                            .build();
+                })
+                .limit(50)
+                .collect(Collectors.toList());
+    }
+
+    private int calculateUsersAvgElo(List<User> users, Long sportId) {
+        if (users == null || users.isEmpty()) return 1000;
+        int total = 0;
+        for (User u : users) {
+            Optional<UserSport> us = userSportRepository.findByUserIdAndSportId(u.getId(), sportId);
+            total += us.map(UserSport::getEffectiveElo).orElse(1000);
+        }
+        return (int) Math.round((double) total / users.size());
+    }
+
+    private void updateIndividualElo(User user, Long sportId, int opponentTeamElo, double score, TicketSession session, int scoreDiff) {
+        if (user == null || sportId == null) return;
+
+        UserSport us = userSportRepository.findByUserIdAndSportId(user.getId(), sportId)
+                .orElseGet(() -> {
+                    Sport sport = (session != null && session.getVenue() != null && session.getVenue().getSport() != null)
+                            ? session.getVenue().getSport()
+                            : sportRepository.findById(sportId).orElse(null);
+                    return UserSport.builder()
+                            .user(user)
+                            .sport(sport)
+                            .level(SportLevel.AVERAGE)
+                            .eloRating(1500)
+                            .eloStatus(EloStatus.UNVERIFIED)
+                            .placementMatchesPlayed(0)
+                            .totalRankedMatches(0)
+                            .totalWins(0)
+                            .build();
+                });
+
+        personalEloEngine.updatePlayerStats(us, opponentTeamElo, score, EloSourceType.XE_VE, scoreDiff);
+        userSportRepository.save(us);
+    }
+
     private TicketSessionResponse mapToSessionResponse(TicketSession session) {
         String address = session.getVenue().getAddressDetail();
         if (address == null || address.isEmpty()) {
@@ -401,6 +792,14 @@ public class UserTicketService {
                 .bookedSlots(session.getBookedSlots())
                 .sportLevel(session.getSportLevel())
                 .status(session.getStatus())
+                .hostScore(session.getHostScore())
+                .guestScore(session.getGuestScore())
+                .matchOutcome(session.getMatchOutcome())
+                .isEloSettled(session.getIsEloSettled())
+                .isDisputed(session.getIsDisputed())
+                .hasHostTeam(session.getHasHostTeam())
+                .hostTeamName(session.getHostTeamName())
+                .hostTeamLevel(session.getHostTeamLevel())
                 .build();
     }
 
@@ -430,6 +829,9 @@ public class UserTicketService {
                 .finalPrice(totalPrice)
                 .sportLevel(s.getSportLevel())
                 .status(ticket.getStatus())
+                .team(ticket.getTeam())
+                .isCaptain(ticket.getIsCaptain())
+                .isScoreConfirmed(ticket.getIsScoreConfirmed())
                 .qrCodeToken(ticket.getQrCodeToken())
                 .shortCode(ticket.getShortCode())
                 .createdAt(ticket.getCreatedAt())

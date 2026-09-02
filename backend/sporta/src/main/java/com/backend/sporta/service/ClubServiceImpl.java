@@ -194,6 +194,23 @@ public class ClubServiceImpl implements ClubService {
         return clubs.stream().map(c -> mapToResponse(c, user)).collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClubResponse> getAllClubs(Long sportId, String query, String userEmail) {
+        User user = (userEmail != null && !userEmail.equals("anonymousUser"))
+                ? userRepository.findByEmail(userEmail).orElse(null)
+                : null;
+
+        String searchQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
+        List<Club> clubs;
+        if (searchQuery == null) {
+            clubs = clubRepository.findAllClubsWithoutQuery(sportId);
+        } else {
+            clubs = clubRepository.findAllClubsWithQuery(sportId, searchQuery);
+        }
+        return clubs.stream().map(c -> mapToResponse(c, user)).collect(Collectors.toList());
+    }
+
     private ClubResponse mapToResponse(Club club, User currentUser) {
         long memberCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
         

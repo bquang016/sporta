@@ -12,4 +12,6 @@ public interface ClubPollRepository extends JpaRepository<ClubPoll, Long> {
     Optional<ClubPoll> findFirstByClubIdAndIsClosedFalseOrderByCreatedAtDesc(Long clubId);
 
     List<ClubPoll> findByClubIdOrderByCreatedAtDesc(Long clubId);
+
+    Optional<ClubPoll> findByClubIdAndMatchId(Long clubId, java.util.UUID matchId);
 }

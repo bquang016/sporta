@@ -46,4 +46,10 @@ public class TicketSessionRequest {
 
     @NotNull(message = "Trình độ không được để trống")
     private SportLevel sportLevel;
+
+    private Boolean hasHostTeam;
+
+    private String hostTeamName;
+
+    private SportLevel hostTeamLevel;
 }

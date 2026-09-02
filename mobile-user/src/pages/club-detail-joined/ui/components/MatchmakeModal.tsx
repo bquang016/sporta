@@ -133,8 +133,8 @@ export function MatchmakeModal({
     setIsSubmitting(true);
     try {
       await onSaveTeams({
-        teamA: currentTeamA.map((p) => p.name),
-        teamB: currentTeamB.map((p) => p.name),
+        teamA: currentTeamA.map((p) => p.name || p.fullName || 'Thành viên'),
+        teamB: currentTeamB.map((p) => p.name || p.fullName || 'Thành viên'),
         teamAPlayers: currentTeamA,
         teamBPlayers: currentTeamB,
         teamATotalElo: totalEloA,

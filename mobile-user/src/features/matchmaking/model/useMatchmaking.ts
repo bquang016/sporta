@@ -101,9 +101,9 @@ export function useMatchDetail(roomId: string) {
     if (roomId) fetchRoom();
   }, [roomId, fetchRoom]);
 
-  const requestJoin = async (clubId: string, note?: string) => {
+  const requestJoin = async (clubId: string, note?: string, lineupId?: number) => {
     if (!roomId) return;
-    const req = await MatchmakingApiRepository.createJoinRequest(roomId, clubId, note);
+    const req = await MatchmakingApiRepository.createJoinRequest(roomId, clubId, note, lineupId);
     await fetchRoom();
     return req;
   };

@@ -14,9 +14,22 @@ import { LeaveConfirmationModal } from './components/LeaveConfirmationModal';
 import { MembersModal, MemberItem } from './components/MembersModal';
 import { EditClubModal } from './components/EditClubModal';
 import { CreatePollModal } from './components/CreatePollModal';
-import { MatchmakeModal } from './components/MatchmakeModal';
-import { PollCard, PollData, MatchmadeTeams } from './components/PollCard';
-import { getClubMembersApi, getActivePollApi, createPollApi, votePollApi, closePollApi, reopenPollApi, saveMatchmadeTeamsApi, deletePollApi, approveMemberApi, rejectMemberApi, getClubMatchesApi } from '../../../shared/api/clubs';
+import { PollCard } from './components/PollCard';
+import { MatchPollVM } from '../../../entities/match/model/match.types';
+import {
+  getClubMembersApi,
+  getClubMatchPollsApi,
+  createMatchPollApi,
+  voteMatchPollApi,
+  closeMatchPollApi,
+  splitInternalTeamsApi,
+  formMatchmakingLineupApi,
+  deleteMatchPollApi,
+  approveMemberApi,
+  rejectMemberApi,
+  getClubMatchesApi,
+  CreateMatchPollPayload,
+} from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
@@ -84,18 +97,10 @@ export function ClubDetailJoinedScreen() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
 
-  // Poll & Matchmaking States
-  const [activePoll, setActivePoll] = useState<PollData | null>(null);
-  const [userVote, setUserVote] = useState<'join' | 'absent' | null>(null);
+  // Poll & Matchmaking States (v2.0)
+  const [matchPolls, setMatchPolls] = useState<MatchPollVM[]>([]);
+  const [votingPollId, setVotingPollId] = useState<number | null>(null);
   const [isCreatePollModalVisible, setIsCreatePollModalVisible] = useState(false);
-  const [pollTitleInput, setPollTitleInput] = useState('Ghép trận cuối tuần');
-  const [pollTimeHour, setPollTimeHour] = useState(15);
-  const [pollTimeMinute, setPollTimeMinute] = useState(0);
-
-  const [isMatchmakeModalVisible, setIsMatchmakeModalVisible] = useState(false);
-  const [teamA, setTeamA] = useState<string[]>([]);
-  const [teamB, setTeamB] = useState<string[]>([]);
-  const [matchmadeTeams, setMatchmadeTeams] = useState<MatchmadeTeams | null>(null);
 
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
 
@@ -205,40 +210,15 @@ export function ClubDetailJoinedScreen() {
     }
   }, [isMembersModalVisible]);
 
-  const fetchActivePoll = async () => {
+  const fetchClubPolls = async () => {
     if (!club) return;
     try {
-      const data = await getActivePollApi(Number(club.id));
-      if (data) {
-        setActivePoll({
-          id: String(data.id),
-          title: data.title,
-          closeTime: data.closeTime,
-          isClosed: data.isClosed,
-          votes: {
-            join: data.joinedMembers || [],
-            absent: data.absentMembers || [],
-          },
-          joinedVoters: data.joinedVoters || [],
-          absentVoters: data.absentVoters || [],
-          creatorId: data.creatorId,
-          creatorName: data.creatorName,
-        });
-        setUserVote(data.userVote as 'join' | 'absent' | null);
-        if (data.matchmadeTeams) {
-          setTeamA(data.matchmadeTeams.teamA || []);
-          setTeamB(data.matchmadeTeams.teamB || []);
-          setMatchmadeTeams(data.matchmadeTeams);
-        } else {
-          setMatchmadeTeams(null);
-        }
-      } else {
-        setActivePoll(null);
-        setUserVote(null);
-        setMatchmadeTeams(null);
+      const data = await getClubMatchPollsApi(Number(club.id));
+      if (Array.isArray(data)) {
+        setMatchPolls(data);
       }
     } catch (err) {
-      console.error('Lỗi tải biểu quyết hoạt động:', err);
+      console.error('Lỗi tải danh sách biểu quyết:', err);
     }
   };
 
@@ -268,7 +248,7 @@ export function ClubDetailJoinedScreen() {
 
   useEffect(() => {
     if (club?.id) {
-      fetchActivePoll();
+      fetchClubPolls();
       fetchMatches();
     }
   }, [club?.id]);
@@ -350,51 +330,12 @@ export function ClubDetailJoinedScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Adjust time helper
-  const adjustHour = (amount: number) => {
-    setPollTimeHour(prev => {
-      let next = prev + amount;
-      if (next < 0) next = 23;
-      if (next > 23) next = 0;
-      return next;
-    });
-  };
 
-  const adjustMinute = (amount: number) => {
-    setPollTimeMinute(prev => {
-      let next = prev + amount;
-      if (next < 0) next = 45;
-      if (next > 59) next = 0;
-      return next;
-    });
-  };
-
-  const handleCreatePoll = async () => {
+  const handleCreatePoll = async (payload: CreateMatchPollPayload) => {
     if (!club) return;
-    const formattedTime = `${pollTimeHour.toString().padStart(2, '0')}:${pollTimeMinute.toString().padStart(2, '0')}`;
     try {
-      const data = await createPollApi(Number(club.id), {
-        title: pollTitleInput.trim() || 'Ghép trận cuối tuần',
-        closeTime: formattedTime,
-      });
-      if (data) {
-        setActivePoll({
-          id: String(data.id),
-          title: data.title,
-          closeTime: data.closeTime,
-          isClosed: data.isClosed,
-          votes: {
-            join: data.joinedMembers || [],
-            absent: data.absentMembers || [],
-          },
-          joinedVoters: data.joinedVoters || [],
-          absentVoters: data.absentVoters || [],
-          creatorId: data.creatorId,
-          creatorName: data.creatorName,
-        });
-        setUserVote(data.userVote as 'join' | 'absent' | null);
-        setMatchmadeTeams(null);
-      }
+      await createMatchPollApi(Number(club.id), payload);
+      await fetchClubPolls();
       setIsCreatePollModalVisible(false);
       showAlert('Thành công', 'Đã tạo biểu quyết mới thành công!');
     } catch (err: any) {
@@ -402,133 +343,55 @@ export function ClubDetailJoinedScreen() {
     }
   };
 
-  const handleVote = async (option: 'join' | 'absent') => {
-    if (!activePoll || activePoll.isClosed) return;
-
+  const handleVote = async (pollId: number, optionId: number) => {
+    setVotingPollId(pollId);
     try {
-      const data = await votePollApi(Number(activePoll.id), option);
-      if (data) {
-        setActivePoll({
-          id: String(data.id),
-          title: data.title,
-          closeTime: data.closeTime,
-          isClosed: data.isClosed,
-          votes: {
-            join: data.joinedMembers || [],
-            absent: data.absentMembers || [],
-          },
-          joinedVoters: data.joinedVoters || [],
-          absentVoters: data.absentVoters || [],
-          creatorId: data.creatorId,
-          creatorName: data.creatorName,
-        });
-        setUserVote(data.userVote as 'join' | 'absent' | null);
-        if (data.matchmadeTeams) {
-          setTeamA(data.matchmadeTeams.teamA || []);
-          setTeamB(data.matchmadeTeams.teamB || []);
-          setMatchmadeTeams(data.matchmadeTeams);
-        } else {
-          setMatchmadeTeams(null);
-        }
-      }
+      await voteMatchPollApi(pollId, optionId);
+      await fetchClubPolls();
     } catch (err: any) {
       showAlert('Lỗi', err.message || 'Lỗi khi biểu quyết.');
+    } finally {
+      setVotingPollId(null);
     }
   };
 
-  const handleClosePoll = async () => {
-    if (!activePoll) return;
+  const handleClosePoll = async (pollId: number) => {
     try {
-      const data = await closePollApi(Number(activePoll.id));
-      if (data) {
-        setActivePoll({
-          id: String(data.id),
-          title: data.title,
-          closeTime: data.closeTime,
-          isClosed: data.isClosed,
-          votes: {
-            join: data.joinedMembers || [],
-            absent: data.absentMembers || [],
-          },
-          joinedVoters: data.joinedVoters || [],
-          absentVoters: data.absentVoters || [],
-          creatorId: data.creatorId,
-          creatorName: data.creatorName,
-        });
-        setUserVote(data.userVote as 'join' | 'absent' | null);
-        if (data.matchmadeTeams) {
-          setTeamA(data.matchmadeTeams.teamA || []);
-          setTeamB(data.matchmadeTeams.teamB || []);
-          setMatchmadeTeams(data.matchmadeTeams);
-        }
-        showAlert('Thành công', 'Đã chốt danh sách và tự động cân bằng chia đội theo ELO!');
-      }
+      await closeMatchPollApi(pollId);
+      await fetchClubPolls();
+      showAlert('Thành công', 'Đã đóng biểu quyết.');
     } catch (err: any) {
       showAlert('Lỗi', err.message || 'Không thể đóng biểu quyết.');
     }
   };
 
-  const handleReopenPoll = async () => {
-    if (!activePoll) return;
+  const handleSplitInternalTeams = async (pollId: number) => {
     try {
-      const data = await reopenPollApi(Number(activePoll.id));
-      if (data) {
-        setActivePoll({
-          id: String(data.id),
-          title: data.title,
-          closeTime: data.closeTime,
-          isClosed: data.isClosed,
-          votes: {
-            join: data.joinedMembers || [],
-            absent: data.absentMembers || [],
-          },
-          joinedVoters: data.joinedVoters || [],
-          absentVoters: data.absentVoters || [],
-          creatorId: data.creatorId,
-          creatorName: data.creatorName,
-        });
-        setUserVote(data.userVote as 'join' | 'absent' | null);
-        showAlert('Thành công', 'Đã mở lại biểu quyết để thành viên tiếp tục bình chọn.');
-      }
+      await splitInternalTeamsApi(pollId);
+      await fetchClubPolls();
+      showAlert('Thành công', 'Đã tự động chia 2 đội thi đấu cân sức!');
     } catch (err: any) {
-      showAlert('Lỗi', err.message || 'Không thể mở lại biểu quyết.');
+      showAlert('Lỗi', err.message || 'Không thể chia đội hình.');
     }
   };
 
-  const handleDeletePoll = async () => {
-    if (!activePoll) return;
+  const handleFormGTLineup = async (pollId: number) => {
     try {
-      await deletePollApi(Number(activePoll.id));
-      setActivePoll(null);
-      setUserVote(null);
-      setMatchmadeTeams(null);
+      await formMatchmakingLineupApi(pollId);
+      await fetchClubPolls();
+      showAlert('Thành công', 'Đã chốt danh sách đội hình thi đấu!');
+    } catch (err: any) {
+      showAlert('Lỗi', err.message || 'Không thể chốt đội hình.');
+    }
+  };
+
+  const handleDeletePoll = async (pollId: number) => {
+    try {
+      await deleteMatchPollApi(pollId);
+      await fetchClubPolls();
       showAlert('Thành công', 'Đã xóa biểu quyết.');
     } catch (err: any) {
       showAlert('Lỗi', err.message || 'Không thể xóa biểu quyết.');
-    }
-  };
-
-  const handleStartMatchmaking = () => {
-    if (!activePoll) return;
-    setIsMatchmakeModalVisible(true);
-  };
-
-  const handleSaveMatchmadeTeams = async (teams: any) => {
-    if (!activePoll) return;
-    try {
-      const data = await saveMatchmadeTeamsApi(Number(activePoll.id), teams);
-      if (data && data.matchmadeTeams) {
-        setMatchmadeTeams(data.matchmadeTeams);
-        setTeamA(data.matchmadeTeams.teamA || []);
-        setTeamB(data.matchmadeTeams.teamB || []);
-      } else {
-        setMatchmadeTeams(teams);
-        setTeamA(teams.teamA || []);
-        setTeamB(teams.teamB || []);
-      }
-      showAlert('Thành công', 'Đã lưu và xuất đội hình thi đấu!');
-    } catch (err: any) {
-      showAlert('Lỗi', err.message || 'Không thể lưu đội hình.');
     }
   };
 
@@ -683,16 +546,15 @@ export function ClubDetailJoinedScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Poll / Matchmaking Section */}
+          {/* Poll / Matchmaking Section (v2.0) */}
           <PollCard 
-            activePoll={activePoll}
-            userVote={userVote}
-            matchmadeTeams={matchmadeTeams}
+            polls={matchPolls}
+            votingPollId={votingPollId}
             isLeaderOrSubLeader={currentUserRole === 'Trưởng câu lạc bộ' || currentUserRole === 'Phó câu lạc bộ'}
             onVote={handleVote}
             onClosePoll={handleClosePoll}
-            onReopenPoll={handleReopenPoll}
-            onStartMatchmaking={handleStartMatchmaking}
+            onSplitInternalTeams={handleSplitInternalTeams}
+            onFormGTLineup={handleFormGTLineup}
             onDeletePoll={handleDeletePoll}
             onCreatePollPress={() => setIsCreatePollModalVisible(true)}
           />
@@ -736,31 +598,12 @@ export function ClubDetailJoinedScreen() {
         onCopy={handleCopyLink}
       />
 
-      {/* Create Poll Modal */}
+      {/* Create Poll Modal (v2.0) */}
       <CreatePollModal 
         visible={isCreatePollModalVisible}
         onClose={() => setIsCreatePollModalVisible(false)}
-        pollTitleInput={pollTitleInput}
-        setPollTitleInput={setPollTitleInput}
-        pollTimeHour={pollTimeHour}
-        pollTimeMinute={pollTimeMinute}
-        adjustHour={adjustHour}
-        adjustMinute={adjustMinute}
-        setPollTimeHour={setPollTimeHour}
-        setPollTimeMinute={setPollTimeMinute}
-        onCreatePoll={handleCreatePoll}
-      />
-
-      {/* Matchmaking Team Split Modal */}
-      <MatchmakeModal 
-        visible={isMatchmakeModalVisible}
-        onClose={() => setIsMatchmakeModalVisible(false)}
-        teamA={teamA}
-        teamB={teamB}
-        teamAPlayers={matchmadeTeams?.teamAPlayers}
-        teamBPlayers={matchmadeTeams?.teamBPlayers}
-        allJoinedPlayers={activePoll?.joinedVoters || []}
-        onSaveTeams={handleSaveMatchmadeTeams}
+        onSubmit={handleCreatePoll}
+        clubSportName={club.sport}
       />
 
       {/* Match History Full Screen Modal */}

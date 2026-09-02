@@ -66,6 +66,37 @@ public class UserController {
         return ResponseEntity.ok(updatedProfile);
     }
 
+    @GetMapping("/sports-elo")
+    public ResponseEntity<java.util.List<com.backend.sporta.dto.UserSportOverviewDto>> getSportsEloOverview() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        java.util.List<com.backend.sporta.dto.UserSportOverviewDto> res = userService.getSportsEloOverview(user.getId());
+        return ResponseEntity.ok(res);
+    }
+
+    @PutMapping("/sports-elo")
+    public ResponseEntity<java.util.List<com.backend.sporta.dto.UserSportOverviewDto>> updateSportLevel(
+            @RequestBody com.backend.sporta.dto.UpdateUserSportLevelRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        java.util.List<com.backend.sporta.dto.UserSportOverviewDto> res = userService.updateSportLevel(user.getId(), request);
+        return ResponseEntity.ok(res);
+    }
+
+    @GetMapping("/ranked-match-history")
+    public ResponseEntity<java.util.List<com.backend.sporta.dto.RankedMatchHistoryItemDto>> getRankedMatchHistory() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        java.util.List<com.backend.sporta.dto.RankedMatchHistoryItemDto> res = userService.getRankedMatchHistory(user.getId());
+        return ResponseEntity.ok(res);
+    }
+
     @DeleteMapping("/profile")
     public ResponseEntity<?> deleteProfile() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

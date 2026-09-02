@@ -1,0 +1,14 @@
+package com.backend.sporta.dto;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class DeclareScoreRequest {
+    private String hostScore;
+    private String guestScore;
+    private String rawScoreDetails;
+}

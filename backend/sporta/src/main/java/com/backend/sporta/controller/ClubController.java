@@ -38,8 +38,19 @@ public class ClubController {
     @GetMapping
     public ResponseEntity<List<ClubResponse>> getAvailableClubs(
             @RequestParam(required = false) Long sportId,
-            @RequestParam(required = false) String query) {
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false, defaultValue = "false") Boolean includeAll) {
+        if (Boolean.TRUE.equals(includeAll)) {
+            return ResponseEntity.ok(clubService.getAllClubs(sportId, query, getCurrentUserEmail()));
+        }
         return ResponseEntity.ok(clubService.getAvailableClubs(sportId, query, getCurrentUserEmail()));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<ClubResponse>> getAllClubs(
+            @RequestParam(required = false) Long sportId,
+            @RequestParam(required = false) String query) {
+        return ResponseEntity.ok(clubService.getAllClubs(sportId, query, getCurrentUserEmail()));
     }
 
     @GetMapping("/my")

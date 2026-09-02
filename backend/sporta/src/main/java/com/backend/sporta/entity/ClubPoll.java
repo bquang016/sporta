@@ -35,6 +35,9 @@ public class ClubPoll {
     @JoinColumn(name = "creator_id", nullable = false)
     private User creator;
 
+    @Column(name = "match_id", columnDefinition = "UUID")
+    private java.util.UUID matchId;
+
     @Column(name = "matchmade_teams", columnDefinition = "TEXT")
     private String matchmadeTeams; // JSON format: {"teamA":["Name1"],"teamB":["Name2"]}
 

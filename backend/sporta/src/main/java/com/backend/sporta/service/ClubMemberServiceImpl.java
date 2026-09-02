@@ -4,11 +4,13 @@ import com.backend.sporta.dto.ClubMemberResponse;
 import com.backend.sporta.entity.Club;
 import com.backend.sporta.entity.ClubMember;
 import com.backend.sporta.entity.User;
+import com.backend.sporta.entity.UserSport;
 import com.backend.sporta.enums.ClubMemberRole;
 import com.backend.sporta.enums.ClubMemberStatus;
 import com.backend.sporta.repository.ClubMemberRepository;
 import com.backend.sporta.repository.ClubRepository;
 import com.backend.sporta.repository.UserRepository;
+import com.backend.sporta.repository.UserSportRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,12 @@ public class ClubMemberServiceImpl implements ClubMemberService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserSportRepository userSportRepository;
+
+    @Autowired
+    private com.backend.sporta.service.matchmaking.ClubEloService clubEloService;
 
     @Autowired
     private com.backend.sporta.service.ai.PostFeedService postFeedService;
@@ -62,6 +70,24 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         long currentMembersCount = clubMemberRepository.countByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
         if (currentMembersCount >= club.getMaxMembers()) {
             throw new RuntimeException("Câu lạc bộ đã đạt số lượng thành viên tối đa");
+        }
+
+        // Check Elo requirement if club has minEloRequired > 0
+        if (club.getMinEloRequired() != null && club.getMinEloRequired() > 0) {
+            Long sportId = club.getSport() != null ? club.getSport().getId() : null;
+            Optional<UserSport> usOpt = sportId != null ? userSportRepository.findByUserIdAndSportId(user.getId(), sportId) : Optional.empty();
+            int userElo = usOpt.map(UserSport::getEffectiveElo).orElse(1000);
+            com.backend.sporta.enums.EloStatus eloStatus = usOpt.map(UserSport::getEloStatus).orElse(com.backend.sporta.enums.EloStatus.UNVERIFIED);
+
+            if (eloStatus != com.backend.sporta.enums.EloStatus.VERIFIED) {
+                throw new RuntimeException("Câu lạc bộ này yêu cầu Elo đã xác minh (VERIFIED qua 5 trận đấu). "
+                        + "Trình độ hiện tại của bạn chưa hoàn thành 5 trận đấu xếp hạng/xé vé.");
+            }
+
+            if (userElo < club.getMinEloRequired()) {
+                throw new RuntimeException(String.format("Bạn cần tối thiểu %d điểm Elo để gia nhập CLB này (Điểm Elo hiện tại của bạn: %d).",
+                        club.getMinEloRequired(), userElo));
+            }
         }
 
         ClubMemberStatus joinStatus = club.getIsPrivate() ? ClubMemberStatus.PENDING : ClubMemberStatus.APPROVED;
@@ -233,8 +259,20 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             roleText = "Phó câu lạc bộ";
         }
 
-        // Elo default logic for users
-        Integer userElo = 1200; // Mock ELO as user profile currently has no ELO field, 1200 is default ELO.
+        // User Elo and verification status
+        Integer userElo = 1000;
+        com.backend.sporta.enums.EloStatus eloStatus = com.backend.sporta.enums.EloStatus.UNVERIFIED;
+        String levelLabel = "TB";
+
+        if (member.getUser() != null && member.getClub() != null && member.getClub().getSport() != null) {
+            Optional<UserSport> us = userSportRepository.findByUserIdAndSportId(
+                    member.getUser().getId(), member.getClub().getSport().getId());
+            if (us.isPresent()) {
+                userElo = us.get().getEffectiveElo();
+                eloStatus = us.get().getEloStatus() != null ? us.get().getEloStatus() : com.backend.sporta.enums.EloStatus.UNVERIFIED;
+                levelLabel = clubEloService.getLevelLabel(userElo);
+            }
+        }
 
         String avatar = (member.getUser() != null && member.getUser().getAvatarUrl() != null && !member.getUser().getAvatarUrl().trim().isEmpty())
                 ? member.getUser().getAvatarUrl()
@@ -246,6 +284,8 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .name(member.getUser() != null ? member.getUser().getFullName() : "")
                 .role(roleText)
                 .elo(userElo)
+                .eloStatus(eloStatus)
+                .levelLabel(levelLabel)
                 .avatar(avatar)
                 .status(member.getStatus() != null ? member.getStatus().name() : ClubMemberStatus.APPROVED.name())
                 .joinedAt(member.getJoinedAt() != null ? member.getJoinedAt().format(DATE_FORMATTER) : null)

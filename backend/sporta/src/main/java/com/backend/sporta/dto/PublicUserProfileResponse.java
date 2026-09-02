@@ -19,6 +19,7 @@ public class PublicUserProfileResponse {
     private String role; // "PLAYER", "VENUE_OWNER", "ADMIN"
     private Integer totalBookings;
     private Integer reputationScore;
+    private Boolean isDevTester;
 
     // Hồ sơ bộ môn thể thao (dựa trên số lượt đặt sân của từng môn)
     private List<SportBookingStatDto> sports;
@@ -38,7 +39,14 @@ public class PublicUserProfileResponse {
         private Long sportId;
         private String sportName;
         private String sportIcon;
-        private String level; // Trình độ (VD: BEGINNER, INTERMEDIATE...)
+        private String level;
+        private Integer eloRating;
+        private com.backend.sporta.enums.EloStatus eloStatus;
+        private String levelLabel;
+        private Integer placementMatchesPlayed;
+        private Integer totalRankedMatches;
+        private Integer totalWins;
+        private Integer winRate;
         private Integer bookingCount; // Số lượt đặt sân
         private Integer percentage; // Tỷ lệ %
     }
@@ -57,5 +65,6 @@ public class PublicUserProfileResponse {
         private String role; // "ADMIN", "SUB_LEADER", "MEMBER"
         private Integer membersCount;
         private Integer elo;
+        private Integer crp;
     }
 }

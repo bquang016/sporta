@@ -79,6 +79,16 @@ export function TicketSessionCard({ session, onPress, onBuyPress }: TicketSessio
               {session.startTime} - {session.endTime} • {formatDate(session.playDate)}
             </Text>
           </View>
+
+          {/* Host Team Banner if present */}
+          {session.hasHostTeam && (
+            <View style={styles.hostTeamBanner}>
+              <MaterialIcons name="shield" size={12} color="#4338CA" />
+              <Text style={styles.hostTeamText} numberOfLines={1}>
+                Đối đầu: <Text style={{ fontWeight: '800', color: '#312E81' }}>{session.hostTeamName || 'Đội Sân Nhà'}</Text>
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -287,5 +297,24 @@ const styles = StyleSheet.create({
   },
   buyBtnTextDisabled: {
     color: COLORS.outline,
+  },
+  hostTeamBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 0.5,
+    borderColor: '#C7D2FE',
+  },
+  hostTeamText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    color: '#3730A3',
+    fontWeight: '600',
   },
 });

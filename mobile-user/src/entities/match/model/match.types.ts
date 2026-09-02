@@ -9,7 +9,8 @@ export type MatchStatus =
   | 'RESULT_OVERDUE'
   | 'DISPUTED'
   | 'DRAW_PROPOSED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'EXPIRED';
 
 export type MatchType = 'FRIENDLY' | 'RANKED';
 
@@ -47,6 +48,71 @@ export interface BookingSummaryVM {
   address?: string;
 }
 
+export interface LineupMemberVM {
+  userId: number;
+  fullName: string;
+  avatarUrl?: string;
+  elo: number;
+  role?: string;
+  addedAt?: string;
+}
+
+export interface LineupVM {
+  id: number;
+  clubId: number;
+  clubName: string;
+  sourcePollId?: number;
+  name: string;
+  eloAvg: number;
+  lineupType: 'INTERNAL_A' | 'INTERNAL_B' | 'MATCHMAKING';
+  status: 'ACTIVE' | 'IN_MATCH' | 'COMPLETED' | 'DISBANDED';
+  matchRoomId?: string;
+  teamSide?: 'HOST' | 'GUEST';
+  members: LineupMemberVM[];
+  memberCount: number;
+  createdAt?: string;
+}
+
+export interface PollOptionVM {
+  id: number;
+  label: string;
+  isJoinOption: boolean;
+  isDefault: boolean;
+  displayOrder: number;
+  voteCount: number;
+  voters: {
+    userId: number;
+    fullName: string;
+    avatarUrl?: string;
+    elo: number;
+    role?: string;
+    votedAt?: string;
+  }[];
+}
+
+export interface MatchPollVM {
+  id: number;
+  clubId: number;
+  clubName: string;
+  creatorId: number;
+  creatorName: string;
+  creatorAvatar?: string;
+  title: string;
+  pollType: 'INTERNAL' | 'MATCHMAKING';
+  deadline?: string;
+  maxPlayers?: number;
+  minPlayers?: number;
+  status: 'OPEN' | 'CLOSED' | 'TEAM_FORMED';
+  options: PollOptionVM[];
+  myVoteOptionId?: number;
+  totalVotes: number;
+  joinVotesCount: number;
+  lineups: LineupVM[];
+  canManage?: boolean;
+  createdAt: string;
+  closedAt?: string;
+}
+
 export interface JoinRequestVM {
   id: string;
   roomId: string;
@@ -54,6 +120,7 @@ export interface JoinRequestVM {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'AUTO_CANCELLED_CONFLICT' | 'WITHDRAWN';
   createdAt: string;
   note?: string;
+  lineup?: LineupVM;
 }
 
 export interface MatchPermissionsVM {
@@ -111,10 +178,14 @@ export interface MatchRoomVM {
   myRequest?: JoinRequestVM;
   permissions: MatchPermissionsVM;
   createdAt: string;
+  statusLabel?: string;
+  cancellationReason?: string;
   balanceLabel?: string; // 'Cân kèo' | 'Chênh nhẹ' | 'Lệch trình'
   distanceKm?: number;
   scoreSubmission?: ScoreSubmissionVM;
   result?: MatchResultVM;
+  hostLineup?: LineupVM;
+  guestLineup?: LineupVM;
 }
 
 export interface RankingCalculationPreview {

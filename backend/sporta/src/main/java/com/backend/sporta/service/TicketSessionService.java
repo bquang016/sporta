@@ -130,6 +130,9 @@ public class TicketSessionService {
                 .maxSlots(request.getMaxSlots())
                 .bookedSlots(0)
                 .sportLevel(request.getSportLevel())
+                .hasHostTeam(Boolean.TRUE.equals(request.getHasHostTeam()))
+                .hostTeamName(request.getHostTeamName())
+                .hostTeamLevel(request.getHostTeamLevel())
                 .status(TicketSessionStatus.OPEN)
                 .build();
 
@@ -288,6 +291,9 @@ public class TicketSessionService {
                 .bookedSlots(session.getBookedSlots())
                 .sportLevel(session.getSportLevel())
                 .status(session.getStatus())
+                .hasHostTeam(session.getHasHostTeam())
+                .hostTeamName(session.getHostTeamName())
+                .hostTeamLevel(session.getHostTeamLevel())
                 .build();
     }
 

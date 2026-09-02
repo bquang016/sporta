@@ -11,6 +11,8 @@ public interface ClubPollVoteRepository extends JpaRepository<ClubPollVote, Long
 
     List<ClubPollVote> findByPollId(Long pollId);
 
+    List<ClubPollVote> findByPollIdAndOption(Long pollId, com.backend.sporta.enums.PollVoteOption option);
+
     Optional<ClubPollVote> findByPollIdAndUserId(Long pollId, Long userId);
 
     void deleteByPollId(Long pollId);

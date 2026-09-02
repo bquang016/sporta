@@ -63,6 +63,16 @@ public class MatchRoom {
     @Column(name = "join_deadline")
     private LocalDateTime joinDeadline;
 
+    @Column(name = "reminder_sent")
+    @Builder.Default
+    private Boolean reminderSent = false;
+
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

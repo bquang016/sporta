@@ -262,6 +262,30 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Đã mở khóa tài khoản thành công."));
     }
 
+    @PutMapping("/users/{id}/dev-tester")
+    public ResponseEntity<?> toggleDevTester(
+            @PathVariable("id") Long userId,
+            @RequestBody(required = false) Map<String, Boolean> body) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User admin = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin admin", 404));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+
+        boolean newState = (body != null && body.containsKey("isDevTester"))
+                ? body.get("isDevTester")
+                : !Boolean.TRUE.equals(user.getIsDevTester());
+
+        user.setIsDevTester(newState);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of(
+                "message", newState ? "Đã cấp quyền DEV Tester cho người dùng " + user.getFullName() : "Đã hủy quyền DEV Tester của " + user.getFullName(),
+                "isDevTester", newState
+        ));
+    }
+
     @GetMapping("/lock-reasons")
     public ResponseEntity<List<LockReason>> getLockReasons(
             @RequestParam(value = "role", required = false) String roleStr) {

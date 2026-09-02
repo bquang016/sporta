@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { fetchSessionDetail } from '../../../entities/ticket/api/ticketApi';
 import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
+import { DevXeVeTestPanel } from '../../../features/ticket-sessions';
+import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 export function TicketDetailScreen() {
@@ -25,9 +27,14 @@ export function TicketDetailScreen() {
   const sessionId = Array.isArray(id) ? id[0] : id;
 
   const [session, setSession] = useState<TicketSession | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfileDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    usersApi.getProfile().then(setCurrentUser).catch(() => {});
+  }, []);
 
   const loadSession = useCallback(async () => {
     if (!sessionId) return;
@@ -220,6 +227,47 @@ export function TicketDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── 1.5. DEV TEST PANEL (Only for DEV Testers / Admins) ── */}
+        {(currentUser?.isDevTester || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+          <DevXeVeTestPanel session={session} onRefresh={loadSession} />
+        )}
+
+        {/* ── 1.8. Fixed Host Team Card (If Owner has fixed team) ── */}
+        {session.hasHostTeam && (
+          <View style={[styles.sectionCard, styles.hostTeamCard]}>
+            <View style={styles.hostTeamHeader}>
+              <View style={styles.hostTeamIconWrap}>
+                <Ionicons name="shield" size={18} color="#4338CA" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Text style={styles.hostTeamTitle}>ĐỐI ĐẦU ĐỘI SÂN NHÀ</Text>
+                  <View style={styles.hostTeamBadge}>
+                    <Text style={styles.hostTeamBadgeText}>CHỜ THÁCH ĐẤU</Text>
+                  </View>
+                </View>
+                <Text style={styles.hostTeamSubtitle}>
+                  Đội sân nhà đang chờ đối thủ! Mua vé để cùng các đấu thủ khác lập đội so tài & tính điểm Elo xếp hạng.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.hostTeamInfoBox}>
+              <View style={styles.hostTeamInfoItem}>
+                <Text style={styles.hostTeamInfoLabel}>TÊN ĐỘI SÂN NHÀ</Text>
+                <Text style={styles.hostTeamInfoValue}>{session.hostTeamName || 'Đội Sân Nhà'}</Text>
+              </View>
+              <View style={styles.hostTeamInfoDivider} />
+              <View style={styles.hostTeamInfoItem}>
+                <Text style={styles.hostTeamInfoLabel}>TRÌNH ĐỘ ĐỘI NHÀ</Text>
+                <Text style={styles.hostTeamInfoValue}>
+                  {session.hostTeamLevel ? getSportLevelMeta(session.hostTeamLevel).label : levelMeta.label}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ── 2. Venue Info & Court Details Card ── */}
         <View style={styles.sectionCard}>
@@ -975,5 +1023,83 @@ const styles = StyleSheet.create({
   },
   checkoutBtnTextDisabled: {
     color: COLORS.outline,
+  },
+
+  /* Host Team Card Styles */
+  hostTeamCard: {
+    backgroundColor: '#F5F7FF',
+    borderColor: '#C7D2FE',
+    borderWidth: 1.5,
+    gap: 12,
+  },
+  hostTeamHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  hostTeamIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  hostTeamTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#312E81',
+    letterSpacing: 0.3,
+  },
+  hostTeamBadge: {
+    backgroundColor: '#4338CA',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  hostTeamBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  hostTeamSubtitle: {
+    fontSize: 11,
+    color: '#4B5563',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  hostTeamInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  hostTeamInfoItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  hostTeamInfoLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#6B7280',
+    letterSpacing: 0.4,
+  },
+  hostTeamInfoValue: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1E1B4B',
+  },
+  hostTeamInfoDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#E5E7EB',
   },
 });

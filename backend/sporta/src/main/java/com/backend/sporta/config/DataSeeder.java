@@ -222,8 +222,56 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE owners ADD COLUMN IF NOT EXISTS gender VARCHAR(20)");
             jdbcTemplate.execute("ALTER TABLE owners ADD COLUMN IF NOT EXISTS nationality VARCHAR(100)");
             jdbcTemplate.execute("ALTER TABLE owners ADD COLUMN IF NOT EXISTS permanent_address TEXT");
+
+            // Migration for Elo & CRP v2 system
+            jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS elo_rating INTEGER");
+            jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS elo_status VARCHAR(20) DEFAULT 'UNVERIFIED'");
+            jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS placement_matches_played INTEGER DEFAULT 0");
+            jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS total_ranked_matches INTEGER DEFAULT 0");
+            jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS total_wins INTEGER DEFAULT 0");
+            jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS last_match_at TIMESTAMP");
+
+            jdbcTemplate.execute("UPDATE user_sports SET elo_rating = CASE " +
+                    "WHEN level = 'WEAK' THEN 900 " +
+                    "WHEN level = 'WEAK_AVERAGE' THEN 1200 " +
+                    "WHEN level = 'AVERAGE' THEN 1500 " +
+                    "WHEN level = 'AVERAGE_GOOD' THEN 1800 " +
+                    "WHEN level = 'GOOD' THEN 2100 " +
+                    "ELSE 1000 END WHERE elo_rating IS NULL");
+
+            jdbcTemplate.execute("UPDATE user_sports SET elo_status = 'UNVERIFIED' WHERE elo_status IS NULL");
+            jdbcTemplate.execute("UPDATE user_sports SET placement_matches_played = 0 WHERE placement_matches_played IS NULL");
+            jdbcTemplate.execute("UPDATE user_sports SET total_ranked_matches = 0 WHERE total_ranked_matches IS NULL");
+            jdbcTemplate.execute("UPDATE user_sports SET total_wins = 0 WHERE total_wins IS NULL");
+
+            jdbcTemplate.execute("ALTER TABLE clubs ADD COLUMN IF NOT EXISTS min_elo_required INTEGER DEFAULT 0");
+            jdbcTemplate.execute("ALTER TABLE clubs ADD COLUMN IF NOT EXISTS recruitment_status VARCHAR(20) DEFAULT 'OPEN'");
+            jdbcTemplate.execute("UPDATE clubs SET min_elo_required = 0 WHERE min_elo_required IS NULL");
+            jdbcTemplate.execute("UPDATE clubs SET recruitment_status = 'OPEN' WHERE recruitment_status IS NULL");
+
+            jdbcTemplate.execute("ALTER TABLE club_polls ADD COLUMN IF NOT EXISTS match_id UUID");
+
+            jdbcTemplate.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS team VARCHAR(20)");
+            jdbcTemplate.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS is_captain BOOLEAN DEFAULT FALSE");
+            jdbcTemplate.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS is_score_confirmed BOOLEAN DEFAULT FALSE");
+            jdbcTemplate.execute("UPDATE tickets SET is_captain = FALSE WHERE is_captain IS NULL");
+            jdbcTemplate.execute("UPDATE tickets SET is_score_confirmed = FALSE WHERE is_score_confirmed IS NULL");
+
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS host_score VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS guest_score VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS match_outcome VARCHAR(20)");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS is_elo_settled BOOLEAN DEFAULT FALSE");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS score_declared_at TIMESTAMP");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS score_confirmed_count INTEGER DEFAULT 0");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS has_host_team BOOLEAN DEFAULT FALSE");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS host_team_name VARCHAR(100)");
+            jdbcTemplate.execute("ALTER TABLE ticket_sessions ADD COLUMN IF NOT EXISTS host_team_level VARCHAR(50)");
+            jdbcTemplate.execute("UPDATE ticket_sessions SET has_host_team = FALSE WHERE has_host_team IS NULL");
+            jdbcTemplate.execute("UPDATE ticket_sessions SET is_elo_settled = FALSE WHERE is_elo_settled IS NULL");
+            jdbcTemplate.execute("UPDATE ticket_sessions SET score_confirmed_count = 0 WHERE score_confirmed_count IS NULL");
+            jdbcTemplate.execute("UPDATE ticket_sessions SET is_disputed = FALSE WHERE is_disputed IS NULL");
         } catch (Exception e) {
-            System.out.println("Data Seeder: Bỏ qua việc thêm cột mới trên owner_registrations / owners.");
+            System.out.println("Data Seeder: Bỏ qua việc thêm cột mới trên owner_registrations / owners / Elo v2: " + e.getMessage());
         }
 
         // Seed Default Owner User
@@ -342,6 +390,27 @@ public class DataSeeder implements CommandLineRunner {
                                 .build();
                         clubMemberRepository.save(adminMember);
                     }
+                }
+
+                // Ensure club has a vibrant sporty avatar
+                if (club.getAvatarImage() == null || club.getAvatarImage().isBlank()) {
+                    String sport = "";
+                    try {
+                        if (club.getSport() != null && club.getSport().getName() != null) {
+                            sport = club.getSport().getName().toLowerCase();
+                        }
+                    } catch (Exception ignored) {}
+
+                    if (sport.contains("cầu lông") || sport.contains("badminton")) {
+                        club.setAvatarImage("https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=200&auto=format&fit=crop&q=80");
+                    } else if (sport.contains("pickleball")) {
+                        club.setAvatarImage("https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=200&auto=format&fit=crop&q=80");
+                    } else if (sport.contains("bóng rổ") || sport.contains("basketball")) {
+                        club.setAvatarImage("https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&auto=format&fit=crop&q=80");
+                    } else {
+                        club.setAvatarImage("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=200&auto=format&fit=crop&q=80");
+                    }
+                    clubRepository.save(club);
                 }
 
                 long existingCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
