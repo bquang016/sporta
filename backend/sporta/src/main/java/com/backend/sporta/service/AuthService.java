@@ -145,10 +145,17 @@ public class AuthService {
             permissions = java.util.List.of("ALL_FEATURES");
         }
 
+        // Compute passwordSnoozeUntil ISO string for response
+        String snoozeUntilStr = null;
+        if (user.getPasswordSnoozeUntil() != null) {
+            snoozeUntilStr = user.getPasswordSnoozeUntil().toString();
+        }
+
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .message("Đăng nhập thành công.")
                 .mustChangePassword(user.isMustChangePassword())
+                .passwordSnoozeUntil(snoozeUntilStr)
                 .permissions(permissions)
                 .build();
     }
@@ -681,6 +688,37 @@ public class AuthService {
         // Update password and clear the mustChangePassword flag
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  SNOOZE CHANGE PASSWORD REMINDER
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void snoozeChangePassword(String authorizationHeader, SnoozeChangePasswordRequest request) {
+        // Validate snoozeDays
+        if (request.getSnoozeDays() == null || (request.getSnoozeDays() != 1 && request.getSnoozeDays() != 3)) {
+            throw new CustomException("Chỉ được nhắc lại sau 1 hoặc 3 ngày.", 400);
+        }
+
+        // Extract user from JWT
+        String token = extractToken(authorizationHeader);
+        if (token == null || !jwtTokenProvider.validateToken(token)) {
+            throw new CustomException("Token không hợp lệ.", 401);
+        }
+
+        String email = jwtTokenProvider.getEmailFromToken(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
+
+        // Only allow snooze if the user still needs to change password
+        if (!user.isMustChangePassword()) {
+            throw new CustomException("Bạn đã đổi mật khẩu rồi, không cần nhắc lại.", 400);
+        }
+
+        // Set snooze until
+        user.setPasswordSnoozeUntil(java.time.LocalDateTime.now().plusDays(request.getSnoozeDays()));
         userRepository.save(user);
     }
 

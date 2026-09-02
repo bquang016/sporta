@@ -2,6 +2,7 @@ package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.AuthResponse;
 import com.backend.sporta.dto.ChangePasswordRequest;
+import com.backend.sporta.dto.SnoozeChangePasswordRequest;
 import com.backend.sporta.dto.LoginRequest;
 import com.backend.sporta.dto.RegisterRequest;
 import com.backend.sporta.dto.SendOtpRequest;
@@ -134,6 +135,14 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(authHeader, request);
         return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
+    }
+
+    @PostMapping("/snooze-change-password")
+    public ResponseEntity<?> snoozeChangePassword(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @Valid @RequestBody SnoozeChangePasswordRequest request) {
+        authService.snoozeChangePassword(authHeader, request);
+        return ResponseEntity.ok(Map.of("message", "Đã tạm hoãn nhắc nhở đổi mật khẩu."));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
