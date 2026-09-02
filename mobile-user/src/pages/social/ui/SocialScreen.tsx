@@ -23,6 +23,8 @@ import { createPostApi } from '../../../shared/api/posts';
 import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { SocialNotificationApi } from '../../../shared/api/socialNotifications';
 import { Post } from '../../../entities/post';
+import { Avatar } from '../../../shared/ui';
+import { getCachedUserSession, saveUserSession } from '../../../shared/lib/userSession';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -67,7 +69,9 @@ export function SocialScreen() {
   const [activeTab, setActiveTab] = useState<SocialTabKey>('FOR_YOU');
   const [activeSportTag, setActiveSportTag] = useState<string>('ALL');
 
-  // User Profile
+  // User Profile & Cached Avatar for Zero Flicker
+  const initialSession = getCachedUserSession();
+  const [cachedAvatar, setCachedAvatar] = useState<string | null>(initialSession.userAvatar || null);
   const [userProfile, setUserProfile] = useState<UserProfileDto | null>(null);
 
   // Create Post Modal State & Feed Refetch Key
@@ -92,7 +96,17 @@ export function SocialScreen() {
   const loadUserProfile = useCallback(async () => {
     try {
       const profile = await usersApi.getProfile();
-      if (profile) setUserProfile(profile);
+      if (profile) {
+        setUserProfile(profile);
+        if (profile.avatarUrl) {
+          setCachedAvatar(profile.avatarUrl);
+          await saveUserSession({
+            userAvatar: profile.avatarUrl,
+            userName: profile.fullName,
+            userEmail: profile.email,
+          });
+        }
+      }
     } catch {}
   }, []);
 
@@ -119,9 +133,7 @@ export function SocialScreen() {
       author: {
         id: String(userProfile?.id || 'u-me'),
         name: userProfile?.fullName || 'Bạn',
-        avatar:
-          userProfile?.avatarUrl ||
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatar: userProfile?.avatarUrl || '',
         handle: `@${userProfile?.email?.split('@')[0] || 'me'}`,
         role: userProfile?.role || 'PLAYER',
       },
@@ -294,9 +306,7 @@ export function SocialScreen() {
     setIsCreateModalOpen(true);
   };
 
-  const userAvatar =
-    userProfile?.avatarUrl ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+  const userAvatar = userProfile?.avatarUrl || cachedAvatar || null;
 
   // Interpolated values for smooth collapsible top controls
   const collapsibleMaxHeight = topControlsAnim.interpolate({
@@ -386,7 +396,7 @@ export function SocialScreen() {
             activeOpacity={0.8}
             onPress={() => openCreateModal('COMMUNITY')}
           >
-            <Image source={{ uri: userAvatar }} style={styles.promptAvatar} />
+            <Avatar size={36} source={userAvatar} fallbackType="user" />
             <View style={styles.promptInputBox}>
               <Text style={styles.promptPlaceholderText} numberOfLines={1}>
                 Bạn đang nghĩ gì? Đăng bài hoặc lên kèo...

@@ -16,6 +16,7 @@ import { registerUser } from '../../../../shared/api/auth';
 import { usersApi } from '../../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
+import { saveUserSession } from '../../../../shared/lib/userSession';
 
 // 4 Official Sports with distinct category tints per design system
 const SPORTS_LIST = [
@@ -242,33 +243,25 @@ export function SportLevelScreen() {
       const emailStr = email as string;
       const nameStr = fullName as string;
 
-      if (Platform.OS === 'web') {
-        localStorage.setItem('accessToken', response.accessToken);
-        localStorage.setItem('userEmail', emailStr);
-        localStorage.setItem('userName', nameStr);
-      } else {
-        await SecureStore.setItemAsync('accessToken', response.accessToken);
-        await SecureStore.setItemAsync('userEmail', emailStr);
-        await SecureStore.setItemAsync('userName', nameStr);
-      }
+      await saveUserSession({
+        accessToken: response.accessToken,
+        userEmail: emailStr,
+        userName: nameStr,
+        userAvatar: null,
+      });
 
-      if (avatarUri && typeof avatarUri === 'string' && avatarUri.length > 0) {
+      if (avatarUri && typeof avatarUri === 'string' && avatarUri.trim().length > 0) {
         try {
-          const fileData = {
-            uri: avatarUri,
-            name: 'avatar.jpg',
-            type: 'image/jpeg',
-          };
-          const updatedProfile = await usersApi.updateProfile({}, fileData as any);
+          const updatedProfile = await usersApi.updateProfile({}, avatarUri);
           if (updatedProfile && updatedProfile.avatarUrl) {
-            if (Platform.OS === 'web') {
-              localStorage.setItem('userAvatar', updatedProfile.avatarUrl);
-            } else {
-              await SecureStore.setItemAsync('userAvatar', updatedProfile.avatarUrl);
-            }
+            await saveUserSession({
+              userAvatar: updatedProfile.avatarUrl,
+              userName: updatedProfile.fullName || nameStr,
+              userEmail: updatedProfile.email || emailStr,
+            });
           }
         } catch (avatarErr) {
-          console.log('Avatar upload background warning:', avatarErr);
+          console.error('Avatar upload error during registration:', avatarErr);
         }
       }
 

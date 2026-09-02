@@ -40,7 +40,7 @@ export function ProfileInfoGroup({
       {/* Avatar Section */}
       <View style={styles.avatarCard}>
         <View style={styles.avatarWrapper}>
-          <Avatar size={90} source={avatarUri} />
+          <Avatar size={90} source={avatarUri} fallbackType="user" />
           <TouchableOpacity 
             style={styles.cameraBadgeBtn}
             activeOpacity={0.85}

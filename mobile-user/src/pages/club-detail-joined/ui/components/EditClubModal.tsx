@@ -32,10 +32,10 @@ const MOCK_COVERS: CoverItem[] = [
 ];
 
 const MOCK_AVATARS: AvatarItem[] = [
-  { id: 'avatar-1', name: 'Hải âu', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80', icon: 'sports-soccer' },
-  { id: 'avatar-2', name: 'Chiến binh', url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80', icon: 'sports-basketball' },
-  { id: 'avatar-3', name: 'Bồ câu', url: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=200&auto=format&fit=crop&q=80', icon: 'sports-cricket' },
-  { id: 'avatar-4', name: 'Sư tử', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80', icon: 'sports-tennis' },
+  { id: 'avatar-1', name: 'Bóng đá FC', url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=200&auto=format&fit=crop&q=80', icon: 'sports-soccer' },
+  { id: 'avatar-2', name: 'Bóng rổ Stars', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&auto=format&fit=crop&q=80', icon: 'sports-basketball' },
+  { id: 'avatar-3', name: 'Cầu lông Pro', url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=200&auto=format&fit=crop&q=80', icon: 'sports-tennis' },
+  { id: 'avatar-4', name: 'Pickleball Ace', url: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=200&auto=format&fit=crop&q=80', icon: 'sports-tennis' },
 ];
 
 const ACTIVITY_LEVELS = ['Hàng tuần', '2-3 buổi/tuần', 'Tự do'];
