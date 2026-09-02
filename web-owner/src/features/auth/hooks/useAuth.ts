@@ -48,6 +48,11 @@ export const useAuth = () => {
       } else {
         localStorage.removeItem('mustChangePassword');
       }
+      if (data.passwordSnoozeUntil) {
+        localStorage.setItem('passwordSnoozeUntil', data.passwordSnoozeUntil);
+      } else {
+        localStorage.removeItem('passwordSnoozeUntil');
+      }
       navigate('/', { replace: true });
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi kết nối máy chủ. Vui lòng thử lại sau.');
