@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import org.springframework.scheduling.annotation.Async;
 
 @Service
 public class EmailService {
@@ -37,6 +38,7 @@ public class EmailService {
         return null;
     }
 
+    @Async
     public void sendOtpEmail(String toEmail, String otpCode) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

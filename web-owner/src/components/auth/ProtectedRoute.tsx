@@ -29,6 +29,11 @@ export const ProtectedRoute = () => {
   }
 
   const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
+  const snoozeUntil = localStorage.getItem('passwordSnoozeUntil');
+  const isSnoozed = snoozeUntil ? new Date(snoozeUntil) > new Date() : false;
+
+  // Only show the modal when: must change password AND snooze is NOT active
+  const showChangePasswordReminder = mustChangePassword && !isSnoozed;
 
   // Wrap the nested route content (Outlet) inside the Layout
   return (
@@ -36,9 +41,10 @@ export const ProtectedRoute = () => {
       <Layout>
         <Outlet />
       </Layout>
-      {mustChangePassword && <ForceChangePasswordModal />}
+      {showChangePasswordReminder && <ForceChangePasswordModal />}
     </>
   );
 };
 
 export default ProtectedRoute;
+

@@ -63,12 +63,9 @@ export function Avatar({
     style,
   ] as ViewStyle[];
 
-  const uriStr = typeof source === 'string' ? source : (source as any)?.uri;
-  const isBlobUri = typeof uriStr === 'string' && uriStr.startsWith('blob:');
-
   const renderContent = () => {
-    // 1. If valid image source exists (number or valid remote string URI) and hasn't errored
-    if (source && !isBlobUri && !imageError) {
+    // 1. If valid image source exists (number or valid string URI or source object) and hasn't errored
+    if (source && !imageError) {
       const imgSource = typeof source === 'string' 
         ? { uri: source } 
         : typeof source === 'number' 

@@ -27,6 +27,9 @@ public class PublicUserProfileResponse {
     // Các câu lạc bộ đã tham gia
     private List<UserClubSummaryDto> joinedClubs;
 
+    // Trạng thái riêng tư
+    private Boolean privateMode;
+
     @Getter
     @Setter
     @NoArgsConstructor

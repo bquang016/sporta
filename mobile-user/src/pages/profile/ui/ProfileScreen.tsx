@@ -58,7 +58,7 @@ export function ProfileScreen() {
   }, [router]);
 
   const handleSettings = useCallback(() => {
-    router.push('/profile/settings' as any);
+    router.push('/account-settings' as any);
   }, [router]);
 
   // User sports list sorted by priority: VERIFIED > Total Matches > Elo Rating > Total Wins

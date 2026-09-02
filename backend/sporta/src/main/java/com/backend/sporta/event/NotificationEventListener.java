@@ -1,7 +1,7 @@
 package com.backend.sporta.event;
 
 import com.backend.sporta.entity.Notification;
-import com.backend.sporta.repository.NotificationRepository;
+import com.backend.sporta.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -13,9 +13,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class NotificationEventListener {
 
-    private final NotificationRepository notificationRepository;
-    
-    // TODO: Add Push Notification Service integration here in Phase 3
+    private final NotificationService notificationService;
 
     @Async
     @EventListener
@@ -24,22 +22,14 @@ public class NotificationEventListener {
                  event.getRecipientId(), event.getRecipientRole(), event.getTitle());
 
         try {
-            // 1. Save to Database
-            Notification notification = Notification.builder()
-                    .recipientId(event.getRecipientId())
-                    .recipientRole(event.getRecipientRole())
-                    .title(event.getTitle())
-                    .content(event.getContent())
-                    .type(event.getType())
-                    .referenceId(event.getReferenceId())
-                    .isRead(false)
-                    .build();
-            
-            notificationRepository.save(notification);
-            
-            // 2. Send Push Notification (Phase 3)
-            // pushNotificationService.sendPushNotification(...)
-            
+            notificationService.createNotification(
+                    event.getRecipientId(),
+                    event.getRecipientRole(),
+                    event.getTitle(),
+                    event.getContent(),
+                    event.getType(),
+                    event.getReferenceId()
+            );
         } catch (Exception e) {
             log.error("Error processing notification event: {}", e.getMessage(), e);
         }

@@ -20,46 +20,49 @@ export const UserPhysicalCard = React.memo(({ height, weight }: UserPhysicalCard
       </View>
 
       <View style={styles.grid}>
-        {/* Height */}
-        <View style={styles.statItem}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
-            <Ionicons name="resize-outline" size={16} color="#2563EB" />
+        <View style={styles.contentRow}>
+          {/* Height */}
+          <View style={styles.statItem}>
+            <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="resize-outline" size={16} color="#2563EB" />
+            </View>
+            <View style={styles.statTextGroup}>
+              <Text style={styles.statLabel}>Chiều cao</Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  heightDisplay === 'Chưa cập nhật' && styles.statValuePlaceholder,
+                ]}
+                numberOfLines={1}
+              >
+                {heightDisplay}
+              </Text>
+            </View>
           </View>
-          <View style={styles.statTextGroup}>
-            <Text style={styles.statLabel}>Chiều cao</Text>
-            <Text
-              style={[
-                styles.statValue,
-                heightDisplay === 'Chưa cập nhật' && styles.statValuePlaceholder,
-              ]}
-              numberOfLines={1}
-            >
-              {heightDisplay}
-            </Text>
+
+          {/* Divider */}
+          <View style={styles.colDivider} />
+
+          {/* Weight */}
+          <View style={styles.statItem}>
+            <View style={[styles.iconCircle, { backgroundColor: '#FDF4FF' }]}>
+              <Ionicons name="fitness-outline" size={16} color="#9333EA" />
+            </View>
+            <View style={styles.statTextGroup}>
+              <Text style={styles.statLabel}>Cân nặng</Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  weightDisplay === 'Chưa cập nhật' && styles.statValuePlaceholder,
+                ]}
+                numberOfLines={1}
+              >
+                {weightDisplay}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Divider */}
-        <View style={styles.colDivider} />
-
-        {/* Weight */}
-        <View style={styles.statItem}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FDF4FF' }]}>
-            <Ionicons name="fitness-outline" size={16} color="#9333EA" />
-          </View>
-          <View style={styles.statTextGroup}>
-            <Text style={styles.statLabel}>Cân nặng</Text>
-            <Text
-              style={[
-                styles.statValue,
-                weightDisplay === 'Chưa cập nhật' && styles.statValuePlaceholder,
-              ]}
-              numberOfLines={1}
-            >
-              {weightDisplay}
-            </Text>
-          </View>
-        </View>
       </View>
     </View>
   );
@@ -98,6 +101,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
   },
   statItem: {
     flex: 1,

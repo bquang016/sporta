@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SocialNotificationApi, SocialNotificationVM } from '../../../shared/api/socialNotifications';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { Avatar } from '../../../shared/ui';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -270,7 +271,6 @@ function SocialNotificationsContent({
 
   const renderItem = ({ item }: { item: SocialNotificationVM }) => {
     const isUnread = !item.isRead && !item.read;
-    const defaultAvatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
 
     return (
       <TouchableOpacity
@@ -280,9 +280,10 @@ function SocialNotificationsContent({
       >
         {/* Left: Avatar with Reaction/Comment Badge */}
         <View style={styles.avatarWrap}>
-          <Image
-            source={{ uri: item.actorAvatar || defaultAvatar }}
-            style={styles.avatarImage}
+          <Avatar
+            source={item.actorAvatar}
+            size={44}
+            fallbackType="user"
           />
           {renderBadgeIcon(item.type, item.content)}
         </View>

@@ -44,6 +44,12 @@ public class VoucherService {
     @Autowired
     private OwnerRepository ownerRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private BookingRepository bookingRepository;
+
     // --- OWNER VOUCHER API ---
 
     @Transactional
@@ -58,7 +64,6 @@ public class VoucherService {
         voucher = voucherRepository.save(voucher);
 
         saveVoucherVenues(voucher, request.getVenueIds());
-
         return mapToVoucherResponse(voucher);
     }
 
@@ -125,8 +130,58 @@ public class VoucherService {
         }
         voucher.setBannerImageUrl(request.getBannerImageUrl());
         voucher = voucherRepository.save(voucher);
-
         return mapToVoucherResponse(voucher);
+    }
+
+    @Transactional
+    public void processPendingVoucherPushes() {
+        List<Voucher> vouchers = voucherRepository.findVouchersForPushNotification(LocalDateTime.now());
+        for (Voucher voucher : vouchers) {
+            try {
+                String discountStr = voucher.getDiscountType() == DiscountType.PERCENTAGE 
+                        ? String.format("%.0f%%", voucher.getDiscountValue()) 
+                        : String.format("%,.0fđ", voucher.getDiscountValue());
+                
+                if (voucher.getVoucherScope() == VoucherScope.SYSTEM) {
+                    List<Long> userIds = userRepository.findPlayerIdsForPromo();
+                    if (!userIds.isEmpty()) {
+                        String title = "🎁 Voucher mới từ hệ thống Sporta!";
+                        String content = String.format("Mã %s giảm %s đã có mặt. Nhanh tay thu thập ngay kẻo lỡ!", voucher.getCode(), discountStr);
+                        notificationService.sendBulkPromotionNotification(userIds, title, content, voucher.getId().toString());
+                    }
+                } else if (voucher.getVoucherScope() == VoucherScope.VENUE && voucher.getOwner() != null) {
+                    List<Long> userIds;
+                    String ownerName = "Cơ sở thể thao";
+
+                    if (voucher.getApplicableVenues() != null && !voucher.getApplicableVenues().isEmpty()) {
+                        // Apply to specific venues
+                        List<UUID> venueIds = voucher.getApplicableVenues().stream()
+                                .map(vv -> vv.getVenue().getId())
+                                .collect(Collectors.toList());
+                        userIds = bookingRepository.findUserIdsByVenueIds(venueIds);
+                        ownerName = voucher.getApplicableVenues().get(0).getVenue().getName();
+                    } else {
+                        // Apply to all venues of owner
+                        userIds = bookingRepository.findUserIdsByOwnerBooking(voucher.getOwner().getId());
+                        List<Venue> venues = venueRepository.findByOwnerId(voucher.getOwner().getId());
+                        if (venues != null && !venues.isEmpty()) {
+                            ownerName = "Hệ thống sân " + voucher.getOwner().getFullName();
+                        }
+                    }
+
+                    if (!userIds.isEmpty()) {
+                        String title = "🎁 Ưu đãi độc quyền từ " + ownerName;
+                        String content = String.format("Mã %s giảm %s dành riêng cho bạn. Thu thập ngay!", voucher.getCode(), discountStr);
+                        notificationService.sendBulkPromotionNotification(userIds, title, content, voucher.getId().toString());
+                    }
+                }
+                
+                voucher.setIsPushSent(true);
+                voucherRepository.save(voucher);
+            } catch (Exception e) {
+                // Ignore exception to process other vouchers
+            }
+        }
     }
 
     @Transactional
@@ -252,8 +307,8 @@ public class VoucherService {
     }
 
     public List<VoucherResponse> getExploreVouchers(VoucherScope scope) {
-        LocalDateTime twentyFourHoursAgo = LocalDateTime.now().minusHours(24);
-        List<Voucher> vouchers = voucherRepository.findExploreVouchers(scope, twentyFourHoursAgo);
+        LocalDateTime now = LocalDateTime.now();
+        List<Voucher> vouchers = voucherRepository.findExploreVouchers(scope, now);
         return vouchers.stream().map(this::mapToVoucherResponse).collect(Collectors.toList());
     }
 

@@ -21,9 +21,10 @@ interface SportStatItem {
 
 interface UserSportsCardProps {
   sports?: SportStatItem[];
+  privateMode?: boolean;
 }
 
-export const UserSportsCard = React.memo(({ sports }: UserSportsCardProps) => {
+export const UserSportsCard = React.memo(({ sports, privateMode }: UserSportsCardProps) => {
   if (!sports || sports.length === 0) {
     return (
       <View style={styles.container}>

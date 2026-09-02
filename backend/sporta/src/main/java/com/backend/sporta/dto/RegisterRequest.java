@@ -28,4 +28,6 @@ public class RegisterRequest {
 
     @NotEmpty(message = "At least one sport must be selected")
     private List<SportProfileDto> sports;
+
+    private String avatarUrl;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../../shared/config/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 interface NotificationGroupProps {
   notifBooking: boolean;
@@ -22,13 +22,13 @@ export function NotificationGroup({
 }: NotificationGroupProps) {
   return (
     <>
-      <Text style={styles.sectionGroupTitle}>2. Cài Đặt Thông Báo</Text>
+      <Text style={styles.sectionGroupTitle}>QUẢN LÝ THÔNG BÁO</Text>
 
       <View style={styles.settingCard}>
         {/* Thông báo lịch đặt sân */}
         <View style={styles.settingRow}>
-          <View style={styles.iconBg}>
-            <MaterialIcons name="event-available" size={20} color={COLORS.primary} />
+          <View style={[styles.iconBg, { backgroundColor: '#E7F3EF' }]}>
+            <MaterialIcons name="event-available" size={20} color="#064E3B" />
           </View>
           <View style={styles.settingRowTextCol}>
             <Text style={styles.settingLabel} numberOfLines={1}>Thông báo lịch đặt sân</Text>
@@ -46,8 +46,8 @@ export function NotificationGroup({
 
         {/* Thông báo khuyến mãi */}
         <View style={styles.settingRow}>
-          <View style={styles.iconBg}>
-            <MaterialIcons name="card-giftcard" size={20} color={COLORS.primary} />
+          <View style={[styles.iconBg, { backgroundColor: '#FEF3C7' }]}>
+            <MaterialIcons name="card-giftcard" size={20} color="#B45309" />
           </View>
           <View style={styles.settingRowTextCol}>
             <Text style={styles.settingLabel} numberOfLines={1}>Thông báo khuyến mãi</Text>
@@ -65,8 +65,8 @@ export function NotificationGroup({
 
         {/* Thông báo ghép trận / CLB */}
         <View style={styles.settingRow}>
-          <View style={styles.iconBg}>
-            <MaterialIcons name="groups" size={20} color={COLORS.primary} />
+          <View style={[styles.iconBg, { backgroundColor: '#E0E7FF' }]}>
+            <MaterialIcons name="groups" size={20} color="#4338CA" />
           </View>
           <View style={styles.settingRowTextCol}>
             <Text style={styles.settingLabel} numberOfLines={1}>Thông báo ghép trận & CLB</Text>
@@ -87,35 +87,45 @@ export function NotificationGroup({
 const styles = StyleSheet.create({
   sectionGroupTitle: {
     ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
     marginTop: SPACING.xs,
     marginLeft: 4,
+    marginBottom: 8,
   },
   settingCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: COLORS.primaryOpacity12,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.xs + 2,
-    gap: SPACING.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   iconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primaryOpacity12,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 16,
   },
   settingRowTextCol: {
     flex: 1,
+    marginRight: 12,
+    overflow: 'hidden',
   },
   settingLabel: {
     ...TYPOGRAPHY.labelMd,
@@ -131,7 +141,7 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     height: 1,
-    backgroundColor: COLORS.surfaceContainerLow,
-    marginVertical: SPACING.xs,
+    backgroundColor: '#F1F5F9',
+    marginLeft: 68,
   },
 });

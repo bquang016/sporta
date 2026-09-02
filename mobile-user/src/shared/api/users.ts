@@ -35,9 +35,6 @@ export interface UserProfileDto {
   notifBooking?: boolean;
   notifPromo?: boolean;
   notifMatchmake?: boolean;
-  linkGoogle?: boolean;
-  linkFacebook?: boolean;
-  linkApple?: boolean;
   enableBiometrics?: boolean;
   privateMode?: boolean;
 }
@@ -53,9 +50,6 @@ export interface UpdateUserProfileRequest {
   notifBooking?: boolean;
   notifPromo?: boolean;
   notifMatchmake?: boolean;
-  linkGoogle?: boolean;
-  linkFacebook?: boolean;
-  linkApple?: boolean;
   enableBiometrics?: boolean;
   privateMode?: boolean;
   [key: string]: any;
@@ -98,6 +92,7 @@ export interface PublicUserProfileResponse {
     elo?: number;
     crp?: number;
   }[];
+  privateMode?: boolean;
 }
 
 const getToken = async (): Promise<string | null> => {
@@ -164,7 +159,7 @@ export const usersApi = {
   },
 
   getPublicProfile: async (userId: string | number): Promise<PublicUserProfileResponse> => {
-    return apiFetch<PublicUserProfileResponse>(`/users/${userId}/public`, { method: 'GET' }, false);
+    return apiFetch<PublicUserProfileResponse>(`/users/${userId}/public`, { method: 'GET' }, true);
   },
 
   getSportsEloOverview: async (): Promise<UserSportOverviewDto[]> => {
@@ -243,5 +238,20 @@ export const usersApi = {
       throw new ApiError(errorData.message || 'Lỗi khi cập nhật thông tin cá nhân', response.status);
     }
     return response.json();
+  },
+
+  deleteAccount: async (): Promise<void> => {
+    const token = await getToken();
+    const response = await fetch(`${BASE_URL}/users/profile`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(errorData.message || 'Lỗi khi xóa tài khoản', response.status);
+    }
   }
 };

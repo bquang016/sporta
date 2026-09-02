@@ -620,7 +620,6 @@ export function SearchScreen() {
                 { name: 'Bóng đá', icon: 'sports-soccer' },
                 { name: 'Pickleball', icon: 'sports-tennis' },
                 { name: 'Cầu lông', icon: 'badminton', isMci: true },
-                { name: 'Tennis', icon: 'sports-tennis' },
                 { name: 'Bóng rổ', icon: 'sports-basketball' },
               ].map((s) => {
                 const isSelected = appliedFilters.sport === s.name;
