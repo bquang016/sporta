@@ -66,15 +66,17 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
            "AND v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
            "AND v.bannerImageUrl IS NOT NULL AND TRIM(v.bannerImageUrl) != '' " +
            "AND v.endDate > :now " +
+           "AND v.usedQuantity < v.totalQuantity " +
            "ORDER BY v.createdAt DESC")
     List<Voucher> findActiveBannerVouchers(@Param("now") LocalDateTime now, Pageable pageable);
 
-    /** Lấy voucher để user khám phá / săn mã theo scope (Hệ thống hoặc Chủ sân), bao gồm cả mã hết hạn trong vòng 24h */
+    /** Lấy voucher để user khám phá / săn mã theo scope (Hệ thống hoặc Chủ sân), chỉ lấy mã đang hiệu lực và còn lượt */
     @Query("SELECT v FROM Voucher v WHERE v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE " +
-           "AND v.endDate > :twentyFourHoursAgo " +
+           "AND v.endDate > :now " +
+           "AND v.usedQuantity < v.totalQuantity " +
            "AND (:scope IS NULL OR v.voucherScope = :scope) " +
            "ORDER BY v.createdAt DESC")
-    List<Voucher> findExploreVouchers(@Param("scope") VoucherScope scope, @Param("twentyFourHoursAgo") LocalDateTime twentyFourHoursAgo);
+    List<Voucher> findExploreVouchers(@Param("scope") VoucherScope scope, @Param("now") LocalDateTime now);
 
     /** Voucher đã hết hạn nhưng chưa được cập nhật trạng thái */
     @Query("SELECT v FROM Voucher v WHERE v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE AND v.endDate <= :now")
@@ -124,4 +126,8 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     @Modifying
     @Query("UPDATE Voucher v SET v.usedQuantity = v.usedQuantity + 1 WHERE v.id = :id AND v.usedQuantity < v.totalQuantity")
     int incrementUsedQuantityIfPossible(@Param("id") UUID id);
+
+    /** Lấy danh sách voucher cần gửi Push Notification (đã tới giờ mở & chưa từng gửi) */
+    @Query("SELECT v FROM Voucher v WHERE v.isPushSent = false AND v.status = com.backend.sporta.enums.VoucherStatus.ACTIVE AND v.startDate <= :now")
+    List<Voucher> findVouchersForPushNotification(@Param("now") LocalDateTime now);
 }

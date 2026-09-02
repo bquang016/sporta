@@ -35,7 +35,7 @@ const SingleSearchMarker = memo(
       setTracksViewChanges(true);
       const timer = setTimeout(() => {
         setTracksViewChanges(false);
-      }, 350);
+      }, 200);
       return () => clearTimeout(timer);
     }, [isSelected, displayMode]);
 
@@ -99,7 +99,7 @@ const SingleSearchMarker = memo(
         }}
         zIndex={isSelected ? 99 : 1}
       >
-        <View style={styles.pinWrapper}>
+        <View key={isSelected ? 'active' : 'inactive'} style={styles.pinWrapper}>
           <View
             style={[
               styles.pinBubble,
@@ -320,7 +320,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#047857',
     borderColor: COLORS.white,
     borderWidth: 2.5,
-    transform: [{ scale: 1.12 }],
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     shadowColor: COLORS.primary,
     shadowOpacity: 0.4,
     shadowRadius: 8,

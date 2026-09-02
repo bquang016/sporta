@@ -7,11 +7,12 @@ import {
   ActivityIndicator,
   Platform,
   Keyboard,
+  ScrollView,
 } from 'react-native';
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { VenueDetailModal } from '../../../features/venue-detail';
@@ -24,12 +25,12 @@ import {
   VenueMarker,
   ClusterMarkerView,
   MapFacilityCard,
-  FloatingSportFilter,
   MapSearchBar,
   useMapSearchAutocomplete,
   SearchResultItem,
   getGoongPlaceDetail,
 } from '../../../features/map-search';
+import { getSportIcon } from '../../../features/map-search/ui/FacilityMarker';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -232,8 +233,8 @@ export function MapScreen() {
   return (
     <View style={styles.container}>
       {/* ---- Header / Search Bar ---- */}
-      <SafeAreaView style={styles.headerSafe} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.headerSafe} edges={['top', 'left', 'right']} pointerEvents="box-none">
+        <View style={styles.header} pointerEvents="box-none">
           <MapSearchBar
             query={searchQuery}
             onChangeQuery={setSearchQuery}
@@ -241,7 +242,60 @@ export function MapScreen() {
             loading={searchLoading}
             onSelectResult={handleSelectSearchResult}
           />
+        </View>
 
+        {/* Quick Filter Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.quickChipsWrapper}
+          contentContainerStyle={styles.quickChipsContainer}
+          pointerEvents="box-none"
+        >
+          {[
+            { name: 'Bóng đá', icon: 'sports-soccer', type: 'material' },
+            { name: 'Pickleball', icon: 'sports-tennis', type: 'material' },
+            { name: 'Cầu lông', icon: 'badminton', type: 'community' },
+            { name: 'Bóng rổ', icon: 'sports-basketball', type: 'material' },
+          ].map((s) => {
+            const isSelected = selectedSport === s.name;
+            return (
+              <TouchableOpacity
+                key={s.name}
+                style={[
+                  styles.quickChip,
+                  isSelected && styles.quickChipActive,
+                ]}
+                onPress={() => handleSelectSport(isSelected ? null : s.name)}
+                activeOpacity={0.8}
+              >
+                {s.type === 'material' ? (
+                  <MaterialIcons
+                    name={s.icon as any}
+                    size={14}
+                    color={isSelected ? COLORS.white : COLORS.onSurfaceVariant}
+                  />
+                ) : (
+                  <MaterialCommunityIcons
+                    name={s.icon as any}
+                    size={14}
+                    color={isSelected ? COLORS.white : COLORS.onSurfaceVariant}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.quickChipText,
+                    isSelected && styles.quickChipTextActive,
+                  ]}
+                >
+                  {s.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.header} pointerEvents="box-none">
           {/* GPS permission warning */}
           {locationGranted === false && (
             <TouchableOpacity
@@ -311,13 +365,7 @@ export function MapScreen() {
           })}
         </MapView>
 
-        {/* ---- Floating Sport Filter ---- */}
-        <FloatingSportFilter
-          availableSports={availableSports}
-          selectedSport={selectedSport}
-          onSelectSport={handleSelectSport}
-          venueCount={filteredVenues.length}
-        />
+        {/* ---- Removed FloatingSportFilter ---- */}
 
         {/* ---- Floating Action Buttons (Zoom + MyLocation) ---- */}
         <View style={styles.floatingActions}>
@@ -413,18 +461,55 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   headerSafe: {
-    backgroundColor: COLORS.surface,
-    shadowColor: COLORS.shadowBlack,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
     zIndex: 20,
   },
   header: {
     paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.base,
+    paddingVertical: SPACING.xs,
     gap: SPACING.xs,
+  },
+  quickChipsWrapper: {
+    marginTop: 4,
+  },
+  quickChipsContainer: {
+    paddingHorizontal: SPACING.marginMobile,
+    gap: 8,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  quickChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  quickChipText: {
+    fontFamily: TYPOGRAPHY.labelMd.fontFamily,
+    fontSize: 12,
+    color: COLORS.onSurfaceVariant,
+    fontWeight: '600',
+  },
+  quickChipTextActive: {
+    color: COLORS.white,
   },
   headerTitleRow: {
     flexDirection: 'row',
