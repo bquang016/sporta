@@ -210,4 +210,10 @@ export const TYPOGRAPHY = {
     lineHeight: 34,
     letterSpacing: -0.56,
   },
+  caption: {
+    fontFamily: 'HankenGrotesk-Regular',
+    fontSize: 11,
+    fontWeight: '400' as const,
+    lineHeight: 14,
+  },
 };

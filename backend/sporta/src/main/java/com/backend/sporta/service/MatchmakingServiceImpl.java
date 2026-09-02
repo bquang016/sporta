@@ -91,6 +91,12 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     @Autowired
     private MatchmakingConfig config;
 
+    @Autowired
+    private LineupService lineupService;
+
+    @Autowired
+    private MatchLineupRepository matchLineupRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private User getUserByEmail(String email) {
@@ -286,6 +292,11 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .build();
 
         room = matchRoomRepository.save(room);
+
+        if (request.getLineupId() != null) {
+            lineupService.attachLineupToRoom(request.getLineupId(), room.getId(), TeamSide.HOST);
+        }
+
         return mapToRoomResponse(room, null, user);
     }
 
@@ -351,6 +362,12 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     @Override
     @Transactional
     public void cancelRoom(UUID roomId, String userEmail) {
+        cancelRoom(roomId, null, userEmail);
+    }
+
+    @Override
+    @Transactional
+    public void cancelRoom(UUID roomId, String reason, String userEmail) {
         User user = getUserByEmail(userEmail);
         MatchRoom room = matchRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy phòng ghép trận", 404));
@@ -364,7 +381,23 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         }
 
         room.setStatus(MatchStatus.CANCELLED);
+        room.setCancelledAt(LocalDateTime.now());
+        if (reason != null && !reason.isBlank()) {
+            room.setCancellationReason(reason.trim());
+        }
         matchRoomRepository.save(room);
+
+        // Notify host that the room is cancelled and court booking remains theirs
+        try {
+            eventPublisher.publishEvent(new NotificationEvent(
+                    this,
+                    user.getId(),
+                    Role.PLAYER,
+                    "Đã huỷ phòng ghép trận",
+                    "Bạn đã huỷ phòng ghép trận thành công. Sân đấu đã đặt vẫn thuộc quyền sử dụng của bạn.",
+                    NotificationType.MATCH_CANCELLED,
+                    room.getId().toString()));
+        } catch (Exception ignored) {}
 
         List<JoinRequest> applicants = joinRequestRepository.findByRoomId(room.getId());
         for (JoinRequest req : applicants) {
@@ -373,12 +406,16 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 joinRequestRepository.save(req);
                 try {
                     if (req.getApplicantClub() != null && req.getApplicantClub().getCreator() != null) {
+                        String cancelContent = "Phòng ghép kèo của CLB " + room.getHostClub().getName() + " đã bị hủy.";
+                        if (reason != null && !reason.isBlank()) {
+                            cancelContent += " Lý do: " + reason.trim();
+                        }
                         eventPublisher.publishEvent(new NotificationEvent(
                                 this,
                                 req.getApplicantClub().getCreator().getId(),
                                 Role.PLAYER,
                                 "Kèo đấu đã bị hủy",
-                                "Phòng ghép kèo của CLB " + room.getHostClub().getName() + " đã bị hủy.",
+                                cancelContent,
                                 NotificationType.MATCH_CANCELLED,
                                 room.getId().toString()));
                     }
@@ -431,10 +468,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             throw new CustomException("CLB đã gửi yêu cầu ghép trận vào phòng này trước đó", 400);
         }
 
+        MatchLineup applicantLineup = null;
+        if (request.getLineupId() != null) {
+            applicantLineup = matchLineupRepository.findById(request.getLineupId())
+                    .orElseThrow(() -> new CustomException("Không tìm thấy đội hình đăng ký", 404));
+            if (!applicantLineup.getClub().getId().equals(applicantClub.getId())) {
+                throw new CustomException("Đội hình đăng ký không thuộc CLB của bạn", 400);
+            }
+        }
+
         JoinRequest joinReq = JoinRequest.builder()
                 .room(room)
                 .applicantClub(applicantClub)
                 .status(JoinRequestStatus.PENDING)
+                .lineup(applicantLineup)
                 .note(request.getNote())
                 .build();
 
@@ -574,8 +621,17 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             }
         }
 
-        int hostElo = clubEloService.getClubElo(room.getHostClub());
-        int guestElo = clubEloService.getClubElo(guestClub);
+        if (acceptedReq.getLineup() != null) {
+            lineupService.attachLineupToRoom(acceptedReq.getLineup().getId(), room.getId(), TeamSide.GUEST);
+        }
+
+        Optional<MatchLineup> hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), TeamSide.HOST);
+        int hostElo = (hostLineupOpt.isPresent() && hostLineupOpt.get().getEloAvg() != null && hostLineupOpt.get().getEloAvg() > 0)
+                ? hostLineupOpt.get().getEloAvg() : clubEloService.getClubElo(room.getHostClub());
+
+        int guestElo = (acceptedReq.getLineup() != null && acceptedReq.getLineup().getEloAvg() != null && acceptedReq.getLineup().getEloAvg() > 0)
+                ? acceptedReq.getLineup().getEloAvg() : clubEloService.getClubElo(guestClub);
+
         String hostLevel = clubEloService.getLevelLabel(hostElo);
         String guestLevel = clubEloService.getLevelLabel(guestElo);
         int hostCrp = room.getHostClub().getCrp() != null ? room.getHostClub().getCrp() : 0;
@@ -1042,8 +1098,18 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             }
         }
 
-        int hostElo = clubEloService.getClubElo(room.getHostClub());
-        int guestElo = room.getGuestClub() != null ? clubEloService.getClubElo(room.getGuestClub()) : hostElo;
+        List<MatchLineup> roomLineups = matchLineupRepository.findByMatchRoomId(room.getId());
+        MatchLineup hostLineupEntity = roomLineups.stream().filter(l -> l.getTeamSide() == TeamSide.HOST).findFirst().orElse(null);
+        MatchLineup guestLineupEntity = roomLineups.stream().filter(l -> l.getTeamSide() == TeamSide.GUEST).findFirst().orElse(null);
+
+        LineupResponse hostLineupVM = hostLineupEntity != null ? lineupService.mapToResponse(hostLineupEntity) : null;
+        LineupResponse guestLineupVM = guestLineupEntity != null ? lineupService.mapToResponse(guestLineupEntity) : null;
+
+        int hostElo = (hostLineupEntity != null && hostLineupEntity.getEloAvg() != null && hostLineupEntity.getEloAvg() > 0)
+                ? hostLineupEntity.getEloAvg() : clubEloService.getClubElo(room.getHostClub());
+        int guestElo = (guestLineupEntity != null && guestLineupEntity.getEloAvg() != null && guestLineupEntity.getEloAvg() > 0)
+                ? guestLineupEntity.getEloAvg()
+                : (room.getGuestClub() != null ? clubEloService.getClubElo(room.getGuestClub()) : hostElo);
         String balanceLabel = clubEloService.getBalanceLabel(hostElo, guestElo);
 
         List<String> desiredLevelsList = room.getDesiredLevels() != null && !room.getDesiredLevels().isBlank()
@@ -1098,6 +1164,39 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         MatchPermissionsResponse permissionsVM = buildPermissions(room, match, currentUser);
 
+        String statusLabel;
+        boolean isHostUser = currentUser != null && (
+                isClubAdmin(room.getHostClub().getId(), currentUser.getId()) ||
+                (room.getHostClub().getCreator() != null && room.getHostClub().getCreator().getId().equals(currentUser.getId()))
+        );
+        boolean isApplicantUser = myReqVM != null;
+
+        if (room.getStatus() == MatchStatus.EXPIRED) {
+            if (isHostUser) {
+                statusLabel = "Quá hạn";
+            } else if (isApplicantUser) {
+                statusLabel = "Không tìm được đối thủ";
+            } else {
+                statusLabel = "Đã quá hạn";
+            }
+        } else if (room.getStatus() == MatchStatus.CANCELLED) {
+            statusLabel = "Đã hủy";
+        } else if (room.getStatus() == MatchStatus.OPEN) {
+            statusLabel = "Đang tìm đối thủ";
+        } else if (room.getStatus() == MatchStatus.MATCHED || room.getStatus() == MatchStatus.UPCOMING) {
+            statusLabel = "Đã ghép đối thủ";
+        } else if (room.getStatus() == MatchStatus.SCORE_PENDING || room.getStatus() == MatchStatus.SCORE_CONFIRMING) {
+            statusLabel = "Chờ xác nhận tỷ số";
+        } else if (room.getStatus() == MatchStatus.RESULT_FINAL) {
+            statusLabel = "Đã hoàn thành";
+        } else if (room.getStatus() == MatchStatus.RESULT_OVERDUE) {
+            statusLabel = "Quá hạn nhập tỷ số";
+        } else if (room.getStatus() == MatchStatus.DISPUTED) {
+            statusLabel = "Đang khiếu nại";
+        } else {
+            statusLabel = room.getStatus() != null ? room.getStatus().name() : "";
+        }
+
         return MatchRoomResponse.builder()
                 .id(room.getId().toString())
                 .booking(bookingVM)
@@ -1110,6 +1209,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .desiredLevels(desiredLevelsList)
                 .note(room.getNote())
                 .status(room.getStatus())
+                .statusLabel(statusLabel)
+                .cancellationReason(room.getCancellationReason())
                 .applicants(applicantsVM)
                 .myRequest(myReqVM)
                 .permissions(permissionsVM)
@@ -1118,6 +1219,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .scoreSubmission(submissionVM)
                 .result(resultVM)
                 .matchId(match != null ? match.getId().toString() : null)
+                .hostLineup(hostLineupVM)
+                .guestLineup(guestLineupVM)
                 .build();
     }
 
@@ -1150,6 +1253,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .status(req.getStatus())
                 .createdAt(req.getCreatedAt().toString())
                 .note(req.getNote())
+                .lineup(req.getLineup() != null ? lineupService.mapToResponse(req.getLineup()) : null)
                 .build();
     }
 

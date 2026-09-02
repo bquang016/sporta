@@ -20,6 +20,8 @@ public interface MatchmakingService {
 
     void cancelRoom(UUID roomId, String userEmail);
 
+    void cancelRoom(UUID roomId, String reason, String userEmail);
+
     JoinRequestResponse createJoinRequest(UUID roomId, CreateJoinRequestRequest request, String userEmail);
 
     void withdrawJoinRequest(UUID requestId, String userEmail);

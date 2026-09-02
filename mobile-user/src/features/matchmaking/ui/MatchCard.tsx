@@ -105,9 +105,18 @@ export function MatchCard({ room, onPress, isMyMatchView = false }: MatchCardPro
           icon: 'alert-circle-outline',
         };
 
+      case 'EXPIRED':
+        return {
+          label: (room.statusLabel || (isMyMatchView ? 'QUÁ HẠN' : 'HẾT HẠN')).toUpperCase(),
+          bg: '#F1F5F9',
+          border: '#CBD5E1',
+          color: '#64748B',
+          icon: 'time-outline',
+        };
+
       case 'CANCELLED':
         return {
-          label: 'ĐÃ HỦY',
+          label: (room.statusLabel || 'ĐÃ HỦY').toUpperCase(),
           bg: '#F1F5F9',
           border: '#CBD5E1',
           color: '#64748B',
@@ -138,6 +147,9 @@ export function MatchCard({ room, onPress, isMyMatchView = false }: MatchCardPro
         return room.permissions?.canConfirmScore ? 'Duyệt Tỷ Số Ngay' : 'Xem Tỷ Số';
       case 'MATCHED':
         return room.permissions?.canEnterScore ? 'Nhập Tỷ Số' : 'Chi Tiết Kèo';
+      case 'EXPIRED':
+      case 'CANCELLED':
+        return 'Xem Chi Tiết';
       case 'OPEN':
       default:
         if (isMyMatchView) {

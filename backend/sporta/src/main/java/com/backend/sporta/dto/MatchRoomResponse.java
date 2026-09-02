@@ -33,4 +33,8 @@ public class MatchRoomResponse {
     private ScoreSubmissionResponse scoreSubmission;
     private MatchResultResponse result;
     private String matchId;
+    private String statusLabel;
+    private String cancellationReason;
+    private LineupResponse hostLineup;
+    private LineupResponse guestLineup;
 }

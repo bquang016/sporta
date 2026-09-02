@@ -58,8 +58,10 @@ public class MatchmakingController {
     }
 
     @DeleteMapping("/rooms/{id}")
-    public ResponseEntity<Void> cancelRoom(@PathVariable UUID id) {
-        matchmakingService.cancelRoom(id, getCurrentUserEmail());
+    public ResponseEntity<Void> cancelRoom(
+            @PathVariable UUID id,
+            @RequestParam(required = false) String reason) {
+        matchmakingService.cancelRoom(id, reason, getCurrentUserEmail());
         return ResponseEntity.noContent().build();
     }
 

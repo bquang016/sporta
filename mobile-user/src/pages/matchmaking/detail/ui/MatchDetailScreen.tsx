@@ -75,6 +75,15 @@ function ApplicantItemRow({ req, canManage, onAccept, onReject }: ApplicantItemR
         </View>
       </View>
 
+      {req.lineup && (
+        <View style={styles.applicantLineupBadge}>
+          <Ionicons name="shield-checkmark-outline" size={13} color="#059669" />
+          <Text style={styles.applicantLineupText}>
+            Đội hình: <Text style={{ fontWeight: '800' }}>{req.lineup.name}</Text> • Trình độ đội: <Text style={{ fontWeight: '800' }}>{req.lineup.eloAvg}</Text> ({req.lineup.memberCount} người)
+          </Text>
+        </View>
+      )}
+
       {req.note && (
         <View style={styles.applicantNoteBox}>
           <Ionicons name="chatbubble-ellipses-outline" size={13} color="#64748B" />
@@ -471,6 +480,32 @@ export function MatchDetailScreen() {
     );
   };
 
+  const handleCancelRoomPress = () => {
+    showConfirm(
+      'Hủy phòng ghép kèo',
+      'Bạn có chắc chắn muốn hủy phòng ghép kèo này? Sân bạn đã đặt vẫn được giữ nguyên và thuộc quyền sử dụng của bạn.',
+      async () => {
+        try {
+          setRequesting(true);
+          await MatchmakingService.cancelRoom(room.id);
+          showAlert(
+            'Đã hủy phòng ghép',
+            'Phòng ghép kèo đã được đóng. Sân bạn đã đặt vẫn thuộc quyền sử dụng của bạn!',
+            'success'
+          );
+          refetch();
+        } catch (err: any) {
+          showAlert('Lỗi', err.message || 'Không thể hủy phòng ghép kèo', 'danger');
+        } finally {
+          setRequesting(false);
+        }
+      },
+      'danger',
+      'Xác nhận hủy',
+      'Quay lại'
+    );
+  };
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -649,6 +684,122 @@ export function MatchDetailScreen() {
             </View>
           </View>
 
+          {/* ── 3.1. Match Lineups Card (v2.0) ── */}
+          {(room.hostLineup || room.guestLineup) && (
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIconCircle, { backgroundColor: '#ECFDF5' }]}>
+                  <Ionicons name="people" size={16} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Đội Hình Ra Sân</Text>
+                  <Text style={styles.subtext}>
+                    Điểm trình độ được tính dựa trên các thành viên thực tế thi đấu
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.lineupArenaRow}>
+                {/* Host Lineup */}
+                <View style={[styles.lineupTeamCol, { borderTopColor: '#059669' }]}>
+                  <View style={styles.lineupTeamTop}>
+                    <Text style={styles.lineupTeamName} numberOfLines={1}>
+                      {room.hostLineup?.name || 'Chủ phòng'}
+                    </Text>
+                    <View style={styles.lineupEloBadge}>
+                      <Text style={styles.lineupEloText}>
+                        Trình độ: {room.hostLineup?.eloAvg || host.clubElo}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.lineupMemberCount}>
+                    {room.hostLineup?.memberCount || 0} cầu thủ đăng ký
+                  </Text>
+
+                  <View style={styles.lineupMembersList}>
+                    {room.hostLineup?.members?.map((m) => (
+                      <View key={m.userId} style={styles.lineupMemberRow}>
+                        <View style={styles.lineupMemberAvatar}>
+                          {m.avatarUrl ? (
+                            <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
+                          ) : (
+                            <Text style={styles.lineupAvatarText}>
+                              {(m.fullName || 'U').charAt(0).toUpperCase()}
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={styles.lineupMemberName} numberOfLines={1}>
+                          {m.fullName}
+                        </Text>
+                        <Text style={styles.lineupMemberElo}>{m.elo} điểm</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Guest Lineup or Waiting */}
+                <View style={[styles.lineupTeamCol, { borderTopColor: guest ? '#0284C7' : '#CBD5E1' }]}>
+                  {room.guestLineup ? (
+                    <>
+                      <View style={styles.lineupTeamTop}>
+                        <Text style={styles.lineupTeamName} numberOfLines={1}>
+                          {room.guestLineup.name}
+                        </Text>
+                        <View style={[styles.lineupEloBadge, { backgroundColor: '#E0F2FE' }]}>
+                          <Text style={[styles.lineupEloText, { color: '#0284C7' }]}>
+                            Trình độ: {room.guestLineup.eloAvg}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.lineupMemberCount}>
+                        {room.guestLineup.memberCount} cầu thủ đăng ký
+                      </Text>
+
+                      <View style={styles.lineupMembersList}>
+                        {room.guestLineup.members?.map((m) => (
+                          <View key={m.userId} style={styles.lineupMemberRow}>
+                            <View style={[styles.lineupMemberAvatar, { backgroundColor: '#0284C7' }]}>
+                              {m.avatarUrl ? (
+                                <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
+                              ) : (
+                                <Text style={styles.lineupAvatarText}>
+                                  {(m.fullName || 'U').charAt(0).toUpperCase()}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.lineupMemberName} numberOfLines={1}>
+                              {m.fullName}
+                            </Text>
+                            <Text style={styles.lineupMemberElo}>{m.elo} điểm</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.lineupWaitingBox}>
+                      <Ionicons name="time-outline" size={24} color="#94A3B8" />
+                      <Text style={styles.lineupWaitingTitle}>Chờ đối thủ</Text>
+                      <Text style={styles.lineupWaitingSubtitle}>
+                        Chưa chốt đội hình đối thủ
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Lineup Balance Bar */}
+              {room.hostLineup && room.guestLineup && (
+                <View style={styles.lineupBalanceBar}>
+                  <Ionicons name="git-compare-outline" size={14} color="#D97706" />
+                  <Text style={styles.lineupBalanceText}>
+                    Chênh lệch: {Math.abs((room.hostLineup.eloAvg || 0) - (room.guestLineup.eloAvg || 0))} Elo
+                    {room.balanceLabel ? ` • ${room.balanceLabel}` : ''}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* ── 4. Fee Split Rule Card ── */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
@@ -735,13 +886,24 @@ export function MatchDetailScreen() {
         <View style={styles.bottomBarInner}>
           {room.status === 'OPEN' && (
             isHost ? (
-              <View style={styles.hostBottomBanner}>
-                <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
-                <Text style={styles.hostBottomBannerText} numberOfLines={1}>
-                  {pendingApplicants.length > 0
-                    ? `Bạn là Chủ room • ${pendingApplicants.length} CLB xin ghép (Xem trên)`
-                    : 'Bạn là Chủ room • Kèo đang mở tìm đối thủ'}
-                </Text>
+              <View style={{ gap: 8 }}>
+                <View style={styles.hostBottomBanner}>
+                  <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
+                  <Text style={styles.hostBottomBannerText} numberOfLines={1}>
+                    {pendingApplicants.length > 0
+                      ? `Bạn là Chủ room • ${pendingApplicants.length} CLB xin ghép (Xem trên)`
+                      : 'Bạn là Chủ room • Kèo đang mở tìm đối thủ'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  disabled={requesting}
+                  activeOpacity={0.85}
+                  onPress={handleCancelRoomPress}
+                  style={styles.cancelRoomBtn}
+                >
+                  <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                  <Text style={styles.cancelRoomBtnText}>Hủy phòng ghép kèo</Text>
+                </TouchableOpacity>
               </View>
             ) : hasSentPendingRequest ? (
               <View style={styles.pendingBottomBanner}>
@@ -832,6 +994,38 @@ export function MatchDetailScreen() {
               <Ionicons name="ribbon" size={16} color="#FFFFFF" />
               <Text style={styles.actionBtnText}>Xem Kết Quả & Thưởng CRP</Text>
             </TouchableOpacity>
+          )}
+
+          {/* Status EXPIRED */}
+          {room.status === 'EXPIRED' && (
+            <View style={styles.statusNoticeBanner}>
+              <Ionicons name="time-outline" size={20} color="#64748B" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statusNoticeTitle}>
+                  {room.statusLabel || (isHost ? 'Kèo đấu đã quá hạn' : 'Không tìm được đối thủ')}
+                </Text>
+                <Text style={styles.statusNoticeSub}>
+                  {isHost
+                    ? 'Kèo đấu đã quá giờ tìm đối thủ. Sân đã đặt vẫn thuộc quyền sử dụng của bạn.'
+                    : 'Phòng ghép trận này đã hết hạn mà không tìm được đối thủ.'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Status CANCELLED */}
+          {room.status === 'CANCELLED' && (
+            <View style={[styles.statusNoticeBanner, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="close-circle-outline" size={20} color="#DC2626" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.statusNoticeTitle, { color: '#DC2626' }]}>Kèo đấu đã bị hủy</Text>
+                <Text style={[styles.statusNoticeSub, { color: '#7F1D1D' }]}>
+                  {room.cancellationReason
+                    ? `Lý do: ${room.cancellationReason}`
+                    : 'Phòng ghép kèo đã được đóng. Sân đã đặt vẫn thuộc quyền sở hữu của chủ phòng.'}
+                </Text>
+              </View>
+            </View>
           )}
         </View>
       </View>
@@ -1580,6 +1774,46 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 13,
   },
+  cancelRoomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  cancelRoomBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  statusNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  statusNoticeTitle: {
+    ...TYPOGRAPHY.labelMd,
+    color: '#334155',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  statusNoticeSub: {
+    ...TYPOGRAPHY.bodySm,
+    color: '#64748B',
+    fontSize: 11.5,
+    marginTop: 2,
+  },
   pendingBottomBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1930,5 +2164,143 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 13,
+  },
+  applicantLineupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginTop: 4,
+  },
+  applicantLineupText: {
+    ...TYPOGRAPHY.caption,
+    color: '#065F46',
+    fontSize: 11,
+  },
+  lineupArenaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  lineupTeamCol: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderTopWidth: 3,
+    padding: 10,
+  },
+  lineupTeamTop: {
+    marginBottom: 4,
+  },
+  lineupTeamName: {
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  lineupEloBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  lineupEloText: {
+    ...TYPOGRAPHY.caption,
+    color: '#059669',
+    fontWeight: '800',
+    fontSize: 10.5,
+  },
+  lineupMemberCount: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 10.5,
+    marginBottom: 8,
+  },
+  lineupMembersList: {
+    gap: 6,
+  },
+  lineupMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  lineupMemberAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lineupAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  lineupAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  lineupMemberName: {
+    flex: 1,
+    ...TYPOGRAPHY.caption,
+    color: '#1E293B',
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  lineupMemberElo: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontWeight: '700',
+    fontSize: 10,
+  },
+  lineupWaitingBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  lineupWaitingTitle: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  lineupWaitingSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  lineupBalanceBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: 10,
+  },
+  lineupBalanceText: {
+    ...TYPOGRAPHY.caption,
+    color: '#B45309',
+    fontWeight: '700',
   },
 });

@@ -36,6 +36,10 @@ public class JoinRequest {
     @Builder.Default
     private JoinRequestStatus status = JoinRequestStatus.PENDING;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lineup_id")
+    private MatchLineup lineup;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 

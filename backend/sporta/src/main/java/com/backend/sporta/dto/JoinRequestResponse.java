@@ -17,4 +17,5 @@ public class JoinRequestResponse {
     private JoinRequestStatus status;
     private String createdAt;
     private String note;
+    private LineupResponse lineup;
 }

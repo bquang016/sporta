@@ -187,6 +187,7 @@ export class MatchmakingApiRepository {
     hostSharePercent: number;
     desiredLevels: string[];
     note?: string;
+    lineupId?: number;
   }): Promise<MatchRoomVM> {
     return apiFetch<MatchRoomVM>(
       `/matchmaking/rooms`,
@@ -199,6 +200,7 @@ export class MatchmakingApiRepository {
           hostSharePercent: input.hostSharePercent,
           desiredLevels: input.desiredLevels,
           note: input.note,
+          lineupId: input.lineupId,
         }),
       },
       true
@@ -208,7 +210,7 @@ export class MatchmakingApiRepository {
   /**
    * Gửi yêu cầu xin tham gia ghép trận
    */
-  static async createJoinRequest(roomId: string, applicantClubId: string, note?: string): Promise<JoinRequestVM> {
+  static async createJoinRequest(roomId: string, applicantClubId: string, note?: string, lineupId?: number): Promise<JoinRequestVM> {
     return apiFetch<JoinRequestVM>(
       `/matchmaking/rooms/${roomId}/join-requests`,
       {
@@ -216,6 +218,7 @@ export class MatchmakingApiRepository {
         body: JSON.stringify({
           applicantClubId: Number(applicantClubId),
           note,
+          lineupId,
         }),
       },
       true
@@ -326,6 +329,14 @@ export class MatchmakingApiRepository {
       },
       true
     );
+  }
+
+  /**
+   * Hủy phòng ghép kèo (sân đấu đã đặt vẫn giữ nguyên)
+   */
+  static async cancelRoom(roomId: string, reason?: string): Promise<void> {
+    const url = reason ? `/matchmaking/rooms/${roomId}?reason=${encodeURIComponent(reason)}` : `/matchmaking/rooms/${roomId}`;
+    return apiFetch<void>(url, { method: 'DELETE' }, true);
   }
 
   /**

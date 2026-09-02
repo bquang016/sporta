@@ -63,4 +63,7 @@ public class MatchmakingConfig {
 
     @Value("${result.confirmation-grace-minutes:60}")
     private int resultConfirmationGraceMinutes = 60;
+
+    @Value("${matchmaking.reminder-before-minutes:180}")
+    private int reminderBeforeMinutes = 180;
 }
