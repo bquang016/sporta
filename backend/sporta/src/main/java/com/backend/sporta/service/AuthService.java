@@ -682,9 +682,14 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
 
-        // Verify current password
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new CustomException("Mật khẩu hiện tại không chính xác.", 400);
+        // Verify current password, UNLESS the user is forced to change password (mustChangePassword == true)
+        if (!user.isMustChangePassword()) {
+            if (request.getCurrentPassword() == null || request.getCurrentPassword().trim().isEmpty()) {
+                throw new CustomException("Vui lòng nhập mật khẩu hiện tại.", 400);
+            }
+            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                throw new CustomException("Mật khẩu hiện tại không chính xác.", 400);
+            }
         }
 
         // Ensure new password is different from current
@@ -786,6 +791,7 @@ public class AuthService {
                         .email(email)
                         .fullName(user.getFullName())
                         .message("Đăng nhập Google thành công.")
+                        .mustChangePassword(user.isMustChangePassword())
                         .build();
             } else {
                 String registrationToken = jwtTokenProvider.generateRegistrationToken(email);

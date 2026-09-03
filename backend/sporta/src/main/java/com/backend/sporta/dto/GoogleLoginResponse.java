@@ -18,4 +18,5 @@ public class GoogleLoginResponse {
     private String email;
     private String fullName;
     private String message;
+    private boolean mustChangePassword;
 }
