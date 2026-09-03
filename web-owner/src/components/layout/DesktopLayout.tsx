@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/scan': 'Quét mã QR',
   '/operations': 'Quản lý vận hành',
   '/pricing': 'Định giá AI & Dự báo',
+  '/reports': 'Báo cáo & Thống kê',
   '/wallet': 'Ví của tôi',
   '/vouchers': 'Quản lý khuyến mãi',
   '/profile': 'Hồ sơ tài khoản',
@@ -157,6 +158,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
           <NavItem to="/scan" icon="scan" label="Quét mã QR" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/operations" icon="facility" label="Quản lý vận hành" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/pricing" icon="sparkles" label="Định giá AI & Dự báo" isCollapsed={isSidebarCollapsed} />
+          <NavItem to="/reports" icon="chart" label="Báo cáo & Thống kê" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/wallet" icon="wallet" label="Ví của tôi" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/vouchers" icon="voucher" label="Quản lý khuyến mãi" isCollapsed={isSidebarCollapsed} />
           <NavItem to="/settings" icon="settings" label="Cài đặt hệ thống" isCollapsed={isSidebarCollapsed} />
@@ -568,6 +570,13 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+        </svg>
+      );
+    case 'chart':
+    case 'reports':
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       );
     default:
