@@ -13,8 +13,8 @@ interface CrpExplanationSheetProps {
 }
 
 export function CrpExplanationSheet({ visible, onClose, result, room, preview }: CrpExplanationSheetProps) {
-  const hostClubName = room?.hostClub?.name || 'CLB Host';
-  const guestClubName = room?.guestClub?.name || 'CLB Guest';
+  const hostClubName = room?.hostClub?.name || 'Đội chủ nhà';
+  const guestClubName = room?.guestClub?.name || 'Đội khách';
 
   const hostBefore = result?.hostCrpBefore ?? preview?.hostCrpBefore ?? 100;
   const hostDelta = result?.hostCrpDelta ?? preview?.hostCrpDelta ?? 0;
@@ -39,6 +39,31 @@ export function CrpExplanationSheet({ visible, onClose, result, room, preview }:
     return `${d}`;
   };
 
+  const renderExplanationIcon = (text: string) => {
+    if (text.includes('thắng') || text.includes('bất ngờ') || text.includes('phong độ')) {
+      return <Ionicons name="trophy-outline" size={17} color="#D97706" />;
+    }
+    if (text.includes('bảo vệ điểm') || text.includes('giảm')) {
+      return <Ionicons name="shield-checkmark-outline" size={17} color="#2563EB" />;
+    }
+    if (text.includes('đầu tiên trong ngày')) {
+      return <Ionicons name="sunny-outline" size={17} color="#EA580C" />;
+    }
+    if (text.includes('chuỗi')) {
+      return <Ionicons name="flame-outline" size={17} color="#DC2626" />;
+    }
+    if (text.includes('hòa')) {
+      return <Ionicons name="git-commit-outline" size={17} color="#64748B" />;
+    }
+    if (text.includes('Quỹ') || text.includes('hỗ trợ')) {
+      return <Ionicons name="gift-outline" size={17} color="#7C3AED" />;
+    }
+    if (text.includes('chống cày điểm') || text.includes('giới hạn')) {
+      return <Ionicons name="alert-circle-outline" size={17} color="#D97706" />;
+    }
+    return <Ionicons name="checkmark-circle-outline" size={17} color={COLORS.primary} />;
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -48,8 +73,8 @@ export function CrpExplanationSheet({ visible, onClose, result, room, preview }:
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleRow}>
-              <Ionicons name="trophy-outline" size={24} color="#D97706" />
-              <Text style={styles.title}>Cách Tính Điểm CRP</Text>
+              <Ionicons name="stats-chart" size={22} color={COLORS.primary} />
+              <Text style={styles.title}>Chi Tiết Tính Điểm Xếp Hạng (CRP)</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color={COLORS.onSurfaceVariant} />
@@ -59,7 +84,10 @@ export function CrpExplanationSheet({ visible, onClose, result, room, preview }:
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {/* Summary Box */}
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Cụ thể biến động CRP cho 2 CLB:</Text>
+              <View style={styles.summaryHeaderRow}>
+                <Ionicons name="information-circle" size={16} color="#B45309" />
+                <Text style={styles.summaryTitle}>Biến động điểm xếp hạng của 2 CLB:</Text>
+              </View>
               
               <View style={styles.deltaRow}>
                 <Text style={styles.clubNameText} numberOfLines={1}>{hostClubName}:</Text>
@@ -78,23 +106,31 @@ export function CrpExplanationSheet({ visible, onClose, result, room, preview }:
 
             {/* Explanations Bullet Points */}
             <Text style={styles.sectionHeader}>Yếu tố ảnh hưởng:</Text>
-            {rawExplanations.map((item, idx) => (
-              <View key={idx} style={styles.bulletRow}>
-                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
-                <Text style={styles.bulletText}>{item}</Text>
-              </View>
-            ))}
+            <View style={styles.bulletsList}>
+              {rawExplanations.map((item, idx) => (
+                <View key={idx} style={styles.bulletRow}>
+                  <View style={styles.bulletIconWrap}>
+                    {renderExplanationIcon(item)}
+                  </View>
+                  <Text style={styles.bulletText}>{item}</Text>
+                </View>
+              ))}
+            </View>
 
+            {/* Rules without emoji, using icons and non-technical language */}
             <View style={styles.rulesBox}>
-              <Text style={styles.ruleTitle}>📌 Nguyên tắc xếp hạng Sporta CRP:</Text>
+              <View style={styles.ruleHeaderRow}>
+                <Ionicons name="shield-outline" size={16} color="#475569" />
+                <Text style={styles.ruleTitle}>Quy định xếp hạng Sporta:</Text>
+              </View>
               <Text style={styles.ruleItem}>
-                • <Text style={{ fontWeight: '800' }}>Positive-sum & Zero-floor:</Text> Trận Xếp hạng giúp tăng điểm phong độ tổng thể, CRP không bị âm.
+                • <Text style={{ fontWeight: '800' }}>Bảo vệ điểm số (Không âm):</Text> Điểm xếp hạng CLB luôn được giữ tối thiểu từ 0, giúp CLB an tâm thi đấu giao lưu.
               </Text>
               <Text style={styles.ruleItem}>
-                • <Text style={{ fontWeight: '800' }}>Line-up ELO & Upset:</Text> Điểm thưởng tính toán theo Elo trung bình thực tế của 2 đội hình ra sân.
+                • <Text style={{ fontWeight: '800' }}>Đội hình thực tế & Thưởng bất ngờ:</Text> Điểm thưởng tính toán theo trình độ thực tế của 2 đội hình ra sân; chiến thắng đội mạnh hơn sẽ nhận thêm điểm thưởng.
               </Text>
               <Text style={styles.ruleItem}>
-                • <Text style={{ fontWeight: '800' }}>Anti-farming:</Text> Giới hạn số trận xếp hạng lặp lại giữa 2 CLB trong 7 ngày để tránh cày điểm.
+                • <Text style={{ fontWeight: '800' }}>Chống cày điểm:</Text> Giới hạn tối đa 3 trận xếp hạng trong 7 ngày giữa cùng một cặp đối thủ để đảm bảo tính công bằng.
               </Text>
             </View>
           </ScrollView>
@@ -137,9 +173,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
+    flex: 1,
   },
   title: {
-    ...TYPOGRAPHY.titleLg,
+    ...TYPOGRAPHY.titleMd,
     color: COLORS.onSurface,
     fontWeight: '800',
   },
@@ -158,11 +195,16 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
     gap: 4,
   },
+  summaryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   summaryTitle: {
     ...TYPOGRAPHY.labelMd,
     color: '#B45309',
     fontWeight: '700',
-    marginBottom: 2,
   },
   deltaRow: {
     flexDirection: 'row',
@@ -186,14 +228,25 @@ const styles = StyleSheet.create({
     color: COLORS.onSurface,
     fontWeight: '800',
   },
+  bulletsList: {
+    gap: 8,
+  },
   bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: SPACING.xs,
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  bulletIconWrap: {
+    marginTop: 1,
   },
   bulletText: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    color: '#334155',
     flex: 1,
     lineHeight: 20,
   },
@@ -202,6 +255,12 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.xs,
+  },
+  ruleHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
   },
   ruleTitle: {
     ...TYPOGRAPHY.labelMd,

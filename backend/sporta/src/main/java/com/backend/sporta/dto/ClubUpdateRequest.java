@@ -17,4 +17,5 @@ public class ClubUpdateRequest {
     private String area;
     private Integer maxMembers;
     private Integer elo;
+    private Integer minEloRequired;
 }

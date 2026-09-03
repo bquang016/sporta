@@ -23,7 +23,7 @@ export const UserProfileHeader = React.memo(({
         <View style={styles.avatarWrapper}>
           <Image
             source={
-              profile.avatarUrl
+              profile.avatarUrl && typeof profile.avatarUrl === 'string' && !profile.avatarUrl.startsWith('blob:')
                 ? { uri: profile.avatarUrl }
                 : require('../../../../assets/player/player_699x699.png')
             }

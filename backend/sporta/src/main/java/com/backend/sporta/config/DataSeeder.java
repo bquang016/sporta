@@ -96,6 +96,24 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         try {
+            jdbcTemplate.execute("ALTER TABLE match_polls DROP CONSTRAINT IF EXISTS match_polls_status_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint match_polls_status_check.");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE match_lineups DROP CONSTRAINT IF EXISTS match_lineups_status_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint match_lineups_status_check.");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint notifications_type_check.");
+        }
+
+        try {
             jdbcTemplate.execute("ALTER TABLE poll_votes DROP CONSTRAINT IF EXISTS uq_poll_user_vote");
             jdbcTemplate.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_poll_user_option_vote') THEN ALTER TABLE poll_votes ADD CONSTRAINT uq_poll_user_option_vote UNIQUE (poll_id, user_id, option_id); END IF; END $$;");
         } catch (Exception e) {

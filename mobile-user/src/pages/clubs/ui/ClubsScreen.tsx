@@ -13,7 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -447,6 +447,43 @@ export function ClubsScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Season Leaderboard Showcase Banner */}
+        {!searchQuery && activeFilterCount === 0 && (
+          <View style={styles.sectionBlock}>
+            <TouchableOpacity
+              style={styles.leaderboardShowcaseBanner}
+              activeOpacity={0.9}
+              onPress={() => router.push('/leaderboard' as any)}
+            >
+              <LinearGradient
+                colors={['#004D40', '#065F46', '#047857']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.leaderboardShowcaseGradient}
+              >
+                <View style={styles.leaderboardShowcaseLeft}>
+                  <View style={styles.leaderboardSeasonPill}>
+                    <Ionicons name="trophy" size={12} color="#FDE68A" />
+                    <Text style={styles.leaderboardSeasonPillText}>BẢNG XẾP HẠNG MÙA 1 - 2026</Text>
+                  </View>
+                  <Text style={styles.leaderboardShowcaseTitle}>
+                    Tranh Bá CLB • Quỹ 18.5 Triệu
+                  </Text>
+                  <Text style={styles.leaderboardShowcaseSubtitle}>
+                    Đua top CRP nhận cúp vàng & 20 vé sân 0đ ➜
+                  </Text>
+                </View>
+
+                <View style={styles.leaderboardShowcaseRight}>
+                  <View style={styles.leaderboardTrophyCircle}>
+                    <Ionicons name="podium" size={24} color="#D97706" />
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Section 2: "CLB Nổi Bật" Spotlight Carousel (Tối đa 5 câu lạc bộ) */}
         {featuredClubs.length > 0 && !searchQuery && activeFilterCount === 0 && (
@@ -1259,6 +1296,64 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtn: {
     flex: 1.2,
+  },
+  leaderboardShowcaseBanner: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#004D40',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  leaderboardShowcaseGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.md,
+  },
+  leaderboardShowcaseLeft: {
+    flex: 1,
+  },
+  leaderboardSeasonPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  leaderboardSeasonPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#A7F3D0',
+    letterSpacing: 0.6,
+  },
+  leaderboardShowcaseTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  leaderboardShowcaseSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#FDE68A',
+    marginTop: 2,
+  },
+  leaderboardShowcaseRight: {
+    marginLeft: 12,
+  },
+  leaderboardTrophyCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
 

@@ -564,14 +564,55 @@ public class UserServiceImpl implements UserService {
                         continue;
                     }
 
-                    boolean isHost = match.getHostClub() != null && userClubIds.contains(match.getHostClub().getId());
-                    boolean isGuest = match.getGuestClub() != null && userClubIds.contains(match.getGuestClub().getId());
+                    // Determine if user played in host lineup or guest lineup
+                    boolean playedInHost = false;
+                    boolean playedInGuest = false;
 
-                    if (!isHost && !isGuest) {
+                    if (match.getRoom() != null) {
+                        var hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(match.getRoom().getId(), com.backend.sporta.enums.TeamSide.HOST);
+                        if (hostLineupOpt.isPresent()) {
+                            playedInHost = lineupMemberRepository.findByLineupIdAndUserId(hostLineupOpt.get().getId(), userId).isPresent();
+                        }
+                        var guestLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(match.getRoom().getId(), com.backend.sporta.enums.TeamSide.GUEST);
+                        if (guestLineupOpt.isPresent()) {
+                            playedInGuest = lineupMemberRepository.findByLineupIdAndUserId(guestLineupOpt.get().getId(), userId).isPresent();
+                        }
+                    }
+
+                    if (!playedInHost && match.getHostClub() != null) {
+                        Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(match.getHostClub().getId(), match.getId());
+                        if (pollOpt.isPresent()) {
+                            playedInHost = clubPollVoteRepository.findByPollIdAndUserId(pollOpt.get().getId(), userId)
+                                    .filter(v -> v.getOption() == com.backend.sporta.enums.PollVoteOption.JOIN)
+                                    .isPresent();
+                        }
+                    }
+
+                    if (!playedInGuest && match.getGuestClub() != null) {
+                        Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(match.getGuestClub().getId(), match.getId());
+                        if (pollOpt.isPresent()) {
+                            playedInGuest = clubPollVoteRepository.findByPollIdAndUserId(pollOpt.get().getId(), userId)
+                                    .filter(v -> v.getOption() == com.backend.sporta.enums.PollVoteOption.JOIN)
+                                    .isPresent();
+                        }
+                    }
+
+                    // Fallback to membership if no specific lineup was recorded
+                    if (!playedInHost && !playedInGuest) {
+                        boolean isHostMember = match.getHostClub() != null && userClubIds.contains(match.getHostClub().getId());
+                        boolean isGuestMember = match.getGuestClub() != null && userClubIds.contains(match.getGuestClub().getId());
+                        if (isHostMember) playedInHost = true;
+                        else if (isGuestMember) playedInGuest = true;
+                    }
+
+                    if (!playedInHost && !playedInGuest) {
                         continue;
                     }
 
+                    boolean isHost = playedInHost;
+                    boolean isGuest = !playedInHost && playedInGuest;
                     Club userClub = isHost ? match.getHostClub() : match.getGuestClub();
+                    if (userClub == null) continue;
 
                     // 1. Verify user membership in the club
                     Optional<ClubMember> memberOpt = clubMemberRepository.findByClubIdAndUserId(userClub.getId(), userId);
@@ -579,38 +620,12 @@ public class UserServiceImpl implements UserService {
                         continue;
                     }
 
-                    // 2. Check if the match was played before the user even joined the club
+                    // 2. Check if the match was played before the user joined the club
                     ClubMember member = memberOpt.get();
                     if (member.getJoinedAt() != null && match.getCreatedAt() != null) {
                         if (match.getCreatedAt().isBefore(member.getJoinedAt().minusMinutes(2))) {
-                            continue; // Match happened before user joined the club
+                            continue;
                         }
-                    }
-
-                    // 3. Strict Check: User MUST have participated in the lineup of this match
-                    boolean userPlayedInLineup = false;
-
-                    // 3a. Check official MatchLineup from Room
-                    if (match.getRoom() != null) {
-                        var side = isHost ? com.backend.sporta.enums.TeamSide.HOST : com.backend.sporta.enums.TeamSide.GUEST;
-                        var lineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(match.getRoom().getId(), side);
-                        if (lineupOpt.isPresent()) {
-                            userPlayedInLineup = lineupMemberRepository.findByLineupIdAndUserId(lineupOpt.get().getId(), userId).isPresent();
-                        }
-                    }
-
-                    // 3b. Fallback: Check ClubPoll
-                    if (!userPlayedInLineup) {
-                        Optional<ClubPoll> pollOpt = clubPollRepository.findByClubIdAndMatchId(userClub.getId(), match.getId());
-                        if (pollOpt.isPresent()) {
-                            userPlayedInLineup = clubPollVoteRepository.findByPollIdAndUserId(pollOpt.get().getId(), userId)
-                                    .filter(v -> v.getOption() == com.backend.sporta.enums.PollVoteOption.JOIN)
-                                    .isPresent();
-                        }
-                    }
-
-                    if (!userPlayedInLineup) {
-                        continue; // User was not in the lineup of this match
                     }
 
                     String userSide = isHost ? "HOST" : "GUEST";
@@ -618,7 +633,7 @@ public class UserServiceImpl implements UserService {
                     var resultOpt = matchResultRepository.findByMatchId(match.getId());
                     var ledgerOpt = crpLedgerRepository.findByMatchIdAndClubId(match.getId(), userClub.getId());
 
-                    String scoreText = resultOpt.map(com.backend.sporta.entity.MatchResult::getFinalScoreText).orElse("3 - 2");
+                    String scoreText = resultOpt.map(com.backend.sporta.entity.MatchResult::getFinalScoreText).orElse("0 - 0");
                     var outcome = resultOpt.map(com.backend.sporta.entity.MatchResult::getOutcome).orElse(com.backend.sporta.enums.NormalizedOutcome.DRAW);
 
                     String outcomeStr = "DRAW";
@@ -647,7 +662,7 @@ public class UserServiceImpl implements UserService {
                     if ("WIN".equals(outcomeStr)) {
                         eloDelta = scoreDiff >= 10 ? +65 : (scoreDiff >= 4 ? +48 : +24);
                     } else if ("LOSS".equals(outcomeStr)) {
-                        eloDelta = scoreDiff >= 10 ? -24 : -16;
+                        eloDelta = scoreDiff >= 10 ? -24 : (scoreDiff >= 4 ? -18 : -14);
                     } else {
                         eloDelta = 0;
                     }
@@ -666,11 +681,11 @@ public class UserServiceImpl implements UserService {
                     if ("WIN".equals(outcomeStr)) {
                         friendlyExplanations.add("CLB của bạn đã giành chiến thắng (" + scoreText + ").");
                         friendlyExplanations.add("Điểm cá nhân: +" + eloDelta + " Elo.");
-                        friendlyExplanations.add("Điểm CLB: +" + crpDelta + " CRP vào bảng xếp hạng.");
+                        friendlyExplanations.add("Điểm CLB: " + (crpDelta >= 0 ? "+" : "") + crpDelta + " CRP vào bảng xếp hạng.");
                     } else if ("LOSS".equals(outcomeStr)) {
                         friendlyExplanations.add("CLB của bạn nhận kết quả thua trận (" + scoreText + ").");
                         friendlyExplanations.add("Điểm cá nhân: " + eloDelta + " Elo.");
-                        friendlyExplanations.add("Điểm CLB: " + crpDelta + " CRP.");
+                        friendlyExplanations.add("Điểm CLB: " + (crpDelta >= 0 ? "+" : "") + crpDelta + " CRP.");
                         friendlyExplanations.add("Bảo vệ điểm thua: Quỹ Sporta tài trợ giảm 30% số điểm bị trừ.");
                     } else {
                         friendlyExplanations.add("Trận đấu kết thúc với kết quả hòa (" + scoreText + ").");

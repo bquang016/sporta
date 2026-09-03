@@ -22,5 +22,9 @@ public class LeaderboardResponse {
     private Integer crp;
     private Integer rankedWins;
     private Integer finalMatches;
+    private Integer winRate;
+    private String streak;
+    private String tier;
+    private Boolean isUserClub;
     private Integer activeMemberCount;
 }

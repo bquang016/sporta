@@ -5,6 +5,7 @@ export interface ClubCreatePayload {
   description: string;
   sportId: number;
   maxMembers: number;
+  minEloRequired?: number;
   isPrivate: boolean;
   coverImage?: string;
   avatarImage?: string;
@@ -17,6 +18,7 @@ export interface ClubUpdatePayload {
   description?: string;
   sportId?: number;
   maxMembers?: number;
+  minEloRequired?: number;
   isPrivate?: boolean;
   coverImage?: string;
   avatarImage?: string;

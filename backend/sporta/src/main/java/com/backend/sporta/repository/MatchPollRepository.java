@@ -14,5 +14,7 @@ public interface MatchPollRepository extends JpaRepository<MatchPoll, Long> {
 
     List<MatchPoll> findByClubIdAndStatusOrderByCreatedAtDesc(Long clubId, PollStatus status);
 
+    List<MatchPoll> findByClubIdAndStatusNotOrderByCreatedAtDesc(Long clubId, PollStatus status);
+
     long countByClubId(Long clubId);
 }

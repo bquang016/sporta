@@ -21,6 +21,7 @@ public class ClubCreateRequest {
     private String activityLevel;
     private String area;
     private Integer maxMembers;
+    private Integer minEloRequired;
 
     @NotNull(message = "Môn thể thao không được để trống")
     private Long sportId;

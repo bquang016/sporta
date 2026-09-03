@@ -61,7 +61,11 @@ public class NotificationService {
                type == NotificationType.MATCH_CANCELLED ||
                type == NotificationType.CLUB_INVITE ||
                type == NotificationType.CLUB_JOIN_REQUEST ||
-               type == NotificationType.CLUB_JOIN_ACCEPTED;
+               type == NotificationType.CLUB_JOIN_ACCEPTED ||
+               type == NotificationType.CLUB_JOIN_REJECTED ||
+               type == NotificationType.CLUB_MEMBER_LEFT ||
+               type == NotificationType.CLUB_MEMBER_KICKED ||
+               type == NotificationType.CLUB_MEMBER_LEFT_LINEUP;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

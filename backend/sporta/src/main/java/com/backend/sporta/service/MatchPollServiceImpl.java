@@ -197,7 +197,7 @@ public class MatchPollServiceImpl implements MatchPollService {
     @Transactional(readOnly = true)
     public List<MatchPollResponse> getClubPolls(Long clubId, String userEmail) {
         User user = getUserByEmail(userEmail);
-        List<MatchPoll> polls = matchPollRepository.findByClubIdOrderByCreatedAtDesc(clubId);
+        List<MatchPoll> polls = matchPollRepository.findByClubIdAndStatusNotOrderByCreatedAtDesc(clubId, PollStatus.DELETED);
         return polls.stream().map(p -> mapToResponse(p, user)).collect(Collectors.toList());
     }
 
@@ -580,9 +580,19 @@ public class MatchPollServiceImpl implements MatchPollService {
             throw new CustomException("Bạn không có quyền xoá biểu quyết này", 403);
         }
 
-        pollVoteRepository.deleteByPollId(pollId);
-        pollOptionRepository.deleteByPollId(pollId);
-        matchPollRepository.delete(poll);
+        // 1. Soft delete poll (mark as DELETED & set closedAt)
+        poll.setStatus(PollStatus.DELETED);
+        poll.setClosedAt(LocalDateTime.now());
+        matchPollRepository.save(poll);
+
+        // 2. Soft delete / disband associated MatchLineups created from this poll
+        List<MatchLineup> lineups = matchLineupRepository.findBySourcePollId(pollId);
+        if (lineups != null && !lineups.isEmpty()) {
+            for (MatchLineup ml : lineups) {
+                ml.setStatus(LineupStatus.DISBANDED);
+            }
+            matchLineupRepository.saveAll(lineups);
+        }
     }
 
     @Override

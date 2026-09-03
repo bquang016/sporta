@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Modal } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { MatchPollVM, PollOptionVM, LineupVM, LineupMemberVM } from '../../../../entities/match/model/match.types';
@@ -34,7 +34,7 @@ export interface PollCardProps {
 }
 
 export function PollCard({
-  polls,
+  polls = [],
   isLeaderOrSubLeader,
   onVote,
   onClosePoll,
@@ -48,9 +48,15 @@ export function PollCard({
   isDevUser = false,
 }: PollCardProps) {
   const { showAlert } = useAlert();
-  const [expandedPollId, setExpandedPollId] = useState<number | null>(null);
   const [expandedOptionId, setExpandedOptionId] = useState<number | null>(null);
   const [isDevModalVisible, setIsDevModalVisible] = useState(false);
+
+  // Tab State: 'OPEN' vs 'HISTORY'
+  const [activeTab, setActiveTab] = useState<'OPEN' | 'HISTORY'>('OPEN');
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(3);
+
+  // Delete Confirmation Modal State
+  const [pollToDelete, setPollToDelete] = useState<MatchPollVM | null>(null);
 
   // Edit Lineup Modal State
   const [isEditLineupModalVisible, setIsEditLineupModalVisible] = useState(false);
@@ -61,72 +67,19 @@ export function PollCard({
 
   const canShowDev = isDevUser || __DEV__;
 
-  if (!polls || polls.length === 0) {
-    return (
-      <View style={styles.pollSection}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionTitleCol}>
-            <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Biểu quyết & Đội hình</Text>
-          </View>
+  const openPolls = (polls || []).filter((p) => p.status === 'OPEN');
+  const historyPolls = (polls || []).filter((p) => p.status !== 'OPEN');
 
-          {canShowDev && (
-            <TouchableOpacity
-              style={styles.devBtn}
-              activeOpacity={0.8}
-              onPress={() => setIsDevModalVisible(true)}
-            >
-              <Ionicons name="construct" size={12} color="#4338CA" />
-              <Text style={styles.devBtnText}>DEV: Gán Vote</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.emptyCard}>
-          <View style={styles.emptyIconCircle}>
-            <MaterialIcons name="poll" size={28} color={COLORS.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>Chưa có biểu quyết nào</Text>
-          <Text style={styles.emptySubtitle}>
-            Tạo biểu quyết để thống kê quân số, chia đội hình giao lưu nội bộ hoặc tuyển đội đi ghép trận (Đội GT).
-          </Text>
-          {isLeaderOrSubLeader ? (
-            <TouchableOpacity
-              style={styles.createPollBtn}
-              activeOpacity={0.85}
-              onPress={onCreatePollPress}
-            >
-              <MaterialIcons name="add-circle-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.createPollBtnText}>Tạo biểu quyết mới</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.emptyNoticePill}>
-              <Text style={styles.emptyNoticeText}>Chờ Ban quản trị tạo biểu quyết mới</Text>
-            </View>
-          )}
-        </View>
-
-        {/* DEV Panel Modal in Empty State */}
-        <DevPollVoteModal
-          visible={isDevModalVisible}
-          onClose={() => setIsDevModalVisible(false)}
-          polls={polls || []}
-          members={members}
-          onSuccess={() => {
-            showAlert('Thành công', 'Đã gán vote DEV cho các thành viên thành công!');
-            if (onRefreshPolls) onRefreshPolls();
-          }}
-        />
-      </View>
-    );
-  }
+  const displayedPolls = activeTab === 'OPEN'
+    ? openPolls
+    : historyPolls.slice(0, visibleHistoryCount);
 
   return (
     <View style={styles.pollSection}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.sectionTitleCol}>
           <MaterialIcons name="how-to-vote" size={18} color={COLORS.primary} />
-          <Text style={styles.sectionTitle} numberOfLines={1}>Biểu quyết ({polls.length})</Text>
+          <Text style={styles.sectionTitle} numberOfLines={1}>Biểu quyết ({polls?.length || 0})</Text>
         </View>
 
         <View style={styles.headerRightActions}>
@@ -154,7 +107,68 @@ export function PollCard({
         </View>
       </View>
 
-      {polls.map((poll) => {
+      {/* ── Sub-Tabs Navigation (Đang mở vs Lịch sử) ── */}
+      <View style={styles.tabSwitcherRow}>
+        <TouchableOpacity
+          style={[styles.tabSegmentBtn, activeTab === 'OPEN' && styles.tabSegmentBtnActive]}
+          activeOpacity={0.8}
+          onPress={() => setActiveTab('OPEN')}
+        >
+          <View style={[styles.tabStatusDot, { backgroundColor: activeTab === 'OPEN' ? '#10B981' : '#94A3B8' }]} />
+          <Text style={[styles.tabSegmentText, activeTab === 'OPEN' && styles.tabSegmentTextActive]}>
+            Đang mở ({openPolls.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabSegmentBtn, activeTab === 'HISTORY' && styles.tabSegmentBtnActive]}
+          activeOpacity={0.8}
+          onPress={() => setActiveTab('HISTORY')}
+        >
+          <Ionicons
+            name="time-outline"
+            size={13}
+            color={activeTab === 'HISTORY' ? COLORS.primary : '#64748B'}
+          />
+          <Text style={[styles.tabSegmentText, activeTab === 'HISTORY' && styles.tabSegmentTextActive]}>
+            Lịch sử & Đã chia ({historyPolls.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Empty State for Active Tab ── */}
+      {displayedPolls.length === 0 && (
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconCircle}>
+            <MaterialIcons
+              name={activeTab === 'OPEN' ? 'poll' : 'history'}
+              size={28}
+              color={COLORS.primary}
+            />
+          </View>
+          <Text style={styles.emptyTitle}>
+            {activeTab === 'OPEN' ? 'Không có biểu quyết nào đang mở' : 'Chưa có biểu quyết trong lịch sử'}
+          </Text>
+          <Text style={styles.emptySubtitle}>
+            {activeTab === 'OPEN'
+              ? 'Tạo biểu quyết mới để khảo sát quân số và chuẩn bị đội hình cho trận đấu sắp tới.'
+              : 'Các biểu quyết đã đóng hoặc đã chia đội hình hoàn tất sẽ được lưu trữ gọn gàng tại đây.'}
+          </Text>
+          {activeTab === 'OPEN' && isLeaderOrSubLeader && (
+            <TouchableOpacity
+              style={styles.createPollBtn}
+              activeOpacity={0.85}
+              onPress={onCreatePollPress}
+            >
+              <MaterialIcons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.createPollBtnText}>Tạo biểu quyết mới</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* ── List of Displayed Polls ── */}
+      {displayedPolls.map((poll) => {
         const isInternal = poll.pollType === 'INTERNAL';
         const isClosed = poll.status !== 'OPEN';
         const isVoting = votingPollId === poll.id;
@@ -197,7 +211,7 @@ export function PollCard({
                 {isLeaderOrSubLeader && (
                   <TouchableOpacity
                     style={styles.deleteIconBtn}
-                    onPress={() => onDeletePoll(poll.id)}
+                    onPress={() => setPollToDelete(poll)}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="trash-outline" size={16} color="#94A3B8" />
@@ -521,6 +535,85 @@ export function PollCard({
           </View>
         );
       })}
+
+      {/* ── History Pagination Controls ── */}
+      {activeTab === 'HISTORY' && historyPolls.length > 3 && (
+        <View style={styles.historyPaginationRow}>
+          {visibleHistoryCount < historyPolls.length ? (
+            <TouchableOpacity
+              style={styles.showMoreHistoryBtn}
+              onPress={() => setVisibleHistoryCount((prev) => prev + 5)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.showMoreHistoryBtnText}>
+                Xem thêm ({historyPolls.length - visibleHistoryCount} biểu quyết cũ hơn)
+              </Text>
+              <Ionicons name="chevron-down" size={15} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.showMoreHistoryBtn}
+              onPress={() => setVisibleHistoryCount(3)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.showMoreHistoryBtnText}>Thu gọn danh sách lịch sử</Text>
+              <Ionicons name="chevron-up" size={15} color={COLORS.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* ── Delete Poll Confirmation Modal ── */}
+      <Modal
+        visible={!!pollToDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPollToDelete(null)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalCard}>
+            <View style={styles.deleteModalIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#DC2626" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Xóa biểu quyết?</Text>
+            <Text style={styles.deleteModalSub} numberOfLines={2}>
+              "{pollToDelete?.title}"
+            </Text>
+
+            <View style={styles.deleteWarningBox}>
+              <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
+              <Text style={styles.deleteWarningText}>
+                Toàn bộ kết quả bình chọn và các <Text style={{ fontWeight: '700' }}>Team-line (Đội hình ra sân)</Text> được tạo từ biểu quyết này cũng sẽ bị xóa.
+              </Text>
+            </View>
+
+            <View style={styles.deleteModalBtnRow}>
+              <TouchableOpacity
+                style={styles.deleteCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setPollToDelete(null)}
+              >
+                <Text style={styles.deleteCancelBtnText}>Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteConfirmBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (pollToDelete) {
+                    const id = pollToDelete.id;
+                    setPollToDelete(null);
+                    onDeletePoll(id);
+                  }
+                }}
+              >
+                <Ionicons name="trash" size={15} color="#FFFFFF" />
+                <Text style={styles.deleteConfirmBtnText}>Xác nhận xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* DEV Panel Modal */}
       <DevPollVoteModal
@@ -1247,5 +1340,164 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
     fontSize: 11.5,
+  },
+  tabSwitcherRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 3,
+    marginBottom: SPACING.md,
+    gap: 4,
+  },
+  tabSegmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  tabSegmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  tabSegmentText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  tabSegmentTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  historyPaginationRow: {
+    marginTop: 4,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  showMoreHistoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  showMoreHistoryBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  deleteModalIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  deleteModalTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  deleteModalSub: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  deleteWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 10,
+    marginBottom: 16,
+  },
+  deleteWarningText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#92400E',
+    flex: 1,
+  },
+  deleteModalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  deleteCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 11,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteCancelBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  deleteConfirmBtn: {
+    flex: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingVertical: 11,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  deleteConfirmBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

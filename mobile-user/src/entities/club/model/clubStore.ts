@@ -27,10 +27,17 @@ export interface Club {
   coverImage?: string;
   avatarImage?: string;
   area?: string;
+  elo?: number;
+  minEloRequired?: number;
   averageElo?: number;
+  crp?: number;
+  rankedWins?: number;
+  finalMatches?: number;
+  levelLabel?: string;
   userStatus?: string;
   creatorId?: number;
   creatorName?: string;
+  createdAt?: string;
 }
 
 class ClubStore {
@@ -90,7 +97,6 @@ class ClubStore {
       await joinClubApi(numericId);
       await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
     } catch (error) {
-      console.error('Lỗi tham gia CLB:', error);
       throw error;
     }
   }
@@ -99,19 +105,11 @@ class ClubStore {
     const numericId = typeof id === 'string' ? parseInt(id.replace('club-', ''), 10) : id;
     if (isNaN(numericId)) return;
 
-    const club = this.joinedClubs.find(c => String(c.id) === String(id));
-
     try {
-      if (club && club.members <= 1) {
-        console.log('[ClubStore] Creator is the last member, deleting club:', numericId);
-        await deleteClubApi(numericId);
-      } else {
-        console.log('[ClubStore] Leaving club:', numericId);
-        await leaveClubApi(numericId);
-      }
+      await leaveClubApi(numericId);
       await Promise.all([this.fetchClubs(), this.fetchJoinedClubs()]);
     } catch (error) {
-      console.error('Lỗi rời/xóa CLB:', error);
+      console.warn('Lỗi rời CLB:', error);
       throw error;
     }
   }

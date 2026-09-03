@@ -373,6 +373,8 @@ export class MatchmakingApiRepository {
       hostScore: number | string;
       guestScore: number | string;
       rawScoreDetails?: string;
+      hostLineupId?: number;
+      guestLineupId?: number;
       hostPlayerUserIds?: number[];
       guestPlayerUserIds?: number[];
     }
@@ -385,6 +387,8 @@ export class MatchmakingApiRepository {
           hostScore: String(params.hostScore),
           guestScore: String(params.guestScore),
           rawScoreDetails: params.rawScoreDetails,
+          hostLineupId: params.hostLineupId,
+          guestLineupId: params.guestLineupId,
           hostPlayerUserIds: params.hostPlayerUserIds,
           guestPlayerUserIds: params.guestPlayerUserIds,
         }),

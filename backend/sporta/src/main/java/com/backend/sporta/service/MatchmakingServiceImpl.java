@@ -860,9 +860,9 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
             }
             clubRepository.save(guestClub);
-
-            updatePlayerElos(match, submission.getOutcome());
         }
+
+        updatePlayerElos(match, submission.getOutcome());
 
         match.setStatus(MatchStatus.RESULT_FINAL);
         matchRepository.save(match);
@@ -1460,6 +1460,63 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     private void recordDevLineup(Match match, Club club, List<Long> userIds) {
         if (match == null || club == null || userIds == null || userIds.isEmpty()) return;
         try {
+            // 1. Sync MatchLineup & LineupMember
+            if (match.getRoom() != null) {
+                boolean isHost = club.getId().equals(match.getHostClub().getId());
+                com.backend.sporta.enums.TeamSide side = isHost ? com.backend.sporta.enums.TeamSide.HOST : com.backend.sporta.enums.TeamSide.GUEST;
+                com.backend.sporta.entity.MatchLineup lineup = matchLineupRepository.findByMatchRoomIdAndTeamSide(match.getRoom().getId(), side)
+                        .orElseGet(() -> {
+                            com.backend.sporta.entity.MatchLineup ml = com.backend.sporta.entity.MatchLineup.builder()
+                                    .club(club)
+                                    .matchRoom(match.getRoom())
+                                    .name("Đội hình DEV " + club.getName())
+                                    .lineupType(com.backend.sporta.enums.LineupType.MATCHMAKING)
+                                    .teamSide(side)
+                                    .status(com.backend.sporta.enums.LineupStatus.ACTIVE)
+                                    .build();
+                            return matchLineupRepository.save(ml);
+                        });
+
+                List<com.backend.sporta.entity.LineupMember> existingMembers = lineupMemberRepository.findByLineupId(lineup.getId());
+                if (existingMembers != null && !existingMembers.isEmpty()) {
+                    lineupMemberRepository.deleteAll(existingMembers);
+                }
+
+                int totalElo = 0;
+                int memberCount = 0;
+                Long sportId = club.getSport() != null ? club.getSport().getId() : 1L;
+
+                for (Long uid : userIds) {
+                    Optional<User> uOpt = userRepository.findById(uid);
+                    if (uOpt.isPresent()) {
+                        User u = uOpt.get();
+                        int pElo = userSportRepository.findByUserIdAndSportId(u.getId(), sportId)
+                                .map(UserSport::getEffectiveElo).orElse(1000);
+                        totalElo += pElo;
+                        memberCount++;
+
+                        com.backend.sporta.entity.LineupMember lm = com.backend.sporta.entity.LineupMember.builder()
+                                .lineup(lineup)
+                                .user(u)
+                                .userEloSnapshot(pElo)
+                                .addedAt(LocalDateTime.now())
+                                .build();
+                        lineupMemberRepository.save(lm);
+                    }
+                }
+
+                lineup.setEloAvg(memberCount > 0 ? totalElo / memberCount : 1000);
+                matchLineupRepository.save(lineup);
+            }
+            syncDevPoll(match, club, userIds);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to record dev lineup: " + e.getMessage());
+        }
+    }
+
+    private void syncDevPoll(Match match, Club club, List<Long> userIds) {
+        if (match == null || club == null || userIds == null || userIds.isEmpty()) return;
+        try {
             ClubPoll poll = clubPollRepository.findByClubIdAndMatchId(club.getId(), match.getId())
                     .orElseGet(() -> {
                         User creator = club.getCreator() != null ? club.getCreator() : userRepository.findById(userIds.get(0)).orElse(null);
@@ -1475,7 +1532,9 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                     });
 
             List<ClubPollVote> existingVotes = clubPollVoteRepository.findByPollId(poll.getId());
-            clubPollVoteRepository.deleteAll(existingVotes);
+            if (existingVotes != null && !existingVotes.isEmpty()) {
+                clubPollVoteRepository.deleteAll(existingVotes);
+            }
 
             for (Long uid : userIds) {
                 userRepository.findById(uid).ifPresent(u -> {
@@ -1489,7 +1548,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 });
             }
         } catch (Exception e) {
-            System.err.println("WARN: Failed to record dev lineup: " + e.getMessage());
+            System.err.println("WARN: Failed to sync dev poll: " + e.getMessage());
         }
     }
 
@@ -1687,12 +1746,57 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .build();
         scoreSubmissionRepository.save(submission);
 
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(config.getPairLimitWindowDays());
-        long recentRankedMatches = matchRepository.countRecentRankedMatchesBetweenClubs(
-                match.getHostClub().getId(), match.getGuestClub().getId(), MatchType.RANKED, sevenDaysAgo);
+        // 1. Link selected lineups or record DEV lineups
+        if (request.getHostLineupId() != null) {
+            matchLineupRepository.findById(request.getHostLineupId()).ifPresent(lineup -> {
+                lineup.setMatchRoom(room);
+                lineup.setTeamSide(com.backend.sporta.enums.TeamSide.HOST);
+                lineup.setStatus(com.backend.sporta.enums.LineupStatus.IN_MATCH);
+                matchLineupRepository.save(lineup);
 
-        CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, outcome, gFactor,
-                (int) recentRankedMatches);
+                List<com.backend.sporta.entity.LineupMember> lms = lineupMemberRepository.findByLineupId(lineup.getId());
+                List<Long> uids = lms.stream().filter(lm -> lm.getUser() != null).map(lm -> lm.getUser().getId()).toList();
+                if (!uids.isEmpty()) {
+                    syncDevPoll(match, match.getHostClub(), uids);
+                }
+            });
+        } else if (request.getHostPlayerUserIds() != null && !request.getHostPlayerUserIds().isEmpty()) {
+            recordDevLineup(match, match.getHostClub(), request.getHostPlayerUserIds());
+        }
+
+        if (request.getGuestLineupId() != null) {
+            matchLineupRepository.findById(request.getGuestLineupId()).ifPresent(lineup -> {
+                lineup.setMatchRoom(room);
+                lineup.setTeamSide(com.backend.sporta.enums.TeamSide.GUEST);
+                lineup.setStatus(com.backend.sporta.enums.LineupStatus.IN_MATCH);
+                matchLineupRepository.save(lineup);
+
+                List<com.backend.sporta.entity.LineupMember> lms = lineupMemberRepository.findByLineupId(lineup.getId());
+                List<Long> uids = lms.stream().filter(lm -> lm.getUser() != null).map(lm -> lm.getUser().getId()).toList();
+                if (!uids.isEmpty()) {
+                    syncDevPoll(match, match.getGuestClub(), uids);
+                }
+            });
+        } else if (request.getGuestPlayerUserIds() != null && !request.getGuestPlayerUserIds().isEmpty()) {
+            recordDevLineup(match, match.getGuestClub(), request.getGuestPlayerUserIds());
+        }
+
+        // 2. Refresh match snapshots with the Lineup's Average Elo
+        var hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), com.backend.sporta.enums.TeamSide.HOST);
+        var guestLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), com.backend.sporta.enums.TeamSide.GUEST);
+        if (hostLineupOpt.isPresent() && hostLineupOpt.get().getEloAvg() != null && hostLineupOpt.get().getEloAvg() > 0) {
+            match.setHostClubEloSnapshot(hostLineupOpt.get().getEloAvg());
+            match.setHostLevelSnapshot(clubEloService.getLevelLabel(hostLineupOpt.get().getEloAvg()));
+        }
+        if (guestLineupOpt.isPresent() && guestLineupOpt.get().getEloAvg() != null && guestLineupOpt.get().getEloAvg() > 0) {
+            match.setGuestClubEloSnapshot(guestLineupOpt.get().getEloAvg());
+            match.setGuestLevelSnapshot(clubEloService.getLevelLabel(guestLineupOpt.get().getEloAvg()));
+        }
+        match.setMatchType(room.getMatchType() != null ? room.getMatchType() : MatchType.RANKED);
+        matchRepository.save(match);
+
+        // 3. Calculate CRP (pass 0 for recent ranked matches so DEV mode is never blocked by anti-farming repeat limits)
+        CRPEngine.CRPEngineResult crpRes = crpEngine.calculate(match, outcome, gFactor, 0);
 
         String scoreText = adapter.getCanonicalScoreText(request.getHostScore(), request.getGuestScore(),
                 request.getRawScoreDetails());
@@ -1756,13 +1860,6 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
             }
             clubRepository.save(guestClub);
-
-            if (request.getHostPlayerUserIds() != null && !request.getHostPlayerUserIds().isEmpty()) {
-                recordDevLineup(match, match.getHostClub(), request.getHostPlayerUserIds());
-            }
-            if (request.getGuestPlayerUserIds() != null && !request.getGuestPlayerUserIds().isEmpty()) {
-                recordDevLineup(match, match.getGuestClub(), request.getGuestPlayerUserIds());
-            }
 
             updatePlayerElos(match, outcome);
         }
