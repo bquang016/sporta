@@ -163,7 +163,7 @@ export const MOCK_VENUE_REVIEWS: VenueReview[] = [
   {
     id: 'rev-1',
     userName: 'Nguyễn Hoàng Nam',
-    userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    userAvatar: '',
     rating: 5,
     date: '2 ngày trước',
     userRole: 'Người chơi thường xuyên',
@@ -174,7 +174,7 @@ export const MOCK_VENUE_REVIEWS: VenueReview[] = [
   {
     id: 'rev-2',
     userName: 'Trần Minh Đức',
-    userAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
+    userAvatar: '',
     rating: 5,
     date: '4 ngày trước',
     userRole: 'Trưởng CLB Smash Zone',
@@ -185,7 +185,7 @@ export const MOCK_VENUE_REVIEWS: VenueReview[] = [
   {
     id: 'rev-3',
     userName: 'Lê Quốc Tuấn',
-    userAvatar: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=150&auto=format&fit=crop&q=80',
+    userAvatar: '',
     rating: 4.8,
     date: '1 tuần trước',
     userRole: 'Thành viên đã xác thực',
@@ -196,7 +196,7 @@ export const MOCK_VENUE_REVIEWS: VenueReview[] = [
   {
     id: 'rev-4',
     userName: 'Phạm Thuỳ Linh',
-    userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    userAvatar: '',
     rating: 5,
     date: '2 tuần trước',
     userRole: 'Thành viên đã xác thực',
@@ -253,37 +253,37 @@ export const MOCK_GALLERY_PHOTOS: GalleryPhoto[] = [
   {
     id: 'p-1',
     title: 'Góc nhìn toàn cảnh cụm sân',
-    url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&auto=format&fit=crop&q=80',
+    url: '',
     category: 'court',
   },
   {
     id: 'p-2',
     title: 'Mặt sàn thi đấu chống trơn trượt',
-    url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&auto=format&fit=crop&q=80',
+    url: '',
     category: 'court',
   },
   {
     id: 'p-3',
     title: 'Hệ thống đèn LED chống chói ban đêm',
-    url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80',
+    url: '',
     category: 'night',
   },
   {
     id: 'p-4',
     title: 'Khu vực khán đài & ghế chờ vận động viên',
-    url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80',
+    url: '',
     category: 'lounge',
   },
   {
     id: 'p-5',
     title: 'Không gian thi đấu ban đêm',
-    url: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=800&auto=format&fit=crop&q=80',
+    url: '',
     category: 'night',
   },
   {
     id: 'p-6',
     title: 'Quầy dịch vụ & Căn tin nước mát',
-    url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
+    url: '',
     category: 'facility',
   },
 ];

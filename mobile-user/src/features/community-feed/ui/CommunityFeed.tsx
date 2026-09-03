@@ -79,7 +79,7 @@ export function CommunityFeed({
           setCurrentUser({
             id: String(profile.id),
             name: profile.fullName || 'Người dùng',
-            avatar: profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+            avatar: profile.avatarUrl || '',
             handle: `@user_${profile.id}`,
           });
         }

@@ -101,7 +101,7 @@ export function useRecommendedVenues() {
       price: venue.minPrice != null ? `${Number(venue.minPrice).toLocaleString('vi-VN')} VND` : '0 VND',
       status: venue.status === 'ACTIVE' ? 'Còn chỗ' : 'Đóng cửa',
       statusType: venue.status === 'ACTIVE' ? 'success' : 'warning',
-      imageUrl: venue.coverImage || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+      imageUrl: venue.coverImage || '',
       sport: venue.sportName || 'Thể thao',
       area: venue.district || venue.location || 'Khu vực khác',
       priceCategory: 'Tất cả',

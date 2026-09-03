@@ -213,7 +213,7 @@ export function MatchmakeModal({
                   ) : (
                     currentTeamA.map((p, idx) => (
                       <View key={p.userId || idx} style={styles.playerItem}>
-                        <Avatar source={p.avatar} size={26} fallbackIcon="person" />
+                        <Avatar source={p.avatar} size={26} fallbackType="user" />
                         <View style={styles.playerItemInfo}>
                           <Text style={styles.playerNameText} numberOfLines={1}>
                             {p.name}
@@ -257,7 +257,7 @@ export function MatchmakeModal({
                           </Text>
                           <Text style={styles.playerEloText}>{p.elo || 1200} ELO</Text>
                         </View>
-                        <Avatar source={p.avatar} size={26} fallbackIcon="person" />
+                        <Avatar source={p.avatar} size={26} fallbackType="user" />
                       </View>
                     ))
                   )}

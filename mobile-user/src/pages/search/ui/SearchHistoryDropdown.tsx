@@ -159,7 +159,7 @@ export function SearchHistoryDropdown({
                       source={{
                         uri:
                           venue.imageUrl ||
-                          'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+                          '',
                       }}
                       style={styles.featuredThumb}
                     />

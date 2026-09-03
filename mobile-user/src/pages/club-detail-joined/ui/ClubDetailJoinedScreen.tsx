@@ -34,17 +34,17 @@ import { useAlert } from '../../../shared/contexts/AlertContext';
 
 // Mock Members for Joined Clubs to look premium
 const MOCK_MEMBERS: MemberItem[] = [
-  { id: 'm-1', userId: 0, name: 'Nguyễn Văn Hùng', role: 'Trưởng nhóm', elo: 1540, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80' },
-  { id: 'm-2', userId: 0, name: 'Trần Thị Mai', role: 'Phó nhóm', elo: 1420, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
-  { id: 'm-3', userId: 0, name: 'Phạm Minh Hoàng', role: 'Thành viên', elo: 1250, avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80' },
-  { id: 'm-4', userId: 0, name: 'Lê Hoàng Sơn', role: 'Thành viên', elo: 1180, avatar: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=100&auto=format&fit=crop&q=80' },
+  { id: 'm-1', userId: 0, name: 'Nguyễn Văn Hùng', role: 'Trưởng nhóm', elo: 1540, avatar: '' },
+  { id: 'm-2', userId: 0, name: 'Trần Thị Mai', role: 'Phó nhóm', elo: 1420, avatar: '' },
+  { id: 'm-3', userId: 0, name: 'Phạm Minh Hoàng', role: 'Thành viên', elo: 1250, avatar: '' },
+  { id: 'm-4', userId: 0, name: 'Lê Hoàng Sơn', role: 'Thành viên', elo: 1180, avatar: '' },
 ];
 
 const MOCK_MATCH_HISTORY: MatchItem[] = [
   {
     id: 'h-1',
     opponentName: 'FC Cầu Giấy United',
-    opponentAvatar: 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80',
+    opponentAvatar: '',
     date: '20/06/2026',
     ourScore: 4,
     opponentScore: 2,
@@ -54,7 +54,7 @@ const MOCK_MATCH_HISTORY: MatchItem[] = [
   {
     id: 'h-2',
     opponentName: 'Hà Đông Football Club',
-    opponentAvatar: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=100&auto=format&fit=crop&q=80',
+    opponentAvatar: '',
     date: '14/06/2026',
     ourScore: 1,
     opponentScore: 3,
@@ -64,7 +64,7 @@ const MOCK_MATCH_HISTORY: MatchItem[] = [
   {
     id: 'h-3',
     opponentName: 'Bách Khoa Football Club',
-    opponentAvatar: 'https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=100&auto=format&fit=crop&q=80',
+    opponentAvatar: '',
     date: '07/06/2026',
     ourScore: 2,
     opponentScore: 2,
@@ -192,7 +192,7 @@ export function ClubDetailJoinedScreen() {
           name: m.name,
           role: roleText,
           elo: virtualElo,
-          avatar: m.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80",
+          avatar: m.avatar || "",
           status: m.status || 'APPROVED'
         };
       });
@@ -232,7 +232,7 @@ export function ClubDetailJoinedScreen() {
         const formatted: MatchItem[] = data.map((m: any) => ({
           id: String(m.id || Math.random()),
           opponentName: m.opponentName || 'Đối thủ',
-          opponentAvatar: m.opponentAvatar || 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80',
+          opponentAvatar: m.opponentAvatar || '',
           date: m.date || '',
           ourScore: m.ourScore || 0,
           opponentScore: m.opponentScore || 0,

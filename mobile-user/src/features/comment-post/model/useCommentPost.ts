@@ -35,7 +35,7 @@ export function useCommentPost(postId: string, currentUser?: any) {
         author: currentUser || {
           id: 'current-user',
           name: 'Thành viên Sporta',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          avatar: '',
           handle: '@user',
         },
         content,
@@ -53,7 +53,7 @@ export function useCommentPost(postId: string, currentUser?: any) {
         author: currentUser || {
           id: 'current-user',
           name: 'Thành viên Sporta',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          avatar: '',
           handle: '@user',
         },
         content,

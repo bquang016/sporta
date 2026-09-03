@@ -31,7 +31,7 @@ export const VoucherBanner: React.FC<VoucherBannerProps> = ({ voucher, width }) 
       disabled={loading}
     >
       <ImageBackground
-        source={{ uri: voucher.bannerImageUrl || 'https://images.unsplash.com/photo-1580828343064-fde4fc206bc6?w=700&q=60' }}
+        source={{ uri: voucher.bannerImageUrl || '' }}
         style={styles.imageCard}
         imageStyle={{ borderRadius: BORDER_RADIUS.lg }}
       >

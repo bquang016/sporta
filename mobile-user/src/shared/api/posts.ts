@@ -80,14 +80,14 @@ export const fetchPostsApi = async (
           ? {
               id: String(item.author.id || 'u-1'),
               name: item.author.fullName || 'Thành viên Sporta',
-              avatar: item.author.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              avatar: item.author.avatarUrl || '',
               handle: `@user_${item.author.id || '1'}`,
               isVerified: true,
             }
           : {
               id: 'u-1',
               name: 'Thành viên Sporta',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              avatar: '',
               handle: '@user_1',
             },
         content: item.content,
@@ -499,7 +499,7 @@ export const createPostApi = async (newPostData: Partial<Post> & Record<string, 
       author: newPostData.author || {
         id: 'u-1',
         name: 'Thành viên Sporta',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatar: '',
         handle: '@user_1',
       },
       content: item.content || newPostData.content,
@@ -662,14 +662,14 @@ export const fetchCommentsApi = async (postId: string, page = 0, size = 10): Pro
           ? {
               id: String(item.author.id || 'u-1'),
               name: item.author.fullName || 'Thành viên Sporta',
-              avatar: item.author.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              avatar: item.author.avatarUrl || '',
               handle: `@user_${item.author.id || '1'}`,
               isVerified: true,
             }
           : {
               id: 'u-1',
               name: 'Thành viên Sporta',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              avatar: '',
               handle: '@user_1',
             },
         content: item.content,

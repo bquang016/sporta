@@ -455,7 +455,7 @@ export function MembersModal({
                             <Avatar
                               source={member.avatar}
                               size={44}
-                              fallbackIcon="person"
+                              fallbackType="user"
                             />
                             {isLeaderRole && (
                               <View style={styles.crownBadgeLeader}>
@@ -585,7 +585,7 @@ export function MembersModal({
                   pendingMembers.map((member) => (
                     <View key={member.id} style={styles.pendingCard}>
                       <View style={styles.pendingCardHeader}>
-                        <Avatar source={member.avatar} size={44} fallbackIcon="person" />
+                        <Avatar source={member.avatar} size={44} fallbackType="user" />
                         <View style={styles.pendingInfoCol}>
                           <Text style={styles.pendingName}>{member.name}</Text>
                           <View style={styles.pendingMetaRow}>
@@ -670,7 +670,7 @@ export function MembersModal({
 
                 {/* Member summary header */}
                 <View style={styles.sheetMemberHeader}>
-                  <Avatar source={selectedMemberForAction.avatar} size={40} fallbackIcon="person" />
+                  <Avatar source={selectedMemberForAction.avatar} size={40} fallbackType="user" />
                   <View style={styles.sheetMemberInfo}>
                     <Text style={styles.sheetMemberName}>{selectedMemberForAction.name}</Text>
                     <Text style={styles.sheetMemberRole}>

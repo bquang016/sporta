@@ -57,7 +57,7 @@ public class ClubMatchHistoryServiceImpl implements ClubMatchHistoryService {
 
         ClubMatchHistory history = ClubMatchHistory.builder()
                 .opponentName(request.getOpponentName())
-                .opponentAvatar(request.getOpponentAvatar() != null ? request.getOpponentAvatar() : "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80")
+                .opponentAvatar(request.getOpponentAvatar() != null ? request.getOpponentAvatar() : null)
                 .date(request.getDate())
                 .ourScore(request.getOurScore())
                 .opponentScore(request.getOpponentScore())

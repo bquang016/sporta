@@ -52,7 +52,7 @@ export function EditProfileScreen() {
     }
   }, [profileData]);
 
-  const defaultAvatar = "https://ui-avatars.com/api/?name=" + encodeURIComponent(profileData?.fullName || 'User') + "&background=003527&color=fff";
+
   
   const onSaveField = async () => {
     let extraData = {};

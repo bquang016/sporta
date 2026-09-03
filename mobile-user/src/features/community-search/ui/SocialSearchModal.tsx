@@ -163,8 +163,8 @@ export function SocialSearchModal({
       }
     });
     const defaultClubs = [
-      { id: 'club-1', name: 'Pickleball Cầu Giấy Official', avatarUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80' },
-      { id: 'club-2', name: 'CLB Bóng Đá Phủi Hà Nội', avatarUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=150&auto=format&fit=crop&q=80' },
+      { id: 'club-1', name: 'Pickleball Cầu Giấy Official', avatarUrl: '' },
+      { id: 'club-2', name: 'CLB Bóng Đá Phủi Hà Nội', avatarUrl: '' },
     ];
     defaultClubs.forEach((c) => {
       if (!map.has(c.id)) map.set(c.id, c);

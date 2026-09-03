@@ -244,7 +244,6 @@ export function ProfileScreen() {
                 <View style={styles.avatarBorderRing}>
                   <Avatar
                     source={userAvatar}
-                    text={userName}
                     size="xl"
                   />
                 </View>
