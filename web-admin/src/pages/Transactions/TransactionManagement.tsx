@@ -10,6 +10,7 @@ import { TransactionKpis } from '@/components/transactions/TransactionKpis';
 import { TransactionFilters } from '@/components/transactions/TransactionFilters';
 import { TransactionDetailModal } from '@/components/transactions/TransactionDetailModal';
 import { getAdminTransactions, type AdminTransaction } from '@/api/adminTransactionApi';
+import { exportTransactionsToExcel, exportAdminReportPdf } from '@/utils/exportAdminUtils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
@@ -368,15 +369,49 @@ export const TransactionManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-on-background">Lịch Sử Đặt Sân & Giao Dịch</h1>
           <p className="text-on-surface-variant mt-1 text-sm">Giám sát toàn bộ dòng tiền, hoa hồng nền tảng 10% và giải quyết khiếu nại hoàn tiền.</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchTransactions}
-          disabled={isLoading}
-          className="self-start sm:self-auto font-bold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs"
-        >
-          {isLoading ? 'Đang cập nhật...' : 'Làm mới dữ liệu'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => exportTransactionsToExcel(filteredTransactions)}
+            disabled={isLoading || filteredTransactions.length === 0}
+            className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-brand-emerald border border-emerald-200/80 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4 text-brand-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Xuất Excel (.xlsx)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const kpiList = [
+                { label: 'Tổng Doanh Thu GMV', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(kpis.revenue) },
+                { label: 'Hoa Hồng Sàn 10%', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(kpis.totalCommission) },
+                { label: 'Tổng Lượt Đặt', value: `${kpis.bookingsCount} đơn` },
+                { label: 'Tỷ Lệ Thành Công', value: `${kpis.successRate}%` }
+              ];
+              exportAdminReportPdf('BÁO CÁO DÒNG TIỀN VÀ ĐỐI SOÁT', 'DANH SÁCH GIAO DỊCH VÀ PHÍ HOA HỒNG SÀN 10%', kpiList, filteredTransactions);
+            }}
+            disabled={isLoading || filteredTransactions.length === 0}
+            className="flex items-center gap-2 bg-primary text-white hover:bg-emerald-950 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            <span>In / Export PDF</span>
+          </button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchTransactions}
+            disabled={isLoading}
+            className="font-bold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs"
+          >
+            {isLoading ? 'Đang cập nhật...' : 'Làm mới dữ liệu'}
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards Component */}

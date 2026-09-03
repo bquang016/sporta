@@ -3,6 +3,7 @@ import { AdminKPIStats } from './components/AdminKPIStats';
 import { LineChart } from './components/LineChart';
 import { AdminActivityLog } from './components/AdminActivityLog';
 import { PartnerLeaderboard } from './components/PartnerLeaderboard';
+import { SportsAnalyticsWidget } from '@/components/dashboard/SportsAnalyticsWidget';
 import {
   getAdminDashboardOverview,
   type AdminKpi,
@@ -110,6 +111,11 @@ export const Dashboard: React.FC = () => {
                     timeFilter={timeFilter}
                     onTimeFilterChange={setTimeFilter}
                 />
+            </div>
+
+            {/* Sports & Regional Analytics Widget */}
+            <div className="w-full">
+                <SportsAnalyticsWidget />
             </div>
 
             {/* Activity Log */}
