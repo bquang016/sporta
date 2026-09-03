@@ -242,7 +242,7 @@ function CreatePostModalContent({
                 c.avatarUrl ||
                 c.logoUrl ||
                 c.logo ||
-                'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=200',
+                '',
             }))
           );
         }
@@ -362,7 +362,7 @@ function CreatePostModalContent({
                   selectedRoom.hostClub.avatarUrl ||
                   (selectedRoom.hostClub as any).avatarImage ||
                   (selectedRoom.hostClub as any).logoUrl ||
-                  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=200',
+                  '',
               }
             : undefined,
           sportName: booking?.sportName || 'Pickleball',

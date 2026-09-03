@@ -41,18 +41,18 @@ export function useLogin() {
     try {
       const res = await googleLoginApi(idToken);
       if (res.isNewUser) {
-        const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
         router.push({
           pathname: '/(auth)/personal-info',
           params: {
             registrationToken: res.registrationToken,
             email: res.email,
-            password: dummyPassword,
             fullName: res.fullName,
+            avatarUrl: res.avatarUrl,
           },
         });
+      } else {
         let realFullName = res.fullName;
-        let realAvatar: string | null = null;
+        let realAvatar: string | null = res.avatarUrl || null;
         try {
           const { usersApi } = require('../../../../shared/api/users');
           const profile = await usersApi.getProfile();
@@ -71,7 +71,11 @@ export function useLogin() {
           userAvatar: realAvatar,
         });
 
-        router.replace('/(tabs)');
+        if (res.mustChangePassword) {
+          router.replace('/(auth)/set-password');
+        } else {
+          router.replace('/(tabs)');
+        }
       }
     } catch (error: any) {
       console.error(error);

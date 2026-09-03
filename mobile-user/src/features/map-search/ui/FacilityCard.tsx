@@ -102,7 +102,7 @@ export const MapFacilityCard = memo(
             source={{
               uri:
                 venue.coverImage ||
-                'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+                '',
             }}
             style={styles.coverImage}
             resizeMode="cover"

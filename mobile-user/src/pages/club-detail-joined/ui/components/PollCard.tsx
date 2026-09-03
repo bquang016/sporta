@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Avatar } from '../../../../shared/ui';
 import { MatchPollVM, PollOptionVM, LineupVM, LineupMemberVM } from '../../../../entities/match/model/match.types';
 
 export interface PollVoter {
@@ -254,15 +255,7 @@ export function PollCard({
                         {opt.voters.map((voter) => (
                           <View key={voter.userId} style={styles.voterRow}>
                             <View style={styles.voterAvatarWrap}>
-                              {voter.avatarUrl ? (
-                                <Image source={{ uri: voter.avatarUrl }} style={styles.voterAvatar} />
-                              ) : (
-                                <View style={styles.voterAvatarFallback}>
-                                  <Text style={styles.voterAvatarText}>
-                                    {(voter.fullName || 'U').charAt(0).toUpperCase()}
-                                  </Text>
-                                </View>
-                              )}
+                              <Avatar size={24} source={voter.avatarUrl || ''} fallbackType="user" />
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.voterName} numberOfLines={1}>

@@ -107,6 +107,7 @@ export function Avatar({
 
     // 4. Default Placeholders: Club vs User
     const defaultPlaceholder = fallbackType === 'club' ? DEFAULT_CLUB_AVATAR : DEFAULT_USER_AVATAR;
+    
     return (
       <Image 
         source={defaultPlaceholder} 

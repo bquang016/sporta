@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Avatar } from '../../../../shared/ui';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
 import { MatchmakingService } from '../../../../shared/api/matchmaking';
@@ -720,13 +721,7 @@ export function MatchDetailScreen() {
                     {room.hostLineup?.members?.map((m) => (
                       <View key={m.userId} style={styles.lineupMemberRow}>
                         <View style={styles.lineupMemberAvatar}>
-                          {m.avatarUrl ? (
-                            <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
-                          ) : (
-                            <Text style={styles.lineupAvatarText}>
-                              {(m.fullName || 'U').charAt(0).toUpperCase()}
-                            </Text>
-                          )}
+                          <Avatar size={24} source={m.avatarUrl} fallbackType="user" />
                         </View>
                         <Text style={styles.lineupMemberName} numberOfLines={1}>
                           {m.fullName}
@@ -759,13 +754,7 @@ export function MatchDetailScreen() {
                         {room.guestLineup.members?.map((m) => (
                           <View key={m.userId} style={styles.lineupMemberRow}>
                             <View style={[styles.lineupMemberAvatar, { backgroundColor: '#0284C7' }]}>
-                              {m.avatarUrl ? (
-                                <Image source={{ uri: m.avatarUrl }} style={styles.lineupAvatarImg} />
-                              ) : (
-                                <Text style={styles.lineupAvatarText}>
-                                  {(m.fullName || 'U').charAt(0).toUpperCase()}
-                                </Text>
-                              )}
+                              <Avatar size={24} source={m.avatarUrl} fallbackType="user" />
                             </View>
                             <Text style={styles.lineupMemberName} numberOfLines={1}>
                               {m.fullName}
