@@ -47,11 +47,12 @@ export function useLogin() {
             registrationToken: res.registrationToken,
             email: res.email,
             fullName: res.fullName,
+            avatarUrl: res.avatarUrl,
           },
         });
       } else {
         let realFullName = res.fullName;
-        let realAvatar: string | null = null;
+        let realAvatar: string | null = res.avatarUrl || null;
         try {
           const { usersApi } = require('../../../../shared/api/users');
           const profile = await usersApi.getProfile();

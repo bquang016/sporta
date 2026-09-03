@@ -26,7 +26,7 @@ const DEFAULT_PLAYER_AVATAR = require('../../../../../assets/player/player_699x6
 export function PersonalInfoScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { registrationToken, email, password: initialPassword, fullName: initialFullName } = useLocalSearchParams();
+  const { registrationToken, email, password: initialPassword, fullName: initialFullName, avatarUrl: initialAvatarUrl } = useLocalSearchParams();
 
   const [password, setPassword] = useState(
     typeof initialPassword === 'string' ? initialPassword : ''
@@ -37,7 +37,9 @@ export function PersonalInfoScreen() {
   const [fullName, setFullName] = useState(
     typeof initialFullName === 'string' ? initialFullName : ''
   );
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(
+    typeof initialAvatarUrl === 'string' ? initialAvatarUrl : null
+  );
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(new Date(2000, 0, 1));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');

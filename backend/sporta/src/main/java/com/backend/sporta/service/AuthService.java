@@ -769,6 +769,7 @@ public class AuthService {
             GoogleIdToken.Payload payload = idToken.getPayload();
             String email = payload.getEmail();
             String fullName = (String) payload.get("name");
+            String avatarUrl = (String) payload.get("picture");
 
             Optional<User> userOpt = userRepository.findByEmail(email);
             if (userOpt.isPresent()) {
@@ -784,12 +785,19 @@ public class AuthService {
                     }
                     throw new CustomException("Tài khoản của bạn không ở trạng thái hoạt động.", 403);
                 }
+                
+                if (user.getAvatarUrl() == null && avatarUrl != null && !avatarUrl.isEmpty()) {
+                    user.setAvatarUrl(avatarUrl);
+                    userRepository.save(user);
+                }
+                
                 String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
                 return GoogleLoginResponse.builder()
                         .isNewUser(false)
                         .accessToken(accessToken)
                         .email(email)
                         .fullName(user.getFullName())
+                        .avatarUrl(user.getAvatarUrl())
                         .message("Đăng nhập Google thành công.")
                         .mustChangePassword(user.isMustChangePassword())
                         .build();
@@ -800,6 +808,7 @@ public class AuthService {
                         .registrationToken(registrationToken)
                         .email(email)
                         .fullName(fullName)
+                        .avatarUrl(avatarUrl)
                         .message("Tài khoản chưa tồn tại. Vui lòng hoàn tất thông tin.")
                         .build();
             }
