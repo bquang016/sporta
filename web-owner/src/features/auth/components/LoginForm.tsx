@@ -11,6 +11,7 @@ interface LoginFormProps {
   setShowPassword: (val: boolean) => void;
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent) => void;
+  onOpenForgotPassword?: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -21,7 +22,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   showPassword,
   setShowPassword,
   isLoading,
-  handleSubmit
+  handleSubmit,
+  onOpenForgotPassword,
 }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-3.5 lg:space-y-4">
@@ -52,7 +54,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       <div className="space-y-1.5">
         <div className="flex justify-between items-center px-0.5">
           <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Mật khẩu</label>
-          <a href="#forgot" className="text-[9px] font-black text-brand-emerald hover:underline uppercase tracking-wider">Quên mật khẩu?</a>
+          <button
+            type="button"
+            onClick={onOpenForgotPassword}
+            className="text-[9px] font-black text-brand-emerald hover:underline uppercase tracking-wider cursor-pointer border-none bg-transparent"
+          >
+            Quên mật khẩu?
+          </button>
         </div>
         <div className="relative">
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">

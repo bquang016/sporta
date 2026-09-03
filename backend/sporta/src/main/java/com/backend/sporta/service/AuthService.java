@@ -226,6 +226,76 @@ public class AuthService {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  FORGOT PASSWORD FLOW
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public String sendForgotPasswordOtp(ForgotPasswordSendOtpRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (email.isEmpty() || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw new CustomException("Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.", 400);
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Email không tồn tại trong hệ thống.", 404));
+
+        if (user.getIsDeleted()) {
+            throw new CustomException("Tài khoản của bạn đã bị ngừng hoạt động.", 403);
+        }
+
+        String otpCode = otpService.generateAndSaveOtp(email);
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA FORGOT PASSWORD OTP] >>> EMAIL: " + email + " | MÃ OTP: " + otpCode + " <<<");
+        System.out.println("==================================================================");
+        try {
+            emailService.sendForgotPasswordOtpEmail(email, otpCode);
+        } catch (Exception e) {
+            System.err.println("WARN: Email send failed for " + email + ": " + e.getMessage() + " (Đã in mã OTP lên terminal để test)");
+        }
+        return otpCode;
+    }
+
+    public ForgotPasswordVerifyOtpResponse verifyForgotPasswordOtp(ForgotPasswordVerifyOtpRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (!userRepository.existsByEmail(email)) {
+            throw new CustomException("Email không tồn tại trong hệ thống.", 404);
+        }
+
+        otpService.verifyOtp(email, request.getOtp());
+
+        String resetToken = jwtTokenProvider.generateResetPasswordToken(email);
+
+        return ForgotPasswordVerifyOtpResponse.builder()
+                .resetToken(resetToken)
+                .message("Xác thực OTP thành công. Vui lòng đặt mật khẩu mới.")
+                .build();
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new CustomException("Mật khẩu xác nhận không khớp.", 400);
+        }
+
+        if (!jwtTokenProvider.validateToken(request.getResetToken())) {
+            throw new CustomException("Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.", 400);
+        }
+
+        io.jsonwebtoken.Claims claims = jwtTokenProvider.getClaimsFromToken(request.getResetToken());
+        String tokenType = claims.get("type", String.class);
+        if (!"RESET_PASSWORD".equals(tokenType)) {
+            throw new CustomException("Token không hợp lệ cho thao tác này.", 400);
+        }
+
+        String email = claims.getSubject();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  REGISTER (Player — kept for future use)
     // ═══════════════════════════════════════════════════════════════════════════
 

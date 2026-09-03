@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { LoginForm } from '../components/LoginForm';
+import { ForgotPasswordModal } from '../components/ForgotPasswordModal';
 import logoHorizontal from '../../../assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoVertical from '../../../assets/logo/light/logo-vertical_1200x1500.svg';
 
 export const LoginPage = () => {
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+
   const {
     email,
     setEmail,
@@ -168,6 +171,7 @@ export const LoginPage = () => {
                 setShowPassword={setShowPassword}
                 isLoading={isLoading}
                 handleSubmit={handleSubmit}
+                onOpenForgotPassword={() => setIsForgotPasswordOpen(true)}
               />
             </div>
           </div>
@@ -216,6 +220,12 @@ export const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        initialEmail={email}
+      />
     </div>
   );
 };

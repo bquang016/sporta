@@ -63,6 +63,17 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public String generateResetPasswordToken(String email) {
+        // Reset password token is valid for 15 minutes (900,000 ms)
+        return Jwts.builder()
+                .subject(email)
+                .claim("type", "RESET_PASSWORD")
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + 900000))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     public String getEmailFromToken(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
