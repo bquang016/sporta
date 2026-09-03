@@ -11,6 +11,10 @@ import com.backend.sporta.dto.VerifyOtpResponse;
 import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
 import com.backend.sporta.dto.RegisterOwnerResponse;
+import com.backend.sporta.dto.ForgotPasswordSendOtpRequest;
+import com.backend.sporta.dto.ForgotPasswordVerifyOtpRequest;
+import com.backend.sporta.dto.ForgotPasswordVerifyOtpResponse;
+import com.backend.sporta.dto.ResetPasswordRequest;
 import com.backend.sporta.service.AuthService;
 import com.backend.sporta.service.EmailService;
 import jakarta.validation.Valid;
@@ -33,6 +37,24 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<?> forgotPasswordSendOtp(@Valid @RequestBody ForgotPasswordSendOtpRequest request) {
+        authService.sendForgotPasswordOtp(request);
+        return ResponseEntity.ok(Map.of("message", "Mã OTP đặt lại mật khẩu đã được gửi đến email của bạn."));
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<ForgotPasswordVerifyOtpResponse> forgotPasswordVerifyOtp(@Valid @RequestBody ForgotPasswordVerifyOtpRequest request) {
+        ForgotPasswordVerifyOtpResponse response = authService.verifyForgotPasswordOtp(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/reset-password")
+    public ResponseEntity<?> forgotPasswordResetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại bằng mật khẩu mới."));
     }
 
     @PostMapping("/send-otp")
