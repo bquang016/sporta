@@ -564,14 +564,7 @@ public class UserTicketService {
         int avgHostElo;
         if (hostUsers.isEmpty() && Boolean.TRUE.equals(session.getHasHostTeam())) {
             SportLevel lvl = session.getHostTeamLevel() != null ? session.getHostTeamLevel() : session.getSportLevel();
-            avgHostElo = switch (lvl) {
-                case GOOD -> 2100;
-                case AVERAGE_GOOD -> 1800;
-                case AVERAGE -> 1500;
-                case WEAK_AVERAGE -> 1200;
-                case WEAK -> 900;
-                default -> 1500;
-            };
+            avgHostElo = UserSport.mapSeedElo(lvl);
         } else if (!hostUsers.isEmpty()) {
             avgHostElo = calculateUsersAvgElo(hostUsers, sportId);
         } else {
@@ -753,7 +746,7 @@ public class UserTicketService {
                             .user(user)
                             .sport(sport)
                             .level(SportLevel.AVERAGE)
-                            .eloRating(1500)
+                            .eloRating(1350)
                             .eloStatus(EloStatus.UNVERIFIED)
                             .placementMatchesPlayed(0)
                             .totalRankedMatches(0)

@@ -18,6 +18,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { UserTicket, SportLevel } from '../../../entities/ticket/model/ticket.types';
+import { getSportLevelLabel } from '../../../shared/lib/utils/elo';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -116,16 +117,6 @@ export function TicketQrModal({ visible, ticket, onClose }: TicketQrModalProps) 
     return ticket.status;
   };
 
-  const getSportLevelLabel = (level?: SportLevel) => {
-    switch (level) {
-      case 'WEAK': return 'Mới chơi';
-      case 'WEAK_AVERAGE': return 'Yếu - Trung bình';
-      case 'AVERAGE': return 'Trung bình';
-      case 'AVERAGE_GOOD': return 'Bán chuyên';
-      case 'GOOD': return 'Chuyên nghiệp';
-      default: return 'Mọi trình độ';
-    }
-  };
 
   const getSportIcon = (): keyof typeof MaterialIcons.glyphMap => {
     const text = `${ticket.venueName || ''} ${ticket.courtName || ''}`.toLowerCase();

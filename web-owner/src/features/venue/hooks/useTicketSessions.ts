@@ -70,15 +70,17 @@ export const useTicketSessions = (venueId: string | null) => {
 export const getSportLevelLabel = (level: string): string => {
   switch (level) {
     case 'WEAK':
-      return 'Yếu (Beginner)';
+      return 'Yếu (< 900 Elo)';
     case 'WEAK_AVERAGE':
-      return 'Yếu - Trung bình';
+      return 'Trung bình - Yếu (900 - 1199 Elo)';
     case 'AVERAGE':
-      return 'Trung bình (Intermediate)';
+      return 'Trung bình (1200 - 1499 Elo)';
     case 'AVERAGE_GOOD':
-      return 'Trung bình - Khá';
+      return 'Trung bình - Khá (1500 - 1799 Elo)';
     case 'GOOD':
-      return 'Khá - Khéo (Advanced)';
+      return 'Bán chuyên (1800 - 2099 Elo)';
+    case 'PRO':
+      return 'Chuyên nghiệp (≥ 2100 Elo)';
     case 'ALL':
       return 'Mọi trình độ';
     default:

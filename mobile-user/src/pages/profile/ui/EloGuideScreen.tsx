@@ -143,7 +143,7 @@ export function EloGuideScreen() {
                   </View>
                 </View>
                 <Text style={styles.stageDesc}>
-                  Khi mới tham gia môn thể thao, bạn được tự chọn mức trình độ ban đầu (Yếu 900 Elo → Khá 2100 Elo) dựa trên kinh nghiệm cá nhân.
+                  Khi mới tham gia môn thể thao, bạn được tự chọn mức trình độ ban đầu (Yếu &lt; 900 Elo → Chuyên nghiệp ≥ 2100 Elo) dựa trên kinh nghiệm cá nhân.
                 </Text>
                 <View style={styles.stageNoticeBox}>
                   <Ionicons name="create-outline" size={14} color="#64748B" />
@@ -323,7 +323,7 @@ export function EloGuideScreen() {
               },
               {
                 q: 'Tôi cần khoảng bao nhiêu trận thắng để nâng một bậc trình độ (ví dụ từ Yếu lên Trung bình)?',
-                a: 'Khoảng cách giữa các bậc trình độ (Yếu 900 Elo → Trung bình 1500 Elo → Khá 2100 Elo) là từ 300 đến 600 Elo. Trong thể thao thực tế, không ai có thể lên trình chỉ sau vài trận đấu. Bạn cần duy trì phong độ và thắng ròng khoảng 15 đến 25 trận để chính thức nâng một bậc trình độ trên hệ thống.',
+                a: 'Khoảng cách giữa các bậc trình độ (Yếu &lt; 900 Elo → Trung bình 1200 - 1499 Elo → Chuyên nghiệp ≥ 2100 Elo) là từ 300 đến 600 Elo. Trong thể thao thực tế, không ai có thể lên trình chỉ sau vài trận đấu. Bạn cần duy trì phong độ và thắng ròng khoảng 15 đến 25 trận để chính thức nâng một bậc trình độ trên hệ thống.',
               },
               {
                 q: 'Thắng với cách biệt tỷ số lớn (5 - 0, 10 - 1...) có được thưởng thêm điểm không?',

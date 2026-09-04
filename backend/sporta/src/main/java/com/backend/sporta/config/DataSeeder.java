@@ -257,12 +257,13 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS last_match_at TIMESTAMP");
 
             jdbcTemplate.execute("UPDATE user_sports SET elo_rating = CASE " +
-                    "WHEN level = 'WEAK' THEN 900 " +
-                    "WHEN level = 'WEAK_AVERAGE' THEN 1200 " +
-                    "WHEN level = 'AVERAGE' THEN 1500 " +
-                    "WHEN level = 'AVERAGE_GOOD' THEN 1800 " +
-                    "WHEN level = 'GOOD' THEN 2100 " +
-                    "ELSE 1000 END WHERE elo_rating IS NULL");
+                    "WHEN level = 'WEAK' THEN 800 " +
+                    "WHEN level = 'WEAK_AVERAGE' THEN 1050 " +
+                    "WHEN level = 'AVERAGE' THEN 1350 " +
+                    "WHEN level = 'AVERAGE_GOOD' THEN 1650 " +
+                    "WHEN level = 'GOOD' THEN 1950 " +
+                    "WHEN level = 'PRO' THEN 2200 " +
+                    "ELSE 1350 END WHERE elo_rating IS NULL");
 
             jdbcTemplate.execute("UPDATE user_sports SET elo_status = 'UNVERIFIED' WHERE elo_status IS NULL");
             jdbcTemplate.execute("UPDATE user_sports SET placement_matches_played = 0 WHERE placement_matches_played IS NULL");

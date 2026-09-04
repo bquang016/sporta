@@ -301,11 +301,19 @@ export function ClubsScreen() {
                   onPress={() => removeAppliedFilter('eloRange')}
                 >
                   <Text style={styles.activeFilterTagText}>
-                    {appliedFilters.eloRange === 'beginner'
-                      ? 'Cơ bản'
-                      : appliedFilters.eloRange === 'intermediate'
-                      ? 'Phong trào'
-                      : 'Bán chuyên'}
+                    {appliedFilters.eloRange === 'weak'
+                      ? 'Yếu (< 900)'
+                      : appliedFilters.eloRange === 'weak_avg'
+                      ? 'TB - Yếu'
+                      : appliedFilters.eloRange === 'average'
+                      ? 'Trung bình'
+                      : appliedFilters.eloRange === 'avg_good'
+                      ? 'TB - Khá'
+                      : appliedFilters.eloRange === 'semi_pro'
+                      ? 'Bán chuyên'
+                      : appliedFilters.eloRange === 'pro'
+                      ? 'Chuyên nghiệp'
+                      : 'Trình độ'}
                   </Text>
                   <MaterialIcons name="close" size={14} color={COLORS.primary} />
                 </TouchableOpacity>

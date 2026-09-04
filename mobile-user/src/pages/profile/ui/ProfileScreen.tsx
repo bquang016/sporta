@@ -19,6 +19,7 @@ import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/conf
 import { Avatar } from '../../../shared/ui/Avatar/Avatar';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 import { useProfile } from '../hooks/useProfile';
+import { getEloLevelLabel, getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 const HEADER_HEIGHT = 56;
 
@@ -93,9 +94,9 @@ export function ProfileScreen() {
   }, [profileData?.sports]);
 
   const currentSport = userSports[Math.min(selectedSportIndex, userSports.length - 1)] || userSports[0];
-  const currentElo = currentSport?.eloRating ?? 1500;
+  const currentElo = currentSport?.eloRating ?? 1350;
   const currentEloStatus = currentSport?.eloStatus ?? 'UNVERIFIED';
-  const currentLevelLabel = currentSport?.levelLabel || (currentSport?.level === 'GOOD' ? 'Khá' : currentSport?.level === 'WEAK' ? 'Yếu' : 'Trung bình');
+  const currentLevelLabel = currentSport?.levelLabel || (currentSport?.eloRating != null ? getEloLevelLabel(currentSport.eloRating) : getSportLevelLabel(currentSport?.level));
   const totalMatches = currentSport?.totalRankedMatches ?? 0;
   const totalWins = currentSport?.totalWins ?? 0;
   const winRate = currentSport?.winRate ?? (totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0);

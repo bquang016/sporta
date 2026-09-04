@@ -21,11 +21,12 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 type SportTabFilter = 'ALL' | 'VERIFIED' | 'CALIBRATING' | 'UNVERIFIED';
 
 const SPORT_LEVELS = [
-  { key: 'WEAK', label: 'Yếu', elo: 900, desc: 'Mới tập chơi, nắm luật cơ bản, đang làm quen cảm giác bóng' },
-  { key: 'WEAK_AVERAGE', label: 'Trung bình - Yếu', elo: 1200, desc: 'Chơi phong trào thường xuyên, thể lực trung bình, xử lý cơ bản' },
-  { key: 'AVERAGE', label: 'Trung bình (Chuẩn)', elo: 1500, desc: 'Kỹ thuật tương đối tốt, hiểu chiến thuật, phong độ ổn định' },
-  { key: 'AVERAGE_GOOD', label: 'Trung bình - Khá', elo: 1800, desc: 'Kỹ năng vững vàng, xử lý bóng nhanh, thể lực tốt' },
-  { key: 'GOOD', label: 'Khá / Bán chuyên', elo: 2100, desc: 'Từng tập luyện bài bản, thi đấu giải phong trào, kỹ thuật cao' },
+  { key: 'WEAK', label: 'Yếu', elo: 800, range: '0 - 899', desc: 'Mới tập chơi, nắm luật cơ bản, đang làm quen cảm giác bóng' },
+  { key: 'WEAK_AVERAGE', label: 'Trung bình - Yếu', elo: 1050, range: '900 - 1199', desc: 'Chơi phong trào thường xuyên, thể lực trung bình, xử lý cơ bản' },
+  { key: 'AVERAGE', label: 'Trung bình', elo: 1350, range: '1200 - 1499', desc: 'Kỹ thuật ổn định, hiểu chiến thuật, kiểm soát nhịp độ tốt' },
+  { key: 'AVERAGE_GOOD', label: 'Trung bình - Khá', elo: 1650, range: '1500 - 1799', desc: 'Kỹ năng vững vàng, xử lý bóng nhanh, thể lực dồi dào' },
+  { key: 'GOOD', label: 'Bán chuyên', elo: 1950, range: '1800 - 2099', desc: 'Tập luyện bài bản, thi đấu giải phong trào, kỹ chiến thuật cao' },
+  { key: 'PRO', label: 'Chuyên nghiệp', elo: 2200, range: '2100+', desc: 'Vận động viên thi đấu chuyên nghiệp, đẳng cấp đỉnh cao' },
 ];
 
 export function SportsEloScreen() {
@@ -55,6 +56,19 @@ export function SportsEloScreen() {
 
   const handleSelectLevel = async (levelKey: string) => {
     if (!selectedSportForEdit) return;
+
+    const isLocked =
+      selectedSportForEdit.eloStatus === 'CALIBRATING' ||
+      selectedSportForEdit.eloStatus === 'VERIFIED' ||
+      (selectedSportForEdit.placementMatchesPlayed || 0) > 0 ||
+      (selectedSportForEdit.totalRankedMatches || 0) > 0;
+
+    if (isLocked) {
+      Alert.alert('Không thể chỉnh sửa', 'Môn này đã tham gia trận đấu hoặc đang trong quá trình phân hạng Elo.');
+      setSelectedSportForEdit(null);
+      return;
+    }
+
     try {
       setUpdating(true);
       const updated = await usersApi.updateSportLevel({
@@ -188,18 +202,27 @@ export function SportsEloScreen() {
           <View style={styles.sportsList}>
             {filteredSports.map((sport) => {
               const iconName = getSportIcon(sport.sportName);
-              const isConfigured = sport.isRegistered && sport.eloRating != null;
-              const elo = sport.eloRating || 1500;
-              const levelLabel = sport.levelLabel || 'Chưa thiết lập';
               const status = sport.eloStatus || 'UNVERIFIED';
               const played = sport.placementMatchesPlayed || 0;
+              const totalRanked = sport.totalRankedMatches || 0;
 
               const isVerified = status === 'VERIFIED';
               const isCalibrating = status === 'CALIBRATING';
-              const isUnverified = !isVerified && !isCalibrating;
+              const hasPlayedMatches = played > 0 || totalRanked > 0;
 
-              // Strict locking rule: Can only edit if UNVERIFIED and 0 matches played
-              const canEditLevel = !sport.isRegistered || (isUnverified && played === 0 && (sport.totalRankedMatches || 0) === 0);
+              // Configured if registered or has Elo or is in active match lifecycle
+              const isConfigured = Boolean(
+                sport.isRegistered ||
+                sport.eloRating != null ||
+                isCalibrating ||
+                isVerified ||
+                hasPlayedMatches
+              );
+              const elo = sport.eloRating ?? 1350;
+              const levelLabel = sport.levelLabel || 'Chưa thiết lập';
+
+              // Strict locking rule: Can only set up / re-select initial level if NOT verified, NOT calibrating, and 0 matches played
+              const canEditLevel = !isVerified && !isCalibrating && !hasPlayedMatches;
 
               return (
                 <View
@@ -269,7 +292,7 @@ export function SportsEloScreen() {
                         </Text>
                         <Text style={styles.eloScoreLabel}>Điểm Elo</Text>
                       </View>
-                    ) : (
+                    ) : canEditLevel ? (
                       <TouchableOpacity
                         style={styles.setupBtn}
                         onPress={() => setSelectedSportForEdit(sport)}
@@ -278,6 +301,11 @@ export function SportsEloScreen() {
                         <Text style={styles.setupBtnText}>Thiết lập</Text>
                         <Ionicons name="add-circle" size={16} color="#059669" />
                       </TouchableOpacity>
+                    ) : (
+                      <View style={styles.eloScoreContainer}>
+                        <Text style={[styles.eloScoreNumber, { color: '#64748B' }]}>---</Text>
+                        <Text style={styles.eloScoreLabel}>Điểm Elo</Text>
+                      </View>
                     )}
                   </View>
 
@@ -419,7 +447,7 @@ export function SportsEloScreen() {
                                 {lvl.label}
                               </Text>
                               <View style={styles.levelEloBadge}>
-                                <Text style={styles.levelEloBadgeText}>{lvl.elo} Elo</Text>
+                                <Text style={styles.levelEloBadgeText}>{lvl.elo} Elo ({lvl.range})</Text>
                               </View>
                             </View>
 

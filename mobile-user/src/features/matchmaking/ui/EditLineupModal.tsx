@@ -22,6 +22,7 @@ import {
 } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 import { UserAvatar } from '../../../shared/ui/UserAvatar';
+import { getEloLevelLabel } from '../../../shared/lib/utils/elo';
 
 export interface EditLineupModalProps {
   visible: boolean;
@@ -270,7 +271,7 @@ export function EditLineupModal({
                   <View style={styles.heroStatDivider} />
                   <View style={styles.heroStatItem}>
                     <Text style={styles.heroStatLabel}>Hạng ELO</Text>
-                    <Text style={styles.heroStatValue}>{currentLineup?.eloAvg >= 1600 ? 'Bán chuyên' : 'Trung bình'}</Text>
+                    <Text style={styles.heroStatValue}>{getEloLevelLabel(currentLineup?.eloAvg)}</Text>
                   </View>
                 </View>
               </View>

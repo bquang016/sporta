@@ -40,7 +40,7 @@ const MOCK_AVATARS: AvatarItem[] = [
 ];
 
 const ACTIVITY_LEVELS = ['Hàng tuần', '2-3 buổi/tuần', 'Tự do'];
-const ELO_PRESETS = [0, 1200, 1400, 1600, 1800];
+const ELO_PRESETS = [0, 900, 1200, 1500, 1800, 2100];
 const MEMBER_LIMIT_PRESETS = [20, 30, 50, 100];
 
 export interface EditClubModalProps {

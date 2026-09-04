@@ -156,11 +156,18 @@ export function filterClubs(
 
     // 4. ELO Range Filter
     if (appliedFilters.eloRange !== 'all') {
-      const elo = club.averageElo || 1200;
+      const elo = club.averageElo || club.elo || 1350;
 
-      if (appliedFilters.eloRange === 'beginner' && elo >= 1200) return false;
-      if (appliedFilters.eloRange === 'intermediate' && (elo < 1200 || elo > 1400)) return false;
-      if (appliedFilters.eloRange === 'advanced' && elo <= 1400) return false;
+      if (appliedFilters.eloRange === 'weak' && elo >= 900) return false;
+      if (appliedFilters.eloRange === 'weak_avg' && (elo < 900 || elo >= 1200)) return false;
+      if (appliedFilters.eloRange === 'average' && (elo < 1200 || elo >= 1500)) return false;
+      if (appliedFilters.eloRange === 'avg_good' && (elo < 1500 || elo >= 1800)) return false;
+      if (appliedFilters.eloRange === 'semi_pro' && (elo < 1800 || elo >= 2100)) return false;
+      if (appliedFilters.eloRange === 'pro' && elo < 2100) return false;
+      // Legacy backwards-compatibility
+      if (appliedFilters.eloRange === 'beginner' && elo >= 900) return false;
+      if (appliedFilters.eloRange === 'intermediate' && (elo < 1200 || elo >= 1500)) return false;
+      if (appliedFilters.eloRange === 'advanced' && (elo < 1800 || elo >= 2100)) return false;
     }
 
     // 5. Province & Ward / District Filter

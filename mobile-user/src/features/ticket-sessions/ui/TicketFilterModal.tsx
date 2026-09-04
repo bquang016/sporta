@@ -33,10 +33,12 @@ export function TicketFilterModal({ visible, filters, onClose, onApply, onReset 
 
   const LEVEL_OPTIONS = [
     { label: 'Tất cả trình độ', value: 'ALL' as const },
-    { label: 'Mới chơi', value: 'WEAK' as const },
-    { label: 'Trung bình', value: 'AVERAGE' as const },
-    { label: 'Bán chuyên', value: 'AVERAGE_GOOD' as const },
-    { label: 'Chuyên nghiệp', value: 'GOOD' as const },
+    { label: 'Yếu (< 900)', value: 'WEAK' as const },
+    { label: 'Trung bình - Yếu (900 - 1199)', value: 'WEAK_AVERAGE' as const },
+    { label: 'Trung bình (1200 - 1499)', value: 'AVERAGE' as const },
+    { label: 'Trung bình - Khá (1500 - 1799)', value: 'AVERAGE_GOOD' as const },
+    { label: 'Bán chuyên (1800 - 2099)', value: 'GOOD' as const },
+    { label: 'Chuyên nghiệp (≥ 2100)', value: 'PRO' as const },
   ];
 
   const handleApply = () => {

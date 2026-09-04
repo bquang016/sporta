@@ -6,5 +6,6 @@ public enum SportLevel {
     AVERAGE,
     AVERAGE_GOOD,
     GOOD,
+    PRO,
     ALL
 }

@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { TicketSession } from '../../../entities/ticket/model/ticket.types';
 import { fetchDevUsers, devForceFinishXeVe, DevUserSummary } from '../../../entities/ticket/api/ticketApi';
+import { getSportLevelSeedElo } from '../../../shared/lib/utils/elo';
 
 interface DevXeVeTestPanelProps {
   session: TicketSession;
@@ -45,14 +46,7 @@ export function DevXeVeTestPanel({ session, onRefresh }: DevXeVeTestPanelProps) 
   const isFixedHost = Boolean(session.hasHostTeam);
 
   const getHostTeamBenchmarkElo = () => {
-    switch (session.hostTeamLevel) {
-      case 'GOOD': return 2100;
-      case 'AVERAGE_GOOD': return 1800;
-      case 'AVERAGE': return 1500;
-      case 'WEAK_AVERAGE': return 1200;
-      case 'WEAK': return 900;
-      default: return 1500;
-    }
+    return getSportLevelSeedElo(session.hostTeamLevel);
   };
 
   // Initial load of system users
