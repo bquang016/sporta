@@ -34,7 +34,7 @@ export const getBaseUrl = (): string => {
   }
 
   // 4. Fallback cuối cùng
-  return envUrl || 'http://localhost:8387/api/v1';
+  return envUrl || 'https://api.sportaa.tech/api/v1';
 };
 
 export const API_BASE_URL = getBaseUrl();
