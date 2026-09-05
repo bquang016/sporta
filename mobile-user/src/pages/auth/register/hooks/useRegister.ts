@@ -44,13 +44,11 @@ export function useRegister() {
     try {
       const res = await googleLoginApi(idToken);
       if (res.isNewUser) {
-        const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
         router.push({
           pathname: '/(auth)/personal-info',
           params: {
             registrationToken: res.registrationToken,
             email: res.email,
-            password: dummyPassword,
             fullName: res.fullName,
           },
         });

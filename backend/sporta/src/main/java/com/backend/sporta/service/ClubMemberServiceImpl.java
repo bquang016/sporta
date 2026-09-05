@@ -489,7 +489,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
 
         String avatar = (member.getUser() != null && member.getUser().getAvatarUrl() != null && !member.getUser().getAvatarUrl().trim().isEmpty())
                 ? member.getUser().getAvatarUrl()
-                : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
+                : null;
 
         return ClubMemberResponse.builder()
                 .id(member.getId())

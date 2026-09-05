@@ -221,7 +221,8 @@ export function useHomeScreen() {
         handleLoginPress,
         undefined,
         'Đăng nhập',
-        'Hủy'
+        'Hủy',
+        { icon: 'login', iconColor: '#064E3B' }
       );
     }
   };

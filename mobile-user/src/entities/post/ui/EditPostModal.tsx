@@ -141,7 +141,7 @@ export const EditPostModal = React.memo(({
                 source={{
                   uri:
                     post.author.avatar ||
-                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+                    '',
                 }}
                 style={styles.authorAvatar}
               />

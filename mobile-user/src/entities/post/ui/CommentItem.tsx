@@ -25,7 +25,7 @@ export const CommentItem = React.memo(({
           source={{
             uri:
               comment.author.avatar ||
-              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+              '',
           }}
           style={styles.avatar}
         />

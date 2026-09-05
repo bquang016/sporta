@@ -18,6 +18,7 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 import { LinearGradient } from 'expo-linear-gradient';
 import { usersApi, RankedMatchHistoryItemDto } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { Avatar } from '../../../shared/ui';
 
 type FilterType = 'ALL' | 'XE_VE' | 'CLUB_RANKED' | 'WIN' | 'LOSS';
 
@@ -273,17 +274,7 @@ export function RankedMatchesScreen() {
                       {/* Host Team */}
                       <View style={styles.teamCol}>
                         <View style={styles.teamAvatarWrap}>
-                          {m.hostAvatarUrl ? (
-                            <Image source={{ uri: m.hostAvatarUrl }} style={styles.teamAvatarImg} />
-                          ) : (
-                            <View style={[styles.teamAvatarPlaceholder, { backgroundColor: isXeVe ? '#DBEAFE' : '#E0E7FF' }]}>
-                              <MaterialCommunityIcons
-                                name={isXeVe ? 'account-group' : 'shield'}
-                                size={18}
-                                color={isXeVe ? '#2563EB' : '#4338CA'}
-                              />
-                            </View>
-                          )}
+                          <Avatar size={38} source={m.hostAvatarUrl} fallbackType={isXeVe ? 'user' : 'club'} />
                           {m.userSide === 'HOST' && (
                             <View style={styles.userBadgeOnAvatar}>
                               <Text style={styles.userBadgeOnAvatarText}>BẠN</Text>
@@ -319,17 +310,7 @@ export function RankedMatchesScreen() {
                       {/* Guest Team */}
                       <View style={styles.teamCol}>
                         <View style={styles.teamAvatarWrap}>
-                          {m.guestAvatarUrl ? (
-                            <Image source={{ uri: m.guestAvatarUrl }} style={styles.teamAvatarImg} />
-                          ) : (
-                            <View style={[styles.teamAvatarPlaceholder, { backgroundColor: isXeVe ? '#FFEDD5' : '#FEF3C7' }]}>
-                              <MaterialCommunityIcons
-                                name={isXeVe ? 'account-group' : 'shield'}
-                                size={18}
-                                color={isXeVe ? '#EA580C' : '#D97706'}
-                              />
-                            </View>
-                          )}
+                          <Avatar size={38} source={m.guestAvatarUrl} fallbackType={isXeVe ? 'user' : 'club'} />
                           {m.userSide === 'GUEST' && (
                             <View style={styles.userBadgeOnAvatar}>
                               <Text style={styles.userBadgeOnAvatarText}>BẠN</Text>
@@ -462,16 +443,7 @@ export function RankedMatchesScreen() {
                     <View style={styles.detailHeroBox}>
                       <View style={styles.detailTeamCol}>
                         <View style={styles.detailAvatarWrap}>
-                          {selectedMatchForDetail.hostAvatarUrl ? (
-                            <Image
-                              source={{ uri: selectedMatchForDetail.hostAvatarUrl }}
-                              style={styles.detailAvatarImg}
-                            />
-                          ) : (
-                            <View style={[styles.detailAvatarPlaceholder, { backgroundColor: '#DBEAFE' }]}>
-                              <MaterialCommunityIcons name="shield" size={24} color="#2563EB" />
-                            </View>
-                          )}
+                          <Avatar size={48} source={selectedMatchForDetail.hostAvatarUrl} fallbackType={selectedMatchForDetail.matchType === 'XE_VE' ? 'user' : 'club'} />
                         </View>
                         <Text style={styles.detailTeamName} numberOfLines={2}>
                           {selectedMatchForDetail.hostName}
@@ -499,16 +471,7 @@ export function RankedMatchesScreen() {
 
                       <View style={styles.detailTeamCol}>
                         <View style={styles.detailAvatarWrap}>
-                          {selectedMatchForDetail.guestAvatarUrl ? (
-                            <Image
-                              source={{ uri: selectedMatchForDetail.guestAvatarUrl }}
-                              style={styles.detailAvatarImg}
-                            />
-                          ) : (
-                            <View style={[styles.detailAvatarPlaceholder, { backgroundColor: '#FFEDD5' }]}>
-                              <MaterialCommunityIcons name="shield" size={24} color="#EA580C" />
-                            </View>
-                          )}
+                          <Avatar size={48} source={selectedMatchForDetail.guestAvatarUrl} fallbackType={selectedMatchForDetail.matchType === 'XE_VE' ? 'user' : 'club'} />
                         </View>
                         <Text style={styles.detailTeamName} numberOfLines={2}>
                           {selectedMatchForDetail.guestName}

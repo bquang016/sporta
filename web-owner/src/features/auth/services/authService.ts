@@ -38,4 +38,50 @@ export const authService = {
 
     return data;
   },
+
+  async sendForgotPasswordOtp(email: string): Promise<{ message: string }> {
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const response = await fetch(`http://${host}:8387/api/v1/auth/forgot-password/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Gửi mã OTP thất bại.');
+    }
+    return data;
+  },
+
+  async verifyForgotPasswordOtp(email: string, otp: string): Promise<{ resetToken: string; message: string }> {
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const response = await fetch(`http://${host}:8387/api/v1/auth/forgot-password/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Mã OTP không hợp lệ.');
+    }
+    return data;
+  },
+
+  async resetPassword(resetToken: string, newPassword: string, confirmPassword: string): Promise<{ message: string }> {
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const response = await fetch(`http://${host}:8387/api/v1/auth/forgot-password/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Đặt lại mật khẩu thất bại.');
+    }
+    return data;
+  },
 };
+

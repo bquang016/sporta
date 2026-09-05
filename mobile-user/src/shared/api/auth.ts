@@ -120,3 +120,54 @@ export const changePasswordApi = async (currentPassword: string, newPassword: st
 
   return response.json();
 };
+
+export const forgotPasswordSendOtpApi = async (email: string) => {
+  const response = await fetch(`${getBaseUrl()}/auth/forgot-password/send-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Gửi mã OTP thất bại');
+  }
+
+  return response.json();
+};
+
+export const forgotPasswordVerifyOtpApi = async (email: string, otp: string) => {
+  const response = await fetch(`${getBaseUrl()}/auth/forgot-password/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Mã OTP không hợp lệ');
+  }
+
+  return response.json();
+};
+
+export const resetPasswordApi = async (resetToken: string, newPassword: string, confirmPassword: string) => {
+  const response = await fetch(`${getBaseUrl()}/auth/forgot-password/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Đặt lại mật khẩu thất bại');
+  }
+
+  return response.json();
+};

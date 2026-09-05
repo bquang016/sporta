@@ -23,12 +23,20 @@ const DEFAULT_PLAYER_AVATAR = require('../../../../../assets/player/player_699x6
 export function PersonalInfoScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
+  const { registrationToken, email, password: initialPassword, fullName: initialFullName, avatarUrl: initialAvatarUrl } = useLocalSearchParams();
+
+  const [password, setPassword] = useState(
+    typeof initialPassword === 'string' ? initialPassword : ''
+  );
+  const [showPassword, setShowPassword] = useState(false);
+  const [isFocusedPassword, setIsFocusedPassword] = useState(false);
 
   const [fullName, setFullName] = useState(
     typeof initialFullName === 'string' ? initialFullName : ''
   );
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(
+    typeof initialAvatarUrl === 'string' ? initialAvatarUrl : null
+  );
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(new Date(2000, 0, 1));
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
   const [dateInputText, setDateInputText] = useState('01/01/2000');
@@ -122,6 +130,10 @@ export function PersonalInfoScreen() {
       );
       return;
     }
+    if (!initialPassword && (!password || password.length < 6)) {
+      showAlert('Thiếu thông tin', 'Vui lòng tạo mật khẩu (ít nhất 6 ký tự).');
+      return;
+    }
 
     const formattedDob = `${dateOfBirth.getFullYear()}-${(dateOfBirth.getMonth() + 1)
       .toString()
@@ -132,7 +144,7 @@ export function PersonalInfoScreen() {
       params: {
         registrationToken,
         email,
-        password,
+        password: initialPassword || password,
         fullName: trimmedName,
         dateOfBirth: formattedDob,
         gender,
@@ -253,6 +265,48 @@ export function PersonalInfoScreen() {
                   />
                 </View>
               </View>
+
+              {/* Password Input for Google Login Flow */}
+              {!initialPassword && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Tạo mật khẩu <Text style={styles.requiredStar}>*</Text>
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      isFocusedPassword && styles.inputWrapperFocused,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="lock-outline"
+                      size={20}
+                      color={isFocusedPassword ? '#064E3B' : '#8A929A'}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Ít nhất 6 ký tự"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      placeholderTextColor="#9AA1A9"
+                      onFocus={() => setIsFocusedPassword(true)}
+                      onBlur={() => setIsFocusedPassword(false)}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#8A929A"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               {/* Date of Birth */}
               <View style={styles.inputGroup}>

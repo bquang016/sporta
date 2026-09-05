@@ -26,17 +26,17 @@ import { CoverPickerModal, CoverItem } from '../../../create-club/ui/components/
 import { AvatarPickerModal, AvatarItem } from '../../../create-club/ui/components/AvatarPickerModal';
 
 const MOCK_COVERS: CoverItem[] = [
-  { id: 'cover-1', name: 'Bóng đá sân cỏ', url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&auto=format&fit=crop&q=80', color: COLORS.primary },
-  { id: 'cover-2', name: 'Bóng rổ rực lửa', url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&auto=format&fit=crop&q=80', color: COLORS.amber },
-  { id: 'cover-3', name: 'Cầu lông năng động', url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80', color: COLORS.primary },
-  { id: 'cover-4', name: 'Pickleball nhiệt huyết', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80', color: COLORS.pickleball },
+  { id: 'cover-1', name: 'Bóng đá sân cỏ', url: '', color: COLORS.primary },
+  { id: 'cover-2', name: 'Bóng rổ rực lửa', url: '', color: COLORS.amber },
+  { id: 'cover-3', name: 'Cầu lông năng động', url: '', color: COLORS.primary },
+  { id: 'cover-4', name: 'Pickleball nhiệt huyết', url: '', color: COLORS.pickleball },
 ];
 
 const MOCK_AVATARS: AvatarItem[] = [
-  { id: 'avatar-1', name: 'Bóng đá FC', url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=200&auto=format&fit=crop&q=80', icon: 'sports-soccer' },
-  { id: 'avatar-2', name: 'Bóng rổ Stars', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&auto=format&fit=crop&q=80', icon: 'sports-basketball' },
-  { id: 'avatar-3', name: 'Cầu lông Pro', url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=200&auto=format&fit=crop&q=80', icon: 'sports-tennis' },
-  { id: 'avatar-4', name: 'Pickleball Ace', url: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=200&auto=format&fit=crop&q=80', icon: 'sports-tennis' },
+  { id: 'avatar-1', name: 'Bóng đá FC', url: '', icon: 'sports-soccer' },
+  { id: 'avatar-2', name: 'Bóng rổ Stars', url: '', icon: 'sports-basketball' },
+  { id: 'avatar-3', name: 'Cầu lông Pro', url: '', icon: 'sports-tennis' },
+  { id: 'avatar-4', name: 'Pickleball Ace', url: '', icon: 'sports-tennis' },
 ];
 
 const ACTIVITY_LEVELS = ['Hàng tuần', '2-3 buổi/tuần', 'Tự do'];

@@ -24,7 +24,7 @@ const PROMO_EVENTS: PromoEvent[] = [
     badge: 'Khuyến mãi',
     gradient: ['#00C853', '#00B0FF'] as const,
     icon: 'local-offer',
-    imageUrl: 'https://images.unsplash.com/photo-1580828343064-fde4fc206bc6?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHByb21vdGlvbnxlbnwwfHwwfHx8MA%3D%3D',
+    imageUrl: '',
   },
   {
     id: 'promo-3',

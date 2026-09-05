@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Modal } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Avatar } from '../../../../shared/ui';
 import { MatchPollVM, PollOptionVM, LineupVM, LineupMemberVM } from '../../../../entities/match/model/match.types';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 import { DevPollVoteModal } from './DevPollVoteModal';
@@ -339,7 +340,7 @@ export function PollCard({
                               <Text style={styles.voterRole}>{voter.role || 'Thành viên'}</Text>
                             </View>
                             <View style={styles.voterEloPill}>
-                              <Text style={styles.voterEloText}>{voter.elo} Elo</Text>
+                              <Text style={styles.voterEloText}>{voter.elo || 1200} Elo</Text>
                             </View>
                           </View>
                         ))}

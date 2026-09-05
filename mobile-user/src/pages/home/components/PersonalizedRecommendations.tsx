@@ -158,7 +158,7 @@ export function PersonalizedRecommendations({
           const reasonConfig = getReasonConfig(venue.reasonType);
           const coverUrl =
             venue.coverImage ||
-            'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500&auto=format&fit=crop&q=80';
+            '';
 
           return (
             <TouchableOpacity

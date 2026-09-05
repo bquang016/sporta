@@ -305,7 +305,7 @@ public class ClubPollServiceImpl implements ClubPollService {
         Integer virtualElo = 1000 + (int)(user.getId() % 300) + 150;
         String avatar = (user.getAvatarUrl() != null && !user.getAvatarUrl().trim().isEmpty())
                 ? user.getAvatarUrl()
-                : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
+                : null;
 
         return PollVoterDto.builder()
                 .userId(user.getId())

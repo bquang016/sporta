@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Avatar } from '../../../../shared/ui';
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
 import { MatchmakingService } from '../../../../shared/api/matchmaking';

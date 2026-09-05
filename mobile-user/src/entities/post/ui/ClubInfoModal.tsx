@@ -191,11 +191,11 @@ function ClubInfoModalContent({
     clubDetail?.avatarImage ||
     clubDetail?.avatarUrl ||
     clubInfo.avatarUrl ||
-    'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=300';
+    '';
 
   const displayCover =
     clubDetail?.coverImage ||
-    'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1000&auto=format&fit=crop&q=80';
+    '';
 
   const displayName = clubDetail?.name || clubInfo.name;
   const displayDescription =
@@ -518,7 +518,7 @@ function ClubInfoModalContent({
                         source={{
                           uri:
                             leader.avatar ||
-                            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                            '',
                         }}
                         style={styles.leaderAvatar}
                       />
@@ -562,7 +562,7 @@ function ClubInfoModalContent({
                       source={{
                         uri:
                           member.avatar ||
-                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+                          '',
                       }}
                       style={[styles.stackedAvatar, { marginLeft: idx === 0 ? 0 : -10 }]}
                     />
