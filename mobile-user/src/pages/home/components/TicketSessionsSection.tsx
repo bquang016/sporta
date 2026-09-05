@@ -158,7 +158,7 @@ export function TicketSessionsSection({ sessions, loading, error }: TicketSessio
             <Ionicons name="ticket-outline" size={17} color={COLORS.primary} />
           </View>
           <View>
-            <Text style={styles.sectionTitle}>Sân Chơi Xé Vé</Text>
+            <Text style={styles.sectionTitle}>Sân chơi xé vé</Text>
             <Text style={styles.sectionSub}>Ghé sân chơi lẻ · Tiết kiệm chi phí</Text>
           </View>
         </View>

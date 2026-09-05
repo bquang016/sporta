@@ -113,7 +113,7 @@ export function MatchResultScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} activeOpacity={0.7}>
           <Ionicons name="close" size={20} color={COLORS.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kết Quả Trận Đấu</Text>
+        <Text style={styles.headerTitle}>Kết quả trận đấu</Text>
         <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn} activeOpacity={0.7}>
           <Ionicons name="refresh-outline" size={18} color={COLORS.onSurface} />
         </TouchableOpacity>

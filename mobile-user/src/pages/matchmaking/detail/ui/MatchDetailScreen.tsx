@@ -586,7 +586,7 @@ export function MatchDetailScreen() {
           <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi Tiết Kèo Đấu</Text>
+          <Text style={styles.headerTitle}>Chi tiết kèo đấu</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <TouchableOpacity
               onPress={handleShareToCommunity}
@@ -624,7 +624,7 @@ export function MatchDetailScreen() {
                   color={isRanked ? '#FDE68A' : '#BAE6FD'}
                 />
                 <Text style={[styles.typeText, isRanked ? styles.rankedText : styles.friendlyText]}>
-                  {isRanked ? 'Xếp hạng CRP' : 'Trận Giao hữu'}
+                  {isRanked ? 'Xếp hạng CRP' : 'Trận giao hữu'}
                 </Text>
               </View>
 
@@ -672,7 +672,7 @@ export function MatchDetailScreen() {
               <View style={styles.sectionIconCircle}>
                 <Ionicons name="flame" size={16} color="#EA580C" />
               </View>
-              <Text style={styles.sectionTitle}>Tương Quan Đối Đầu</Text>
+              <Text style={styles.sectionTitle}>Tương quan đối đầu</Text>
             </View>
 
             <View style={styles.vsRow}>

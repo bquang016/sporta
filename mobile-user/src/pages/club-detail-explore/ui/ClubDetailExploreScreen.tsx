@@ -337,7 +337,7 @@ export function ClubDetailExploreScreen() {
               <View style={[styles.metricIconWrap, { backgroundColor: '#EFF6FF' }]}>
                 <MaterialIcons name="stars" size={16} color={COLORS.primary} />
               </View>
-              <Text style={styles.metricLabel}>ELO Trung Bình</Text>
+              <Text style={styles.metricLabel}>ELO trung bình</Text>
             </View>
             <Text style={[styles.metricValue, { color: COLORS.primary }]}>
               {club.averageElo || club.elo || 1000}
@@ -441,18 +441,18 @@ export function ClubDetailExploreScreen() {
               </View>
               <Text style={styles.subCardTitle}>Lịch sử đối đầu</Text>
               <Text style={styles.subCardDesc}>
-                {totalMatchesCount > 0 ? `${winRate}% Tỷ lệ thắng` : 'Chưa có trận giao hữu'}
+                {totalMatchesCount > 0 ? `${winRate}% tỷ lệ thắng` : 'Chưa có trận giao hữu'}
               </Text>
 
               <View style={styles.matchStatsRow}>
                 <Text style={[styles.matchStatBadge, { color: '#059669', backgroundColor: '#ECFDF5' }]}>
-                  {winsCount} Thắng
+                  {winsCount} thắng
                 </Text>
                 <Text style={[styles.matchStatBadge, { color: '#64748B', backgroundColor: '#F1F5F9' }]}>
-                  {drawsCount} Hòa
+                  {drawsCount} hòa
                 </Text>
                 <Text style={[styles.matchStatBadge, { color: '#EF4444', backgroundColor: '#FEF2F2' }]}>
-                  {lossesCount} Thua
+                  {lossesCount} thua
                 </Text>
               </View>
             </TouchableOpacity>

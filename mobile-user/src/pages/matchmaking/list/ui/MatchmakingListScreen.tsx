@@ -150,7 +150,7 @@ export function MatchmakingListScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Sàn Ghép Kèo Thể Thao</Text>
+            <Text style={styles.headerTitle}>Sàn ghép kèo thể thao</Text>
             <View style={styles.headerBadgeContainer}>
               <View style={styles.liveDot} />
               <Text style={styles.headerBadgeText}>

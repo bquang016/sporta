@@ -447,7 +447,7 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
                     keyboardType="numeric"
                     placeholderTextColor="#94A3B8"
                   />
-                  <Text style={styles.inputSuffix}>Người</Text>
+                  <Text style={styles.inputSuffix}>người</Text>
                 </View>
 
                 {/* Member presets */}

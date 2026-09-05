@@ -206,7 +206,7 @@ export function HomeScreen() {
                 <Ionicons name="navigate-outline" size={17} color={COLORS.primary} />
               </View>
               <View>
-                <Text style={styles.sectionTitle}>Sân Gần Bạn</Text>
+                <Text style={styles.sectionTitle}>Sân gần bạn</Text>
                 <Text style={styles.sectionSub}>Sân bãi chất lượng cao quanh khu vực bạn</Text>
               </View>
             </View>

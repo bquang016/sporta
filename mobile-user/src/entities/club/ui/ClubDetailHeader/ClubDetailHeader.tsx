@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   coverGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   sportBadgeCover: {
     position: 'absolute',

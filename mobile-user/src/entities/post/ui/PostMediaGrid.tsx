@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   moreOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',

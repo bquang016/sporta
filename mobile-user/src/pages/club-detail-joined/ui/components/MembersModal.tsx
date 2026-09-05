@@ -1241,13 +1241,13 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   sheetOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: 'flex-end',
     zIndex: 1000,
   },
   sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   sheetContent: {
     backgroundColor: '#FFFFFF',
@@ -1340,7 +1340,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   dialogOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1348,7 +1348,7 @@ const styles = StyleSheet.create({
     zIndex: 2000,
   },
   dialogBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   dialogCard: {
     width: '100%',

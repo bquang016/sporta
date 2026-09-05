@@ -106,9 +106,9 @@ export function LeaderboardScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>Bảng Xếp Hạng CLB</Text>
+          <Text style={styles.headerTitle}>Bảng xếp hạng CLB</Text>
           <Text style={styles.headerSubtitle}>
-            {rewardsInfo?.seasonName || 'Mùa 1 - 2026 • Tranh Bá Thể Thao'}
+            {rewardsInfo?.seasonName || 'Mùa 1 - 2026 • Tranh bá thể thao'}
           </Text>
         </View>
 
@@ -118,7 +118,7 @@ export function LeaderboardScreen() {
           activeOpacity={0.8}
         >
           <Ionicons name="trophy" size={16} color="#D97706" />
-          <Text style={styles.rewardsHeaderBtnText}>Phần Thưởng</Text>
+          <Text style={styles.rewardsHeaderBtnText}>Phần thưởng</Text>
         </TouchableOpacity>
       </View>
 
@@ -153,7 +153,7 @@ export function LeaderboardScreen() {
                 <Text style={styles.seasonTagText}>GIẢI ĐẤU MÙA 1 - 2026</Text>
               </View>
               <Text style={styles.bannerPrizeText}>
-                Quỹ Thưởng: {rewardsInfo?.totalPrizePool || '38.500.000 VNĐ'}
+                Quỹ thưởng: {rewardsInfo?.totalPrizePool || '38.500.000 VNĐ'}
               </Text>
               <Text style={styles.bannerCtaText}>
                 Xem cơ chế cúp, vé sân & tài trợ ➜

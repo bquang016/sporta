@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   modalContent: {
     width: '100%',

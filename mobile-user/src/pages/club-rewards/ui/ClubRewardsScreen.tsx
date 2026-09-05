@@ -178,9 +178,9 @@ export function ClubRewardsScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>Cơ Chế Phần Thưởng</Text>
+          <Text style={styles.headerTitle}>Cơ chế phần thưởng</Text>
           <Text style={styles.headerSubtitle}>
-            {rewardsInfo?.seasonName || 'Mùa 1 - 2026 • Tranh Bá Thể Thao'}
+            {rewardsInfo?.seasonName || 'Mùa 1 - 2026 • Tranh bá thể thao'}
           </Text>
         </View>
 
@@ -260,7 +260,7 @@ export function ClubRewardsScreen() {
                   <Ionicons name="star" size={18} color="#D97706" />
                 </View>
                 <View style={styles.sectionTitleCol}>
-                  <Text style={styles.sectionTitle}>Giải Thưởng Đại Quán Quân</Text>
+                  <Text style={styles.sectionTitle}>Giải thưởng đại quán quân</Text>
                   <Text style={styles.sectionSubTitle}>Dành cho CLB đạt điểm CRP cao nhất toàn hệ thống Sporta</Text>
                 </View>
               </View>
@@ -312,7 +312,7 @@ export function ClubRewardsScreen() {
                   <Ionicons name="football" size={18} color="#059669" />
                 </View>
                 <View style={styles.sectionTitleCol}>
-                  <Text style={styles.sectionTitle}>Giải Thưởng Từng Bộ Môn</Text>
+                  <Text style={styles.sectionTitle}>Giải thưởng từng bộ môn</Text>
                   <Text style={styles.sectionSubTitle}>Phần thưởng chuyên biệt cho từng môn thể thao</Text>
                 </View>
               </View>
@@ -389,7 +389,7 @@ export function ClubRewardsScreen() {
                   <Ionicons name="ribbon" size={18} color="#2563EB" />
                 </View>
                 <View style={styles.sectionTitleCol}>
-                  <Text style={styles.sectionTitle}>Khung Hạng & Quyền Lợi Chung</Text>
+                  <Text style={styles.sectionTitle}>Khung hạng & quyền lợi chung</Text>
                   <Text style={styles.sectionSubTitle}>Áp dụng cho tất cả các CLB tham gia thi đấu</Text>
                 </View>
               </View>
@@ -435,7 +435,7 @@ export function ClubRewardsScreen() {
                   <Ionicons name="analytics" size={18} color="#DB2777" />
                 </View>
                 <View style={styles.sectionTitleCol}>
-                  <Text style={styles.sectionTitle}>Cách Tính Điểm Xếp Hạng (CRP)</Text>
+                  <Text style={styles.sectionTitle}>Cách tính điểm xếp hạng (CRP)</Text>
                   <Text style={styles.sectionSubTitle}>Công thức tính điểm minh bạch qua từng trận đấu</Text>
                 </View>
               </View>
@@ -447,7 +447,7 @@ export function ClubRewardsScreen() {
                     <Text style={[styles.crpPointUnit, { color: '#047857' }]}>CRP</Text>
                   </View>
                   <View style={styles.crpPointDesc}>
-                    <Text style={styles.crpPointTitle}>Thắng Trận Xếp Hạng</Text>
+                    <Text style={styles.crpPointTitle}>Thắng trận xếp hạng</Text>
                     <Text style={styles.crpPointSubtitle}>Tùy thuộc vào mức chênh lệch trình độ giữa 2 CLB</Text>
                   </View>
                 </View>
@@ -458,7 +458,7 @@ export function ClubRewardsScreen() {
                     <Text style={[styles.crpPointUnit, { color: '#B45309' }]}>CRP</Text>
                   </View>
                   <View style={styles.crpPointDesc}>
-                    <Text style={styles.crpPointTitle}>Thưởng Vượt Cấp Elo</Text>
+                    <Text style={styles.crpPointTitle}>Thưởng vượt cấp Elo</Text>
                     <Text style={styles.crpPointSubtitle}>Khi đánh bại câu lạc bộ có điểm Elo trung bình cao hơn</Text>
                   </View>
                 </View>
@@ -469,7 +469,7 @@ export function ClubRewardsScreen() {
                     <Text style={[styles.crpPointUnit, { color: '#1D4ED8' }]}>CRP</Text>
                   </View>
                   <View style={styles.crpPointDesc}>
-                    <Text style={styles.crpPointTitle}>Thưởng Chuỗi Thắng (Streak 3+)</Text>
+                    <Text style={styles.crpPointTitle}>Thưởng chuỗi thắng (Streak 3+)</Text>
                     <Text style={styles.crpPointSubtitle}>Duy trì phong độ thăng hoa liên tiếp 3 trận thắng trở lên</Text>
                   </View>
                 </View>
@@ -480,7 +480,7 @@ export function ClubRewardsScreen() {
                     <Text style={[styles.crpPointUnit, { color: '#B91C1C' }]}>CRP</Text>
                   </View>
                   <View style={styles.crpPointDesc}>
-                    <Text style={styles.crpPointTitle}>Thua Trận Xếp Hạng</Text>
+                    <Text style={styles.crpPointTitle}>Thua trận xếp hạng</Text>
                     <Text style={styles.crpPointSubtitle}>Trừ điểm tối thiểu, không âm điểm dưới 0 CRP</Text>
                   </View>
                 </View>
@@ -494,7 +494,7 @@ export function ClubRewardsScreen() {
                   <Ionicons name="document-text" size={18} color="#475569" />
                 </View>
                 <View style={styles.sectionTitleCol}>
-                  <Text style={styles.sectionTitle}>Thể Lệ & Quy Trình Trao Thưởng</Text>
+                  <Text style={styles.sectionTitle}>Thể lệ & quy trình trao thưởng</Text>
                   <Text style={styles.sectionSubTitle}>Tiêu chí đảm bảo tính công bằng và quyền lợi của CLB</Text>
                 </View>
               </View>

@@ -31,7 +31,7 @@ export function useLogin() {
         handleBackendGoogleLogin(idToken);
       }
     } else if (response?.type === 'error') {
-      const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
+      const errorMsg = (response?.error as any)?.message || 'Không thể đăng nhập Google.';
       showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);

@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 24 : 0,
   },
   heroBackground: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroOverlay: {
     paddingBottom: SPACING.xl,

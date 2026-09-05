@@ -37,7 +37,7 @@ export function PersonalizedRecommendations({
               <Ionicons name="sparkles" size={16} color={COLORS.primary} />
             </View>
             <View>
-              <Text style={styles.sectionTitle}>Gợi Ý Cho Bạn</Text>
+              <Text style={styles.sectionTitle}>Gợi ý cho bạn</Text>
               <Text style={styles.sectionSub}>Đang phân tích sở thích & vị trí...</Text>
             </View>
           </View>
@@ -127,7 +127,7 @@ export function PersonalizedRecommendations({
           </View>
           <View>
             <View style={styles.titleWithBadge}>
-              <Text style={styles.sectionTitle}>Gợi Ý Cho Bạn</Text>
+              <Text style={styles.sectionTitle}>Gợi ý cho bạn</Text>
               <View style={styles.smartBadge}>
                 <Ionicons name="flash" size={10} color={COLORS.primary} />
                 <Text style={styles.smartBadgeText}>AI MATCH</Text>
@@ -192,7 +192,7 @@ export function PersonalizedRecommendations({
                   style={styles.matchScoreBadge}
                 >
                   <Ionicons name="sparkles" size={10} color="#FDE047" />
-                  <Text style={styles.matchScoreText}>{venue.matchScore || 95}% Phù hợp</Text>
+                  <Text style={styles.matchScoreText}>{venue.matchScore || 95}% phù hợp</Text>
                 </LinearGradient>
               </View>
 

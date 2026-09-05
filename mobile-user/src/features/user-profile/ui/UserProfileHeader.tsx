@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { PublicUserProfileResponse } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 interface UserProfileHeaderProps {
   profile: PublicUserProfileResponse;
@@ -64,7 +65,7 @@ export const UserProfileHeader = React.memo(({
                 <View key={sport.sportId} style={styles.sportLevelBadge}>
                    <Ionicons name="trophy-outline" size={12} color="#D97706" />
                    <Text style={styles.sportLevelBadgeText}>
-                     {sport.sportName}: {sport.level || 'Chưa xác định'}
+                     {sport.sportName}: {sport.levelLabel || getSportLevelLabel(sport.level) || 'Chưa xác định'}
                    </Text>
                 </View>
               ))}

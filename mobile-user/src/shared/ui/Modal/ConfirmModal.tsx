@@ -221,7 +221,7 @@ export function ConfirmModal({
   if (useViewOverlay) {
     if (!visible) return null;
     return (
-      <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999, elevation: 9999 }]}>
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
         {renderContent()}
       </View>
     );

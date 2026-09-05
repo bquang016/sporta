@@ -313,7 +313,7 @@ function ClubInfoModalContent({
 
               <LinearGradient
                 colors={['rgba(15,23,42,0.4)', 'transparent', 'rgba(15,23,42,0.85)']}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
             </View>
 
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
   },
   sheetContainer: {

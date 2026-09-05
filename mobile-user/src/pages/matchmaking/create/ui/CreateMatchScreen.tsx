@@ -301,7 +301,7 @@ export function CreateMatchScreen() {
                   <Ionicons name="speedometer" size={16} color="#7C3AED" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>6. Trình Độ Đối Thủ Mong Muốn</Text>
+                  <Text style={styles.sectionTitle}>6. Trình độ đối thủ mong muốn</Text>
                   <Text style={styles.subtext}>
                     Hệ thống sẽ gắn huy hiệu "Cân kèo" cho đối thủ phù hợp
                   </Text>
@@ -334,7 +334,7 @@ export function CreateMatchScreen() {
                   <Ionicons name="chatbox-ellipses" size={16} color="#059669" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>7. Lời Nhắn Gửi Đối Thủ (Tùy chọn)</Text>
+                  <Text style={styles.sectionTitle}>7. Lời nhắn gửi đối thủ (Tùy chọn)</Text>
                 </View>
               </View>
 

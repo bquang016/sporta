@@ -545,7 +545,7 @@ export function ClubDetailJoinedScreen() {
             <View style={styles.metricFooterRow}>
               <MaterialIcons name="leaderboard" size={13} color="#2563EB" />
               <Text style={[styles.metricFooterText, { color: '#2563EB', fontWeight: '700' }]}>
-                Xem BXH & Phần Thưởng ➜
+                Xem BXH & phần thưởng ➜
               </Text>
             </View>
           </TouchableOpacity>
@@ -556,7 +556,7 @@ export function ClubDetailJoinedScreen() {
               <View style={[styles.metricIconCircle, { backgroundColor: '#FEF3C7' }]}>
                 <MaterialIcons name="stars" size={18} color="#D97706" />
               </View>
-              <Text style={styles.metricCardLabel}>Elo Trung Bình</Text>
+              <Text style={styles.metricCardLabel}>Elo trung bình</Text>
             </View>
             <Text style={[styles.metricMainValue, { color: '#D97706' }]}>
               {club.averageElo || club.elo || 1200}<Text style={styles.metricUnit}> Elo</Text>
@@ -624,7 +624,7 @@ export function ClubDetailJoinedScreen() {
                 <Text style={styles.navCardTitle}>Lịch sử đối đầu CLB</Text>
                 <Text style={styles.navCardSub}>
                   {totalMatches > 0 
-                    ? `Phong độ: ${winsCount} Thắng - ${drawsCount} Hòa - ${lossesCount} Thua`
+                    ? `Phong độ: ${winsCount} thắng - ${drawsCount} hòa - ${lossesCount} thua`
                     : 'Chưa có dữ liệu thi đấu xếp hạng'}
                 </Text>
               </View>

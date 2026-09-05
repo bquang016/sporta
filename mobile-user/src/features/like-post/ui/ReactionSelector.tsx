@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     overflow: 'visible' as any,
   },
   barBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#FFFFFF',
     borderRadius: BAR_HEIGHT / 2,
     shadowColor: '#0F172A',
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.06)',
   },
   badgesRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-evenly',
