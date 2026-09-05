@@ -47,7 +47,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   }, [isOpen, initialEmail]);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setInterval>;
     if (step === 'VERIFY_OTP' && countdown > 0) {
       timer = setInterval(() => {
         setCountdown((prev) => prev - 1);
@@ -271,7 +271,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                 {otp.map((digit, i) => (
                   <input
                     key={i}
-                    ref={(el) => (otpRefs.current[i] = el)}
+                    ref={(el) => { otpRefs.current[i] = el; }}
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
