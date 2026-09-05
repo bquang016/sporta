@@ -34,11 +34,12 @@ export interface AdminDashboardResponseData {
   leaderboardData: Record<string, PartnerData[]>;
 }
 
+import { API_BASE_URL } from './config';
+
 export const getAdminDashboardOverview = async (timeFilter = 'this_month'): Promise<AdminDashboardResponseData> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-  const response = await fetch(`http://${host}:8387/api/v1/admin/dashboard/overview?timeFilter=${timeFilter}`, {
+  const response = await fetch(`${API_BASE_URL}/admin/dashboard/overview?timeFilter=${timeFilter}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }

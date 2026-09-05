@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { API_BASE_URL } from '@/api/config';
 
 interface RegistrationDetailModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export const RegistrationDetailModal: React.FC<RegistrationDetailModalProps> = (
         setIsLoading(true);
         setError(null);
         try {
-          const res = await fetch(`http://localhost:8387/api/v1/admin/registrations/${registrationId}`, {
+          const res = await fetch(`${API_BASE_URL}/admin/registrations/${registrationId}`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
             }

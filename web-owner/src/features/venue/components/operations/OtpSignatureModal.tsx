@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { LoadingSpinner } from '../../../../components/ui/LoadingSpinner';
+import { API_BASE_URL } from '../../../../services/apiConfig';
 
 interface OtpSignatureModalProps {
   isOpen: boolean;
@@ -65,9 +66,8 @@ export const OtpSignatureModal = ({
     setOtp(['', '', '', '', '', '']);
 
     try {
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://${host}:8387/api/v1/auth/send-otp-contract`, {
+      const response = await fetch(`${API_BASE_URL}/auth/send-otp-contract`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,9 +134,8 @@ export const OtpSignatureModal = ({
     setErrorMsg('');
 
     try {
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://${host}:8387/api/v1/auth/verify-otp`, {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

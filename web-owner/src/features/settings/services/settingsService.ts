@@ -18,9 +18,10 @@ export const DEFAULT_OWNER_SETTINGS: OwnerSettingsData = {
   defaultBookingView: 'grid',
 };
 
+import { API_BASE_URL } from '../../../services/apiConfig';
+
 const getApiBaseUrl = () => {
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  return `http://${host}:8387/api/v1/owner/settings`;
+  return `${API_BASE_URL}/owner/settings`;
 };
 
 export const fetchOwnerSettingsApi = async (): Promise<OwnerSettingsData> => {

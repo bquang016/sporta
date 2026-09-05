@@ -14,11 +14,12 @@ export interface OwnerProfileData {
   hometown?: string;
 }
 
+import { API_BASE_URL } from '../../../services/apiConfig';
+
 export const fetchOwnerProfileApi = async (): Promise<OwnerProfileData> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   
-  const response = await fetch(`http://${host}:8387/api/v1/owner/profile`, {
+  const response = await fetch(`${API_BASE_URL}/owner/profile`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -33,9 +34,8 @@ export const fetchOwnerProfileApi = async (): Promise<OwnerProfileData> => {
 
 export const updateOwnerProfileApi = async (data: OwnerProfileData): Promise<OwnerProfileData> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   
-  const response = await fetch(`http://${host}:8387/api/v1/owner/profile`, {
+  const response = await fetch(`${API_BASE_URL}/owner/profile`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

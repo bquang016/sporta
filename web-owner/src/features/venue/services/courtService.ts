@@ -1,7 +1,7 @@
 import type { CourtResponse, CourtRequest, VenueResponse, VenueRequest, CourtPriceRuleRequest, CourtPriceRuleResponse, VenueDraftRequest, VenueStatisticsResponse } from '../types';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/v1`;
+const BASE_URL = API_BASE_URL;
 
 const getHeaders = () => {
   const token = localStorage.getItem('accessToken');

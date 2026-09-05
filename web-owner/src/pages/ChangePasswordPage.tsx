@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { getLoggedInUser } from '../utils/auth';
+import { API_BASE_URL } from '../services/apiConfig';
 import logoHorizontal from '../assets/logo/light/logo-horizontal_1600x400px.svg';
 
 export const ChangePasswordPage = () => {
@@ -55,8 +56,7 @@ export const ChangePasswordPage = () => {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const response = await fetch(`http://${host}:8387/api/v1/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

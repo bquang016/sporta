@@ -6,6 +6,7 @@ import { ConfirmModal } from '../ui/ConfirmModal';
 import { ContractsListModal } from '../../features/profile/components/ContractsListModal';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import { useOwnerNotifications, type NotificationItem } from '../../features/notifications';
+import { API_BASE_URL } from '../../services/apiConfig';
 import logoHorizontal from '../../assets/logo/light/logo-horizontal_1600x400px.svg';
 import logoSvg from '../../assets/logo/light/logo-main_40x40px_small.svg';
 
@@ -459,8 +460,7 @@ export const DesktopLayout = ({ children }: { children: React.ReactNode }) => {
             const token = localStorage.getItem('accessToken');
             try {
               if (token) {
-                const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-                await fetch(`http://${host}:8387/api/v1/auth/logout`, {
+                await fetch(`${API_BASE_URL}/auth/logout`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${token}`

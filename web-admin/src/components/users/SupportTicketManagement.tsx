@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { API_BASE_URL } from '@/api/config';
 
 export type SupportTicketStatusType = 
   | 'NEW'
@@ -128,7 +129,7 @@ export const SupportTicketManagement: React.FC = () => {
     setError(null);
     try {
       const token = localStorage.getItem('accessToken');
-      let url = 'http://localhost:8387/api/v1/admin/support-tickets';
+      let url = `${API_BASE_URL}/admin/support-tickets`;
       const params: string[] = [];
       if (statusFilter !== 'ALL') {
         params.push(`status=${statusFilter}`);
@@ -189,7 +190,7 @@ export const SupportTicketManagement: React.FC = () => {
     const fetchAndOpen = async () => {
       try {
         const token = localStorage.getItem('accessToken');
-        const response = await fetch('http://localhost:8387/api/v1/admin/support-tickets', {
+        const response = await fetch(`${API_BASE_URL}/admin/support-tickets`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -225,7 +226,7 @@ export const SupportTicketManagement: React.FC = () => {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/support-tickets/${selectedTicket.id}/process`, {
+      const response = await fetch(`${API_BASE_URL}/admin/support-tickets/${selectedTicket.id}/process`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

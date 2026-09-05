@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getLoggedInUser } from '../../../utils/auth';
 import { fetchOwnerProfileApi, updateOwnerProfileApi, type OwnerProfileData } from '../services/profileService';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
 export const useProfile = () => {
   const navigate = useNavigate();
@@ -124,8 +125,7 @@ export const useProfile = () => {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const response = await fetch(`http://${host}:8387/api/v1/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,8 +161,7 @@ export const useProfile = () => {
     const token = localStorage.getItem('accessToken');
     try {
       if (token) {
-        const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-        await fetch(`http://${host}:8387/api/v1/auth/logout`, {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`

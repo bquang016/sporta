@@ -22,11 +22,12 @@ export interface AdminTransaction {
   reason?: string;
 }
 
+import { API_BASE_URL } from './config';
+
 export const getAdminTransactions = async (): Promise<AdminTransaction[]> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-  const response = await fetch(`http://${host}:8387/api/v1/admin/transactions`, {
+  const response = await fetch(`${API_BASE_URL}/admin/transactions`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }

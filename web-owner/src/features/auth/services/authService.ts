@@ -1,9 +1,9 @@
 import type { LoginResponse } from '../types';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    const response = await fetch(`http://${host}:8387/api/v1/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -19,9 +19,8 @@ export const authService = {
   },
 
   async snoozeChangePassword(snoozeDays: number): Promise<{ message: string }> {
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
     const token = localStorage.getItem('accessToken');
-    const response = await fetch(`http://${host}:8387/api/v1/auth/snooze-change-password`, {
+    const response = await fetch(`${API_BASE_URL}/auth/snooze-change-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,8 +39,7 @@ export const authService = {
   },
 
   async sendForgotPasswordOtp(email: string): Promise<{ message: string }> {
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    const response = await fetch(`http://${host}:8387/api/v1/auth/forgot-password/send-otp`, {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -55,8 +53,7 @@ export const authService = {
   },
 
   async verifyForgotPasswordOtp(email: string, otp: string): Promise<{ resetToken: string; message: string }> {
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    const response = await fetch(`http://${host}:8387/api/v1/auth/forgot-password/verify-otp`, {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp }),
@@ -70,8 +67,7 @@ export const authService = {
   },
 
   async resetPassword(resetToken: string, newPassword: string, confirmPassword: string): Promise<{ message: string }> {
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    const response = await fetch(`http://${host}:8387/api/v1/auth/forgot-password/reset-password`, {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resetToken, newPassword, confirmPassword }),

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Modal } from '@/components/ui/Modal';
+import { API_BASE_URL } from '@/api/config';
 
 export const VenueRevisionAuditing: React.FC = () => {
     const [revisions, setRevisions] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export const VenueRevisionAuditing: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:8387/api/v1/admin/venue-revisions/pending', {
+            const res = await fetch(`${API_BASE_URL}/admin/venue-revisions/pending`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                 }
@@ -47,7 +48,7 @@ export const VenueRevisionAuditing: React.FC = () => {
         if (!selectedRevision) return;
         setIsProcessing(true);
         try {
-            const res = await fetch(`http://localhost:8387/api/v1/admin/venue-revisions/${selectedRevision.id}/approve`, {
+            const res = await fetch(`${API_BASE_URL}/admin/venue-revisions/${selectedRevision.id}/approve`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -67,7 +68,7 @@ export const VenueRevisionAuditing: React.FC = () => {
         if (!selectedRevision || !rejectReason.trim()) return;
         setIsProcessing(true);
         try {
-            const res = await fetch(`http://localhost:8387/api/v1/admin/venue-revisions/${selectedRevision.id}/reject`, {
+            const res = await fetch(`${API_BASE_URL}/admin/venue-revisions/${selectedRevision.id}/reject`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,

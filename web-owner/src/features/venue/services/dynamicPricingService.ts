@@ -4,9 +4,9 @@ import type {
   RejectPricingRequest,
   PricingAnalyticsSummary
 } from '../types/dynamicPricing';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/v1`;
+const BASE_URL = API_BASE_URL;
 
 const getHeaders = () => {
   const token = localStorage.getItem('accessToken');

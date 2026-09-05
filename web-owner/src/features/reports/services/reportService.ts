@@ -1,11 +1,11 @@
 import type { OwnerRevenueReportResponse } from '../types/report.types';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
 export const reportService = {
   async getRevenueReport(venueId: string, fromDate?: string, toDate?: string): Promise<OwnerRevenueReportResponse> {
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
     const token = localStorage.getItem('accessToken');
     
-    let url = `http://${host}:8387/api/v1/owner/venues/${venueId}/reports/revenue`;
+    let url = `${API_BASE_URL}/owner/venues/${venueId}/reports/revenue`;
     const params = new URLSearchParams();
     if (fromDate) params.append('from', fromDate);
     if (toDate) params.append('to', toDate);

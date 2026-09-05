@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { getLoggedInAdmin } from '@/utils/auth';
 import { SmartLockModal } from '@/components/users/SmartLockModal';
 import { UserAuditing } from './UserAuditing';
+import { API_BASE_URL } from '@/api/config';
 
 interface User {
   id: number;
@@ -71,7 +72,7 @@ export const OwnerManagement: React.FC = () => {
     setError(null);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users?role=OWNER&search=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users?role=OWNER&search=${encodeURIComponent(searchQuery)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -112,7 +113,7 @@ export const OwnerManagement: React.FC = () => {
     if (!selectedUser) return;
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${selectedUser.id}/lock`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${selectedUser.id}/lock`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -143,7 +144,7 @@ export const OwnerManagement: React.FC = () => {
     setIsUnlocking(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${selectedUser.id}/unlock`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${selectedUser.id}/unlock`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

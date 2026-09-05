@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { RegistrationDetailModal } from '../Facilities/RegistrationDetailModal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Modal } from '@/components/ui/Modal';
+import { API_BASE_URL } from '@/api/config';
 
 export const UserAuditing: React.FC = () => {
     const [registrations, setRegistrations] = useState<any[]>([]);
@@ -29,7 +30,7 @@ export const UserAuditing: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:8387/api/v1/admin/registrations', {
+            const res = await fetch(`${API_BASE_URL}/admin/registrations`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                 }
@@ -59,7 +60,7 @@ export const UserAuditing: React.FC = () => {
         if (!selectedRegistrationId) return;
         setIsProcessing(true);
         try {
-            const res = await fetch(`http://localhost:8387/api/v1/admin/registrations/${selectedRegistrationId}/approve`, {
+            const res = await fetch(`${API_BASE_URL}/admin/registrations/${selectedRegistrationId}/approve`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -82,7 +83,7 @@ export const UserAuditing: React.FC = () => {
         if (!selectedRegistrationId || !rejectReason.trim()) return;
         setIsProcessing(true);
         try {
-            const res = await fetch(`http://localhost:8387/api/v1/admin/registrations/${selectedRegistrationId}/reject`, {
+            const res = await fetch(`${API_BASE_URL}/admin/registrations/${selectedRegistrationId}/reject`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,

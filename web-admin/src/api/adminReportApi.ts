@@ -22,11 +22,12 @@ export interface AdminSportsAnalyticsResponse {
   regionBreakdown: RegionAnalyticsItem[];
 }
 
+import { API_BASE_URL } from './config';
+
 export const getAdminSportsAnalytics = async (fromDate?: string, toDate?: string): Promise<AdminSportsAnalyticsResponse> => {
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const token = localStorage.getItem('accessToken');
 
-  let url = `http://${host}:8387/api/v1/admin/reports/analytics`;
+  let url = `${API_BASE_URL}/admin/reports/analytics`;
   const params = new URLSearchParams();
   if (fromDate) params.append('from', fromDate);
   if (toDate) params.append('to', toDate);

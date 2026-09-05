@@ -1,7 +1,7 @@
 import type { Voucher, CreateVoucherRequest, UpdateVoucherRequest, VoucherPageResponse, VoucherStatus } from '../types/voucher.types';
+import { API_BASE_URL } from './config';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/admin/vouchers`;
+const BASE_URL = `${API_BASE_URL}/admin/vouchers`;
 
 const getHeaders = () => {
   const token = localStorage.getItem('accessToken');

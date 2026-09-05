@@ -1,7 +1,7 @@
 import type { Voucher, CreateVoucherRequest, UpdateVoucherRequest, VoucherPageResponse, VoucherStatus } from '../types/voucher.types';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/v1/owner/vouchers`;
+const BASE_URL = `${API_BASE_URL}/owner/vouchers`;
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = localStorage.getItem('accessToken');

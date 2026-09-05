@@ -3,6 +3,7 @@ import { Modal } from '../../../common/ui/overlay/Modal';
 import { Button } from '../../../common/ui/buttons/Button';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { authService } from '../services/authService';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
 type ViewMode = 'reminder' | 'changeForm';
 
@@ -74,8 +75,7 @@ export const ForceChangePasswordModal = () => {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const response = await fetch(`http://${host}:8387/api/v1/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,7 +1,7 @@
 import type { NotificationPageResponse } from '../types/notification.types';
+import { API_BASE_URL } from './config';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/v1/notifications`;
+const BASE_URL = `${API_BASE_URL}/notifications`;
 
 async function fetchWithAuth<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('accessToken');

@@ -1,4 +1,5 @@
 import type { Complex, Pitch, Booking, Activity, ComplexId, ChartPeriod, ChartData } from '../types';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
 export const COMPLEXES: Complex[] = [
   { id: 'all', name: 'Tất cả cụm sân', location: 'TP. Hồ Chí Minh' },
@@ -118,9 +119,8 @@ export interface OwnerDashboardResponseData {
 
 export const fetchDashboardOverviewApi = async (venueId = 'all', period = 'day'): Promise<OwnerDashboardResponseData> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-  const response = await fetch(`http://${host}:8387/api/v1/owner/dashboard/overview?venueId=${venueId}&period=${period}`, {
+  const response = await fetch(`${API_BASE_URL}/owner/dashboard/overview?venueId=${venueId}&period=${period}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -160,11 +160,10 @@ export const fetchDashboardOverviewApi = async (venueId = 'all', period = 'day')
 
 export const updateCourtStatusApi = async (courtId: string, status: string): Promise<boolean> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const dbStatus = status === 'maintenance' ? 'MAINTENANCE' : 'ACTIVE';
 
   try {
-    const response = await fetch(`http://${host}:8387/api/v1/owner/courts/${courtId}/status?status=${dbStatus}`, {
+    const response = await fetch(`${API_BASE_URL}/owner/courts/${courtId}/status?status=${dbStatus}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -179,10 +178,9 @@ export const updateCourtStatusApi = async (courtId: string, status: string): Pro
 
 export const checkInTicketApi = async (tokenStr: string): Promise<boolean> => {
   const token = localStorage.getItem('accessToken');
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
   try {
-    const response = await fetch(`http://${host}:8387/api/v1/owner/tickets/check-in`, {
+    const response = await fetch(`${API_BASE_URL}/owner/tickets/check-in`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

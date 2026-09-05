@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ContractFullscreenModal } from './ContractFullscreenModal';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { API_BASE_URL } from '../../../services/apiConfig';
 import { 
   FileText, 
   ShieldCheck, 
@@ -48,8 +49,7 @@ export const ContractsListModal: React.FC<ContractsListModalProps> = ({ isOpen, 
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const response = await fetch(`http://${host}:8387/api/v1/owner/contracts`, {
+      const response = await fetch(`${API_BASE_URL}/owner/contracts`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

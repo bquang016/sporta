@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logoHorizontal from '@/assets/logo/light/logo-horizontal_1600x400px.svg';
+import { API_BASE_URL } from '../../api/config';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8387/api/v1/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password: password.trim() }),

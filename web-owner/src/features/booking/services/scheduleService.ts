@@ -1,5 +1,6 @@
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const BASE_URL = `http://${host}:8387/api/v1`;
+import { API_BASE_URL } from '../../../services/apiConfig';
+
+const BASE_URL = API_BASE_URL;
 
 const getHeaders = () => {
   const token = localStorage.getItem('accessToken');

@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { getLoggedInAdmin } from '@/utils/auth';
 import { SmartLockModal } from '@/components/users/SmartLockModal';
+import { API_BASE_URL } from '@/api/config';
 
 interface User {
   id: number;
@@ -70,7 +71,7 @@ export const UserManagement: React.FC = () => {
     setError(null);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users?role=PLAYER&search=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users?role=PLAYER&search=${encodeURIComponent(searchQuery)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -110,7 +111,7 @@ export const UserManagement: React.FC = () => {
   const handleToggleDevTester = async (user: User) => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${user.id}/dev-tester`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${user.id}/dev-tester`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +142,7 @@ export const UserManagement: React.FC = () => {
     if (!selectedUser) return;
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${selectedUser.id}/lock`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${selectedUser.id}/lock`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -172,7 +173,7 @@ export const UserManagement: React.FC = () => {
     setIsUnlocking(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${selectedUser.id}/unlock`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${selectedUser.id}/unlock`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

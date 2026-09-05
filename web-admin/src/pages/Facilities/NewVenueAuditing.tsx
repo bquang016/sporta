@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { API_BASE_URL } from '@/api/config';
 
 export const NewVenueAuditing: React.FC = () => {
     const { showToast } = useToast();
@@ -27,7 +28,7 @@ export const NewVenueAuditing: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:8387/api/v1/admin/venues/pending', {
+            const res = await fetch(`${API_BASE_URL}/admin/venues/pending`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                 }
@@ -52,7 +53,7 @@ export const NewVenueAuditing: React.FC = () => {
         if (!selectedVenueId) return;
         setIsProcessing(true);
         try {
-            const res = await fetch(`http://localhost:8387/api/v1/admin/venues/${selectedVenueId}/approve`, {
+            const res = await fetch(`${API_BASE_URL}/admin/venues/${selectedVenueId}/approve`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -74,7 +75,7 @@ export const NewVenueAuditing: React.FC = () => {
         if (!selectedVenueId || !rejectReason.trim()) return;
         setIsProcessing(true);
         try {
-            const res = await fetch(`http://localhost:8387/api/v1/admin/venues/${selectedVenueId}/reject`, {
+            const res = await fetch(`${API_BASE_URL}/admin/venues/${selectedVenueId}/reject`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,

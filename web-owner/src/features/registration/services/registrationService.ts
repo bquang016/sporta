@@ -10,9 +10,9 @@ import type {
   VenueInfo,
   SubCourt,
 } from '../types';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
-const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-const API_BASE = `http://${host}:8387/api/v1/auth`;
+const API_BASE = `${API_BASE_URL}/auth`;
 
 /**
  * Send OTP code to the given email address.

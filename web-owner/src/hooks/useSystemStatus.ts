@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../services/apiConfig';
 
 export const useSystemStatus = (intervalMs = 10000) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -10,8 +11,7 @@ export const useSystemStatus = (intervalMs = 10000) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const response = await fetch(`http://${host}:8387/api/v1/auth/ping`, {
+      const response = await fetch(`${API_BASE_URL}/auth/ping`, {
         method: 'GET',
         signal: controller.signal
       });

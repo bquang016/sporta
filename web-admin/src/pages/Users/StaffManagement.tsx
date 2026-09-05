@@ -6,6 +6,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { API_BASE_URL } from '@/api/config';
 
 interface Staff {
   id: number;
@@ -43,7 +44,7 @@ export const StaffManagement = () => {
     setError(null);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users?role=ADMIN&search=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users?role=ADMIN&search=${encodeURIComponent(searchQuery)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -86,7 +87,7 @@ export const StaffManagement = () => {
     setIsCreating(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8387/api/v1/admin/users/create-admin', {
+      const response = await fetch(`${API_BASE_URL}/admin/users/create-admin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +126,7 @@ export const StaffManagement = () => {
     setIsDeactivating(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${selectedStaff.id}/deactivate`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${selectedStaff.id}/deactivate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

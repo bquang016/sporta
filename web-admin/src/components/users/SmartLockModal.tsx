@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { API_BASE_URL } from '@/api/config';
 
 interface LockReason {
   id: number;
@@ -48,7 +49,7 @@ export const SmartLockModal: React.FC<SmartLockModalProps> = ({
     setIsLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/lock-reasons?role=${roleType}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/lock-reasons?role=${roleType}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -90,7 +91,7 @@ export const SmartLockModal: React.FC<SmartLockModalProps> = ({
     setIsAddingReason(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:8387/api/v1/admin/lock-reasons', {
+      const response = await fetch(`${API_BASE_URL}/admin/lock-reasons`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +124,7 @@ export const SmartLockModal: React.FC<SmartLockModalProps> = ({
     setIsDeletingReason(id);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`http://localhost:8387/api/v1/admin/lock-reasons/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/lock-reasons/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

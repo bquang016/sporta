@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { API_BASE_URL } from '@/api/config';
 
 interface Permission {
   id: number;
@@ -116,7 +117,7 @@ export const PermissionSettings = () => {
   const fetchPermissions = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8387/api/v1/admin/permissions', {
+      const response = await fetch(`${API_BASE_URL}/admin/permissions`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -169,7 +170,7 @@ export const PermissionSettings = () => {
     );
 
     try {
-      const response = await fetch('http://localhost:8387/api/v1/admin/permissions', {
+      const response = await fetch(`${API_BASE_URL}/admin/permissions`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
