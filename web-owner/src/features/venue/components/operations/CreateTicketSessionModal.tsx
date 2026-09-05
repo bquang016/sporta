@@ -178,11 +178,12 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
 
   const sportLevelOptions = [
     { value: 'ALL', label: 'Mọi trình độ (Tất cả Elo)' },
-    { value: 'WEAK', label: 'Yếu (~900 Elo)' },
-    { value: 'WEAK_AVERAGE', label: 'Trung bình - Yếu (~1200 Elo)' },
-    { value: 'AVERAGE', label: 'Trung bình (~1500 Elo)' },
-    { value: 'AVERAGE_GOOD', label: 'Trung bình - Khá (~1800 Elo)' },
-    { value: 'GOOD', label: 'Khá / Bán chuyên (~2100 Elo)' },
+    { value: 'WEAK', label: 'Yếu (< 900 Elo)' },
+    { value: 'WEAK_AVERAGE', label: 'Trung bình - Yếu (900 - 1199 Elo)' },
+    { value: 'AVERAGE', label: 'Trung bình (1200 - 1499 Elo)' },
+    { value: 'AVERAGE_GOOD', label: 'Trung bình - Khá (1500 - 1799 Elo)' },
+    { value: 'GOOD', label: 'Bán chuyên (1800 - 2099 Elo)' },
+    { value: 'PRO', label: 'Chuyên nghiệp (≥ 2100 Elo)' },
   ];
 
   const selectedCourt = useMemo(() => courts.find(c => c.id === courtId), [courts, courtId]);

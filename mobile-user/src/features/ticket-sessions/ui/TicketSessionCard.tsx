@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
+import { TicketSession } from '../../../entities/ticket/model/ticket.types';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 interface TicketSessionCardProps {
   session: TicketSession;
@@ -14,16 +15,6 @@ export function TicketSessionCard({ session, onPress, onBuyPress }: TicketSessio
   const remainingSlots = session.maxSlots - session.bookedSlots;
   const isFull = remainingSlots <= 0 || session.status === 'FULL';
 
-  const getSportLevelLabel = (level: SportLevel) => {
-    switch (level) {
-      case 'WEAK': return 'Mới chơi';
-      case 'WEAK_AVERAGE': return 'Yếu - Trung bình';
-      case 'AVERAGE': return 'Trung bình';
-      case 'AVERAGE_GOOD': return 'Bán chuyên';
-      case 'GOOD': return 'Chuyên nghiệp';
-      default: return 'Tất cả trình độ';
-    }
-  };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';

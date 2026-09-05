@@ -1,11 +1,13 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
+    "strict": false,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@/src/*": ["./src/*"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   }
 }

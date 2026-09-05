@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Image } fr
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 
+import { getSafeAvatarSource } from '../../../../entities/club';
+
 export interface AvatarItem {
   id: string;
   name: string;
@@ -56,7 +58,7 @@ export function AvatarPickerModal({ visible, onClose, avatars, onSelectAvatar, o
                 onPress={() => onSelectAvatar(avatar)}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: avatar.url }} style={styles.avatarThumbnail} />
+                <Image source={getSafeAvatarSource(undefined, avatar.url)} style={styles.avatarThumbnail} />
                 <Text style={styles.thumbnailLabel}>{avatar.name}</Text>
               </TouchableOpacity>
             ))}

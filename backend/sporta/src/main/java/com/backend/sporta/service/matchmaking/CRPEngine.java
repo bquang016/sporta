@@ -88,8 +88,11 @@ public class CRPEngine {
                     .build();
         }
 
+        String hostName = match.getHostClub() != null && match.getHostClub().getName() != null ? match.getHostClub().getName() : "Đội nhà";
+        String guestName = match.getGuestClub() != null && match.getGuestClub().getName() != null ? match.getGuestClub().getName() : "Đội khách";
+
         if (!withinRepeatLimit) {
-            explanation.add("Đã vượt quá giới hạn " + config.getPairLimitCount() + " trận Xếp hạng trong 7 ngày giữa 2 CLB (Anti-farming) - Điểm CRP không đổi.");
+            explanation.add("Đã vượt quá giới hạn " + config.getPairLimitCount() + " trận Xếp hạng trong 7 ngày giữa 2 CLB (Quy định chống cày điểm) - Điểm CRP không đổi.");
             return CRPEngineResult.builder()
                     .isRankedEligible(false)
                     .hostCrpBefore(hostCrpBefore)
@@ -109,6 +112,7 @@ public class CRPEngine {
 
         int hostElo = match.getHostClubEloSnapshot() != null ? match.getHostClubEloSnapshot() : 1000;
         int guestElo = match.getGuestClubEloSnapshot() != null ? match.getGuestClubEloSnapshot() : 1000;
+
         int deltaElo = Math.abs(hostElo - guestElo);
         int upset = deltaElo / config.getUpsetStepElo();
 
@@ -128,7 +132,7 @@ public class CRPEngine {
             if (Math.abs(eloDiff) < 50) {
                 hostDelta = 0;
                 guestDelta = 0;
-                explanation.add("Kết quả Hòa (Elo ngang nhau) - CRP không đổi.");
+                explanation.add("Kết quả hòa giữa hai đội có thực lực tương đương: Điểm CRP giữ nguyên.");
             } else {
                 int drawPenalty = Math.max(1, Math.min(5, Math.abs(eloDiff) / 100));
                 if (poolEnabled) {
@@ -137,21 +141,21 @@ public class CRPEngine {
                     if (eloDiff > 0) {
                         hostDelta = -dampenedLoss;
                         guestDelta = +drawPenalty;
-                        explanation.add("Kết quả Hòa (Host kèo trên): Host -" + dampenedLoss + " CRP (được Quỹ CRP Pool giảm trừ), Guest +" + drawPenalty + " CRP");
-                        explanation.add("Quỹ CRP Pool trợ cấp: +" + poolSubsidy + " CRP");
+                        explanation.add("Kết quả hòa: " + hostName + " -" + dampenedLoss + " CRP (được giảm trừ điểm mất), " + guestName + " +" + drawPenalty + " CRP");
+                        explanation.add("Quỹ bảo vệ điểm số hỗ trợ: +" + poolSubsidy + " CRP");
                     } else {
                         guestDelta = -dampenedLoss;
                         hostDelta = +drawPenalty;
-                        explanation.add("Kết quả Hòa (Guest kèo trên): Guest -" + dampenedLoss + " CRP (được Quỹ CRP Pool giảm trừ), Host +" + drawPenalty + " CRP");
-                        explanation.add("Quỹ CRP Pool trợ cấp: +" + poolSubsidy + " CRP");
+                        explanation.add("Kết quả hòa: " + guestName + " -" + dampenedLoss + " CRP (được giảm trừ điểm mất), " + hostName + " +" + drawPenalty + " CRP");
+                        explanation.add("Quỹ bảo vệ điểm số hỗ trợ: +" + poolSubsidy + " CRP");
                     }
                 } else {
                     hostDelta = eloDiff > 0 ? -drawPenalty : +drawPenalty;
                     guestDelta = -hostDelta;
                     if (eloDiff > 0) {
-                        explanation.add("Kết quả Hòa (Host kèo trên): Host -" + drawPenalty + " CRP, Guest +" + drawPenalty + " CRP");
+                        explanation.add("Kết quả hòa: " + hostName + " -" + drawPenalty + " CRP, " + guestName + " +" + drawPenalty + " CRP");
                     } else {
-                        explanation.add("Kết quả Hòa (Guest kèo trên): Host +" + drawPenalty + " CRP, Guest -" + drawPenalty + " CRP");
+                        explanation.add("Kết quả hòa: " + hostName + " +" + drawPenalty + " CRP, " + guestName + " -" + drawPenalty + " CRP");
                     }
                 }
             }
@@ -160,29 +164,29 @@ public class CRPEngine {
             int rawGain;
             if (hostElo >= guestElo) {
                 rawGain = Math.max(1, baseDelta - upset);
-                explanation.add("Host (Kèo trên/Ngang) thắng: +" + rawGain + " CRP (G-factor: " + String.format("%.2f", gFactor) + ", Upset: -" + upset + ")");
+                explanation.add(hostName + " (thắng đúng phong độ): +" + rawGain + " CRP (Cách biệt tỷ số: " + String.format("%.2f", gFactor) + ", Chênh lệch hạng: -" + upset + ")");
             } else {
                 rawGain = Math.max(1, baseDelta + upset);
-                explanation.add("Host (Kèo dưới lật kèo) thắng: +" + rawGain + " CRP (G-factor: " + String.format("%.2f", gFactor) + ", Upset thưởng: +" + upset + ")");
+                explanation.add(hostName + " (thắng trước đối thủ mạnh hơn): +" + rawGain + " CRP (Cách biệt tỷ số: " + String.format("%.2f", gFactor) + ", Thưởng tạo bất ngờ: +" + upset + ")");
             }
 
             int loserLoss = poolEnabled ? Math.max(1, (int) Math.round(rawGain * lossRatio)) : rawGain;
             if (poolEnabled) {
-                explanation.add("Trợ cấp CRP Pool: Guest chỉ bị trừ -" + loserLoss + " CRP (giảm " + (int) Math.round((1 - lossRatio) * 100) + "% áp lực thua)");
+                explanation.add("Cơ chế bảo vệ điểm số: " + guestName + " chỉ bị trừ -" + loserLoss + " CRP (được giảm " + (int) Math.round((1 - lossRatio) * 100) + "% điểm mất)");
 
                 // Check bonuses for winner (Host)
                 Long hostClubId = match.getHostClub() != null ? match.getHostClub().getId() : null;
                 int currentStreak = getClubWinStreak(hostClubId);
                 if (currentStreak >= config.getStreakBonusThreshold() - 1) {
                     streakBonusAwarded = config.getStreakBonusCrp();
-                    explanation.add("🔥 Thưởng Chuỗi Thắng (" + (currentStreak + 1) + " trận liên tiếp): +" + streakBonusAwarded + " CRP (Rút từ Quỹ Thưởng CRP)");
+                    explanation.add("Thưởng chuỗi " + (currentStreak + 1) + " trận thắng liên tiếp: +" + streakBonusAwarded + " CRP");
                 }
                 if (isClubFirstRankedMatchToday(hostClubId)) {
                     dailyBonusAwarded = config.getFirstMatchBonusCrp();
-                    explanation.add("🌅 Thưởng Trận Xếp Hạng đầu tiên trong ngày: +" + dailyBonusAwarded + " CRP (Rút từ Quỹ Thưởng CRP)");
+                    explanation.add("Thưởng trận đấu đầu tiên trong ngày: +" + dailyBonusAwarded + " CRP");
                 }
             } else {
-                explanation.add("Guest (Kèo dưới) thua: -" + loserLoss + " CRP");
+                explanation.add(guestName + " thua: -" + loserLoss + " CRP");
             }
 
             int totalWinnerGain = rawGain + streakBonusAwarded + dailyBonusAwarded;
@@ -192,7 +196,7 @@ public class CRPEngine {
             guestDelta = -loserLoss;
 
             if (poolEnabled && poolSubsidy > 0) {
-                explanation.add("🏦 Tổng Quỹ CRP Pool tài trợ trận đấu: +" + poolSubsidy + " CRP");
+                explanation.add("Quỹ bảo vệ điểm số hỗ trợ trận đấu: +" + poolSubsidy + " CRP");
             }
 
         } else if (outcome == NormalizedOutcome.WIN_GUEST) {
@@ -200,29 +204,29 @@ public class CRPEngine {
             int rawGain;
             if (guestElo >= hostElo) {
                 rawGain = Math.max(1, baseDelta - upset);
-                explanation.add("Guest (Kèo trên/Ngang) thắng: +" + rawGain + " CRP (G-factor: " + String.format("%.2f", gFactor) + ", Upset: -" + upset + ")");
+                explanation.add(guestName + " (thắng đúng phong độ): +" + rawGain + " CRP (Cách biệt tỷ số: " + String.format("%.2f", gFactor) + ", Chênh lệch hạng: -" + upset + ")");
             } else {
                 rawGain = Math.max(1, baseDelta + upset);
-                explanation.add("Guest (Kèo dưới lật kèo) thắng: +" + rawGain + " CRP (G-factor: " + String.format("%.2f", gFactor) + ", Upset thưởng: +" + upset + ")");
+                explanation.add(guestName + " (thắng trước đối thủ mạnh hơn): +" + rawGain + " CRP (Cách biệt tỷ số: " + String.format("%.2f", gFactor) + ", Thưởng tạo bất ngờ: +" + upset + ")");
             }
 
             int loserLoss = poolEnabled ? Math.max(1, (int) Math.round(rawGain * lossRatio)) : rawGain;
             if (poolEnabled) {
-                explanation.add("Trợ cấp CRP Pool: Host chỉ bị trừ -" + loserLoss + " CRP (giảm " + (int) Math.round((1 - lossRatio) * 100) + "% áp lực thua)");
+                explanation.add("Cơ chế bảo vệ điểm số: " + hostName + " chỉ bị trừ -" + loserLoss + " CRP (được giảm " + (int) Math.round((1 - lossRatio) * 100) + "% điểm mất)");
 
                 // Check bonuses for winner (Guest)
                 Long guestClubId = match.getGuestClub() != null ? match.getGuestClub().getId() : null;
                 int currentStreak = getClubWinStreak(guestClubId);
                 if (currentStreak >= config.getStreakBonusThreshold() - 1) {
                     streakBonusAwarded = config.getStreakBonusCrp();
-                    explanation.add("🔥 Thưởng Chuỗi Thắng (" + (currentStreak + 1) + " trận liên tiếp): +" + streakBonusAwarded + " CRP (Rút từ Quỹ Thưởng CRP)");
+                    explanation.add("Thưởng chuỗi " + (currentStreak + 1) + " trận thắng liên tiếp: +" + streakBonusAwarded + " CRP");
                 }
                 if (isClubFirstRankedMatchToday(guestClubId)) {
                     dailyBonusAwarded = config.getFirstMatchBonusCrp();
-                    explanation.add("🌅 Thưởng Trận Xếp Hạng đầu tiên trong ngày: +" + dailyBonusAwarded + " CRP (Rút từ Quỹ Thưởng CRP)");
+                    explanation.add("Thưởng trận đấu đầu tiên trong ngày: +" + dailyBonusAwarded + " CRP");
                 }
             } else {
-                explanation.add("Host thua: -" + loserLoss + " CRP");
+                explanation.add(hostName + " thua: -" + loserLoss + " CRP");
             }
 
             int totalWinnerGain = rawGain + streakBonusAwarded + dailyBonusAwarded;
@@ -232,7 +236,7 @@ public class CRPEngine {
             hostDelta = -loserLoss;
 
             if (poolEnabled && poolSubsidy > 0) {
-                explanation.add("🏦 Tổng Quỹ CRP Pool tài trợ trận đấu: +" + poolSubsidy + " CRP");
+                explanation.add("Quỹ bảo vệ điểm số hỗ trợ trận đấu: +" + poolSubsidy + " CRP");
             }
         }
 

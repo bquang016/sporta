@@ -16,6 +16,9 @@ public class DevForceFinishMatchRequest {
 
     private String rawScoreDetails;
 
+    private Long hostLineupId;
+    private Long guestLineupId;
+
     private java.util.List<Long> hostPlayerUserIds;
     private java.util.List<Long> guestPlayerUserIds;
 }

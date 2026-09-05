@@ -11,10 +11,12 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { MatchRoomVM, ClubSummaryVM } from '../../../entities/match/model/match.types';
 import { MatchmakingApiRepository } from '../../../shared/api/matchmaking';
+import { getClubLineupsApi, createLineupApi, addLineupMemberApi } from '../../../shared/api/clubs';
+import { UserAvatar } from '../../../shared/ui/UserAvatar';
 
 interface DevMatchTestPanelProps {
   room: MatchRoomVM;
@@ -38,6 +40,15 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
   const [guestScore, setGuestScore] = useState<string>('1');
   const [scoreDetails, setScoreDetails] = useState<string>('');
 
+  // Team-line (MatchLineup) state
+  const [hostLineups, setHostLineups] = useState<any[]>([]);
+  const [guestLineups, setGuestLineups] = useState<any[]>([]);
+  const [selectedHostLineupId, setSelectedHostLineupId] = useState<number | null>(null);
+  const [selectedGuestLineupId, setSelectedGuestLineupId] = useState<number | null>(null);
+  const [showLineupConfig, setShowLineupConfig] = useState<boolean>(true);
+  const [loadingLineups, setLoadingLineups] = useState<boolean>(false);
+  const [creatingLineupSide, setCreatingLineupSide] = useState<'HOST' | 'GUEST' | null>(null);
+
   const fetchClubs = async () => {
     try {
       setLoadingClubs(true);
@@ -57,11 +68,12 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
     fetchClubs();
   };
 
-  const handleSelectClub = async (clubId: string) => {
+  const handleSelectClub = async (clubId: string | number) => {
     try {
       setLoadingAction(true);
       setIsClubModalVisible(false);
-      const params = assigningSide === 'HOST' ? { hostClubId: clubId } : { guestClubId: clubId };
+      const numericId = Number(clubId);
+      const params = assigningSide === 'HOST' ? { hostClubId: numericId } : { guestClubId: numericId };
       await MatchmakingApiRepository.devAssignClubs(room.id, params);
       Alert.alert('DEV Thành Công', `Đã gán CLB cho ${assigningSide === 'HOST' ? 'Đội Chủ Nhà (Side A)' : 'Đội Khách (Side B)'}!`);
       onRefresh();
@@ -72,75 +84,90 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
     }
   };
 
-  // Lineup state
-  const [hostMembers, setHostMembers] = useState<any[]>([]);
-  const [guestMembers, setGuestMembers] = useState<any[]>([]);
-  const [selectedHostUserIds, setSelectedHostUserIds] = useState<number[]>([]);
-  const [selectedGuestUserIds, setSelectedGuestUserIds] = useState<number[]>([]);
-  const [showLineupConfig, setShowLineupConfig] = useState<boolean>(false);
-  const [loadingMembers, setLoadingMembers] = useState<boolean>(false);
+  // Load team-lines (lineups) for both clubs
+  const loadLineups = async () => {
+    try {
+      setLoadingLineups(true);
 
-  // Load members when clubs change
-  useEffect(() => {
-    const loadClubMembers = async () => {
-      try {
-        setLoadingMembers(true);
-        if (room.hostClub?.id) {
-          const members = await MatchmakingApiRepository.getClubMembers(room.hostClub.id);
-          const approved = (members || []).filter((m: any) => m.status === 'APPROVED' || !m.status);
-          setHostMembers(approved);
-          setSelectedHostUserIds(approved.map((m: any) => m.userId || m.id));
-        } else {
-          setHostMembers([]);
-          setSelectedHostUserIds([]);
-        }
+      // Side A Lineups
+      if (room.hostClub?.id) {
+        const hostData = await getClubLineupsApi(Number(room.hostClub.id));
+        const listA = Array.isArray(hostData) ? hostData : [];
+        setHostLineups(listA);
 
-        if (room.guestClub?.id) {
-          const members = await MatchmakingApiRepository.getClubMembers(room.guestClub.id);
-          const approved = (members || []).filter((m: any) => m.status === 'APPROVED' || !m.status);
-          setGuestMembers(approved);
-          setSelectedGuestUserIds(approved.map((m: any) => m.userId || m.id));
+        if (room.hostLineup?.id && listA.some((l) => l.id === room.hostLineup?.id)) {
+          setSelectedHostLineupId(room.hostLineup.id);
+        } else if (listA.length > 0) {
+          setSelectedHostLineupId(listA[0].id);
         } else {
-          setGuestMembers([]);
-          setSelectedGuestUserIds([]);
+          setSelectedHostLineupId(null);
         }
-      } catch (err) {
-        console.error('Failed to load club members for DEV panel', err);
-      } finally {
-        setLoadingMembers(false);
+      } else {
+        setHostLineups([]);
+        setSelectedHostLineupId(null);
       }
-    };
 
-    loadClubMembers();
-  }, [room.hostClub?.id, room.guestClub?.id]);
+      // Side B Lineups
+      if (room.guestClub?.id) {
+        const guestData = await getClubLineupsApi(Number(room.guestClub.id));
+        const listB = Array.isArray(guestData) ? guestData : [];
+        setGuestLineups(listB);
 
-  const toggleHostMember = (userId: number) => {
-    setSelectedHostUserIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
-  };
-
-  const toggleGuestMember = (userId: number) => {
-    setSelectedGuestUserIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
-  };
-
-  const toggleAllHostMembers = () => {
-    if (selectedHostUserIds.length === hostMembers.length) {
-      setSelectedHostUserIds([]);
-    } else {
-      setSelectedHostUserIds(hostMembers.map((m) => m.userId || m.id));
+        if (room.guestLineup?.id && listB.some((l) => l.id === room.guestLineup?.id)) {
+          setSelectedGuestLineupId(room.guestLineup.id);
+        } else if (listB.length > 0) {
+          setSelectedGuestLineupId(listB[0].id);
+        } else {
+          setSelectedGuestLineupId(null);
+        }
+      } else {
+        setGuestLineups([]);
+        setSelectedGuestLineupId(null);
+      }
+    } catch (err) {
+      console.error('Failed to load team-lines for DEV panel', err);
+    } finally {
+      setLoadingLineups(false);
     }
   };
 
-  const toggleAllGuestMembers = () => {
-    if (selectedGuestUserIds.length === guestMembers.length) {
-      setSelectedGuestUserIds([]);
-    } else {
-      setSelectedGuestUserIds(guestMembers.map((m) => m.userId || m.id));
+  useEffect(() => {
+    loadLineups();
+  }, [room.hostClub?.id, room.guestClub?.id, room.hostLineup?.id, room.guestLineup?.id]);
+
+  // Quick helper to auto-create a sample team-line if a club has no lineups
+  const handleAutoCreateLineup = async (side: 'HOST' | 'GUEST') => {
+    const club = side === 'HOST' ? room.hostClub : room.guestClub;
+    if (!club?.id) return;
+
+    try {
+      setCreatingLineupSide(side);
+      const members = await MatchmakingApiRepository.getClubMembers(club.id);
+      const approved = (members || []).filter((m: any) => m.status === 'APPROVED' || !m.status);
+
+      const newLineup = await createLineupApi(Number(club.id), `Đội hình 1 - ${club.name}`, 'MATCHMAKING');
+      if (newLineup?.id) {
+        for (const m of approved.slice(0, 7)) {
+          const uid = m.userId || m.id;
+          if (uid) {
+            try {
+              await addLineupMemberApi(Number(newLineup.id), Number(uid));
+            } catch (ignored) {}
+          }
+        }
+      }
+
+      await loadLineups();
+      Alert.alert('Thành công', `Đã tạo nhanh Đội hình mẫu cho ${club.name}!`);
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Không thể tạo đội hình');
+    } finally {
+      setCreatingLineupSide(null);
     }
   };
+
+  const selectedHostLineup = hostLineups.find((l) => l.id === selectedHostLineupId);
+  const selectedGuestLineup = guestLineups.find((l) => l.id === selectedGuestLineupId);
 
   const handleForceFinish = async () => {
     if (!room.hostClub || !room.guestClub) {
@@ -148,30 +175,47 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
       return;
     }
 
+    const hostMemberIds = selectedHostLineup?.members?.map((m: any) => m.userId || m.id) || [];
+    const guestMemberIds = selectedGuestLineup?.members?.map((m: any) => m.userId || m.id) || [];
+
     try {
       setLoadingAction(true);
       await MatchmakingApiRepository.devForceFinishMatch(room.id, {
         hostScore,
         guestScore,
         rawScoreDetails: scoreDetails || undefined,
-        hostPlayerUserIds: selectedHostUserIds.length > 0 ? selectedHostUserIds : undefined,
-        guestPlayerUserIds: selectedGuestUserIds.length > 0 ? selectedGuestUserIds : undefined,
+        hostLineupId: selectedHostLineupId || undefined,
+        guestLineupId: selectedGuestLineupId || undefined,
+        hostPlayerUserIds: hostMemberIds.length > 0 ? hostMemberIds : undefined,
+        guestPlayerUserIds: guestMemberIds.length > 0 ? guestMemberIds : undefined,
       });
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      const hostLineupName = selectedHostLineup?.name || 'Mặc định';
+      const guestLineupName = selectedGuestLineup?.name || 'Mặc định';
 
       Alert.alert(
         '⚡ DEV: Đã Kết Thúc Trận Đấu!',
-        `Tỷ số (${hostScore} - ${guestScore}) đã được ghi nhận.\nĐội hình Side A: ${selectedHostUserIds.length} người\nĐội hình Side B: ${selectedGuestUserIds.length} người.\nĐiểm Elo cá nhân của những người tham gia và Điểm CRP của cả 2 CLB đã được cập nhật!`,
+        `Tỷ số (${hostScore} - ${guestScore}) đã được ghi nhận.\nTeam-line Side A: "${hostLineupName}" (${hostMemberIds.length} cầu thủ)\nTeam-line Side B: "${guestLineupName}" (${guestMemberIds.length} cầu thủ).\nĐiểm Elo cá nhân và Điểm CRP đã được tính toán & cập nhật!`,
         [
           {
-            text: 'Ở lại phòng',
-            onPress: () => onRefresh(),
+            text: 'Xem Kết Quả & CRP',
+            onPress: () => {
+              router.push(`/matchmaking/${room.id}/result` as any);
+            },
           },
           {
-            text: 'Xem Lịch Sử Trận Xếp Hạng',
+            text: 'Xem Lịch Sử Rank Cá Nhân',
             onPress: () => {
-              onRefresh();
               router.push('/profile/ranked-matches' as any);
             },
+          },
+          {
+            text: 'Ở lại',
+            style: 'cancel',
           },
         ]
       );
@@ -200,7 +244,7 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
           </View>
           <View>
             <Text style={styles.headerTitle}>BẢNG ĐIỀU KHIỂN TEST DEV</Text>
-            <Text style={styles.headerSub}>Tài khoản DEV Tester • Tùy chỉnh đội hình & Elo</Text>
+            <Text style={styles.headerSub}>Tài khoản DEV Tester • Tùy chỉnh Team-line & Elo</Text>
           </View>
         </View>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#7C3AED" />
@@ -242,79 +286,108 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
             </View>
           </View>
 
-          {/* Section 2: Choose Lineup (Đội hình ra sân) */}
+          {/* Section 2: Choose Team-Line (Đội hình ra sân) */}
           <View style={styles.lineupHeaderRow}>
-            <Text style={styles.sectionLabel}>2. ĐỘI HÌNH THI ĐẤU (TÍNH ELO CÁ NHÂN)</Text>
+            <Text style={styles.sectionLabel}>2. ĐỘI HÌNH RA SÂN (TEAM-LINE)</Text>
             <TouchableOpacity
               style={styles.lineupToggleBtn}
               onPress={() => setShowLineupConfig(!showLineupConfig)}
             >
               <Ionicons
-                name={showLineupConfig ? 'eye-off-outline' : 'people-outline'}
+                name={showLineupConfig ? 'eye-off-outline' : 'shield-checkmark-outline'}
                 size={14}
                 color="#7C3AED"
               />
               <Text style={styles.lineupToggleBtnText}>
-                {showLineupConfig
-                  ? 'Thu gọn'
-                  : `Chọn người (${selectedHostUserIds.length} vs ${selectedGuestUserIds.length})`}
+                {showLineupConfig ? 'Thu gọn' : 'Xem Team-line'}
               </Text>
             </TouchableOpacity>
           </View>
 
           {showLineupConfig && (
             <View style={styles.lineupContainer}>
-              {loadingMembers ? (
+              {loadingLineups ? (
                 <View style={{ padding: 12, alignItems: 'center' }}>
                   <ActivityIndicator size="small" color="#7C3AED" />
                   <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
-                    Đang tải thành viên...
+                    Đang tải danh sách Team-line...
                   </Text>
                 </View>
               ) : (
                 <View style={styles.lineupGrid}>
-                  {/* Side A Lineup */}
+                  {/* Side A Team-Lines */}
                   <View style={styles.lineupCol}>
                     <View style={styles.lineupColHeader}>
-                      <Text style={styles.lineupColTitle}>
-                        Side A ({selectedHostUserIds.length}/{hostMembers.length})
+                      <Text style={styles.lineupColTitle} numberOfLines={1}>
+                        Side A: {room.hostClub?.name || 'Chưa chọn'}
                       </Text>
-                      <TouchableOpacity onPress={toggleAllHostMembers}>
-                        <Text style={styles.lineupSelectAllText}>
-                          {selectedHostUserIds.length === hostMembers.length ? 'Bỏ chọn' : 'Tất cả'}
-                        </Text>
-                      </TouchableOpacity>
                     </View>
-                    <ScrollView style={styles.memberScroll} nestedScrollEnabled>
-                      {hostMembers.length === 0 ? (
-                        <Text style={styles.emptyMemberText}>Chưa có thành viên</Text>
+
+                    <ScrollView style={styles.lineupScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                      {hostLineups.length === 0 ? (
+                        <View style={styles.emptyLineupBox}>
+                          <Text style={styles.emptyMemberText}>Chưa có Team-line nào</Text>
+                          <TouchableOpacity
+                            style={styles.autoCreateBtn}
+                            onPress={() => handleAutoCreateLineup('HOST')}
+                            disabled={creatingLineupSide === 'HOST'}
+                          >
+                            {creatingLineupSide === 'HOST' ? (
+                              <ActivityIndicator size="small" color="#7C3AED" />
+                            ) : (
+                              <>
+                                <Ionicons name="add-circle-outline" size={13} color="#7C3AED" />
+                                <Text style={styles.autoCreateBtnText}>Tạo nhanh Team-line</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
                       ) : (
-                        hostMembers.map((m: any) => {
-                          const uid = m.userId || m.id;
-                          const isSelected = selectedHostUserIds.includes(uid);
+                        hostLineups.map((l: any) => {
+                          const isSelected = selectedHostLineupId === l.id;
                           return (
                             <TouchableOpacity
-                              key={uid}
+                              key={l.id}
                               style={[
-                                styles.memberItem,
-                                isSelected && styles.memberItemSelected,
+                                styles.teamLineCard,
+                                isSelected && styles.teamLineCardSelected,
                               ]}
-                              onPress={() => toggleHostMember(uid)}
+                              onPress={() => setSelectedHostLineupId(l.id)}
                               activeOpacity={0.7}
                             >
-                              <Ionicons
-                                name={isSelected ? 'checkbox' : 'square-outline'}
-                                size={16}
-                                color={isSelected ? '#7C3AED' : '#94A3B8'}
-                              />
-                              <View style={styles.memberInfoCol}>
-                                <Text style={styles.memberNameText} numberOfLines={1}>
-                                  {m.name || m.fullName || `User #${uid}`}
-                                </Text>
-                                <Text style={styles.memberRoleText}>
-                                  {m.role || 'Thành viên'} • {m.elo || 1500} Elo
+                              <View style={styles.teamLineTop}>
+                                <Ionicons
+                                  name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                                  size={16}
+                                  color={isSelected ? '#7C3AED' : '#94A3B8'}
+                                />
+                                <Text style={[styles.teamLineName, isSelected && styles.teamLineNameActive]} numberOfLines={1}>
+                                  {l.name || `Đội hình #${l.id}`}
                                 </Text>
                               </View>
+
+                              <View style={styles.teamLineMetaRow}>
+                                <View style={styles.eloBadge}>
+                                  <Text style={styles.eloBadgeText}>{l.eloAvg || 1500} ELO</Text>
+                                </View>
+                                <Text style={styles.playerCountText}>
+                                  {l.memberCount || l.members?.length || 0} cầu thủ
+                                </Text>
+                              </View>
+
+                              {l.members && l.members.length > 0 && (
+                                <View style={styles.avatarStack}>
+                                  {l.members.slice(0, 4).map((m: any, idx: number) => (
+                                    <UserAvatar
+                                      key={m.userId || idx}
+                                      uri={m.avatarUrl}
+                                      name={m.fullName || m.name}
+                                      size={20}
+                                      style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                                    />
+                                  ))}
+                                </View>
+                              )}
                             </TouchableOpacity>
                           );
                         })
@@ -322,48 +395,79 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
                     </ScrollView>
                   </View>
 
-                  {/* Side B Lineup */}
+                  {/* Side B Team-Lines */}
                   <View style={styles.lineupCol}>
                     <View style={styles.lineupColHeader}>
-                      <Text style={styles.lineupColTitle}>
-                        Side B ({selectedGuestUserIds.length}/{guestMembers.length})
+                      <Text style={styles.lineupColTitle} numberOfLines={1}>
+                        Side B: {room.guestClub?.name || 'Chưa chọn'}
                       </Text>
-                      <TouchableOpacity onPress={toggleAllGuestMembers}>
-                        <Text style={styles.lineupSelectAllText}>
-                          {selectedGuestUserIds.length === guestMembers.length ? 'Bỏ chọn' : 'Tất cả'}
-                        </Text>
-                      </TouchableOpacity>
                     </View>
-                    <ScrollView style={styles.memberScroll} nestedScrollEnabled>
-                      {guestMembers.length === 0 ? (
-                        <Text style={styles.emptyMemberText}>Chưa có thành viên</Text>
+
+                    <ScrollView style={styles.lineupScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                      {guestLineups.length === 0 ? (
+                        <View style={styles.emptyLineupBox}>
+                          <Text style={styles.emptyMemberText}>Chưa có Team-line nào</Text>
+                          <TouchableOpacity
+                            style={styles.autoCreateBtn}
+                            onPress={() => handleAutoCreateLineup('GUEST')}
+                            disabled={creatingLineupSide === 'GUEST'}
+                          >
+                            {creatingLineupSide === 'GUEST' ? (
+                              <ActivityIndicator size="small" color="#7C3AED" />
+                            ) : (
+                              <>
+                                <Ionicons name="add-circle-outline" size={13} color="#7C3AED" />
+                                <Text style={styles.autoCreateBtnText}>Tạo nhanh Team-line</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
                       ) : (
-                        guestMembers.map((m: any) => {
-                          const uid = m.userId || m.id;
-                          const isSelected = selectedGuestUserIds.includes(uid);
+                        guestLineups.map((l: any) => {
+                          const isSelected = selectedGuestLineupId === l.id;
                           return (
                             <TouchableOpacity
-                              key={uid}
+                              key={l.id}
                               style={[
-                                styles.memberItem,
-                                isSelected && styles.memberItemSelected,
+                                styles.teamLineCard,
+                                isSelected && styles.teamLineCardSelected,
                               ]}
-                              onPress={() => toggleGuestMember(uid)}
+                              onPress={() => setSelectedGuestLineupId(l.id)}
                               activeOpacity={0.7}
                             >
-                              <Ionicons
-                                name={isSelected ? 'checkbox' : 'square-outline'}
-                                size={16}
-                                color={isSelected ? '#7C3AED' : '#94A3B8'}
-                              />
-                              <View style={styles.memberInfoCol}>
-                                <Text style={styles.memberNameText} numberOfLines={1}>
-                                  {m.name || m.fullName || `User #${uid}`}
-                                </Text>
-                                <Text style={styles.memberRoleText}>
-                                  {m.role || 'Thành viên'} • {m.elo || 1500} Elo
+                              <View style={styles.teamLineTop}>
+                                <Ionicons
+                                  name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                                  size={16}
+                                  color={isSelected ? '#7C3AED' : '#94A3B8'}
+                                />
+                                <Text style={[styles.teamLineName, isSelected && styles.teamLineNameActive]} numberOfLines={1}>
+                                  {l.name || `Đội hình #${l.id}`}
                                 </Text>
                               </View>
+
+                              <View style={styles.teamLineMetaRow}>
+                                <View style={styles.eloBadge}>
+                                  <Text style={styles.eloBadgeText}>{l.eloAvg || 1500} ELO</Text>
+                                </View>
+                                <Text style={styles.playerCountText}>
+                                  {l.memberCount || l.members?.length || 0} cầu thủ
+                                </Text>
+                              </View>
+
+                              {l.members && l.members.length > 0 && (
+                                <View style={styles.avatarStack}>
+                                  {l.members.slice(0, 4).map((m: any, idx: number) => (
+                                    <UserAvatar
+                                      key={m.userId || idx}
+                                      uri={m.avatarUrl}
+                                      name={m.fullName || m.name}
+                                      size={20}
+                                      style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                                    />
+                                  ))}
+                                </View>
+                              )}
                             </TouchableOpacity>
                           );
                         })
@@ -488,16 +592,21 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
               <Ionicons name="search" size={16} color="#94A3B8" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Tìm tên CLB..."
-                placeholderTextColor="#94A3B8"
                 value={searchClubText}
                 onChangeText={setSearchClubText}
+                placeholder="Tìm kiếm CLB theo tên..."
+                placeholderTextColor="#94A3B8"
               />
+              {searchClubText.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchClubText('')}>
+                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
             </View>
 
             {loadingClubs ? (
               <View style={styles.modalLoading}>
-                <ActivityIndicator color="#7C3AED" />
+                <ActivityIndicator size="small" color="#7C3AED" />
                 <Text style={styles.modalLoadingText}>Đang tải danh sách CLB...</Text>
               </View>
             ) : (
@@ -509,17 +618,22 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
                     onPress={() => handleSelectClub(club.id)}
                     activeOpacity={0.7}
                   >
-                    {club.avatarUrl ? (
-                      <Image source={{ uri: club.avatarUrl }} style={styles.clubAvatar} />
+                    {club.logoUrl || club.avatarUrl ? (
+                      <Image
+                        source={{ uri: club.logoUrl || club.avatarUrl }}
+                        style={styles.clubAvatar}
+                      />
                     ) : (
                       <View style={styles.clubAvatarPlaceholder}>
-                        <MaterialCommunityIcons name="shield" size={18} color="#7C3AED" />
+                        <Ionicons name="shield" size={18} color="#7C3AED" />
                       </View>
                     )}
                     <View style={styles.clubInfo}>
-                      <Text style={styles.clubItemName}>{club.name}</Text>
+                      <Text style={styles.clubItemName} numberOfLines={1}>
+                        {club.name}
+                      </Text>
                       <Text style={styles.clubItemSub}>
-                        {club.sportName} • {club.clubElo} Elo • {club.crp} CRP
+                        {club.sportName || 'Thể thao'}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
@@ -536,35 +650,32 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FAF5FF',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#C084FC',
     marginHorizontal: 16,
-    marginVertical: 10,
+    marginVertical: 12,
+    backgroundColor: '#FAF5FF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#D8B4FE',
     overflow: 'hidden',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     backgroundColor: '#F3E8FF',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
   },
   devIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
@@ -572,7 +683,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#6B21A8',
+    color: '#581C87',
     letterSpacing: 0.5,
   },
   headerSub: {
@@ -582,7 +693,7 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: 14,
-    gap: 8,
+    gap: 10,
   },
   sectionLabel: {
     fontSize: 10,
@@ -664,9 +775,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lineupColHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
@@ -677,43 +785,89 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#6B21A8',
   },
-  lineupSelectAllText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#7C3AED',
+  lineupScroll: {
+    maxHeight: 180,
   },
-  memberScroll: {
-    maxHeight: 140,
+  teamLineCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
   },
-  memberItem: {
+  teamLineCardSelected: {
+    backgroundColor: '#FAF5FF',
+    borderColor: '#A855F7',
+    borderWidth: 1.5,
+  },
+  teamLineTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    borderRadius: 6,
   },
-  memberItemSelected: {
-    backgroundColor: '#FAF5FF',
-  },
-  memberInfoCol: {
+  teamLineName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
     flex: 1,
   },
-  memberNameText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1E293B',
+  teamLineNameActive: {
+    color: '#7C3AED',
+    fontWeight: '800',
   },
-  memberRoleText: {
-    fontSize: 8.5,
+  teamLineMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  eloBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  eloBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  playerCountText: {
+    fontSize: 9.5,
     color: '#64748B',
+    fontWeight: '600',
+  },
+  avatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+  },
+  emptyLineupBox: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 6,
   },
   emptyMemberText: {
     fontSize: 10,
     color: '#94A3B8',
     fontStyle: 'italic',
-    paddingVertical: 8,
     textAlign: 'center',
+  },
+  autoCreateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  autoCreateBtnText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#7C3AED',
   },
   quickScoreRow: {
     flexDirection: 'row',

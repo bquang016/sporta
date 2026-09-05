@@ -5,6 +5,7 @@ export interface ClubCreatePayload {
   description: string;
   sportId: number;
   maxMembers: number;
+  minEloRequired?: number;
   isPrivate: boolean;
   coverImage?: string;
   avatarImage?: string;
@@ -17,6 +18,7 @@ export interface ClubUpdatePayload {
   description?: string;
   sportId?: number;
   maxMembers?: number;
+  minEloRequired?: number;
   isPrivate?: boolean;
   coverImage?: string;
   avatarImage?: string;
@@ -209,6 +211,19 @@ export const addCustomPollOptionApi = async (pollId: number, label: string): Pro
   return requestApi(`/clubs/match-polls/${pollId}/options`, {
     method: 'POST',
     body: JSON.stringify({ label }),
+  });
+};
+
+export interface DevAssignVotesPayload {
+  userIds: number[];
+  optionId: number;
+  clearExisting?: boolean;
+}
+
+export const devAssignVotesApi = async (pollId: number, payload: DevAssignVotesPayload): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/dev-assign-votes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 };
 

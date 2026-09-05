@@ -49,6 +49,16 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
 
     boolean existsByName(String name);
 
-    @Query("SELECT c FROM Club c WHERE (:sportId IS NULL OR c.sport.id = :sportId) AND (:area IS NULL OR LOWER(c.area) LIKE LOWER(CONCAT('%', :area, '%'))) ORDER BY COALESCE(c.crp, 0) DESC, COALESCE(c.rankedWins, 0) DESC, COALESCE(c.finalMatches, 0) DESC, c.id ASC")
-    List<Club> findLeaderboardClubs(@Param("sportId") Long sportId, @Param("area") String area);
+    @Query("SELECT c FROM Club c WHERE (:sportId IS NULL OR c.sport.id = :sportId) ORDER BY COALESCE(c.crp, 0) DESC, COALESCE(c.rankedWins, 0) DESC, COALESCE(c.finalMatches, 0) DESC, c.id ASC")
+    List<Club> findLeaderboardClubsWithoutArea(@Param("sportId") Long sportId);
+
+    @Query("SELECT c FROM Club c WHERE (:sportId IS NULL OR c.sport.id = :sportId) AND LOWER(c.area) LIKE LOWER(CONCAT('%', :area, '%')) ORDER BY COALESCE(c.crp, 0) DESC, COALESCE(c.rankedWins, 0) DESC, COALESCE(c.finalMatches, 0) DESC, c.id ASC")
+    List<Club> findLeaderboardClubsWithArea(@Param("sportId") Long sportId, @Param("area") String area);
+
+    default List<Club> findLeaderboardClubs(Long sportId, String area) {
+        if (area != null && !area.isBlank()) {
+            return findLeaderboardClubsWithArea(sportId, area.trim());
+        }
+        return findLeaderboardClubsWithoutArea(sportId);
+    }
 }

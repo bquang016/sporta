@@ -58,13 +58,14 @@ const SPORTS_LIST = [
   },
 ];
 
-// 5 Standard Skill Levels
+// 6 Standard Skill Levels
 const LEVELS = [
-  { id: 'WEAK', label: 'Yếu', desc: 'Mới bắt đầu làm quen môn thể thao, nắm cơ bản quy luật.' },
-  { id: 'WEAK_AVERAGE', label: 'Trung bình yếu', desc: 'Giao lưu phong trào cơ bản, đang rèn luyện kỹ thuật.' },
-  { id: 'AVERAGE', label: 'Trung bình', desc: 'Chơi thường xuyên, kiểm soát bóng và duy trì nhịp độ ổn định.' },
-  { id: 'AVERAGE_GOOD', label: 'Trung bình khá', desc: 'Kỹ năng vững, phối hợp chiến thuật ăn ý cùng đồng đội.' },
-  { id: 'GOOD', label: 'Khá', desc: 'Kỹ thuật chuyên sâu, thể lực tốt và kinh nghiệm thi đấu phong phú.' },
+  { id: 'WEAK', label: 'Yếu', desc: 'Mới bắt đầu làm quen môn thể thao, nắm cơ bản quy luật (< 900 Elo).' },
+  { id: 'WEAK_AVERAGE', label: 'Trung bình - Yếu', desc: 'Giao lưu phong trào cơ bản, đang rèn luyện kỹ thuật (900 - 1199 Elo).' },
+  { id: 'AVERAGE', label: 'Trung bình', desc: 'Chơi thường xuyên, kiểm soát bóng và duy trì nhịp độ ổn định (1200 - 1499 Elo).' },
+  { id: 'AVERAGE_GOOD', label: 'Trung bình - Khá', desc: 'Kỹ năng vững, phối hợp chiến thuật ăn ý cùng đồng đội (1500 - 1799 Elo).' },
+  { id: 'GOOD', label: 'Bán chuyên', desc: 'Tập luyện bài bản, thi đấu giải phong trào, kỹ thuật cao (1800 - 2099 Elo).' },
+  { id: 'PRO', label: 'Chuyên nghiệp', desc: 'Vận động viên thi đấu chuyên nghiệp, đẳng cấp đỉnh cao (≥ 2100 Elo).' },
 ];
 
 // Time Slots

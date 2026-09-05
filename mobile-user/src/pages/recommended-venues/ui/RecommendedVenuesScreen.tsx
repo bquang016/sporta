@@ -132,7 +132,7 @@ export function RecommendedVenuesScreen() {
             style={styles.matchScoreBadge}
           >
             <Ionicons name="sparkles" size={10} color="#FDE047" />
-            <Text style={styles.matchScoreText}>{item.matchScore || 95}% Phù hợp</Text>
+            <Text style={styles.matchScoreText}>{item.matchScore || 95}% phù hợp</Text>
           </LinearGradient>
 
           {/* Bottom Left: Star Rating */}

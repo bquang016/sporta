@@ -8,6 +8,7 @@ interface FeeSplitSelectorProps {
   hostPercent: number;
   onChangeHostPercent: (percent: number) => void;
   isLocked?: boolean;
+  stepNumber?: number;
 }
 
 export function FeeSplitSelector({
@@ -15,6 +16,7 @@ export function FeeSplitSelector({
   hostPercent,
   onChangeHostPercent,
   isLocked = false,
+  stepNumber = 5,
 }: FeeSplitSelectorProps) {
   const [isCustom, setIsCustom] = useState<boolean>(false);
   const [customInput, setCustomInput] = useState<string>(hostPercent.toString());
@@ -54,7 +56,7 @@ export function FeeSplitSelector({
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.sectionTitle}>3. Tỉ Lệ Chia Tiền Sân</Text>
+            <Text style={styles.sectionTitle}>{stepNumber}. Tỉ Lệ Chia Tiền Sân</Text>
             {isLocked && (
               <View style={styles.lockedBadge}>
                 <Ionicons name="lock-closed" size={11} color="#DC2626" />

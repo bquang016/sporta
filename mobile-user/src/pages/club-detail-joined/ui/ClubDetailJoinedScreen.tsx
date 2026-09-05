@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, StatusBar, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
-import { Button, Card } from '../../../shared/ui';
+import { Button, Avatar } from '../../../shared/ui';
 import { useClubs, ClubDetailHeader } from '../../../entities/club';
-import { MatchHistoryCard, MatchItem } from './components/MatchHistoryCard';
-import { MatchHistoryModal } from './components/MatchHistoryModal';
 import { InviteModal } from './components/InviteModal';
 import { LeaveConfirmationModal } from './components/LeaveConfirmationModal';
 import { MembersModal, MemberItem } from './components/MembersModal';
+import { MatchHistoryModal } from './components/MatchHistoryModal';
+import { MatchItem } from './components/MatchHistoryCard';
+import { ClubInfoModal } from './components/ClubInfoModal';
 import { EditClubModal } from './components/EditClubModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { PollCard } from './components/PollCard';
 import { MatchPollVM } from '../../../entities/match/model/match.types';
 import {
+  getClubByIdApi,
   getClubMembersApi,
   getClubMatchPollsApi,
   createMatchPollApi,
@@ -31,80 +33,52 @@ import {
   CreateMatchPollPayload,
 } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
-
-// Mock Members for Joined Clubs to look premium
-const MOCK_MEMBERS: MemberItem[] = [
-  { id: 'm-1', userId: 0, name: 'Nguyễn Văn Hùng', role: 'Trưởng nhóm', elo: 1540, avatar: '' },
-  { id: 'm-2', userId: 0, name: 'Trần Thị Mai', role: 'Phó nhóm', elo: 1420, avatar: '' },
-  { id: 'm-3', userId: 0, name: 'Phạm Minh Hoàng', role: 'Thành viên', elo: 1250, avatar: '' },
-  { id: 'm-4', userId: 0, name: 'Lê Hoàng Sơn', role: 'Thành viên', elo: 1180, avatar: '' },
-];
-
-const MOCK_MATCH_HISTORY: MatchItem[] = [
-  {
-    id: 'h-1',
-    opponentName: 'FC Cầu Giấy United',
-    opponentAvatar: '',
-    date: '20/06/2026',
-    ourScore: 4,
-    opponentScore: 2,
-    result: 'win',
-    location: 'Sân bóng Đại học Y',
-  },
-  {
-    id: 'h-2',
-    opponentName: 'Hà Đông Football Club',
-    opponentAvatar: '',
-    date: '14/06/2026',
-    ourScore: 1,
-    opponentScore: 3,
-    result: 'lose',
-    location: 'Sân bóng Bách Khoa',
-  },
-  {
-    id: 'h-3',
-    opponentName: 'Bách Khoa Football Club',
-    opponentAvatar: '',
-    date: '07/06/2026',
-    ourScore: 2,
-    opponentScore: 2,
-    result: 'draw',
-    location: 'Sân bóng Chu Văn An',
-  },
-];
+import { usersApi, UserProfileDto } from '../../../shared/api/users';
 
 export function ClubDetailJoinedScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { clubs, joinedClubs, leaveClub, deleteClub, transferLeadership, refreshClubs, assignSubLeader, demoteSubLeader, removeMember } = useClubs();
-  const { showAlert, showConfirm } = useAlert();
+  const { showAlert } = useAlert();
 
-  // Custom Leave Confirmation Modal State
+  // Authoritative Club state from API (with fresh CRP & Member-calculated Average ELO)
+  const [authoritativeClub, setAuthoritativeClub] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Modals state
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
   const [isDeleteLeaveMode, setIsDeleteLeaveMode] = useState(false);
-  
-  // Custom Members Modal State
   const [isMembersModalVisible, setIsMembersModalVisible] = useState(false);
-  const [members, setMembers] = useState<MemberItem[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
-  const [currentUserName, setCurrentUserName] = useState<string>('');
-
-  // Custom Invite Modal State
+  const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
+  const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Custom Edit & History Modals State
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
 
-  // Poll & Matchmaking States (v2.0)
+  // Members State
+  const [members, setMembers] = useState<MemberItem[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
+  // Poll & Matchmaking States
   const [matchPolls, setMatchPolls] = useState<MatchPollVM[]>([]);
   const [votingPollId, setVotingPollId] = useState<number | null>(null);
   const [isCreatePollModalVisible, setIsCreatePollModalVisible] = useState(false);
 
-  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  // Club Matches State
+  const [clubMatches, setClubMatches] = useState<MatchItem[]>([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
 
-  const club = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfileDto | null>(null);
+
+  useEffect(() => {
+    usersApi.getProfile().then(setCurrentUserProfile).catch(() => {});
+  }, []);
+
+  const isDevUser = __DEV__ || !!currentUserProfile?.isDevTester || currentUserProfile?.role === 'ADMIN' || currentUserProfile?.role === 'SUPER_ADMIN';
+
+  const baseClub = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
+  const club = authoritativeClub || baseClub;
 
   // Determine current user role
   const currentUserRole = (club?.userStatus === 'ADMIN' || (currentUserId && Number(club?.creatorId) === Number(currentUserId)))
@@ -158,7 +132,6 @@ export function ClubDetailJoinedScreen() {
           const payload = decodeJwt(token);
           if (payload && payload.userId) {
             setCurrentUserId(Number(payload.userId));
-            console.log('[ClubDetailJoinedScreen] Loaded currentUserId from JWT:', payload.userId);
           }
         }
       } catch (e) {
@@ -168,15 +141,27 @@ export function ClubDetailJoinedScreen() {
     loadUserId();
   }, []);
 
+  // Fetch Club authoritative info
+  const numericClubId = id ? (typeof id === 'string' ? parseInt(id.replace('club-', ''), 10) : Number(id)) : 0;
+
+  const fetchClubDetails = async () => {
+    if (!numericClubId || isNaN(numericClubId)) return;
+    try {
+      const data = await getClubByIdApi(numericClubId);
+      if (data) {
+        setAuthoritativeClub(data);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải chi tiết CLB:', err);
+    }
+  };
+
   const fetchMembers = async () => {
-    if (!club) return;
+    if (!numericClubId || isNaN(numericClubId)) return;
     setLoadingMembers(true);
     try {
-      const data = await getClubMembersApi(Number(club.id));
+      const data = await getClubMembersApi(numericClubId);
       const mapped: MemberItem[] = (data || []).map(m => {
-        // ELO ảo: random từ 1200 - 1500 nếu elo null hoặc = 1200
-        const virtualElo = m.elo && m.elo !== 1200 ? m.elo : (1000 + (Number(m.userId) % 300) + 150);
-        
         let roleText = m.role;
         if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') {
           roleText = 'Trưởng câu lạc bộ';
@@ -189,10 +174,10 @@ export function ClubDetailJoinedScreen() {
         return {
           id: m.id,
           userId: Number(m.userId),
-          name: m.name,
+          name: m.name || m.fullName || 'Thành viên',
           role: roleText,
-          elo: virtualElo,
-          avatar: m.avatar || "",
+          elo: m.elo || 1200,
+          avatar: m.avatar || m.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80",
           status: m.status || 'APPROVED'
         };
       });
@@ -204,16 +189,10 @@ export function ClubDetailJoinedScreen() {
     }
   };
 
-  useEffect(() => {
-    if (isMembersModalVisible) {
-      fetchMembers();
-    }
-  }, [isMembersModalVisible]);
-
   const fetchClubPolls = async () => {
-    if (!club) return;
+    if (!numericClubId || isNaN(numericClubId)) return;
     try {
-      const data = await getClubMatchPollsApi(Number(club.id));
+      const data = await getClubMatchPollsApi(numericClubId);
       if (Array.isArray(data)) {
         setMatchPolls(data);
       }
@@ -222,101 +201,70 @@ export function ClubDetailJoinedScreen() {
     }
   };
 
-  const [realMatches, setRealMatches] = useState<MatchItem[]>([]);
-
   const fetchMatches = async () => {
-    if (!club) return;
+    if (!numericClubId || isNaN(numericClubId)) return;
+    setLoadingMatches(true);
     try {
-      const data = await getClubMatchesApi(Number(club.id));
+      const data = await getClubMatchesApi(numericClubId);
       if (Array.isArray(data)) {
         const formatted: MatchItem[] = data.map((m: any) => ({
           id: String(m.id || Math.random()),
-          opponentName: m.opponentName || 'Đối thủ',
-          opponentAvatar: m.opponentAvatar || '',
+          matchId: m.matchId,
+          opponentClubId: m.opponentClubId,
+          opponentName: m.opponentName || 'CLB Đối thủ',
+          opponentAvatar: m.opponentAvatar || 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80',
           date: m.date || '',
           ourScore: m.ourScore || 0,
           opponentScore: m.opponentScore || 0,
-          result: (m.result ? String(m.result).toLowerCase() : 'win') as 'win' | 'lose' | 'draw',
-          location: m.location || 'Chưa cập nhật sân',
+          scoreText: m.scoreText || `${m.ourScore || 0} - ${m.opponentScore || 0}`,
+          result: (m.result ? String(m.result).toLowerCase() : 'draw') as 'win' | 'lose' | 'draw',
+          crpDelta: m.crpDelta,
+          location: m.location || 'Sân bóng Sporta',
+          matchType: m.matchType || 'Giao hữu Xếp Hạng CLB',
         }));
-        setRealMatches(formatted);
+        setClubMatches(formatted);
       }
     } catch (err) {
-      console.warn('Lỗi tải lịch sử trận đấu:', err);
+      console.warn('Lỗi tải lịch sử trận đấu CLB:', err);
+    } finally {
+      setLoadingMatches(false);
     }
+  };
+
+  const loadAllData = async () => {
+    if (!id) return;
+    await Promise.all([
+      fetchClubDetails(),
+      fetchClubPolls(),
+      fetchMembers(),
+      fetchMatches(),
+    ]);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAllData();
+    setRefreshing(false);
   };
 
   useEffect(() => {
-    if (club?.id) {
-      fetchClubPolls();
-      fetchMatches();
+    if (id) {
+      loadAllData();
+      const interval = setInterval(() => {
+        fetchClubDetails();
+        fetchClubPolls();
+        fetchMembers();
+      }, 8000);
+      return () => clearInterval(interval);
     }
-  }, [club?.id]);
-
-  const handleTransferLeadership = async (member: MemberItem) => {
-    if (!club) return;
-    await transferLeadership(club.id, member.userId);
-    await Promise.all([fetchMembers(), refreshClubs()]);
-  };
-
-  const handleAssignSubLeader = async (member: MemberItem) => {
-    if (!club) return;
-    await assignSubLeader(club.id, member.userId);
-    await Promise.all([fetchMembers(), refreshClubs()]);
-  };
-
-  const handleDemoteSubLeader = async (member: MemberItem) => {
-    if (!club) return;
-    await demoteSubLeader(club.id, member.userId);
-    await Promise.all([fetchMembers(), refreshClubs()]);
-  };
-
-  const handleKickMember = async (member: MemberItem) => {
-    if (!club) return;
-    await removeMember(club.id, member.userId);
-    await Promise.all([fetchMembers(), refreshClubs()]);
-  };
-
-  const handleApproveMember = async (member: MemberItem) => {
-    if (!club) return;
-    await approveMemberApi(Number(club.id), member.userId);
-    await Promise.all([fetchMembers(), refreshClubs()]);
-  };
-
-  const handleRejectMember = async (member: MemberItem) => {
-    if (!club) return;
-    await rejectMemberApi(Number(club.id), member.userId);
-    await Promise.all([fetchMembers(), refreshClubs()]);
-  };
-
-  if (!club) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            activeOpacity={0.7} 
-            onPress={() => router.back()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi tiết câu lạc bộ</Text>
-          <View style={styles.headerPlaceholder} />
-        </View>
-        <View style={styles.errorContainer}>
-          <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
-          <Text style={styles.errorText}>Không tìm thấy câu lạc bộ này</Text>
-          <Button title="Quay lại" onPress={() => router.back()} style={styles.errorBtn} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  }, [id, numericClubId]);
 
   const handleNativeShare = async () => {
+    if (!club) return;
     try {
       const shareUrl = `https://sporta.vn/clubs/join/${club.id}`;
       await Share.share({
-        message: `Tham gia câu lạc bộ "${club.name}" cùng mình trên Sporta nhé! Đường dẫn tham gia: ${shareUrl}`,
+        message: `Tham gia câu lạc bộ "${club.name}" cùng mình trên Sporta nhé! Đường dẫn: ${shareUrl}`,
         url: shareUrl,
         title: `Mời gia nhập CLB ${club.name}`
       });
@@ -330,14 +278,27 @@ export function ClubDetailJoinedScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOpenCreatePoll = () => {
+    if (currentUserRole !== 'Trưởng câu lạc bộ' && currentUserRole !== 'Phó câu lạc bộ') {
+      showAlert('Quyền hạn', 'Chỉ Trưởng hoặc Phó câu lạc bộ mới có quyền tạo biểu quyết thi đấu.');
+      return;
+    }
+    setIsCreatePollModalVisible(true);
+  };
 
   const handleCreatePoll = async (payload: CreateMatchPollPayload) => {
     if (!club) return;
+    if (currentUserRole !== 'Trưởng câu lạc bộ' && currentUserRole !== 'Phó câu lạc bộ') {
+      showAlert('Quyền hạn', 'Chỉ Trưởng hoặc Phó câu lạc bộ mới có quyền tạo biểu quyết thi đấu.');
+      return;
+    }
     try {
       await createMatchPollApi(Number(club.id), payload);
-      await fetchClubPolls();
       setIsCreatePollModalVisible(false);
-      showAlert('Thành công', 'Đã tạo biểu quyết mới thành công!');
+      await fetchClubPolls();
+      setTimeout(() => {
+        showAlert('Thành công', 'Đã tạo biểu quyết mới thành công!');
+      }, 350);
     } catch (err: any) {
       showAlert('Lỗi', err.message || 'Không thể tạo biểu quyết mới.');
     }
@@ -395,24 +356,59 @@ export function ClubDetailJoinedScreen() {
     }
   };
 
+  const handleTransferLeadership = async (member: MemberItem) => {
+    if (!club) return;
+    await transferLeadership(club.id, member.userId);
+    await Promise.all([fetchMembers(), fetchClubDetails(), refreshClubs()]);
+  };
+
+  const handleAssignSubLeader = async (member: MemberItem) => {
+    if (!club) return;
+    await assignSubLeader(club.id, member.userId);
+    await Promise.all([fetchMembers(), fetchClubDetails(), refreshClubs()]);
+  };
+
+  const handleDemoteSubLeader = async (member: MemberItem) => {
+    if (!club) return;
+    await demoteSubLeader(club.id, member.userId);
+    await Promise.all([fetchMembers(), fetchClubDetails(), refreshClubs()]);
+  };
+
+  const handleKickMember = async (member: MemberItem) => {
+    if (!club) return;
+    await removeMember(club.id, member.userId);
+    await Promise.all([fetchMembers(), fetchClubDetails(), refreshClubs()]);
+  };
+
+  const handleApproveMember = async (member: MemberItem) => {
+    if (!club) return;
+    await approveMemberApi(Number(club.id), member.userId);
+    await Promise.all([fetchMembers(), fetchClubDetails(), refreshClubs()]);
+  };
+
+  const handleRejectMember = async (member: MemberItem) => {
+    if (!club) return;
+    await rejectMemberApi(Number(club.id), member.userId);
+    await Promise.all([fetchMembers(), fetchClubDetails(), refreshClubs()]);
+  };
+
   const handleLeavePress = () => {
-    const numMembers = members.length;
-    
-    if (numMembers >= 2 && currentUserRole === 'Trưởng câu lạc bộ') {
-      showAlert(
-        'Không thể rời nhóm',
-        'Bạn là Trưởng câu lạc bộ. Bạn bắt buộc phải chuyển quyền Trưởng câu lạc bộ cho một thành viên khác trước khi rời khỏi câu lạc bộ.'
-      );
+    const numMembers = approvedMembers.length;
+    if (currentUserRole === 'Trưởng câu lạc bộ') {
+      if (numMembers >= 2) {
+        showAlert(
+          'Không thể rời nhóm',
+          'Bạn là Trưởng câu lạc bộ. Bạn bắt buộc phải chuyển quyền Trưởng câu lạc bộ cho một thành viên khác trước khi rời khỏi câu lạc bộ.'
+        );
+        return;
+      }
+      setIsDeleteLeaveMode(true);
+      setIsLeaveModalVisible(true);
       return;
     }
 
-    if (numMembers <= 1) {
-      setIsDeleteLeaveMode(true);
-    } else {
-      setIsDeleteLeaveMode(false);
-    }
-
-    setIsMembersModalVisible(false);
+    // Phó câu lạc bộ và Thành viên thường có thể tự do rời CLB
+    setIsDeleteLeaveMode(false);
     setIsLeaveModalVisible(true);
   };
 
@@ -420,133 +416,257 @@ export function ClubDetailJoinedScreen() {
     if (!club) return;
     setIsLeaveModalVisible(false);
     setIsMembersModalVisible(false);
+    setIsInfoModalVisible(false);
     try {
       if (isDeleteLeaveMode) {
-        console.log('[ClubDetail] Last member (leader) leaving, deleting club:', club.id);
         await deleteClub(club.id);
-        showAlert('Thành công', 'Đã giải tán câu lạc bộ thành công.', () => router.replace('/(tabs)/clubs'));
       } else {
-        console.log('[ClubDetail] Leaving club:', club.id);
         await leaveClub(club.id);
-        showAlert('Thành công', 'Bạn đã rời câu lạc bộ thành công.', () => router.replace('/(tabs)/clubs'));
       }
+      router.replace('/(tabs)/clubs');
     } catch (err: any) {
-      showAlert('Lỗi', err.message || 'Thực hiện hành động thất bại.');
+      showAlert('Lỗi', err.message || 'Thao tác thất bại.');
     }
   };
+
+  if (!club) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.headerIconBtn} 
+            activeOpacity={0.7} 
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={22} color={COLORS.onSurface} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chi tiết câu lạc bộ</Text>
+          <View style={styles.headerPlaceholder} />
+        </View>
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+          <Text style={styles.errorText}>Không tìm thấy câu lạc bộ này</Text>
+          <Button title="Quay lại" onPress={() => router.back()} style={styles.errorBtn} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Calculate Match Statistics for Card Summary
+  const totalMatches = clubMatches.length;
+  const winsCount = clubMatches.filter(m => m.result === 'win').length;
+  const lossesCount = clubMatches.filter(m => m.result === 'lose').length;
+  const drawsCount = clubMatches.filter(m => m.result === 'draw').length;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
       
-      {/* Header wrapper to color the status bar and notch area white */}
+      {/* 1. CLEAN TOP BAR (Back, Title, Info 'i', Share, Settings) */}
       <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <TouchableOpacity 
-            style={styles.backButton} 
+            style={styles.headerIconBtn} 
             activeOpacity={0.7} 
             onPress={() => router.back()}
           >
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+            <MaterialIcons name="arrow-back" size={22} color={COLORS.onSurface} />
           </TouchableOpacity>
+
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
             {club.name}
           </Text>
-          {currentUserRole === 'Trưởng câu lạc bộ' ? (
-            <TouchableOpacity 
-              style={styles.editHeaderButton}
-              activeOpacity={0.8}
-              onPress={() => setIsEditModalVisible(true)}
-            >
-              <MaterialIcons name="edit" size={22} color={COLORS.primary} />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerPlaceholder} />
-          )}
-        </View>
-      </SafeAreaView>
 
-      {/* Main Content */}
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Reusable Club detail header */}
-        <ClubDetailHeader 
-          club={club} 
-          hideMembersMeta={true} 
-          isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
-          userRole={currentUserRole}
-          onEditPress={() => setIsEditModalVisible(true)}
-          showDescription={true}
-        />
-
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          {/* Action buttons row */}
-          <View style={styles.actionRow}>
+          <View style={styles.headerRightActions}>
+            {/* Info 'i' Button */}
             <TouchableOpacity 
-              style={styles.rowActionBtn} 
-              activeOpacity={0.7} 
-              onPress={() => setIsInviteModalVisible(true)}
+              style={styles.headerIconBtn}
+              activeOpacity={0.7}
+              onPress={() => setIsInfoModalVisible(true)}
             >
-              <MaterialIcons name="share" size={18} color={COLORS.primary} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Mời bạn</Text>
+              <Ionicons name="information-circle-outline" size={21} color={COLORS.primary} />
             </TouchableOpacity>
 
+            {/* Share Button */}
             <TouchableOpacity 
-              style={styles.rowActionBtn} 
-              activeOpacity={0.7} 
-              onPress={() => setIsMembersModalVisible(true)}
+              style={styles.headerIconBtn} 
+              activeOpacity={0.7}
+              onPress={handleNativeShare}
             >
-              <MaterialIcons name="people" size={18} color={COLORS.primary} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Thành viên</Text>
+              <Ionicons name="share-social-outline" size={20} color={COLORS.onSurface} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.rowActionBtn} 
-              activeOpacity={0.7} 
-              onPress={() => setIsHistoryModalVisible(true)}
-            >
-              <MaterialIcons name="history" size={18} color={COLORS.primary} />
-              <Text style={styles.actionBtnText} numberOfLines={1}>Lịch sử</Text>
-            </TouchableOpacity>
-
+            {/* Settings Button (Only for Leader) */}
             {currentUserRole === 'Trưởng câu lạc bộ' && (
               <TouchableOpacity 
-                style={[styles.rowActionBtn, styles.rowActionBtnEdit]} 
-                activeOpacity={0.7} 
+                style={styles.headerIconBtn}
+                activeOpacity={0.8}
                 onPress={() => setIsEditModalVisible(true)}
               >
-                <MaterialIcons name="tune" size={18} color={COLORS.primary} />
-                <Text style={styles.actionBtnText} numberOfLines={1}>Cài đặt CLB</Text>
+                <MaterialIcons name="tune" size={20} color={COLORS.primary} />
               </TouchableOpacity>
             )}
           </View>
+        </View>
+      </SafeAreaView>
 
-          {/* Banner Yêu cầu gia nhập (dành cho Trưởng câu lạc bộ) */}
-          {currentUserRole === 'Trưởng câu lạc bộ' && pendingMembers.length > 0 && (
+      {/* Main Content ScrollView */}
+      <ScrollView 
+        style={styles.scroll} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        }
+      >
+        {/* 2. HERO HEADER (Clean cover, avatar, role badge, status tags) */}
+        <ClubDetailHeader 
+          club={club} 
+          isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
+          userRole={currentUserRole}
+        />
+
+        {/* 3. PERFORMANCE METRICS STACK (Calculated Real CRP & Member Average ELO) */}
+        <View style={styles.metricsContainer}>
+          {/* Card 1: Điểm Xếp Hạng CLB (CRP) -> Nhấn để xem BXH */}
+          <TouchableOpacity 
+            style={styles.metricCard}
+            activeOpacity={0.85}
+            onPress={() => router.push('/leaderboard' as any)}
+          >
+            <View style={styles.metricCardHeader}>
+              <View style={[styles.metricIconCircle, { backgroundColor: '#EFF6FF' }]}>
+                <FontAwesome5 name="trophy" size={15} color="#2563EB" />
+              </View>
+              <Text style={styles.metricCardLabel}>Điểm CLB (CRP)</Text>
+            </View>
+            <Text style={[styles.metricMainValue, { color: '#2563EB' }]}>
+              {club.crp !== undefined ? `${club.crp}` : '0'}<Text style={styles.metricUnit}> CRP</Text>
+            </Text>
+            <View style={styles.metricFooterRow}>
+              <MaterialIcons name="leaderboard" size={13} color="#2563EB" />
+              <Text style={[styles.metricFooterText, { color: '#2563EB', fontWeight: '700' }]}>
+                Xem BXH & phần thưởng ➜
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Card 2: Elo Trung Bình CLB (Toàn bộ thành viên) */}
+          <View style={styles.metricCard}>
+            <View style={styles.metricCardHeader}>
+              <View style={[styles.metricIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <MaterialIcons name="stars" size={18} color="#D97706" />
+              </View>
+              <Text style={styles.metricCardLabel}>Elo trung bình</Text>
+            </View>
+            <Text style={[styles.metricMainValue, { color: '#D97706' }]}>
+              {club.averageElo || club.elo || 1200}<Text style={styles.metricUnit}> Elo</Text>
+            </Text>
+            <View style={styles.metricFooterRow}>
+              <MaterialIcons name="bolt" size={13} color="#D97706" />
+              <Text style={[styles.metricFooterText, { color: '#B45309', fontWeight: '700' }]}>
+                Trình độ: {club.levelLabel || 'Trung bình'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 4. MODULAR NAVIGATION CARDS (Sub-views mở Modal chuyên biệt) */}
+        <View style={styles.subCardsSection}>
+          {/* Sub Card 1: Thành viên CLB */}
+          <TouchableOpacity 
+            style={styles.navCard}
+            activeOpacity={0.8}
+            onPress={() => setIsMembersModalVisible(true)}
+          >
+            <View style={styles.navCardLeft}>
+              <View style={[styles.navCardIconBox, { backgroundColor: '#ECFDF5' }]}>
+                <Ionicons name="people" size={20} color="#059669" />
+              </View>
+              <View style={styles.navCardInfo}>
+                <View style={styles.navCardTitleRow}>
+                  <Text style={styles.navCardTitle}>Thành viên CLB</Text>
+                  {pendingMembers.length > 0 && (
+                    <View style={styles.pendingDotBadge}>
+                      <Text style={styles.pendingDotText}>+{pendingMembers.length} chờ</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.navCardSub}>
+                  {approvedMembers.length} / {club.maxMembers || 50} thành viên chính thức
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.navCardRight}>
+              {/* Mini Avatar Stack */}
+              <View style={styles.avatarStack}>
+                {approvedMembers.slice(0, 3).map((m, idx) => (
+                  <View key={m.id || idx} style={[styles.stackAvatarWrapper, { marginLeft: idx > 0 ? -10 : 0 }]}>
+                    <Avatar size={24} source={m.avatar} />
+                  </View>
+                ))}
+              </View>
+              <MaterialIcons name="chevron-right" size={22} color="#94A3B8" />
+            </View>
+          </TouchableOpacity>
+
+          {/* Sub Card 2: Lịch sử đối đầu CLB */}
+          <TouchableOpacity 
+            style={styles.navCard}
+            activeOpacity={0.8}
+            onPress={() => setIsHistoryModalVisible(true)}
+          >
+            <View style={styles.navCardLeft}>
+              <View style={[styles.navCardIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="trophy" size={18} color="#2563EB" />
+              </View>
+              <View style={styles.navCardInfo}>
+                <Text style={styles.navCardTitle}>Lịch sử đối đầu CLB</Text>
+                <Text style={styles.navCardSub}>
+                  {totalMatches > 0 
+                    ? `Phong độ: ${winsCount} thắng - ${drawsCount} hòa - ${lossesCount} thua`
+                    : 'Chưa có dữ liệu thi đấu xếp hạng'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.navCardRight}>
+              <View style={styles.matchesCountBadge}>
+                <Text style={styles.matchesCountText}>{totalMatches} trận</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={22} color="#94A3B8" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* 5. MAIN CORE SECTION: BIỂU QUYẾT & ĐỘI HÌNH RA SÂN */}
+        <View style={styles.corePollsSection}>
+          {/* Pending Requests Banner for Leadership */}
+          {(currentUserRole === 'Trưởng câu lạc bộ' || currentUserRole === 'Phó câu lạc bộ') && pendingMembers.length > 0 && (
             <TouchableOpacity 
-              style={styles.pendingBanner}
+              style={styles.pendingActionBanner}
               activeOpacity={0.85}
               onPress={() => setIsMembersModalVisible(true)}
             >
-              <View style={styles.pendingBannerContent}>
-                <View style={styles.pendingBadgeIcon}>
-                  <MaterialIcons name="person-add" size={20} color={COLORS.primary} />
+              <View style={styles.pendingActionLeft}>
+                <View style={styles.pendingAlertIcon}>
+                  <Ionicons name="person-add" size={18} color="#D97706" />
                 </View>
-                <View style={styles.pendingBannerTextContainer}>
-                  <Text style={styles.pendingBannerTitle}>Yêu cầu gia nhập mới</Text>
-                  <Text style={styles.pendingBannerSubtitle}>
+                <View>
+                  <Text style={styles.pendingAlertTitle}>Yêu cầu gia nhập mới</Text>
+                  <Text style={styles.pendingAlertSub}>
                     Có {pendingMembers.length} người đang chờ bạn phê duyệt
                   </Text>
                 </View>
               </View>
-              <View style={styles.pendingBannerActionBtn}>
-                <Text style={styles.pendingBannerActionText}>Duyệt ngay</Text>
-                <MaterialIcons name="chevron-right" size={18} color={COLORS.white} />
+              <View style={styles.pendingDuyetBtn}>
+                <Text style={styles.pendingDuyetText}>Duyệt ngay</Text>
+                <MaterialIcons name="chevron-right" size={16} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
           )}
 
-          {/* Poll / Matchmaking Section (v2.0) */}
+          {/* PollCard component */}
           <PollCard 
             polls={matchPolls}
             votingPollId={votingPollId}
@@ -556,29 +676,30 @@ export function ClubDetailJoinedScreen() {
             onSplitInternalTeams={handleSplitInternalTeams}
             onFormGTLineup={handleFormGTLineup}
             onDeletePoll={handleDeletePoll}
-            onCreatePollPress={() => setIsCreatePollModalVisible(true)}
+            onCreatePollPress={handleOpenCreatePoll}
+            members={members}
+            onRefreshPolls={fetchClubPolls}
+            isDevUser={isDevUser}
           />
         </View>
       </ScrollView>
 
-      {/* Custom Leave Confirmation Modal */}
-      <LeaveConfirmationModal 
-        visible={isLeaveModalVisible}
-        onClose={() => setIsLeaveModalVisible(false)}
-        onConfirm={handleConfirmLeave}
-        clubName={club.name}
-        isDelete={isDeleteLeaveMode}
+      {/* 6. DEDICATED MODALS */}
+      <ClubInfoModal
+        visible={isInfoModalVisible}
+        club={club}
+        onClose={() => setIsInfoModalVisible(false)}
+        onLeavePress={handleLeavePress}
+        isSoleMember={approvedMembers.length <= 1}
       />
 
-      {/* Group Members Full Screen Modal */}
       <MembersModal 
         visible={isMembersModalVisible}
-        onClose={() => setIsMembersModalVisible(false)}
-        membersCount={approvedMembers.length > 0 ? approvedMembers.length : club.members}
+        membersCount={approvedMembers.length}
         members={members}
-        onLeavePress={handleLeavePress}
         currentUserRole={currentUserRole}
         currentUserId={currentUserId}
+        onClose={() => setIsMembersModalVisible(false)}
         onTransferLeadership={handleTransferLeadership}
         onAssignSubLeader={handleAssignSubLeader}
         onDemoteSubLeader={handleDemoteSubLeader}
@@ -586,19 +707,37 @@ export function ClubDetailJoinedScreen() {
         onApproveMember={handleApproveMember}
         onRejectMember={handleRejectMember}
         onRefreshMembers={fetchMembers}
+        onLeavePress={handleLeavePress}
       />
 
-      {/* Invite Friend Modal */}
+      <MatchHistoryModal 
+        visible={isHistoryModalVisible}
+        club={club}
+        matches={clubMatches}
+        onClose={() => setIsHistoryModalVisible(false)}
+        onRefreshMatches={fetchMatches}
+      />
+
       <InviteModal 
         visible={isInviteModalVisible}
-        onClose={() => setIsInviteModalVisible(false)}
         club={club}
-        onShare={handleNativeShare}
         copied={copied}
         onCopy={handleCopyLink}
+        onShare={handleNativeShare}
+        onClose={() => setIsInviteModalVisible(false)}
       />
 
-      {/* Create Poll Modal (v2.0) */}
+      <EditClubModal 
+        visible={isEditModalVisible}
+        club={club}
+        onClose={() => setIsEditModalVisible(false)}
+        onSuccess={() => {
+          setIsEditModalVisible(false);
+          fetchClubDetails();
+          refreshClubs();
+        }}
+      />
+
       <CreatePollModal 
         visible={isCreatePollModalVisible}
         onClose={() => setIsCreatePollModalVisible(false)}
@@ -606,27 +745,13 @@ export function ClubDetailJoinedScreen() {
         clubSportName={club.sport}
       />
 
-      {/* Match History Full Screen Modal */}
-      <MatchHistoryModal 
-        visible={isHistoryModalVisible}
-        onClose={() => setIsHistoryModalVisible(false)}
-        club={club}
-        matches={realMatches.length > 0 ? realMatches : MOCK_MATCH_HISTORY}
-        isLeadership={currentUserRole === 'Trưởng câu lạc bộ'}
-        onRefreshMatches={fetchMatches}
+      <LeaveConfirmationModal 
+        visible={isLeaveModalVisible}
+        clubName={club.name}
+        isDelete={isDeleteLeaveMode}
+        onConfirm={handleConfirmLeave}
+        onClose={() => setIsLeaveModalVisible(false)}
       />
-
-      {/* Edit Club Modal (Dành riêng cho Trưởng câu lạc bộ) */}
-      {currentUserRole === 'Trưởng câu lạc bộ' && (
-        <EditClubModal 
-          visible={isEditModalVisible}
-          onClose={() => setIsEditModalVisible(false)}
-          club={club}
-          onSuccess={async () => {
-            await Promise.all([fetchMembers(), refreshClubs()]);
-          }}
-        />
-      )}
     </View>
   );
 }
@@ -634,202 +759,273 @@ export function ClubDetailJoinedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   headerSafeArea: {
     backgroundColor: COLORS.surface,
+    zIndex: 10,
   },
   header: {
+    height: 52,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.marginMobile,
-    height: 64,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+    borderBottomColor: '#F1F5F9',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
-    position: 'absolute',
-    left: 60,
-    right: 60,
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+    fontSize: 16,
+    flex: 1,
     textAlign: 'center',
-    ...TYPOGRAPHY.headlineMd,
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
+    marginHorizontal: 8,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   headerPlaceholder: {
-    width: 40,
-  },
-  editHeaderButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
+    width: 36,
   },
   scroll: {
     flex: 1,
-  },
-  infoSection: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl * 2,
-  },
-  bioCard: {
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    backgroundColor: COLORS.primaryOpacity05,
-    borderColor: COLORS.primaryOpacity15,
-    borderRadius: BORDER_RADIUS.lg,
-  },
-  bioHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
-  },
-  editBioBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xs + 4,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primaryOpacity08 || COLORS.surfaceContainerLow,
-    gap: 3,
-  },
-  editBioText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-    marginBottom: SPACING.base,
-    marginTop: 0,
-  },
-  description: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 14,
-    color: COLORS.onSurfaceVariant,
-    lineHeight: 22,
-    marginBottom: 0,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.xs + 2,
-    marginBottom: SPACING.md,
-  },
-  rowActionBtn: {
-    flex: 1,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.sm + 2,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity15,
-    backgroundColor: COLORS.surface,
-    gap: 4,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  rowActionBtnEdit: {
-    borderColor: '#fde68a',
-    backgroundColor: '#fefce8',
-  },
-  actionBtnText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.primaryOpacity08,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity15,
-    borderRadius: BORDER_RADIUS.default,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  pendingBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: SPACING.md,
-  },
-  pendingBadgeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primaryOpacity15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pendingBannerTextContainer: {
-    flex: 1,
-  },
-  pendingBannerTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  pendingBannerSubtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
-  },
-  pendingBannerActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.md,
-    gap: 2,
-  },
-  pendingBannerActionText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 12,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
-    gap: SPACING.base,
+    padding: 24,
+    gap: 12,
   },
   errorText: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    color: COLORS.error,
+    textAlign: 'center',
   },
   errorBtn: {
-    marginTop: SPACING.md,
-    paddingHorizontal: SPACING.lg,
+    marginTop: 12,
+    minWidth: 140,
+  },
+
+  /* 3. METRICS CARDS */
+  metricsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 10,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  metricCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 4,
+  },
+  metricIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  metricCardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  metricMainValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  metricUnit: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  metricFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  metricFooterText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+
+  /* 4. MODULAR NAVIGATION CARDS */
+  subCardsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  navCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  navCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  navCardIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navCardInfo: {
+    flex: 1,
+  },
+  navCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  navCardTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  pendingDotBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  pendingDotText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  navCardSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  navCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  avatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stackAvatarWrapper: {
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderRadius: 14,
+  },
+  matchesCountBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  matchesCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+
+  /* 5. MAIN CORE POLLS SECTION */
+  corePollsSection: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 28,
+  },
+  pendingActionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    marginBottom: 12,
+  },
+  pendingActionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  pendingAlertIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingAlertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  pendingAlertSub: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 1,
+  },
+  pendingDuyetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#D97706',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  pendingDuyetText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
-
-export default ClubDetailJoinedScreen;

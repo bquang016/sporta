@@ -19,6 +19,7 @@ import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/conf
 import { Avatar } from '../../../shared/ui/Avatar/Avatar';
 import { ConfirmModal } from '../../../shared/ui/Modal/ConfirmModal';
 import { useProfile } from '../hooks/useProfile';
+import { getEloLevelLabel, getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 const HEADER_HEIGHT = 56;
 
@@ -93,9 +94,9 @@ export function ProfileScreen() {
   }, [profileData?.sports]);
 
   const currentSport = userSports[Math.min(selectedSportIndex, userSports.length - 1)] || userSports[0];
-  const currentElo = currentSport?.eloRating ?? 1500;
+  const currentElo = currentSport?.eloRating ?? 1350;
   const currentEloStatus = currentSport?.eloStatus ?? 'UNVERIFIED';
-  const currentLevelLabel = currentSport?.levelLabel || (currentSport?.level === 'GOOD' ? 'Khá' : currentSport?.level === 'WEAK' ? 'Yếu' : 'Trung bình');
+  const currentLevelLabel = currentSport?.levelLabel || (currentSport?.eloRating != null ? getEloLevelLabel(currentSport.eloRating) : getSportLevelLabel(currentSport?.level));
   const totalMatches = currentSport?.totalRankedMatches ?? 0;
   const totalWins = currentSport?.totalWins ?? 0;
   const winRate = currentSport?.winRate ?? (totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0);
@@ -278,7 +279,7 @@ export function ProfileScreen() {
             <View style={styles.sportsSectionHeader}>
               <View style={styles.sportsHeaderLeft}>
                 <Ionicons name="fitness-outline" size={13} color="#064E3B" />
-                <Text style={styles.sportsSectionTitle}>MÔN THI ĐẤU</Text>
+                <Text style={styles.sportsSectionTitle}>Môn thi đấu</Text>
               </View>
               <View style={styles.sportsHintBadge}>
                 <Ionicons name="sparkles" size={10} color="#059669" />
@@ -373,9 +374,9 @@ export function ProfileScreen() {
               <MaterialCommunityIcons name="trophy" size={18} color="#064E3B" />
             </View>
             <Text style={styles.statValue}>{totalMatches}</Text>
-            <Text style={styles.statLabel}>Trận Xếp Hạng</Text>
+            <Text style={styles.statLabel}>Trận xếp hạng</Text>
             <View style={styles.statActionHint}>
-              <Text style={styles.statSub}>{totalWins} Thắng</Text>
+              <Text style={styles.statSub}>{totalWins} thắng</Text>
               <Ionicons name="chevron-forward" size={11} color="#064E3B" />
             </View>
           </TouchableOpacity>
@@ -436,7 +437,7 @@ export function ProfileScreen() {
               <MaterialIcons name="card-giftcard" size={20} color="#D97706" />
             </View>
             <View style={styles.quickBannerTextContainer}>
-              <Text style={styles.quickBannerTitle}>Kho Voucher</Text>
+              <Text style={styles.quickBannerTitle}>Kho voucher</Text>
               <Text style={styles.quickBannerSubtitle}>Mã giảm giá đặt sân</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
@@ -447,7 +448,7 @@ export function ProfileScreen() {
             MENU SECTION 1: HOẠT ĐỘNG & THI ĐẤU
            ======================================================== */}
         <View style={styles.menuSection}>
-          <Text style={styles.sectionHeaderTitle}>Hoạt Động & Thi Đấu</Text>
+          <Text style={styles.sectionHeaderTitle}>Hoạt động & thi đấu</Text>
           <View style={styles.menuCard}>
             <MenuRow
               icon="history"
@@ -482,7 +483,7 @@ export function ProfileScreen() {
             MENU SECTION 2: TÀI KHOẢN & BẢO MẬT
            ======================================================== */}
         <View style={styles.menuSection}>
-          <Text style={styles.sectionHeaderTitle}>Tài Khoản & Cài Đặt</Text>
+          <Text style={styles.sectionHeaderTitle}>Tài khoản & cài đặt</Text>
           <View style={styles.menuCard}>
             <MenuRow
               icon="person-outline"

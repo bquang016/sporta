@@ -79,4 +79,11 @@ public class MatchPollController {
         String label = body.get("label");
         return ResponseEntity.ok(matchPollService.addCustomOption(pollId, label, getCurrentUserEmail()));
     }
+
+    @PostMapping("/match-polls/{pollId}/dev-assign-votes")
+    public ResponseEntity<MatchPollResponse> devAssignVotes(
+            @PathVariable Long pollId,
+            @RequestBody com.backend.sporta.dto.DevAssignVotesRequest request) {
+        return ResponseEntity.ok(matchPollService.devAssignVotes(pollId, request, getCurrentUserEmail()));
+    }
 }

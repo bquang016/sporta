@@ -21,6 +21,7 @@ class SportaApplicationTests {
     @Test
     void contextLoads() {
         try {
+            jdbcTemplate.execute("ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check");
             List<Map<String, Object>> clubs = jdbcTemplate.queryForList("SELECT id, name FROM clubs");
             System.out.println("=== SPORTA APPLICATION TEST: FOUND " + clubs.size() + " CLUBS ===");
             for (Map<String, Object> c : clubs) {

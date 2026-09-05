@@ -21,13 +21,17 @@ public class LineupConflictValidator {
     private LineupMemberRepository lineupMemberRepository;
 
     /**
-     * Kiểm tra ràng buộc: Một thành viên không được tham gia cùng lúc ở đội hình ra sân của 2 CLB khác nhau.
-     * 
-     * @param userId        ID người dùng
-     * @param targetLineup  Đội hình dự kiến thêm vào
+     * Kiểm tra xung đột đội hình khi thực hiện ghép trận (Matchmaking):
+     * 1. Một người không thể có mặt ở cả 2 bên đội hình (Host và Guest) của cùng một trận đấu.
+     * 2. Một người không thể thi đấu nếu đang có trận đấu khác đang diễn ra (IN_MATCH).
      */
     public void validateNoConflict(Long userId, MatchLineup targetLineup) {
         if (userId == null || targetLineup == null) return;
+
+        // Chỉ kiểm tra khi đội hình này đang thực sự tham gia vào một trận đấu cụ thể
+        if (targetLineup.getMatchRoom() == null && targetLineup.getStatus() != LineupStatus.IN_MATCH) {
+            return;
+        }
 
         List<LineupMember> activeMemberships = lineupMemberRepository.findActiveMembershipsByUserId(userId);
         Long targetClubId = targetLineup.getClub().getId();
@@ -39,33 +43,12 @@ public class LineupConflictValidator {
             }
 
             Long existingClubId = existingLineup.getClub().getId();
-            // Nếu thuộc CLB khác
             if (!existingClubId.equals(targetClubId)) {
-                // Kiểm tra xem có trùng lịch thi đấu / trùng phòng ghép trận hay không
-                LocalDate existingDate = getLineupMatchDate(existingLineup);
-                LocalDate targetDate = getLineupMatchDate(targetLineup);
-
-                // Nếu cả hai đều có ngày thi đấu và trùng ngày, hoặc 1 trong 2 đang trong trận đấu IN_MATCH
-                if (existingLineup.getStatus() == LineupStatus.IN_MATCH || targetLineup.getStatus() == LineupStatus.IN_MATCH) {
+                // Nếu đang trong trận đấu IN_MATCH
+                if (existingLineup.getStatus() == LineupStatus.IN_MATCH) {
                     throw new CustomException(
-                            "Thành viên này đang trong trận đấu của CLB \"" + existingLineup.getClub().getName()
-                                    + "\" (Đội " + existingLineup.getName() + "). Không thể tham gia đội hình CLB khác!",
-                            400);
-                }
-
-                if (existingDate != null && targetDate != null && existingDate.isEqual(targetDate)) {
-                    throw new CustomException(
-                            "Thành viên này đã đăng ký thi đấu cho CLB \"" + existingLineup.getClub().getName()
-                                    + "\" (Đội " + existingLineup.getName() + ") vào ngày " + existingDate
-                                    + ". Một thành viên không thể ra sân cho 2 CLB cùng ngày!",
-                            400);
-                }
-
-                // Nếu đội hình hiện tại đang gắn vào MatchRoom chưa hoàn thành
-                if (existingLineup.getMatchRoom() != null && targetLineup.getMatchRoom() != null) {
-                    throw new CustomException(
-                            "Thành viên này đã có tên trong danh sách thi đấu của CLB \"" + existingLineup.getClub().getName()
-                                    + "\" tại một phòng ghép trận khác.",
+                            "Thành viên này đang trực tiếp thi đấu cho CLB \"" + existingLineup.getClub().getName()
+                                    + "\" (Đội " + existingLineup.getName() + "). Vui lòng chờ trận đấu kết thúc hoặc thay người!",
                             400);
                 }
             }

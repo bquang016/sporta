@@ -19,6 +19,12 @@ public class ClubResponse {
     private Integer members;
     private Integer maxMembers;
     private Integer elo;
+    private Integer minEloRequired;
+    private Integer averageElo;
+    private Integer crp;
+    private Integer rankedWins;
+    private Integer finalMatches;
+    private String levelLabel;
     private String sport;
     private Long sportId;
     private String sportIcon;

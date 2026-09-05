@@ -357,7 +357,7 @@ export function CreateClubScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {area || 'Chọn Tỉnh / Thành phố'}
+                    {area || 'Chọn tỉnh / thành phố'}
                   </Text>
                   <MaterialIcons name="arrow-drop-down" size={22} color={COLORS.outline} />
                 </TouchableOpacity>
@@ -387,7 +387,7 @@ export function CreateClubScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {ward || (area ? 'Chọn Quận / Huyện / Xã' : 'Chọn Tỉnh/TP trước')}
+                    {ward || (area ? 'Chọn quận / huyện / xã' : 'Chọn tỉnh/thành phố trước')}
                   </Text>
                   <MaterialIcons
                     name="arrow-drop-down"

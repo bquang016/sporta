@@ -140,7 +140,7 @@ export function ReactionOverlayProvider({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     zIndex: 9998,
   },

@@ -285,6 +285,24 @@ export class MatchmakingApiRepository {
   }
 
   /**
+   * Đội đối thủ (Bên B) hoặc Bên A từ chối tỷ số / khiếu nại
+   */
+  static async disagreeScore(
+    roomId: string,
+    reasonCode?: string,
+    description?: string
+  ): Promise<MatchRoomVM> {
+    return apiFetch<MatchRoomVM>(
+      `/matchmaking/matches/${roomId}/disagree-score`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reasonCode: reasonCode || 'DISAGREE_SCORE', description }),
+      },
+      true
+    );
+  }
+
+  /**
    * Lấy thông tin xem trước tính toán điểm xếp hạng
    */
   static async getRankingPreview(roomId: string): Promise<RankingCalculationPreview> {
@@ -355,6 +373,8 @@ export class MatchmakingApiRepository {
       hostScore: number | string;
       guestScore: number | string;
       rawScoreDetails?: string;
+      hostLineupId?: number;
+      guestLineupId?: number;
       hostPlayerUserIds?: number[];
       guestPlayerUserIds?: number[];
     }
@@ -367,6 +387,8 @@ export class MatchmakingApiRepository {
           hostScore: String(params.hostScore),
           guestScore: String(params.guestScore),
           rawScoreDetails: params.rawScoreDetails,
+          hostLineupId: params.hostLineupId,
+          guestLineupId: params.guestLineupId,
           hostPlayerUserIds: params.hostPlayerUserIds,
           guestPlayerUserIds: params.guestPlayerUserIds,
         }),

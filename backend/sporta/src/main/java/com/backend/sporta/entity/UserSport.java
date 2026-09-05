@@ -64,20 +64,22 @@ public class UserSport {
     }
 
     public static int mapSeedElo(SportLevel level) {
-        if (level == null) return 1000;
+        if (level == null) return 1350;
         switch (level) {
             case WEAK:
-                return 900;
+                return 800;
             case WEAK_AVERAGE:
-                return 1200;
+                return 1050;
             case AVERAGE:
-                return 1500;
+                return 1350;
             case AVERAGE_GOOD:
-                return 1800;
+                return 1650;
             case GOOD:
-                return 2100;
+                return 1950;
+            case PRO:
+                return 2200;
             default:
-                return 1000;
+                return 1350;
         }
     }
 }

@@ -8,9 +8,10 @@ interface ClubSelectorProps {
   clubs: ClubSummaryVM[];
   selectedClubId?: string;
   onSelectClub: (club: ClubSummaryVM) => void;
+  stepNumber?: number;
 }
 
-export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelectorProps) {
+export function ClubSelector({ clubs, selectedClubId, onSelectClub, stepNumber = 1 }: ClubSelectorProps) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -18,7 +19,7 @@ export function ClubSelector({ clubs, selectedClubId, onSelectClub }: ClubSelect
           <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>1. Chọn CLB Đại Diện</Text>
+          <Text style={styles.sectionTitle}>{stepNumber}. Chọn CLB Đại Diện</Text>
           <Text style={styles.subtext}>
             CLB cần có tối thiểu <Text style={{ fontWeight: '800', color: COLORS.primary }}>8 thành viên ACTIVE</Text> để đăng bài tìm đối thủ.
           </Text>

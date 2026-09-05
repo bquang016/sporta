@@ -79,7 +79,7 @@ export function ActionGrid({ isAuthenticated }: ActionGridProps) {
           <View style={styles.sectionIconBox}>
             <Ionicons name="flash-outline" size={16} color={COLORS.primary} />
           </View>
-          <Text style={styles.sectionTitle}>Dịch Vụ Nổi Bật</Text>
+          <Text style={styles.sectionTitle}>Dịch vụ nổi bật</Text>
         </View>
       </View>
 

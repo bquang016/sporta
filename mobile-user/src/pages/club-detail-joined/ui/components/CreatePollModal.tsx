@@ -8,16 +8,20 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
 import { CreateMatchPollPayload } from '../../../../shared/api/clubs';
-import { CalendarPicker } from '../../../../shared/ui/CalendarPicker';
+import { PollMaxPlayersStepper } from './PollMaxPlayersStepper';
+import { PollDatePicker } from './PollDatePicker';
+import { PollTimePicker } from './PollTimePicker';
 
 export interface CreatePollModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (payload: CreateMatchPollPayload) => void;
+  onSubmit: (payload: CreateMatchPollPayload) => void | Promise<void>;
   clubSportName?: string;
 }
 
@@ -29,7 +33,21 @@ export function CreatePollModal({
 }: CreatePollModalProps) {
   const [pollType, setPollType] = useState<'MATCHMAKING' | 'INTERNAL'>('MATCHMAKING');
   const [title, setTitle] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState<string>('7');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Minimum and Default Max Players
+  const getMinPlayersHint = (sport?: string) => {
+    if (!sport) return 1;
+    const s = sport.toLowerCase();
+    if (s.includes('bóng đá') || s.includes('football')) return 5;
+    if (s.includes('bóng rổ') || s.includes('basketball')) return 3;
+    if (s.includes('cầu lông') || s.includes('badminton') || s.includes('pickleball')) return 2;
+    return 1;
+  };
+
+  const minPlayers = getMinPlayersHint(clubSportName);
+  const defaultMax = minPlayers >= 5 ? 7 : (minPlayers === 3 ? 5 : (minPlayers === 2 ? 4 : 2));
+  const [maxPlayers, setMaxPlayers] = useState<number>(defaultMax);
 
   // Date & Time states
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
@@ -39,30 +57,10 @@ export function CreatePollModal({
   });
   const [selectedHour, setSelectedHour] = useState<number>(18);
   const [selectedMinute, setSelectedMinute] = useState<number>(0);
-  const [isCalendarVisible, setIsCalendarVisible] = useState(false);
 
   // Custom options (unlimited)
   const [customOptions, setCustomOptions] = useState<string[]>([]);
   const [newOptionInput, setNewOptionInput] = useState('');
-
-  const PRESETS = [
-    { type: 'MATCHMAKING', title: 'Giao lưu ghép trận cuối tuần' },
-    { type: 'MATCHMAKING', title: 'Tìm đối thủ thi đấu cọ sát phong trào' },
-    { type: 'MATCHMAKING', title: 'Tuyển quân đá giao hữu sân 7' },
-    { type: 'INTERNAL', title: 'Chia 2 đội giao lưu nội bộ CLB' },
-    { type: 'INTERNAL', title: 'Buổi tập và thi đấu đối kháng' },
-    { type: 'INTERNAL', title: 'Đấu tập nội bộ thứ Bảy' },
-  ];
-
-  const getMinPlayersHint = (sport?: string) => {
-    if (!sport) return 1;
-    const s = sport.toLowerCase();
-    if (s.includes('bóng đá') || s.includes('football')) return 5;
-    if (s.includes('bóng rổ') || s.includes('basketball')) return 3;
-    return 1;
-  };
-
-  const minPlayers = getMinPlayersHint(clubSportName);
 
   const handleAddCustomOption = () => {
     const trimmed = newOptionInput.trim();
@@ -76,349 +74,231 @@ export function CreatePollModal({
     setCustomOptions(customOptions.filter((_, i) => i !== index));
   };
 
-  const handleApplyDatePreset = (daysFromNow: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysFromNow);
-    setSelectedDate(d);
-  };
+  const handleCreate = async () => {
+    if (!title.trim() || isSubmitting) return;
 
-  const formatDateDisplay = (d: Date) => {
-    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-    const dayName = days[d.getDay()];
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    const hh = String(selectedHour).padStart(2, '0');
-    const min = String(selectedMinute).padStart(2, '0');
-    return `${dayName}, ${dd}/${mm}/${yyyy} lúc ${hh}:${min}`;
-  };
+    setIsSubmitting(true);
+    try {
+      const deadlineObj = new Date(selectedDate);
+      deadlineObj.setHours(selectedHour, selectedMinute, 0, 0);
 
-  const handleCreate = () => {
-    if (!title.trim()) return;
+      const payload: CreateMatchPollPayload = {
+        title: title.trim(),
+        pollType,
+        deadline: deadlineObj.toISOString(),
+        minPlayers,
+        maxPlayers: pollType === 'MATCHMAKING' ? maxPlayers : undefined,
+        customOptions: customOptions.length > 0 ? customOptions : undefined,
+      };
 
-    // Combine date + time for deadline
-    const deadlineObj = new Date(selectedDate);
-    deadlineObj.setHours(selectedHour, selectedMinute, 0, 0);
+      await onSubmit(payload);
 
-    const payload: CreateMatchPollPayload = {
-      title: title.trim(),
-      pollType,
-      deadline: deadlineObj.toISOString(),
-      minPlayers,
-      maxPlayers: pollType === 'MATCHMAKING' ? (parseInt(maxPlayers, 10) || minPlayers) : undefined,
-      customOptions: customOptions.length > 0 ? customOptions : undefined,
-    };
-
-    onSubmit(payload);
-    // Reset form
-    setTitle('');
-    setCustomOptions([]);
-    setNewOptionInput('');
-    onClose();
+      // Reset form
+      setTitle('');
+      setCustomOptions([]);
+      setNewOptionInput('');
+    } catch (err) {
+      // Handled by caller
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <>
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
+      >
+        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
 
-          <View style={styles.modalContent}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.headerTitleRow}>
-                <MaterialIcons name="add-circle" size={20} color={COLORS.primary} />
-                <Text style={styles.modalTitle}>Tạo biểu quyết mới</Text>
-              </View>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
-                <MaterialIcons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
+        <View style={styles.modalContent}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <View style={styles.headerTitleRow}>
+              <Ionicons name="stats-chart" size={18} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Tạo biểu quyết mới</Text>
             </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
+              <MaterialIcons name="close" size={22} color="#64748B" />
+            </TouchableOpacity>
+          </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
-              {/* Poll Type Tabs */}
-              <View style={styles.typeTabsContainer}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.typeTab, pollType === 'MATCHMAKING' && styles.typeTabActive]}
-                  onPress={() => setPollType('MATCHMAKING')}
-                >
-                  <Ionicons
-                    name="trophy"
-                    size={16}
-                    color={pollType === 'MATCHMAKING' ? '#FFFFFF' : '#64748B'}
-                  />
-                  <Text
-                    style={[styles.typeTabText, pollType === 'MATCHMAKING' && styles.typeTabTextActive]}
-                  >
-                    Tìm đối thủ giao lưu
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.typeTab, pollType === 'INTERNAL' && styles.typeTabActive]}
-                  onPress={() => setPollType('INTERNAL')}
-                >
-                  <Ionicons
-                    name="people"
-                    size={16}
-                    color={pollType === 'INTERNAL' ? '#FFFFFF' : '#64748B'}
-                  />
-                  <Text
-                    style={[styles.typeTabText, pollType === 'INTERNAL' && styles.typeTabTextActive]}
-                  >
-                    Giao lưu nội bộ CLB
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Explainer Card (Plain Vietnamese without jargons) */}
-              <View style={styles.explainerCard}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={17}
-                  color={pollType === 'MATCHMAKING' ? '#B45309' : '#0369A1'}
-                />
-                <Text style={styles.explainerText}>
-                  {pollType === 'MATCHMAKING'
-                    ? 'Khi đủ quân số đăng ký, hệ thống sẽ chốt danh sách thành viên ra sân thi đấu để đại diện CLB tìm đối thủ giao lưu.'
-                    : 'Hệ thống sẽ tự động phân phối các thành viên thành 2 đội thi đấu cân sức dựa trên trình độ và phong độ.'}
-                </Text>
-              </View>
-
-              {/* Title Section */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.fieldLabel}>Tiêu đề biểu quyết</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Nhập tiêu đề hoặc chọn mẫu bên dưới..."
-                  placeholderTextColor="#94A3B8"
-                />
-
-                {/* Suggestions */}
-                <View style={styles.presetChipsRow}>
-                  {PRESETS.filter((p) => p.type === pollType).map((p, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[styles.presetChip, title === p.title && styles.presetChipActive]}
-                      onPress={() => setTitle(p.title)}
-                    >
-                      <Text
-                        style={[
-                          styles.presetChipText,
-                          title === p.title && styles.presetChipTextActive,
-                        ]}
-                      >
-                        {p.title}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Matchmaking Max Players (Only for Matchmaking) */}
-              {pollType === 'MATCHMAKING' && (
-                <View style={styles.sectionBlock}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabel}>Số lượng thành viên ra sân tối đa</Text>
-                    <Text style={styles.fieldHint}>Tối thiểu môn {clubSportName || ''}: {minPlayers} người</Text>
-                  </View>
-                  <TextInput
-                    style={styles.textInput}
-                    keyboardType="numeric"
-                    value={maxPlayers}
-                    onChangeText={setMaxPlayers}
-                    placeholder={`Ví dụ: 7 (tối thiểu ${minPlayers})`}
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-              )}
-
-              {/* Deadline with Native Calendar Picker Component */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.fieldLabel}>Thời hạn kết thúc biểu quyết</Text>
-
-                {/* Date Display Card Clickable to open CalendarPicker */}
-                <TouchableOpacity
-                  style={styles.dateSelectorCard}
-                  activeOpacity={0.8}
-                  onPress={() => setIsCalendarVisible(true)}
-                >
-                  <View style={styles.dateSelectorLeft}>
-                    <View style={styles.calendarIconCircle}>
-                      <Ionicons name="calendar" size={18} color={COLORS.primary} />
-                    </View>
-                    <View>
-                      <Text style={styles.dateSelectorSub}>Chạm để đổi ngày kết thúc</Text>
-                      <Text style={styles.dateSelectorTitle}>{formatDateDisplay(selectedDate)}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.openCalendarBtn}>
-                    <Text style={styles.openCalendarBtnText}>Mở lịch</Text>
-                    <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Quick Date Presets */}
-                <View style={styles.presetChipsRow}>
-                  {[
-                    { days: 0, label: 'Hôm nay' },
-                    { days: 1, label: 'Ngày mai' },
-                    { days: 2, label: '2 ngày tới' },
-                    { days: 3, label: '3 ngày tới' },
-                    { days: 7, label: '1 tuần tới' },
-                  ].map((preset) => (
-                    <TouchableOpacity
-                      key={preset.days}
-                      style={styles.presetChip}
-                      onPress={() => handleApplyDatePreset(preset.days)}
-                    >
-                      <Text style={styles.presetChipText}>{preset.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Quick Time Pickers */}
-                <View style={styles.timePickerRow}>
-                  <Text style={styles.timePickerLabel}>Giờ hết hạn:</Text>
-                  {[
-                    { h: 12, m: 0, label: '12:00' },
-                    { h: 18, m: 0, label: '18:00' },
-                    { h: 20, m: 0, label: '20:00' },
-                    { h: 22, m: 0, label: '22:00' },
-                  ].map((t) => (
-                    <TouchableOpacity
-                      key={t.label}
-                      style={[
-                        styles.timeChip,
-                        selectedHour === t.h && selectedMinute === t.m && styles.timeChipActive,
-                      ]}
-                      onPress={() => {
-                        setSelectedHour(t.h);
-                        setSelectedMinute(t.m);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.timeChipText,
-                          selectedHour === t.h && selectedMinute === t.m && styles.timeChipTextActive,
-                        ]}
-                      >
-                        {t.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Poll Options Section: Locked defaults "Có" and "Không" + Unlimited custom */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.fieldLabel}>Lựa chọn biểu quyết</Text>
-                <Text style={styles.subLabel}>
-                  Thành viên sẽ bình chọn theo danh sách các lựa chọn bên dưới:
-                </Text>
-
-                {/* Fixed Default Option 1: "Có" */}
-                <View style={styles.lockedOptionCard}>
-                  <View style={styles.lockedOptionLeft}>
-                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-                    <Text style={styles.lockedOptionTitle}>Có</Text>
-                  </View>
-                  <View style={styles.lockedBadge}>
-                    <Ionicons name="lock-closed" size={11} color="#64748B" />
-                    <Text style={styles.lockedBadgeText}>Mặc định • Cố định</Text>
-                  </View>
-                </View>
-
-                {/* Fixed Default Option 2: "Không" */}
-                <View style={styles.lockedOptionCard}>
-                  <View style={styles.lockedOptionLeft}>
-                    <Ionicons name="close-circle" size={18} color="#EF4444" />
-                    <Text style={styles.lockedOptionTitle}>Không</Text>
-                  </View>
-                  <View style={styles.lockedBadge}>
-                    <Ionicons name="lock-closed" size={11} color="#64748B" />
-                    <Text style={styles.lockedBadgeText}>Mặc định • Cố định</Text>
-                  </View>
-                </View>
-
-                {/* Custom Options List (Unlimited) */}
-                {customOptions.map((opt, i) => (
-                  <View key={i} style={styles.customOptionCard}>
-                    <View style={styles.customOptionLeft}>
-                      <Ionicons name="radio-button-off" size={16} color="#0284C7" />
-                      <Text style={styles.customOptionText}>{opt}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleRemoveOption(i)}
-                      style={styles.removeOptionBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-
-                {/* Add Custom Option Input Row (No Limit) */}
-                <View style={styles.addOptionWrapper}>
-                  <Text style={styles.addOptionHeader}>Thêm lựa chọn khác (Tùy chọn, không giới hạn):</Text>
-                  <View style={styles.addOptionRow}>
-                    <TextInput
-                      style={styles.addOptionInput}
-                      value={newOptionInput}
-                      onChangeText={setNewOptionInput}
-                      placeholder="Ví dụ: Đến muộn 15 phút, Chưa chắc chắn..."
-                      placeholderTextColor="#94A3B8"
-                      onSubmitEditing={handleAddCustomOption}
-                      returnKeyType="done"
-                    />
-                    <TouchableOpacity
-                      style={[
-                        styles.addOptionBtn,
-                        !newOptionInput.trim() && styles.addOptionBtnDisabled,
-                      ]}
-                      disabled={!newOptionInput.trim()}
-                      onPress={handleAddCustomOption}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="add" size={20} color="#FFFFFF" />
-                      <Text style={styles.addOptionBtnText}>Thêm</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Footer Submit Button */}
-            <View style={styles.modalFooter}>
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollBody}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            {/* Poll Type Tabs */}
+            <View style={styles.typeTabsContainer}>
               <TouchableOpacity
-                style={[styles.submitBtn, !title.trim() && styles.submitBtnDisabled]}
-                disabled={!title.trim()}
                 activeOpacity={0.85}
-                onPress={handleCreate}
+                style={[styles.typeTab, pollType === 'MATCHMAKING' && styles.typeTabActive]}
+                onPress={() => setPollType('MATCHMAKING')}
               >
-                <Text style={styles.submitBtnText}>Tạo biểu quyết</Text>
+                <Ionicons
+                  name="trophy"
+                  size={14}
+                  color={pollType === 'MATCHMAKING' ? '#FFFFFF' : '#64748B'}
+                />
+                <Text style={[styles.typeTabText, pollType === 'MATCHMAKING' && styles.typeTabTextActive]}>
+                  Ghép trận đối thủ
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.typeTab, pollType === 'INTERNAL' && styles.typeTabActive]}
+                onPress={() => setPollType('INTERNAL')}
+              >
+                <Ionicons
+                  name="people"
+                  size={14}
+                  color={pollType === 'INTERNAL' ? '#FFFFFF' : '#64748B'}
+                />
+                <Text style={[styles.typeTabText, pollType === 'INTERNAL' && styles.typeTabTextActive]}>
+                  Giao lưu nội bộ
+                </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Explainer Card */}
+            <View style={styles.explainerCard}>
+              <Ionicons name="information-circle-outline" size={16} color="#64748B" />
+              <Text style={styles.explainerText}>
+                {pollType === 'MATCHMAKING'
+                  ? 'Khi đủ quân số đăng ký, hệ thống sẽ chốt danh sách thi đấu đại diện CLB tìm đối thủ giao lưu.'
+                  : 'Hệ thống tự động phân phối các thành viên thành 2 đội thi đấu cân sức theo trình độ.'}
+              </Text>
+            </View>
+
+            {/* Title Input Card */}
+            <View style={styles.inputCard}>
+              <Text style={styles.fieldLabel}>
+                Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.textInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Nhập tiêu đề biểu quyết..."
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+
+            {/* Max Players Stepper (Only for Matchmaking) */}
+            {pollType === 'MATCHMAKING' && (
+              <PollMaxPlayersStepper
+                value={maxPlayers}
+                minPlayers={minPlayers}
+                onChange={setMaxPlayers}
+                sportName={clubSportName}
+              />
+            )}
+
+            {/* Date Picker */}
+            <PollDatePicker
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
+
+            {/* Time Picker */}
+            <PollTimePicker
+              selectedHour={selectedHour}
+              selectedMinute={selectedMinute}
+              onChangeHour={setSelectedHour}
+              onChangeMinute={setSelectedMinute}
+            />
+
+            {/* Poll Options Section */}
+            <View style={styles.optionsSection}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.fieldLabel}>Lựa chọn biểu quyết</Text>
+                <Text style={styles.fieldHint}>2 lựa chọn mặc định cố định</Text>
+              </View>
+
+              {/* Option 1: Có */}
+              <View style={styles.lockedOptionCard}>
+                <View style={styles.lockedOptionLeft}>
+                  <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                  <Text style={styles.lockedOptionTitle}>Có (Tham gia thi đấu)</Text>
+                </View>
+                <View style={styles.lockedBadge}>
+                  <Ionicons name="lock-closed" size={11} color="#64748B" />
+                  <Text style={styles.lockedBadgeText}>Mặc định</Text>
+                </View>
+              </View>
+
+              {/* Option 2: Không */}
+              <View style={styles.lockedOptionCard}>
+                <View style={styles.lockedOptionLeft}>
+                  <Ionicons name="close-circle" size={18} color="#EF4444" />
+                  <Text style={styles.lockedOptionTitle}>Không (Bận / Vắng mặt)</Text>
+                </View>
+                <View style={styles.lockedBadge}>
+                  <Ionicons name="lock-closed" size={11} color="#64748B" />
+                  <Text style={styles.lockedBadgeText}>Mặc định</Text>
+                </View>
+              </View>
+
+              {/* Custom Options List */}
+              {customOptions.map((opt, i) => (
+                <View key={i} style={styles.customOptionCard}>
+                  <View style={styles.customOptionLeft}>
+                    <Ionicons name="radio-button-on" size={16} color={COLORS.primary} />
+                    <Text style={styles.customOptionText} numberOfLines={1}>{opt}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveOption(i)}
+                    style={styles.removeOptionBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {/* Add Custom Option Input */}
+              <View style={styles.addOptionRow}>
+                <TextInput
+                  style={styles.addOptionInput}
+                  value={newOptionInput}
+                  onChangeText={setNewOptionInput}
+                  placeholder="Thêm lựa chọn khác (VD: Đến muộn 15p)..."
+                  placeholderTextColor="#94A3B8"
+                  onSubmitEditing={handleAddCustomOption}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={[styles.addOptionBtn, !newOptionInput.trim() && styles.addOptionBtnDisabled]}
+                  disabled={!newOptionInput.trim()}
+                  onPress={handleAddCustomOption}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Text style={styles.addOptionBtnText}>Thêm</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Footer Submit Button */}
+          <View style={styles.modalFooter}>
+            <Button
+              title="Tạo biểu quyết"
+              variant="primary"
+              size="lg"
+              loading={isSubmitting}
+              disabled={!title.trim() || isSubmitting}
+              onPress={handleCreate}
+              style={styles.submitBtn}
+            />
           </View>
         </View>
-      </Modal>
-
-      {/* Embedded CalendarPicker Component from Shared UI */}
-      <CalendarPicker
-        visible={isCalendarVisible}
-        selectedDate={selectedDate}
-        minimumDate={new Date()}
-        onConfirm={(date) => {
-          setSelectedDate(date);
-          setIsCalendarVisible(false);
-        }}
-        onClose={() => setIsCalendarVisible(false)}
-      />
-    </>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -429,14 +309,16 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '92%',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    height: '88%',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -461,9 +343,14 @@ const styles = StyleSheet.create({
   closeBtn: {
     padding: 4,
   },
+  scroll: {
+    flex: 1,
+    flexShrink: 1,
+  },
   scrollBody: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg,
   },
   typeTabsContainer: {
     flexDirection: 'row',
@@ -512,8 +399,14 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontSize: 12,
   },
-  sectionBlock: {
-    marginBottom: SPACING.md,
+  inputCard: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
   fieldLabel: {
     ...TYPOGRAPHY.labelSm,
@@ -521,7 +414,24 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginBottom: 6,
   },
-  fieldLabelRow: {
+  requiredStar: {
+    color: '#EF4444',
+  },
+  textInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13.5,
+    color: '#0F172A',
+  },
+  optionsSection: {
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -529,136 +439,9 @@ const styles = StyleSheet.create({
   },
   fieldHint: {
     ...TYPOGRAPHY.caption,
-    color: '#D97706',
-    fontWeight: '600',
-    fontSize: 11,
-  },
-  subLabel: {
-    ...TYPOGRAPHY.caption,
     color: '#64748B',
-    marginBottom: 8,
-    lineHeight: 15,
-  },
-  textInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
-    marginBottom: 8,
-  },
-  presetChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
-  },
-  presetChip: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  presetChipActive: {
-    backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    borderColor: COLORS.primary,
-  },
-  presetChipText: {
-    ...TYPOGRAPHY.caption,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  presetChipTextActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  dateSelectorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 12,
-    marginBottom: 8,
-  },
-  dateSelectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  calendarIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateSelectorSub: {
-    ...TYPOGRAPHY.caption,
-    color: '#64748B',
-    fontSize: 10.5,
-  },
-  dateSelectorTitle: {
-    ...TYPOGRAPHY.labelSm,
-    fontWeight: '800',
-    color: '#0F172A',
-    fontSize: 13,
-  },
-  openCalendarBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'rgba(6, 78, 59, 0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  openCalendarBtnText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  timePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  timePickerLabel: {
-    ...TYPOGRAPHY.caption,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  timeChip: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  timeChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  timeChipText: {
-    ...TYPOGRAPHY.caption,
-    color: '#475569',
-    fontWeight: '600',
     fontSize: 11,
-  },
-  timeChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '600',
   },
   lockedOptionCard: {
     flexDirection: 'row',
@@ -725,19 +508,11 @@ const styles = StyleSheet.create({
   removeOptionBtn: {
     padding: 4,
   },
-  addOptionWrapper: {
-    marginTop: 6,
-  },
-  addOptionHeader: {
-    ...TYPOGRAPHY.caption,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 6,
-  },
   addOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 4,
   },
   addOptionInput: {
     flex: 1,
@@ -771,20 +546,12 @@ const styles = StyleSheet.create({
   modalFooter: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
+    paddingBottom: Platform.OS === 'ios' ? SPACING.md + 4 : SPACING.sm,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   submitBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnDisabled: {
-    backgroundColor: '#94A3B8',
-  },
-  submitBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: '#FFFFFF',
-    fontWeight: '700',
+    width: '100%',
   },
 });

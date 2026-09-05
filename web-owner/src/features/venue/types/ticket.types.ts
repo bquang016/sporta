@@ -1,4 +1,4 @@
-export type SportLevel = 'WEAK' | 'WEAK_AVERAGE' | 'AVERAGE' | 'AVERAGE_GOOD' | 'GOOD' | 'ALL';
+export type SportLevel = 'WEAK' | 'WEAK_AVERAGE' | 'AVERAGE' | 'AVERAGE_GOOD' | 'GOOD' | 'PRO' | 'ALL';
 
 export type TicketSessionStatus = 'OPEN' | 'FULL' | 'CANCELLED';
 

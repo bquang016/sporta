@@ -274,6 +274,13 @@ public class LineupServiceImpl implements LineupService {
         MatchRoom room = matchRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy phòng ghép trận", 404));
 
+        if (teamSide == TeamSide.HOST && !lineup.getClub().getId().equals(room.getHostClub().getId())) {
+            throw new CustomException("Đội hình không thuộc CLB chủ nhà", 400);
+        }
+        if (teamSide == TeamSide.GUEST && room.getGuestClub() != null && !lineup.getClub().getId().equals(room.getGuestClub().getId())) {
+            throw new CustomException("Đội hình không thuộc CLB đối thủ", 400);
+        }
+
         lineup.setMatchRoom(room);
         lineup.setTeamSide(teamSide);
         lineup.setStatus(LineupStatus.IN_MATCH);

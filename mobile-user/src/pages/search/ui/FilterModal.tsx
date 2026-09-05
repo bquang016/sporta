@@ -144,7 +144,7 @@ export function FilterModal({
           {/* ── Header ── */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Text style={styles.headerTitle}>Bộ Lọc Tìm Kiếm</Text>
+              <Text style={styles.headerTitle}>Bộ lọc tìm kiếm</Text>
               {activeCount > 0 && (
                 <View style={styles.activePill}>
                   <Text style={styles.activePillText}>{activeCount} đang chọn</Text>
@@ -237,7 +237,7 @@ export function FilterModal({
             <View style={styles.section}>
               <View style={styles.sectionTitleRow}>
                 <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
-                <Text style={styles.sectionTitle}>Khu vực / Quận Huyện</Text>
+                <Text style={styles.sectionTitle}>Khu vực / Quận huyện</Text>
               </View>
               <View style={styles.chipContainer}>
                 {AREAS.map((area) => {

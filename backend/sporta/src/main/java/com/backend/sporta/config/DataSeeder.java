@@ -95,6 +95,31 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("Data Seeder: Bỏ qua việc xóa constraint courts_status_check.");
         }
 
+        try {
+            jdbcTemplate.execute("ALTER TABLE match_polls DROP CONSTRAINT IF EXISTS match_polls_status_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint match_polls_status_check.");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE match_lineups DROP CONSTRAINT IF EXISTS match_lineups_status_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint match_lineups_status_check.");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc xóa constraint notifications_type_check.");
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE poll_votes DROP CONSTRAINT IF EXISTS uq_poll_user_vote");
+            jdbcTemplate.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_poll_user_option_vote') THEN ALTER TABLE poll_votes ADD CONSTRAINT uq_poll_user_option_vote UNIQUE (poll_id, user_id, option_id); END IF; END $$;");
+        } catch (Exception e) {
+            System.out.println("Data Seeder: Bỏ qua việc cập nhật constraint poll_votes: " + e.getMessage());
+        }
+
         // Fix for all orphaned NOT NULL constraints on "courts" due to schema migration
         try {
             java.util.List<String> validColumns = java.util.Arrays.asList("id", "venue_id", "name", "price", "status", "created_at", "updated_at");
@@ -232,12 +257,13 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE user_sports ADD COLUMN IF NOT EXISTS last_match_at TIMESTAMP");
 
             jdbcTemplate.execute("UPDATE user_sports SET elo_rating = CASE " +
-                    "WHEN level = 'WEAK' THEN 900 " +
-                    "WHEN level = 'WEAK_AVERAGE' THEN 1200 " +
-                    "WHEN level = 'AVERAGE' THEN 1500 " +
-                    "WHEN level = 'AVERAGE_GOOD' THEN 1800 " +
-                    "WHEN level = 'GOOD' THEN 2100 " +
-                    "ELSE 1000 END WHERE elo_rating IS NULL");
+                    "WHEN level = 'WEAK' THEN 800 " +
+                    "WHEN level = 'WEAK_AVERAGE' THEN 1050 " +
+                    "WHEN level = 'AVERAGE' THEN 1350 " +
+                    "WHEN level = 'AVERAGE_GOOD' THEN 1650 " +
+                    "WHEN level = 'GOOD' THEN 1950 " +
+                    "WHEN level = 'PRO' THEN 2200 " +
+                    "ELSE 1350 END WHERE elo_rating IS NULL");
 
             jdbcTemplate.execute("UPDATE user_sports SET elo_status = 'UNVERIFIED' WHERE elo_status IS NULL");
             jdbcTemplate.execute("UPDATE user_sports SET placement_matches_played = 0 WHERE placement_matches_played IS NULL");

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { getEloLevelLabel, getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 interface SportStatItem {
   sportId: number;
@@ -146,8 +147,8 @@ export const UserSportsCard = React.memo(({ sports, privateMode }: UserSportsCar
         {sortedSports.map((item) => {
           const config = getSportIconConfig(item.sportName);
           const badge = getStatusBadgeConfig(item.eloStatus, item.placementMatchesPlayed);
-          const elo = item.eloRating ?? 1500;
-          const levelText = item.levelLabel || (item.level === 'GOOD' ? 'Khá' : item.level === 'WEAK' ? 'Yếu' : 'Trung bình');
+          const elo = item.eloRating ?? 1350;
+          const levelText = item.levelLabel || (item.eloRating != null ? getEloLevelLabel(item.eloRating) : getSportLevelLabel(item.level));
 
           return (
             <View key={item.sportId} style={styles.sportCard}>

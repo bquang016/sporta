@@ -7,7 +7,8 @@ import {
   ViewStyle, 
   TextStyle,
   StyleProp,
-  ImageSourcePropType
+  ImageSourcePropType,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
@@ -65,7 +66,11 @@ export function Avatar({
 
   const renderContent = () => {
     // 1. If valid image source exists (number or valid string URI or source object) and hasn't errored
-    if (source && !imageError) {
+    const isInvalidBlob = typeof source === 'string' && source.startsWith('blob:') && Platform.OS !== 'web';
+    const isValidString = typeof source === 'string' && source.trim().length > 0 && !isInvalidBlob;
+    const isValidSource = source && (typeof source === 'number' || typeof source === 'object' || isValidString);
+
+    if (isValidSource && !imageError) {
       const imgSource = typeof source === 'string' 
         ? { uri: source } 
         : typeof source === 'number' 

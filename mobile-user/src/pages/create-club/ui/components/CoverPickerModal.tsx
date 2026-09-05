@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Image } fr
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 
+import { getSafeCoverSource } from '../../../../entities/club';
+
 export interface CoverItem {
   id: string;
   name: string;
@@ -55,7 +57,7 @@ export function CoverPickerModal({ visible, onClose, covers, onSelectCover, onPi
                 onPress={() => onSelectCover(cover)}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: cover.url }} style={styles.coverThumbnail} />
+                <Image source={getSafeCoverSource(undefined, cover.url)} style={styles.coverThumbnail} />
                 <Text style={styles.thumbnailLabel}>{cover.name}</Text>
               </TouchableOpacity>
             ))}

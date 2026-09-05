@@ -54,7 +54,7 @@ public class ClubPollServiceImpl implements ClubPollService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkApprovedMemberPrivileges(clubId, user.getId());
+        checkLeaderOrSubLeaderPrivileges(clubId, user.getId());
 
         // Close any active poll before creating a new one
         Optional<ClubPoll> activePollOpt = clubPollRepository.findFirstByClubIdAndIsClosedFalseOrderByCreatedAtDesc(clubId);

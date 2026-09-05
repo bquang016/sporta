@@ -76,7 +76,7 @@ const DEFAULT_FEATURED_BANNERS: FallbackBanner[] = [
   {
     id: 'promo-summer-cup',
     isFallback: true,
-    title: 'Siêu Giải Đấu Sporta Cup 2026',
+    title: 'Siêu giải đấu Sporta Cup 2026',
     subtitle: 'Tổng giải thưởng 50 triệu đồng · Đăng ký thi đấu ngay!',
     badge: 'GIẢI ĐẤU',
     badgeColor: '#10B981',
@@ -89,7 +89,7 @@ const DEFAULT_FEATURED_BANNERS: FallbackBanner[] = [
   {
     id: 'promo-happy-hour',
     isFallback: true,
-    title: 'Giờ Vàng Thể Thao · Giảm 20%',
+    title: 'Giờ vàng thể thao · Giảm 20%',
     subtitle: 'Khung giờ 14:00 - 17:00 các ngày trong tuần tại mọi cụm sân',
     badge: 'GIỜ VÀNG',
     badgeColor: '#F59E0B',
@@ -100,7 +100,7 @@ const DEFAULT_FEATURED_BANNERS: FallbackBanner[] = [
     targetRoute: '/vouchers/explore',
     voucherData: {
       id: 'mock-giovang20',
-      name: 'Giờ Vàng Thể Thao · Giảm 20%',
+      name: 'Giờ vàng thể thao · Giảm 20%',
       code: 'GIOVANG20',
       discountType: DiscountType.PERCENTAGE,
       discountValue: 20,

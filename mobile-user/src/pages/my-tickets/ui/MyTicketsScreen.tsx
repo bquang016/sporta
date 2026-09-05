@@ -78,7 +78,7 @@ export function MyTicketsScreen({ showHeader = true }: { showHeader?: boolean })
             </TouchableOpacity>
 
             <View style={styles.headerTitleCol}>
-              <Text style={styles.headerTitle}>Vé Của Tôi</Text>
+              <Text style={styles.headerTitle}>Vé của tôi</Text>
             </View>
 
             <TouchableOpacity onPress={refetch} style={styles.refreshBtn} activeOpacity={0.7}>

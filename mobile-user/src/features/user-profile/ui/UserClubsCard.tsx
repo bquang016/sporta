@@ -78,7 +78,7 @@ export const UserClubsCard = React.memo(({ clubs, onClubPress }: UserClubsCardPr
             {/* Club Avatar */}
             <Image
               source={
-                club.avatarImage
+                club.avatarImage && typeof club.avatarImage === 'string' && !club.avatarImage.startsWith('blob:')
                   ? { uri: club.avatarImage }
                   : require('../../../../assets/logo/club/699x699__1_-removebg-preview.png')
               }

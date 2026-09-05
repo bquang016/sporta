@@ -19,6 +19,7 @@ import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket
 import { DevXeVeTestPanel } from '../../../features/ticket-sessions';
 import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { getSportLevelMeta } from '../../../shared/lib/utils/elo';
 
 export function TicketDetailScreen() {
   const router = useRouter();
@@ -64,22 +65,6 @@ export function TicketDetailScreen() {
     }, [loadSession])
   );
 
-  const getSportLevelMeta = (level?: SportLevel) => {
-    switch (level) {
-      case 'WEAK':
-        return { label: 'Mới chơi', desc: 'Dành cho người mới tập làm quen', color: '#10B981' };
-      case 'WEAK_AVERAGE':
-        return { label: 'Yếu - Trung bình', desc: 'Đã nắm luật cơ bản (2.0 - 2.5)', color: '#3B82F6' };
-      case 'AVERAGE':
-        return { label: 'Trung bình', desc: 'Đánh bền, kiểm soát bóng tốt (3.0 - 3.5)', color: '#F59E0B' };
-      case 'AVERAGE_GOOD':
-        return { label: 'Bán chuyên', desc: 'Kỹ chiến thuật nâng cao (3.5 - 4.0+)', color: '#8B5CF6' };
-      case 'GOOD':
-        return { label: 'Chuyên nghiệp', desc: 'Vận động viên thi đấu (4.5+)', color: '#EF4444' };
-      default:
-        return { label: 'Tất cả trình độ', desc: 'Giao lưu mọi cấp độ', color: COLORS.primary };
-    }
-  };
 
   const handleGoBack = () => {
     if (router.canGoBack()) {

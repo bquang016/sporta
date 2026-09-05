@@ -14,7 +14,7 @@ export function BookingsScreen() {
 
       {/* Main Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Quản Lý Lịch & Vé</Text>
+        <Text style={styles.headerTitle}>Quản lý lịch & vé</Text>
       </View>
 
       {/* Segmented Control Switcher */}

@@ -1,30 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Club } from '../../../../entities/club';
 import { MatchHistoryCard, MatchItem } from './MatchHistoryCard';
-import { CreateMatchModal } from './CreateMatchModal';
 
 export interface MatchHistoryModalProps {
   visible: boolean;
   onClose: () => void;
   club: Club;
   matches: MatchItem[];
-  isLeadership?: boolean;
   onRefreshMatches?: () => void;
 }
+
+type FilterType = 'ALL' | 'WIN' | 'DRAW' | 'LOSE';
 
 export function MatchHistoryModal({ 
   visible, 
   onClose, 
   club, 
   matches,
-  isLeadership = false,
   onRefreshMatches,
 }: MatchHistoryModalProps) {
-  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [filter, setFilter] = useState<FilterType>('ALL');
+
+  const totalMatches = matches.length;
+  const winsCount = matches.filter(m => m.result === 'win').length;
+  const lossesCount = matches.filter(m => m.result === 'lose').length;
+  const drawsCount = matches.filter(m => m.result === 'draw').length;
+  const winRate = totalMatches > 0 ? Math.round((winsCount / totalMatches) * 100) : 0;
+
+  // Filtered matches
+  const filteredMatches = useMemo(() => {
+    if (filter === 'WIN') return matches.filter(m => m.result === 'win');
+    if (filter === 'LOSE') return matches.filter(m => m.result === 'lose');
+    if (filter === 'DRAW') return matches.filter(m => m.result === 'draw');
+    return matches;
+  }, [matches, filter]);
 
   return (
     <Modal
@@ -35,6 +48,7 @@ export function MatchHistoryModal({
     >
       <SafeAreaProvider>
         <View style={styles.fullScreenModalContainer}>
+          {/* Header */}
           <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.fullScreenModalHeader}>
               <TouchableOpacity 
@@ -42,38 +56,102 @@ export function MatchHistoryModal({
                 activeOpacity={0.7} 
                 onPress={onClose}
               >
-                <MaterialIcons name="arrow-back" size={24} color={COLORS.primary} />
+                <MaterialIcons name="arrow-back" size={22} color={COLORS.onSurface} />
               </TouchableOpacity>
-              <Text style={styles.fullScreenModalTitle}>Lịch sử đối đầu</Text>
-              <View style={styles.headerPlaceholder} />
+              <Text style={styles.fullScreenModalTitle}>Lịch sử đối đầu CLB</Text>
+              <View style={styles.headerPlaceholder}>
+                {onRefreshMatches && (
+                  <TouchableOpacity onPress={onRefreshMatches} style={styles.refreshBtn}>
+                    <Ionicons name="refresh" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </SafeAreaView>
           
           <View style={styles.contentContainer}>
-            <ScrollView contentContainerStyle={styles.fullScreenModalScroll} showsVerticalScrollIndicator={false}>
-              {/* Leader Banner to add new match */}
-              {isLeadership && (
-                <TouchableOpacity 
-                  style={styles.createBanner}
-                  activeOpacity={0.85}
-                  onPress={() => setIsCreateModalVisible(true)}
-                >
-                  <View style={styles.createBannerLeft}>
-                    <View style={styles.createIconCircle}>
-                      <MaterialIcons name="sports-score" size={22} color={COLORS.primary} />
-                    </View>
-                    <View>
-                      <Text style={styles.createBannerTitle}>Ghi nhận trận đấu mới</Text>
-                      <Text style={styles.createBannerSub}>Cập nhật kết quả thi đấu đối đầu của CLB</Text>
-                    </View>
+            <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+              {/* Performance Overview Banner */}
+              <View style={styles.heroOverviewCard}>
+                <View style={styles.winRateBox}>
+                  <View style={styles.winRateCircle}>
+                    <Text style={styles.winRatePercent}>{winRate}%</Text>
+                    <Text style={styles.winRateLabel}>Thắng</Text>
                   </View>
-                  <MaterialIcons name="add-circle" size={24} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
+                  <View style={styles.winRateMeta}>
+                    <Text style={styles.clubTitleText} numberOfLines={1}>{club.name}</Text>
+                    <Text style={styles.rankLevelSub}>
+                      Điểm CLB: <Text style={styles.crpBold}>{club.crp || 0} CRP</Text> • Hạng: {club.levelLabel || 'TB'}
+                    </Text>
+                  </View>
+                </View>
 
-              {matches.length > 0 ? (
+                <View style={styles.statsBarRow}>
+                  <View style={styles.statCol}>
+                    <Text style={styles.statNum}>{totalMatches}</Text>
+                    <Text style={styles.statName}>Tổng trận</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statCol}>
+                    <Text style={[styles.statNum, { color: '#059669' }]}>{winsCount}</Text>
+                    <Text style={styles.statName}>Thắng</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statCol}>
+                    <Text style={[styles.statNum, { color: '#64748B' }]}>{drawsCount}</Text>
+                    <Text style={styles.statName}>Hòa</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statCol}>
+                    <Text style={[styles.statNum, { color: '#EF4444' }]}>{lossesCount}</Text>
+                    <Text style={styles.statName}>Thua</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Filter Chips */}
+              <View style={styles.filterRow}>
+                <TouchableOpacity 
+                  style={[styles.filterChip, filter === 'ALL' && styles.filterChipActive]}
+                  onPress={() => setFilter('ALL')}
+                >
+                  <Text style={[styles.filterChipText, filter === 'ALL' && styles.filterChipTextActive]}>
+                    Tất cả ({totalMatches})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.filterChip, filter === 'WIN' && styles.filterChipActiveWin]}
+                  onPress={() => setFilter('WIN')}
+                >
+                  <Text style={[styles.filterChipText, filter === 'WIN' && styles.filterChipTextWin]}>
+                    Thắng ({winsCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.filterChip, filter === 'DRAW' && styles.filterChipActive]}
+                  onPress={() => setFilter('DRAW')}
+                >
+                  <Text style={[styles.filterChipText, filter === 'DRAW' && styles.filterChipTextActive]}>
+                    Hòa ({drawsCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.filterChip, filter === 'LOSE' && styles.filterChipActiveLoss]}
+                  onPress={() => setFilter('LOSE')}
+                >
+                  <Text style={[styles.filterChipText, filter === 'LOSE' && styles.filterChipTextLoss]}>
+                    Thua ({lossesCount})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Matches List */}
+              {filteredMatches.length > 0 ? (
                 <View style={styles.historyList}>
-                  {matches.map((match) => (
+                  {filteredMatches.map((match) => (
                     <MatchHistoryCard 
                       key={match.id}
                       match={match}
@@ -83,28 +161,18 @@ export function MatchHistoryModal({
                 </View>
               ) : (
                 <View style={styles.emptyContainer}>
-                  <MaterialIcons name="sports-soccer" size={48} color={COLORS.outline} />
-                  <Text style={styles.emptyTitle}>Chưa có lịch sử thi đấu</Text>
+                  <FontAwesome5 name="futbol" size={40} color="#CBD5E1" />
+                  <Text style={styles.emptyTitle}>Chưa có trận đấu nào</Text>
                   <Text style={styles.emptySub}>
-                    {isLeadership 
-                      ? 'Nhấn vào nút "Ghi nhận trận đấu mới" ở trên để lưu lại các trận giao hữu của CLB.'
-                      : 'Các kết quả thi đấu đối đầu của câu lạc bộ sẽ hiển thị tại đây.'}
+                    {filter !== 'ALL' 
+                      ? 'Không có trận đấu nào phù hợp với bộ lọc đã chọn.'
+                      : 'Các trận đấu xếp hạng giao hữu giữa các câu lạc bộ sẽ tự động được ghi nhận và tính điểm CRP tại đây.'}
                   </Text>
                 </View>
               )}
             </ScrollView>
           </View>
         </View>
-
-        {/* Modal Ghi nhận trận đấu mới */}
-        <CreateMatchModal
-          visible={isCreateModalVisible}
-          onClose={() => setIsCreateModalVisible(false)}
-          club={club}
-          onSuccess={() => {
-            if (onRefreshMatches) onRefreshMatches();
-          }}
-        />
       </SafeAreaProvider>
     </Modal>
   );
@@ -113,122 +181,196 @@ export function MatchHistoryModal({
 const styles = StyleSheet.create({
   fullScreenModalContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   headerSafeArea: {
     backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  fullScreenModalHeader: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  closeModalButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  fullScreenModalTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+  },
+  headerPlaceholder: {
+    width: 36,
+    alignItems: 'flex-end',
+  },
+  refreshBtn: {
+    padding: 6,
   },
   contentContainer: {
     flex: 1,
   },
-  fullScreenModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.marginMobile,
-    height: 64,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+  scrollBody: {
+    padding: 16,
+    gap: 12,
   },
-  closeModalButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
+  heroOverviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 14,
+  },
+  winRateBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  winRateCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 3,
+    borderColor: '#3B82F6',
     justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  fullScreenModalTitle: {
-    position: 'absolute',
-    left: 60,
-    right: 80,
-    textAlign: 'center',
-    ...TYPOGRAPHY.headlineMd,
-    fontSize: 18,
-    color: COLORS.primary,
-  },
-  headerPlaceholder: {
-    width: 40,
-  },
-  addHeaderBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.primaryOpacity10,
-    borderRadius: BORDER_RADIUS.full,
+  },
+  winRatePercent: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1D4ED8',
+  },
+  winRateLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  winRateMeta: {
+    flex: 1,
     gap: 2,
   },
-  addHeaderBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  fullScreenModalScroll: {
-    padding: SPACING.marginMobile,
-    paddingBottom: SPACING.xl,
-    gap: SPACING.md,
-  },
-  createBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity20,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.xs,
-  },
-  createBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    flex: 1,
-  },
-  createIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primaryOpacity10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  createBannerTitle: {
-    ...TYPOGRAPHY.titleMd,
+  clubTitleText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.onSurface,
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  createBannerSub: {
-    ...TYPOGRAPHY.bodyMd,
+  rankLevelSub: {
     fontSize: 12,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
+  },
+  crpBold: {
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  statsBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  statCol: {
+    alignItems: 'center',
+  },
+  statNum: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  statName: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748B',
     marginTop: 2,
   },
-  historyList: {
-    gap: SPACING.md,
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E2E8F0',
   },
-  emptyContainer: {
-    paddingVertical: SPACING.xl * 2,
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  filterChip: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.xs,
+  },
+  filterChipActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  filterChipActiveWin: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  filterChipActiveLoss: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  filterChipTextActive: {
+    color: '#1D4ED8',
+  },
+  filterChipTextWin: {
+    color: '#059669',
+  },
+  filterChipTextLoss: {
+    color: '#DC2626',
+  },
+  historyList: {
+    gap: 2,
+  },
+  emptyContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+    marginTop: 10,
   },
   emptyTitle: {
-    ...TYPOGRAPHY.headlineMd,
-    fontSize: 18,
-    color: COLORS.onSurface,
+    fontSize: 14,
     fontWeight: '700',
-    marginTop: SPACING.xs,
+    color: '#0F172A',
+    marginTop: 6,
   },
   emptySub: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    color: '#64748B',
     textAlign: 'center',
-    paddingHorizontal: SPACING.md,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

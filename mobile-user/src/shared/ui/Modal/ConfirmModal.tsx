@@ -106,6 +106,16 @@ export function ConfirmModal({
     const color = themeColors.icon;
     const size = isSmallScreen ? 28 : 32;
 
+    // Handle MaterialIcons specific names
+    if (
+      iconName === 'error-outline' ||
+      iconName === 'info-outline' ||
+      iconName === 'help-outline' ||
+      iconName === 'warning-amber'
+    ) {
+      return <MaterialIcons name={iconName as any} size={size} color={color} />;
+    }
+
     // Check if it's Ionicons glyph or MaterialIcons glyph
     if (
       iconName === 'check-circle' || 
@@ -211,7 +221,7 @@ export function ConfirmModal({
   if (useViewOverlay) {
     if (!visible) return null;
     return (
-      <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999, elevation: 9999 }]}>
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
         {renderContent()}
       </View>
     );

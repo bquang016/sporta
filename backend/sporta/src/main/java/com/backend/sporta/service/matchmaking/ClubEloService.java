@@ -80,11 +80,12 @@ public class ClubEloService {
     }
 
     public String getLevelLabel(int elo) {
-        if (elo < 1050) return "Yếu";
-        if (elo < 1350) return "TBY";
-        if (elo < 1650) return "TB";
-        if (elo < 1950) return "TBK";
-        return "Khá";
+        if (elo < 900) return "Yếu";
+        if (elo < 1200) return "Trung bình - Yếu";
+        if (elo < 1500) return "Trung bình";
+        if (elo < 1800) return "Trung bình - Khá";
+        if (elo < 2100) return "Bán chuyên";
+        return "Chuyên nghiệp";
     }
 
     public String getBalanceLabel(int hostElo, int guestElo) {
