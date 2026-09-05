@@ -7,9 +7,15 @@ echo "🌐 Domain: sportaa.tech | IP: 31.97.188.235"
 echo "=========================================================="
 
 # 1. Update system & install dependencies
-echo "[1/6] Updating system packages..."
-apt update && apt upgrade -y
-apt install -y docker.io docker-compose git nginx certbot python3-certbot-nginx ufw curl
+echo "[1/6] Installing Nginx, Certbot and Docker Compose plugin..."
+apt update
+apt install -y nginx certbot python3-certbot-nginx docker-compose-plugin git curl ufw || true
+
+# If docker is not installed, install docker-ce
+if ! command -v docker &> /dev/null; then
+    echo "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+fi
 
 # Enable and start Docker & Nginx
 systemctl enable docker
@@ -47,8 +53,13 @@ fi
 # 5. Start Backend and PostgreSQL
 echo "[5/6] Building and starting Backend (Spring Boot 4) & PostgreSQL 15..."
 if [ -f "docker-compose.prod.yml" ]; then
-    docker-compose -f docker-compose.prod.yml down || true
-    docker-compose -f docker-compose.prod.yml up -d --build
+    if docker compose version &> /dev/null; then
+        docker compose -f docker-compose.prod.yml down || true
+        docker compose -f docker-compose.prod.yml up -d --build
+    else
+        docker-compose -f docker-compose.prod.yml down || true
+        docker-compose -f docker-compose.prod.yml up -d --build
+    fi
 fi
 
 echo "=========================================================="
