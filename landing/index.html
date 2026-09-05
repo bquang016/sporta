@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sporta - Nền Tảng Sàn Giao Dịch & Đặt Sân Thể Thao</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #10B981;
+      --primary-dark: #059669;
+      --bg: #0B0F19;
+      --card-bg: #111827;
+      --text-main: #F9FAFB;
+      --text-muted: #9CA3AF;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background-color: var(--bg); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
+    header { padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo { font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+    .logo span { color: var(--primary); }
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.1); color: var(--primary); border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; }
+    .status-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 10px var(--primary); }
+    
+    .hero { text-align: center; max-width: 900px; margin: 60px auto 40px; padding: 0 20px; }
+    .hero h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 800; line-height: 1.15; margin-bottom: 20px; }
+    .hero h1 span { background: linear-gradient(135deg, #10B981 0%, #3B82F6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { color: var(--text-muted); font-size: 18px; line-height: 1.6; margin-bottom: 40px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1000px; margin: 0 auto 60px; padding: 0 20px; }
+    .card { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 32px 24px; text-decoration: none; color: inherit; transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: space-between; }
+    .card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: 0 12px 30px rgba(16, 185, 129, 0.15); }
+    .card-icon { font-size: 32px; margin-bottom: 16px; }
+    .card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .card p { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
+    .card-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; padding: 10px 16px; border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s; }
+    .card:hover .card-btn { background: var(--primary); color: #000; border-color: var(--primary); }
+
+    footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">⚽ SPORTA<span>.TECH</span></div>
+    <div class="status-badge"><span class="status-dot"></span> System Live & Operational</div>
+  </header>
+
+  <main class="hero">
+    <h1>Hệ Sinh Thái Sàn Giao Dịch <span>Thể Thao Sporta</span></h1>
+    <p>Nền tảng kết nối người chơi, câu lạc bộ và các cụm sân thể thao hàng đầu. Quản lý linh hoạt, đặt sân siêu tốc và thanh toán tự động.</p>
+
+    <div class="grid">
+      <!-- Web Owner -->
+      <a href="https://owner.sportaa.tech" class="card">
+        <div>
+          <div class="card-icon">🏟️</div>
+          <h3>Chủ Sân (Owner Portal)</h3>
+          <p>Quản lý lịch sân, biểu đồ doanh thu, cấu hình giá động và kiểm tra vé QR check-in trực tiếp.</p>
+        </div>
+        <div class="card-btn">Truy cập Cổng Chủ Sân &rarr;</div>
+      </a>
+
+      <!-- Web Admin -->
+      <a href="https://admin.sportaa.tech" class="card">
+        <div>
+          <div class="card-icon">🛡️</div>
+          <h3>Quản Trị Viên (Admin Portal)</h3>
+          <p>Kiểm duyệt cụm sân, quản lý người dùng, xử lý yêu cầu đối soát và vận hành toàn hệ thống.</p>
+        </div>
+        <div class="card-btn">Truy cập Cổng Admin &rarr;</div>
+      </a>
+
+      <!-- Mobile User -->
+      <a href="https://api.sportaa.tech/api/v1/auth/ping" class="card">
+        <div>
+          <div class="card-icon">📱</div>
+          <h3>Ứng Dụng Di Động (Mobile)</h3>
+          <p>Dành cho vận động viên tìm sân, ghép đội, thi đấu giao hữu và tham gia câu lạc bộ thể thao.</p>
+        </div>
+        <div class="card-btn">Tải Ứng Dụng (APK/iOS) &rarr;</div>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2026 Sporta Platform • Powered by Spring Boot 4, React 19, PostgreSQL & Hostinger VPS
+  </footer>
+</body>
+</html>
