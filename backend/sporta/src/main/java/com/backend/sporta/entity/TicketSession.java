@@ -55,10 +55,46 @@ public class TicketSession {
     @Column(name = "sport_level", nullable = false)
     private SportLevel sportLevel;
 
+    @Column(name = "has_host_team", nullable = false)
+    @Builder.Default
+    private Boolean hasHostTeam = false;
+
+    @Column(name = "host_team_name")
+    private String hostTeamName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "host_team_level")
+    private SportLevel hostTeamLevel;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
     private TicketSessionStatus status = TicketSessionStatus.OPEN;
+
+    @Column(name = "host_score")
+    private String hostScore;
+
+    @Column(name = "guest_score")
+    private String guestScore;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "match_outcome")
+    private com.backend.sporta.enums.NormalizedOutcome matchOutcome;
+
+    @Column(name = "is_elo_settled", nullable = false)
+    @Builder.Default
+    private Boolean isEloSettled = false;
+
+    @Column(name = "score_declared_at")
+    private LocalDateTime scoreDeclaredAt;
+
+    @Column(name = "score_confirmed_count", nullable = false)
+    @Builder.Default
+    private Integer scoreConfirmedCount = 0;
+
+    @Column(name = "is_disputed", nullable = false)
+    @Builder.Default
+    private Boolean isDisputed = false;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

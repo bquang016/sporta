@@ -1,224 +1,303 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
+import { Button } from '../../../../shared/ui';
+import { CreateMatchPollPayload } from '../../../../shared/api/clubs';
+import { PollMaxPlayersStepper } from './PollMaxPlayersStepper';
+import { PollDatePicker } from './PollDatePicker';
+import { PollTimePicker } from './PollTimePicker';
 
 export interface CreatePollModalProps {
   visible: boolean;
   onClose: () => void;
-  pollTitleInput: string;
-  setPollTitleInput: (text: string) => void;
-  pollTimeHour: number;
-  pollTimeMinute: number;
-  adjustHour: (amount: number) => void;
-  adjustMinute: (amount: number) => void;
-  setPollTimeHour: (h: number) => void;
-  setPollTimeMinute: (m: number) => void;
-  onCreatePoll: () => void;
+  onSubmit: (payload: CreateMatchPollPayload) => void | Promise<void>;
+  clubSportName?: string;
 }
 
 export function CreatePollModal({
   visible,
   onClose,
-  pollTitleInput,
-  setPollTitleInput,
-  pollTimeHour,
-  pollTimeMinute,
-  adjustHour,
-  adjustMinute,
-  setPollTimeHour,
-  setPollTimeMinute,
-  onCreatePoll,
+  onSubmit,
+  clubSportName,
 }: CreatePollModalProps) {
-  const PRESET_TITLES = [
-    'Ghép trận cuối tuần',
-    'Giao lưu nội bộ CLB',
-    'Khảo sát quân số thi đấu',
-    'Buổi tập chiến thuật',
-  ];
+  const [pollType, setPollType] = useState<'MATCHMAKING' | 'INTERNAL'>('MATCHMAKING');
+  const [title, setTitle] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const PRESET_TIMES = [
-    { h: 18, m: 0, label: '18:00' },
-    { h: 19, m: 30, label: '19:30' },
-    { h: 20, m: 0, label: '20:00' },
-    { h: 21, m: 0, label: '21:00' },
-    { h: 12, m: 0, label: '12:00' },
-  ];
+  // Minimum and Default Max Players
+  const getMinPlayersHint = (sport?: string) => {
+    if (!sport) return 1;
+    const s = sport.toLowerCase();
+    if (s.includes('bóng đá') || s.includes('football')) return 5;
+    if (s.includes('bóng rổ') || s.includes('basketball')) return 3;
+    if (s.includes('cầu lông') || s.includes('badminton') || s.includes('pickleball')) return 2;
+    return 1;
+  };
+
+  const minPlayers = getMinPlayersHint(clubSportName);
+  const defaultMax = minPlayers >= 5 ? 7 : (minPlayers === 3 ? 5 : (minPlayers === 2 ? 4 : 2));
+  const [maxPlayers, setMaxPlayers] = useState<number>(defaultMax);
+
+  // Date & Time states
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1); // default 1 day ahead
+    return d;
+  });
+  const [selectedHour, setSelectedHour] = useState<number>(18);
+  const [selectedMinute, setSelectedMinute] = useState<number>(0);
+
+  // Custom options (unlimited)
+  const [customOptions, setCustomOptions] = useState<string[]>([]);
+  const [newOptionInput, setNewOptionInput] = useState('');
+
+  const handleAddCustomOption = () => {
+    const trimmed = newOptionInput.trim();
+    if (!trimmed) return;
+    if (customOptions.includes(trimmed)) return;
+    setCustomOptions([...customOptions, trimmed]);
+    setNewOptionInput('');
+  };
+
+  const handleRemoveOption = (index: number) => {
+    setCustomOptions(customOptions.filter((_, i) => i !== index));
+  };
+
+  const handleCreate = async () => {
+    if (!title.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const deadlineObj = new Date(selectedDate);
+      deadlineObj.setHours(selectedHour, selectedMinute, 0, 0);
+
+      const payload: CreateMatchPollPayload = {
+        title: title.trim(),
+        pollType,
+        deadline: deadlineObj.toISOString(),
+        minPlayers,
+        maxPlayers: pollType === 'MATCHMAKING' ? maxPlayers : undefined,
+        customOptions: customOptions.length > 0 ? customOptions : undefined,
+      };
+
+      await onSubmit(payload);
+
+      // Reset form
+      setTitle('');
+      setCustomOptions([]);
+      setNewOptionInput('');
+    } catch (err) {
+      // Handled by caller
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
+      >
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
 
         <View style={styles.modalContent}>
-          {/* Header */}
+          {/* Modal Header */}
           <View style={styles.modalHeader}>
             <View style={styles.headerTitleRow}>
-              <MaterialIcons name="add-circle" size={20} color={COLORS.primary} />
-              <Text style={styles.modalTitle}>Tạo biểu quyết quân số</Text>
+              <Ionicons name="stats-chart" size={18} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Tạo biểu quyết mới</Text>
             </View>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={styles.closeBtn}>
-              <MaterialIcons name="close" size={20} color="#64748B" />
+              <MaterialIcons name="close" size={22} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
-            {/* Title Section */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.fieldLabel}>Tiêu đề biểu quyết</Text>
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollBody}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            {/* Poll Type Tabs */}
+            <View style={styles.typeTabsContainer}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.typeTab, pollType === 'MATCHMAKING' && styles.typeTabActive]}
+                onPress={() => setPollType('MATCHMAKING')}
+              >
+                <Ionicons
+                  name="trophy"
+                  size={14}
+                  color={pollType === 'MATCHMAKING' ? '#FFFFFF' : '#64748B'}
+                />
+                <Text style={[styles.typeTabText, pollType === 'MATCHMAKING' && styles.typeTabTextActive]}>
+                  Ghép trận đối thủ
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.typeTab, pollType === 'INTERNAL' && styles.typeTabActive]}
+                onPress={() => setPollType('INTERNAL')}
+              >
+                <Ionicons
+                  name="people"
+                  size={14}
+                  color={pollType === 'INTERNAL' ? '#FFFFFF' : '#64748B'}
+                />
+                <Text style={[styles.typeTabText, pollType === 'INTERNAL' && styles.typeTabTextActive]}>
+                  Giao lưu nội bộ
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Explainer Card */}
+            <View style={styles.explainerCard}>
+              <Ionicons name="information-circle-outline" size={16} color="#64748B" />
+              <Text style={styles.explainerText}>
+                {pollType === 'MATCHMAKING'
+                  ? 'Khi đủ quân số đăng ký, hệ thống sẽ chốt danh sách thi đấu đại diện CLB tìm đối thủ giao lưu.'
+                  : 'Hệ thống tự động phân phối các thành viên thành 2 đội thi đấu cân sức theo trình độ.'}
+              </Text>
+            </View>
+
+            {/* Title Input Card */}
+            <View style={styles.inputCard}>
+              <Text style={styles.fieldLabel}>
+                Tiêu đề biểu quyết <Text style={styles.requiredStar}>*</Text>
+              </Text>
               <TextInput
                 style={styles.textInput}
-                value={pollTitleInput}
-                onChangeText={setPollTitleInput}
-                placeholder="Ví dụ: Ghép trận giao lưu cuối tuần..."
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Nhập tiêu đề biểu quyết..."
                 placeholderTextColor="#94A3B8"
               />
-
-              {/* Title Suggestions */}
-              <View style={styles.presetChipsRow}>
-                {PRESET_TITLES.map((title, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.presetChip,
-                      pollTitleInput === title && styles.presetChipActive,
-                    ]}
-                    onPress={() => setPollTitleInput(title)}
-                  >
-                    <Text
-                      style={[
-                        styles.presetChipText,
-                        pollTitleInput === title && styles.presetChipTextActive,
-                      ]}
-                    >
-                      {title}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
-            {/* Time Section */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.fieldLabel}>Thời gian chốt sổ biểu quyết</Text>
+            {/* Max Players Stepper (Only for Matchmaking) */}
+            {pollType === 'MATCHMAKING' && (
+              <PollMaxPlayersStepper
+                value={maxPlayers}
+                minPlayers={minPlayers}
+                onChange={setMaxPlayers}
+                sportName={clubSportName}
+              />
+            )}
 
-              <View style={styles.timePickerRow}>
-                {/* Hour */}
-                <View style={styles.timeUnitCol}>
-                  <TouchableOpacity
-                    style={styles.timeAdjustBtn}
-                    onPress={() => adjustHour(1)}
-                  >
-                    <MaterialIcons name="keyboard-arrow-up" size={20} color={COLORS.primary} />
-                  </TouchableOpacity>
-                  <View style={styles.timeBox}>
-                    <Text style={styles.timeNumber}>
-                      {pollTimeHour.toString().padStart(2, '0')}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.timeAdjustBtn}
-                    onPress={() => adjustHour(-1)}
-                  >
-                    <MaterialIcons name="keyboard-arrow-down" size={20} color={COLORS.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.timeSubLabel}>Giờ</Text>
+            {/* Date Picker */}
+            <PollDatePicker
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
+
+            {/* Time Picker */}
+            <PollTimePicker
+              selectedHour={selectedHour}
+              selectedMinute={selectedMinute}
+              onChangeHour={setSelectedHour}
+              onChangeMinute={setSelectedMinute}
+            />
+
+            {/* Poll Options Section */}
+            <View style={styles.optionsSection}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.fieldLabel}>Lựa chọn biểu quyết</Text>
+                <Text style={styles.fieldHint}>2 lựa chọn mặc định cố định</Text>
+              </View>
+
+              {/* Option 1: Có */}
+              <View style={styles.lockedOptionCard}>
+                <View style={styles.lockedOptionLeft}>
+                  <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                  <Text style={styles.lockedOptionTitle}>Có (Tham gia thi đấu)</Text>
                 </View>
-
-                <Text style={styles.timeColon}>:</Text>
-
-                {/* Minute */}
-                <View style={styles.timeUnitCol}>
-                  <TouchableOpacity
-                    style={styles.timeAdjustBtn}
-                    onPress={() => adjustMinute(15)}
-                  >
-                    <MaterialIcons name="keyboard-arrow-up" size={20} color={COLORS.primary} />
-                  </TouchableOpacity>
-                  <View style={styles.timeBox}>
-                    <Text style={styles.timeNumber}>
-                      {pollTimeMinute.toString().padStart(2, '0')}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.timeAdjustBtn}
-                    onPress={() => adjustMinute(-15)}
-                  >
-                    <MaterialIcons name="keyboard-arrow-down" size={20} color={COLORS.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.timeSubLabel}>Phút</Text>
+                <View style={styles.lockedBadge}>
+                  <Ionicons name="lock-closed" size={11} color="#64748B" />
+                  <Text style={styles.lockedBadgeText}>Mặc định</Text>
                 </View>
               </View>
 
-              {/* Time Presets */}
-              <View style={styles.presetChipsRow}>
-                {PRESET_TIMES.map((preset, index) => {
-                  const isSelected = pollTimeHour === preset.h && pollTimeMinute === preset.m;
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[styles.presetChip, isSelected && styles.presetChipActive]}
-                      onPress={() => {
-                        setPollTimeHour(preset.h);
-                        setPollTimeMinute(preset.m);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.presetChipText,
-                          isSelected && styles.presetChipTextActive,
-                        ]}
-                      >
-                        {preset.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              {/* Option 2: Không */}
+              <View style={styles.lockedOptionCard}>
+                <View style={styles.lockedOptionLeft}>
+                  <Ionicons name="close-circle" size={18} color="#EF4444" />
+                  <Text style={styles.lockedOptionTitle}>Không (Bận / Vắng mặt)</Text>
+                </View>
+                <View style={styles.lockedBadge}>
+                  <Ionicons name="lock-closed" size={11} color="#64748B" />
+                  <Text style={styles.lockedBadgeText}>Mặc định</Text>
+                </View>
               </View>
-            </View>
 
-            {/* Voting Options Preview */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.fieldLabel}>Các lựa chọn mặc định</Text>
-              <View style={styles.optionsPreviewRow}>
-                <View style={styles.previewOptionPillJoin}>
-                  <MaterialIcons name="check-circle" size={14} color={COLORS.primary} />
-                  <Text style={styles.previewOptionTextJoin}>Tham gia thi đấu</Text>
+              {/* Custom Options List */}
+              {customOptions.map((opt, i) => (
+                <View key={i} style={styles.customOptionCard}>
+                  <View style={styles.customOptionLeft}>
+                    <Ionicons name="radio-button-on" size={16} color={COLORS.primary} />
+                    <Text style={styles.customOptionText} numberOfLines={1}>{opt}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveOption(i)}
+                    style={styles.removeOptionBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.previewOptionPillAbsent}>
-                  <MaterialIcons name="cancel" size={14} color="#D97706" />
-                  <Text style={styles.previewOptionTextAbsent}>Bận / Vắng mặt</Text>
-                </View>
+              ))}
+
+              {/* Add Custom Option Input */}
+              <View style={styles.addOptionRow}>
+                <TextInput
+                  style={styles.addOptionInput}
+                  value={newOptionInput}
+                  onChangeText={setNewOptionInput}
+                  placeholder="Thêm lựa chọn khác (VD: Đến muộn 15p)..."
+                  placeholderTextColor="#94A3B8"
+                  onSubmitEditing={handleAddCustomOption}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={[styles.addOptionBtn, !newOptionInput.trim() && styles.addOptionBtnDisabled]}
+                  disabled={!newOptionInput.trim()}
+                  onPress={handleAddCustomOption}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Text style={styles.addOptionBtnText}>Thêm</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onClose}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelBtnText}>Hủy</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+          {/* Footer Submit Button */}
+          <View style={styles.modalFooter}>
+            <Button
+              title="Tạo biểu quyết"
+              variant="primary"
+              size="lg"
+              loading={isSubmitting}
+              disabled={!title.trim() || isSubmitting}
+              onPress={handleCreate}
               style={styles.submitBtn}
-              onPress={onCreatePoll}
-              activeOpacity={0.85}
-            >
-              <MaterialIcons name="publish" size={18} color="#FFFFFF" />
-              <Text style={styles.submitBtnText}>Phát hành biểu quyết</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -226,213 +305,253 @@ export function CreatePollModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   modalContent: {
-    width: '100%',
-    maxWidth: 380,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    maxHeight: '90%',
-    padding: 18,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 8,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    height: '88%',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 10,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   modalTitle: {
-    fontSize: 15.5,
-    fontWeight: '600',
-    color: '#1E293B',
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   closeBtn: {
     padding: 4,
   },
-  scrollBody: {
-    gap: 14,
-    paddingVertical: 4,
+  scroll: {
+    flex: 1,
+    flexShrink: 1,
   },
-  sectionBlock: {
+  scrollBody: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg,
+  },
+  typeTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 4,
+    marginBottom: SPACING.sm,
+    gap: 4,
+  },
+  typeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  typeTabActive: {
+    backgroundColor: COLORS.primary,
+  },
+  typeTabText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  typeTabTextActive: {
+    color: '#FFFFFF',
+  },
+  explainerCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 10,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  explainerText: {
+    ...TYPOGRAPHY.caption,
+    color: '#475569',
+    flex: 1,
+    lineHeight: 16,
+    fontSize: 12,
+  },
+  inputCard: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
   fieldLabel: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#334155',
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+  },
+  requiredStar: {
+    color: '#EF4444',
   },
   textInput: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
+    borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: 12,
-    height: 40,
-    fontSize: 13,
-    color: '#1E293B',
-  },
-  presetChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 2,
-  },
-  presetChip: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  presetChipActive: {
-    backgroundColor: COLORS.primaryOpacity10,
-    borderColor: COLORS.primary,
-  },
-  presetChipText: {
-    fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  presetChipTextActive: {
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  timePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  timeUnitCol: {
-    alignItems: 'center',
-    gap: 3,
-  },
-  timeAdjustBtn: {
-    padding: 3,
-  },
-  timeBox: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    width: 52,
-    height: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeNumber: {
-    fontSize: 18,
-    fontWeight: '600',
+    paddingVertical: 9,
+    fontSize: 13.5,
     color: '#0F172A',
   },
-  timeColon: {
-    fontSize: 22,
-    fontWeight: '600',
+  optionsSection: {
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  fieldHint: {
+    ...TYPOGRAPHY.caption,
     color: '#64748B',
-    marginTop: -16,
+    fontSize: 11,
+    fontWeight: '600',
   },
-  timeSubLabel: {
+  lockedOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  lockedOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lockedOptionTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontSize: 13.5,
+  },
+  lockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  lockedBadgeText: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
     fontSize: 10.5,
-    color: '#94A3B8',
-    fontWeight: '400',
+    fontWeight: '600',
   },
-  optionsPreviewRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  previewOptionPillJoin: {
-    flex: 1,
+  customOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
+    justifyContent: 'space-between',
+    backgroundColor: '#F0F9FF',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 5,
+    borderColor: '#BAE6FD',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 6,
   },
-  previewOptionTextJoin: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  previewOptionPillAbsent: {
-    flex: 1,
+  customOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 5,
-  },
-  previewOptionTextAbsent: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  modalActions: {
-    flexDirection: 'row',
     gap: 8,
-    paddingTop: 8,
+    flex: 1,
+  },
+  customOptionText: {
+    ...TYPOGRAPHY.bodySm,
+    color: '#0369A1',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  removeOptionBtn: {
+    padding: 4,
+  },
+  addOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  addOptionInput: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  addOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  addOptionBtnDisabled: {
+    backgroundColor: '#94A3B8',
+  },
+  addOptionBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  modalFooter: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: Platform.OS === 'ios' ? SPACING.md + 4 : SPACING.sm,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  cancelBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  cancelBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
   submitBtn: {
-    flex: 1.6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-  },
-  submitBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    width: '100%',
   },
 });

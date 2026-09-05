@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, BORDER_RADIUS } from '../../src/shared/config/theme';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 // ── Tab configuration (icon-only, no labels) ──
 const TAB_ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
@@ -25,7 +24,7 @@ const TAB_ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inacti
 const HIDDEN_ROUTES = ['bookings', 'wallet'];
 
 // ── Custom Instagram-style Tab Bar ──
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
   const scaleAnims = useRef(
     state.routes

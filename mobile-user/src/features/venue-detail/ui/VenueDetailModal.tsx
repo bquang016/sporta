@@ -57,7 +57,7 @@ const TABS: TabItem[] = [
   { key: 'info', label: 'Thông tin' },
   { key: 'services', label: 'Dịch vụ' },
   { key: 'gallery', label: 'Hình ảnh' },
-  { key: 'rules', label: 'Điều khoản & quy định' },
+  { key: 'rules', label: 'Chính sách & Quy định' },
   { key: 'reviews', label: 'Đánh giá' },
 ];
 
@@ -639,6 +639,33 @@ export function VenueDetailModal({
                     <Text style={styles.descriptionText}>{venueDescription}</Text>
                   </View>
 
+                  {/* Quick Cancellation Policy Card */}
+                  <TouchableOpacity
+                    style={styles.quickPolicyCard}
+                    activeOpacity={0.85}
+                    onPress={() => setActiveTab('rules')}
+                  >
+                    <View style={styles.quickPolicyHeader}>
+                      <View style={styles.quickPolicyIconCircle}>
+                        <Ionicons name="shield-checkmark" size={17} color="#047857" />
+                      </View>
+                      <View style={styles.quickPolicyTitleGroup}>
+                        <View style={styles.quickPolicyTitleRow}>
+                          <Text style={styles.quickPolicyTitle}>Chính sách hoàn tiền & hủy sân</Text>
+                          <View style={styles.quickPolicyGracePill}>
+                            <Text style={styles.quickPolicyGracePillText}>Miễn phí 10p đầu</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.quickPolicySubtext} numberOfLines={1}>
+                          {venue?.policy
+                            ? `Hủy trước ${venue.policy.freeCancellationHours ?? 12}h hoàn 100% • Hủy muộn hoàn ${venue.policy.lateCancellationRefundRate ?? 50}%`
+                            : 'Cụm sân này chưa cập nhật chính sách riêng'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={COLORS.onSurfaceVariant} />
+                    </View>
+                  </TouchableOpacity>
+
                   {/* Courts list in venue */}
                   <View style={styles.courtsSectionBlock}>
                     <View style={styles.sectionHeadingRow}>
@@ -732,11 +759,137 @@ export function VenueDetailModal({
                 </View>
               )}
 
-              {/* TAB 4: ĐIỀU KHOẢN & QUY ĐỊNH (Bỏ các badge trạng thái) */}
+              {/* TAB 4: CHÍNH SÁCH & QUY ĐỊNH */}
               {activeTab === 'rules' && (
                 <View style={styles.tabPaneContainer}>
+                  {/* 1. Main Policy Section Header */}
+                  <View style={styles.sectionHeadingRow}>
+                    <Ionicons name="shield-checkmark" size={18} color={COLORS.primary} />
+                    <Text style={styles.sectionHeading}>Chính sách hoàn tiền & Hủy sân</Text>
+                  </View>
+
+                  {venue?.policy ? (
+                    <View style={styles.policyCardWrapper}>
+                      {/* 10-Minute Grace Period Card */}
+                      <View style={styles.policyGraceCard}>
+                        <View style={styles.policyGraceHeader}>
+                          <View style={styles.policyGraceIconBox}>
+                            <Ionicons name="flash" size={16} color="#047857" />
+                          </View>
+                          <View style={styles.policyGraceTitleGroup}>
+                            <View style={styles.policyGraceTagRow}>
+                              <Text style={styles.policyGraceTitle}>Miễn phí huỷ trong 10 phút sau khi đặt</Text>
+                              <View style={styles.freeBadge}>
+                                <Text style={styles.freeBadgeText}>Miễn phí 100%</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.policyGraceDesc}>
+                              Trong vòng 10 phút sau khi đặt sân thành công, người chơi được miễn phí hủy và hoàn 100% toàn bộ số tiền vào Ví Sporta.
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Policy Tiers List */}
+                      <View style={styles.policyTiersList}>
+                        {/* Free Cancellation Tier */}
+                        <View style={styles.policyTierItem}>
+                          <View style={[styles.policyTierIconBox, { backgroundColor: '#ECFDF5' }]}>
+                            <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                          </View>
+                          <View style={styles.policyTierContent}>
+                            <View style={styles.policyTierHeader}>
+                              <Text style={styles.policyTierTitle}>
+                                Hủy trước {venue.policy.freeCancellationHours ?? 12} tiếng
+                              </Text>
+                              <Text style={[styles.policyTierRate, { color: '#059669' }]}>Hoàn 100%</Text>
+                            </View>
+                            <Text style={styles.policyTierDesc}>
+                              Hoàn 100% giá trị tiền vào Ví Sporta nếu gửi yêu cầu hủy trước giờ thi đấu từ {venue.policy.freeCancellationHours ?? 12} giờ trở lên.
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Late Cancellation Tier */}
+                        <View style={styles.policyTierItem}>
+                          <View style={[styles.policyTierIconBox, { backgroundColor: '#FFFBEB' }]}>
+                            <Ionicons name="alert-circle" size={18} color="#D97706" />
+                          </View>
+                          <View style={styles.policyTierContent}>
+                            <View style={styles.policyTierHeader}>
+                              <Text style={styles.policyTierTitle}>
+                                Hủy từ 2h - {venue.policy.freeCancellationHours ?? 12}h
+                              </Text>
+                              <Text style={[styles.policyTierRate, { color: '#D97706' }]}>
+                                Hoàn {venue.policy.lateCancellationRefundRate ?? 50}%
+                              </Text>
+                            </View>
+                            <Text style={styles.policyTierDesc}>
+                              Hoàn {venue.policy.lateCancellationRefundRate ?? 50}% số tiền vào Ví Sporta (khấu trừ {100 - (venue.policy.lateCancellationRefundRate ?? 50)}% phí hủy sân) khi hủy trong khoảng từ 2h đến {venue.policy.freeCancellationHours ?? 12}h trước giờ nhận sân.
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Sát giờ (<2h) */}
+                        <View style={styles.policyTierItem}>
+                          <View style={[styles.policyTierIconBox, { backgroundColor: '#FEF2F2' }]}>
+                            <Ionicons name="close-circle" size={18} color="#DC2626" />
+                          </View>
+                          <View style={styles.policyTierContent}>
+                            <View style={styles.policyTierHeader}>
+                              <Text style={styles.policyTierTitle}>Sát giờ thi đấu (dưới 2h)</Text>
+                              <Text style={[styles.policyTierRate, { color: '#DC2626' }]}>Không hoàn tiền</Text>
+                            </View>
+                            <Text style={styles.policyTierDesc}>
+                              Không hỗ trợ hoàn tiền đối với các yêu cầu hủy dưới 2 tiếng trước giờ thi đấu hoặc sau khi ca thi đấu đã bắt đầu.
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Weather Condition Tier */}
+                        <View style={styles.policyTierItem}>
+                          <View style={[styles.policyTierIconBox, { backgroundColor: '#F0F9FF' }]}>
+                            <Ionicons name="rainy" size={18} color="#0284C7" />
+                          </View>
+                          <View style={styles.policyTierContent}>
+                            <View style={styles.policyTierHeader}>
+                              <Text style={styles.policyTierTitle}>Thời tiết mưa bão</Text>
+                              <Text style={[styles.policyTierRate, { color: venue.policy.rainRescheduleAllowed ? '#0284C7' : '#64748B' }]}>
+                                {venue.policy.rainRescheduleAllowed ? 'Hỗ trợ dời lịch' : 'Không dời lịch'}
+                              </Text>
+                            </View>
+                            <Text style={styles.policyTierDesc}>
+                              {venue.policy.rainRescheduleAllowed
+                                ? 'Cụm sân có áp dụng chính sách hỗ trợ đổi lịch / dời lịch thi đấu khi gặp điều kiện thời tiết bất khả kháng (mưa bão ngập sân).'
+                                : 'Cụm sân không hỗ trợ dời lịch tự động do thời tiết, quý khách vui lòng liên hệ trực tiếp chủ sân để được hỗ trợ.'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    /* Fallback when policy is not configured */
+                    <View style={styles.policyEmptyFallbackCard}>
+                      <View style={styles.policyEmptyIconBox}>
+                        <Ionicons name="information-circle-outline" size={24} color={COLORS.onSurfaceVariant} />
+                      </View>
+                      <View style={styles.policyEmptyTextCol}>
+                        <Text style={styles.policyEmptyTitle}>Cụm sân này chưa cập nhật chính sách</Text>
+                        <Text style={styles.policyEmptyDesc}>
+                          Cụm sân hiện chưa thiết lập chính sách hoàn/hủy riêng trên hệ thống. Nếu có nhu cầu thay đổi lịch đặt, bạn vui lòng liên hệ trực tiếp chủ sân qua hotline để được hướng dẫn.
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 2. General Venue House Rules */}
+                  <View style={[styles.sectionHeadingRow, { marginTop: SPACING.md }]}>
+                    <MaterialIcons name="gavel" size={18} color={COLORS.primary} />
+                    <Text style={styles.sectionHeading}>Nội quy chung tại cụm sân</Text>
+                  </View>
+
                   <View style={styles.rulesListContainer}>
-                    {MOCK_VENUE_RULES.map((rule) => (
+                    {MOCK_VENUE_RULES.filter(r => r.id !== 'rule-3').map((rule) => (
                       <View key={rule.id} style={styles.ruleCleanCardItem}>
                         <View style={styles.ruleCleanIconBox}>
                           <MaterialIcons name={rule.icon as any} size={19} color={COLORS.primary} />
@@ -919,7 +1072,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   sheetContainer: {
@@ -1459,6 +1612,206 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Quick policy card in Info Tab
+  quickPolicyCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    marginTop: 4,
+  },
+  quickPolicyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quickPolicyIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickPolicyTitleGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  quickPolicyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  quickPolicyTitle: {
+    fontSize: 13,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  quickPolicyGracePill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 0.5,
+    borderColor: '#86EFAC',
+  },
+  quickPolicyGracePillText: {
+    fontSize: 9.5,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#047857',
+  },
+  quickPolicySubtext: {
+    fontSize: 11.5,
+    color: '#047857',
+  },
+
+  // Policy Section in Rules Tab
+  policyCardWrapper: {
+    gap: 10,
+  },
+  policyGraceCard: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  policyGraceHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  policyGraceIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  policyGraceTitleGroup: {
+    flex: 1,
+    gap: 3,
+  },
+  policyGraceTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  policyGraceTitle: {
+    fontSize: 13,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  freeBadge: {
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 0.5,
+    borderColor: '#86EFAC',
+  },
+  freeBadgeText: {
+    fontSize: 9.5,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#047857',
+  },
+  policyGraceDesc: {
+    fontSize: 12,
+    color: '#047857',
+    lineHeight: 16.5,
+  },
+
+  // Tiers
+  policyTiersList: {
+    gap: 8,
+  },
+  policyTierItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  policyTierIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  policyTierContent: {
+    flex: 1,
+    gap: 3,
+  },
+  policyTierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  policyTierTitle: {
+    fontSize: 13,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  policyTierRate: {
+    fontSize: 11.5,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+  },
+  policyTierDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16.5,
+  },
+
+  // Empty fallback card
+  policyEmptyFallbackCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
+  },
+  policyEmptyIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  policyEmptyTextCol: {
+    flex: 1,
+    gap: 3,
+  },
+  policyEmptyTitle: {
+    fontSize: 13.5,
+    fontFamily: 'HankenGrotesk-Bold',
+    fontWeight: '800',
+    color: '#334155',
+  },
+  policyEmptyDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 17,
+  },
+
   rulesListContainer: {
     gap: 8,
   },

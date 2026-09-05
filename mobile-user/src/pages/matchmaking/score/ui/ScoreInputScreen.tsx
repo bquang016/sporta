@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +21,9 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/c
 import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchmaking';
 import { ScoreInputForm } from '../../../../features/matchmaking/ui/ScoreInputForm';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
+import { DevMatchTestPanel } from '../../../../features/matchmaking/ui/DevMatchTestPanel';
+import { UserAvatar } from '../../../../shared/ui/UserAvatar';
+import { usersApi, UserProfileDto } from '../../../../shared/api/users';
 
 function isMatchTimeStarted(dateStr?: string, startTimeStr?: string): boolean {
   if (!dateStr || !startTimeStr) return true;
@@ -51,9 +60,20 @@ function isMatchTimeStarted(dateStr?: string, startTimeStr?: string): boolean {
 export function ScoreInputScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { room, loading, submitScore, confirmScore } = useMatchDetail(id as string);
+  const { room, loading, refetch, submitScore, confirmScore, disagreeScore } = useMatchDetail(id as string);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<UserProfileDto | null>(null);
+
+  // Dispute Modal state
+  const [isDisputeModalVisible, setIsDisputeModalVisible] = useState<boolean>(false);
+  const [disputeReasonCode, setDisputeReasonCode] = useState<string>('INCORRECT_SCORE');
+  const [disputeDescription, setDisputeDescription] = useState<string>('');
+  const [disputeLoading, setDisputeLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    usersApi.getProfile().then(setCurrentUser).catch(() => {});
+  }, []);
 
   // Custom Modal Alert / Confirm State
   const [modalConfig, setModalConfig] = useState<{
@@ -69,7 +89,7 @@ export function ScoreInputScreen() {
     visible: false,
     title: '',
     message: '',
-    onConfirm: () => { },
+    onConfirm: () => {},
   });
 
   const showAlert = (
@@ -91,12 +111,35 @@ export function ScoreInputScreen() {
     });
   };
 
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirmAction: () => void,
+    type: 'info' | 'warning' | 'danger' | 'success' = 'info',
+    confirmText = 'Xác nhận',
+    cancelText = 'Hủy'
+  ) => {
+    setModalConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      confirmText,
+      cancelText,
+      onConfirm: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+        onConfirmAction();
+      },
+      onCancel: () => setModalConfig((prev) => ({ ...prev, visible: false })),
+    });
+  };
+
   if (loading || !room) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Đang tải trang nhập tỷ số...</Text>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Đang tải thông tin trận đấu...</Text>
         </View>
       </SafeAreaView>
     );
@@ -107,10 +150,10 @@ export function ScoreInputScreen() {
     try {
       await submitScore(hostScore, guestScore, details);
       showAlert(
-        'Đã gửi tỷ số trận đấu',
-        'Tỷ số đã được gửi tới đối thủ (Bên B). Trận đấu sẽ chính thức hoàn tất sau khi Bên B phê duyệt và xác nhận.',
+        'Đã gửi tỷ số',
+        'Tỷ số đã được gửi tới đối thủ. Kết quả sẽ được ghi nhận sau khi đối thủ xác nhận.',
         'success',
-        () => router.replace(`/matchmaking/${room.id}` as any)
+        () => refetch()
       );
     } catch (e: any) {
       showAlert('Lỗi', e.message || 'Không thể gửi tỷ số', 'danger');
@@ -120,23 +163,55 @@ export function ScoreInputScreen() {
   };
 
   const handleConfirmScore = async () => {
-    setSubmitting(true);
+    showConfirm(
+      'Xác nhận kết quả',
+      'Bạn đồng ý với tỷ số này và muốn chốt kết quả trận đấu?',
+      async () => {
+        setSubmitting(true);
+        try {
+          await confirmScore();
+          showAlert(
+            'Thành công',
+            'Kết quả trận đấu đã được xác nhận.',
+            'success',
+            () => router.replace(`/matchmaking/${room.id}/result` as any)
+          );
+        } catch (e: any) {
+          showAlert('Lỗi', e.message || 'Không thể xác nhận kết quả', 'danger');
+        } finally {
+          setSubmitting(false);
+        }
+      },
+      'success',
+      'Xác nhận',
+      'Quay lại'
+    );
+  };
+
+  const handleSubmitDispute = async () => {
+    if (!disagreeScore) return;
+    setDisputeLoading(true);
     try {
-      await confirmScore();
+      await disagreeScore(disputeReasonCode, disputeDescription);
+      setIsDisputeModalVisible(false);
       showAlert(
-        'Hoàn tất trận đấu',
-        'Kết quả đã được xác nhận và cập nhật điểm CRP.',
-        'success',
-        () => router.replace(`/matchmaking/${room.id}/result` as any)
+        'Đã gửi phản hồi',
+        'Khiếu nại về tỷ số đã được ghi nhận.',
+        'warning',
+        () => refetch()
       );
     } catch (e: any) {
-      showAlert('Lỗi', e.message || 'Không thể xác nhận kết quả', 'danger');
+      showAlert('Lỗi', e.message || 'Không thể gửi khiếu nại', 'danger');
     } finally {
-      setSubmitting(false);
+      setDisputeLoading(false);
     }
   };
 
   const submission = room.scoreSubmission;
+  const host = room.hostClub;
+  const guest = room.guestClub;
+  const hostAvatarUri = host?.avatarUrl || host?.logoUrl || (host as any)?.avatarImage;
+  const guestAvatarUri = guest?.avatarUrl || guest?.logoUrl || (guest as any)?.avatarImage;
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -148,117 +223,252 @@ export function ScoreInputScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
-          <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
+        <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bảng Điểm Trận Đấu</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>Nhập tỷ số trận đấu</Text>
+        <TouchableOpacity onPress={() => refetch()} style={styles.headerIconBtn} activeOpacity={0.7}>
+          <Ionicons name="refresh-outline" size={18} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.responsiveContainer}>
-          {/* Stadium Header Info Card */}
-          <View style={styles.stadiumCard}>
-            <View style={styles.stadiumBadgeRow}>
-              <View style={styles.liveTag}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveTagText}>CẬP NHẬT TỶ SỐ SÂN BÃI</Text>
+          {/* [DEV] Tester Control Panel */}
+          {(currentUser?.isDevTester || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+            <DevMatchTestPanel room={room} onRefresh={refetch} />
+          )}
+
+          {/* Match Summary Card */}
+          <View style={styles.matchSummaryCard}>
+            <View style={styles.summaryTopRow}>
+              <View style={styles.sportBadge}>
+                <Text style={styles.sportBadgeText}>{room.booking.sportName} • {room.booking.format}</Text>
               </View>
-              <Text style={styles.stadiumSport}>{room.booking.sportName} • {room.booking.format}</Text>
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>
+                  {room.matchType === 'RANKED' ? 'Xếp hạng CRP' : 'Giao hữu'}
+                </Text>
+              </View>
             </View>
 
-            <Text style={styles.stadiumName} numberOfLines={1}>{room.booking.facilityName}</Text>
-            <Text style={styles.stadiumTime}>{room.booking.date} • {room.booking.startTime} - {room.booking.endTime}</Text>
+            <Text style={styles.venueName} numberOfLines={1}>{room.booking.facilityName}</Text>
+            <Text style={styles.venueTime}>
+              {room.booking.date} • {room.booking.startTime} - {room.booking.endTime}
+            </Text>
 
-            <View style={styles.teamVsRow}>
-              <Text style={styles.teamVsName} numberOfLines={1}>{room.hostClub.name}</Text>
-              <View style={styles.vsBadge}><Text style={styles.vsText}>VS</Text></View>
-              <Text style={styles.teamVsName} numberOfLines={1}>{room.guestClub?.name || 'Đội bạn'}</Text>
+            <View style={styles.teamsDividerRow}>
+              <View style={styles.teamColMini}>
+                <UserAvatar uri={hostAvatarUri} name={host.name} size={28} />
+                <Text style={styles.teamNameMini} numberOfLines={1}>{host.name}</Text>
+              </View>
+
+              <Text style={styles.vsLabel}>vs</Text>
+
+              <View style={[styles.teamColMini, { justifyContent: 'flex-end' }]}>
+                <Text style={[styles.teamNameMini, { textAlign: 'right' }]} numberOfLines={1}>
+                  {guest?.name || 'Đội bạn'}
+                </Text>
+                <UserAvatar uri={guestAvatarUri} name={guest?.name || 'B'} size={28} />
+              </View>
             </View>
           </View>
 
-          {/* Form Nhập tỷ số - CHỈ CHỦ ROOM (BÊN A) ĐƯỢC NHẬP */}
+          {/* STATE A: MATCHED & Not Submitted Yet */}
           {room.status === 'MATCHED' && !submission && (
-            !isMatchTimeStarted(room.booking.date, room.booking.startTime) ? (
-              <View style={styles.confirmCard}>
-                <Ionicons name="time-outline" size={36} color="#D97706" />
-                <Text style={styles.confirmTitle}>CHƯA ĐẾN GIỜ THI ĐẤU</Text>
-                <Text style={styles.confirmSub}>
-                  Trận đấu diễn ra vào lúc <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.booking.date} • {room.booking.startTime}</Text>. Bạn chỉ có thể cập nhật tỷ số sau khi trận đấu bắt đầu.
+            (!currentUser?.isDevTester && !isMatchTimeStarted(room.booking.date, room.booking.startTime)) ? (
+              <View style={styles.cardInfo}>
+                <Ionicons name="time-outline" size={24} color="#D97706" />
+                <Text style={styles.cardInfoTitle}>Chưa đến giờ thi đấu</Text>
+                <Text style={styles.cardInfoSub}>
+                  Trận đấu diễn ra lúc {room.booking.date} ({room.booking.startTime}). Bạn có thể cập nhật tỷ số sau khi trận đấu bắt đầu.
                 </Text>
               </View>
-            ) : room.permissions?.canEnterScore ? (
-              <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} />
+            ) : (room.permissions?.canEnterScore || currentUser?.isDevTester) ? (
+              <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} loading={submitting} />
             ) : (
-              <View style={styles.confirmCard}>
-                <Ionicons name="time-outline" size={36} color={COLORS.primary} />
-                <Text style={styles.confirmTitle}>ĐANG CHỜ CHỦ ROOM NHẬP TỶ SỐ</Text>
-                <Text style={styles.confirmSub}>
-                  Chủ room đại diện <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.hostClub.name}</Text> chịu trách nhiệm nhập và gửi tỷ số trận đấu. Sau khi Chủ room gửi, bạn (Bên B) sẽ thực hiện phê duyệt.
+              <View style={styles.cardInfo}>
+                <Ionicons name="hourglass-outline" size={24} color="#0284C7" />
+                <Text style={styles.cardInfoTitle}>Đang chờ chủ nhà nhập tỷ số</Text>
+                <Text style={styles.cardInfoSub}>
+                  Đại diện {room.hostClub.name} sẽ nhập tỷ số trận đấu. Sau khi gửi, bạn sẽ nhận được thông báo để xác nhận.
                 </Text>
               </View>
             )
           )}
 
-          {/* View Phê Duyệt / Xác nhận Tỷ số */}
-          {(room.status === 'SCORE_CONFIRMING' || submission) && (
+          {/* STATE B: SCORE_CONFIRMING (Submission exists) */}
+          {(room.status === 'SCORE_CONFIRMING' || submission) && room.status !== 'RESULT_FINAL' && room.status !== 'DISPUTED' && (
             <View style={styles.confirmCard}>
-              <View style={styles.confirmHeader}>
-                <Ionicons name="trophy-outline" size={24} color={COLORS.primary} />
-                <Text style={styles.confirmTitle}>XÁC NHẬN KẾT QUẢ TRẬN ĐẤU</Text>
-              </View>
-              <Text style={styles.confirmSub}>
-                Đại diện Chủ room <Text style={{ fontWeight: '800', color: COLORS.primary }}>{room.hostClub.name}</Text> đã đề xuất tỷ số:
+              <Text style={styles.confirmHeading}>Xác nhận kết quả</Text>
+              <Text style={styles.confirmSubtitle}>
+                Chủ nhà ({room.hostClub.name}) đã gửi kết quả trận đấu:
               </Text>
 
-              {/* Score Display Box */}
-              <View style={styles.scoreboardBox}>
-                <Text style={styles.scoreboardText}>
-                  {submission?.hostScore ?? 3} — {submission?.guestScore ?? 2}
-                </Text>
-                {submission?.rawScoreDetails && (
-                  <Text style={styles.scoreboardDetails}>{submission.rawScoreDetails}</Text>
-                )}
+              {/* Clean Score Box */}
+              <View style={styles.cleanScoreBox}>
+                <View style={styles.scoreSide}>
+                  <Text style={styles.scoreClubName} numberOfLines={1}>{host.name}</Text>
+                  <Text style={styles.scoreDigit}>{submission?.hostScore ?? 0}</Text>
+                </View>
+
+                <Text style={styles.scoreDash}>-</Text>
+
+                <View style={styles.scoreSide}>
+                  <Text style={styles.scoreClubName} numberOfLines={1}>{guest?.name || 'Đội bạn'}</Text>
+                  <Text style={styles.scoreDigit}>{submission?.guestScore ?? 0}</Text>
+                </View>
               </View>
 
+              {submission?.rawScoreDetails ? (
+                <Text style={styles.scoreDetailNote}>{submission.rawScoreDetails}</Text>
+              ) : null}
+
+              {/* Guest Actions */}
               {room.permissions?.canConfirmScore ? (
-                <View style={styles.confirmBtnRow}>
-                  <Text style={styles.confirmQuestion}>Bạn là đại diện Bên B ({room.guestClub?.name}). Bấm nút bên dưới để duyệt kết quả và tính điểm CRP:</Text>
+                <View style={styles.actionButtonGroup}>
                   <TouchableOpacity
                     disabled={submitting}
                     onPress={handleConfirmScore}
-                    style={styles.confirmScoreBtn}
+                    style={styles.btnPrimary}
+                    activeOpacity={0.85}
                   >
                     {submitting ? (
-                      <ActivityIndicator color={COLORS.white} />
+                      <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
-                      <>
-                        <View style={styles.trophyIconBg}>
-                          <Ionicons name="trophy" size={18} color={COLORS.secondary} />
-                        </View>
-                        <Text style={styles.confirmScoreText}>DUYỆT & XÁC NHẬN TỶ SỐ TRẬN ĐẤU</Text>
-                      </>
+                      <Text style={styles.btnPrimaryText}>Xác nhận kết quả</Text>
                     )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    disabled={submitting}
+                    onPress={() => setIsDisputeModalVisible(true)}
+                    style={styles.btnSecondary}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.btnSecondaryText}>Báo sai tỷ số</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <View style={styles.waitingGuestBox}>
-                  <Ionicons name="time-outline" size={20} color="#92400E" />
-                  <Text style={styles.waitingGuestText}>
-                    Tỷ số đã được gửi thành công! Đang chờ đối thủ Bên B ({room.guestClub?.name || 'Đối thủ'}) phê duyệt & xác nhận.
+                <View style={styles.waitingBadge}>
+                  <Ionicons name="time-outline" size={14} color="#64748B" />
+                  <Text style={styles.waitingBadgeText}>
+                    Đang chờ {room.guestClub?.name || 'đối thủ'} xác nhận
                   </Text>
                 </View>
               )}
             </View>
           )}
+
+          {/* STATE C: DISPUTED */}
+          {room.status === 'DISPUTED' && (
+            <View style={styles.cardInfo}>
+              <Ionicons name="alert-circle-outline" size={24} color="#DC2626" />
+              <Text style={[styles.cardInfoTitle, { color: '#DC2626' }]}>Trận đấu có khiếu nại</Text>
+              <Text style={styles.cardInfoSub}>
+                Kết quả trận đấu đang được hai bên phản hồi lại. Vui lòng liên hệ ban quản trị nếu cần hỗ trợ.
+              </Text>
+            </View>
+          )}
+
+          {/* STATE D: RESULT_FINAL */}
+          {room.status === 'RESULT_FINAL' && (
+            <View style={styles.cardInfo}>
+              <Ionicons name="checkmark-circle-outline" size={28} color="#059669" />
+              <Text style={[styles.cardInfoTitle, { color: '#059669' }]}>Trận đấu đã hoàn tất</Text>
+              <Text style={styles.cardInfoSub}>
+                Kết quả và điểm số đã được ghi nhận chính thức.
+              </Text>
+              <TouchableOpacity
+                style={styles.btnPrimaryCompact}
+                onPress={() => router.replace(`/matchmaking/${room.id}/result` as any)}
+              >
+                <Text style={styles.btnPrimaryText}>Xem chi tiết kết quả</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
 
-      {/* Project Custom Alert / Confirm Modal */}
+      {/* Dispute Modal */}
+      <Modal
+        visible={isDisputeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsDisputeModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsDisputeModalVisible(false)}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Báo sai tỷ số</Text>
+                <Text style={styles.modalSubtitle}>Chọn lý do tỷ số không chính xác:</Text>
+
+                <View style={styles.reasonOptionGroup}>
+                  {[
+                    { code: 'INCORRECT_SCORE', label: 'Tỷ số bị nhập sai' },
+                    { code: 'WRONG_LINEUP', label: 'Sai đội hình thi đấu' },
+                    { code: 'OTHER', label: 'Lý do khác' },
+                  ].map((r) => (
+                    <TouchableOpacity
+                      key={r.code}
+                      style={[styles.reasonOption, disputeReasonCode === r.code && styles.reasonOptionActive]}
+                      onPress={() => setDisputeReasonCode(r.code)}
+                    >
+                      <Text style={[styles.reasonOptionText, disputeReasonCode === r.code && styles.reasonOptionTextActive]}>
+                        {r.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Ghi chú chi tiết (không bắt buộc)..."
+                  placeholderTextColor="#94A3B8"
+                  value={disputeDescription}
+                  onChangeText={setDisputeDescription}
+                  multiline
+                  numberOfLines={2}
+                />
+
+                <View style={styles.modalActionRow}>
+                  <TouchableOpacity
+                    onPress={() => setIsDisputeModalVisible(false)}
+                    style={styles.modalCancelBtn}
+                  >
+                    <Text style={styles.modalCancelText}>Hủy</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    disabled={disputeLoading}
+                    onPress={handleSubmitDispute}
+                    style={styles.modalConfirmBtn}
+                  >
+                    {disputeLoading ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.modalConfirmText}>Gửi báo cáo</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <CustomConfirmModal {...modalConfig} />
     </SafeAreaView>
   );
@@ -267,31 +477,30 @@ export function ScoreInputScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
   },
   headerIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(6, 78, 59, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     ...TYPOGRAPHY.titleMd,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-    fontSize: 17,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   centerContainer: {
     flex: 1,
@@ -301,219 +510,293 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
+    fontSize: 13,
   },
   scrollContent: {
-    padding: SPACING.marginMobile,
+    padding: SPACING.md,
     paddingBottom: 40,
   },
   responsiveContainer: {
-    maxWidth: 720,
+    maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
     gap: SPACING.md,
   },
-  stadiumCard: {
-    backgroundColor: COLORS.primary,
+  matchSummaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
-    gap: 8,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
   },
-  stadiumBadgeRow: {
+  summaryTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
-  liveTag: {
+  sportBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  sportBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  typeBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  venueName: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  venueTime: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  teamsDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 6,
+  },
+  teamColMini: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.full,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
+  teamNameMini: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
   },
-  liveTagText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.white,
-    fontWeight: '900',
-    fontSize: 10,
-  },
-  stadiumSport: {
-    ...TYPOGRAPHY.labelSm,
-    color: 'rgba(255, 255, 255, 0.8)',
+  vsLabel: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#94A3B8',
+    paddingHorizontal: 8,
   },
-  stadiumName: {
-    ...TYPOGRAPHY.headlineMd,
-    fontWeight: '900',
-    color: COLORS.white,
-    fontSize: 19,
-  },
-  stadiumTime: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  teamVsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: SPACING.sm,
+  cardInfo: {
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cardInfoTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
     marginTop: 4,
   },
-  teamVsName: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: COLORS.white,
-    fontSize: 13,
-    flex: 1,
+  cardInfoSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12.5,
+    color: '#64748B',
     textAlign: 'center',
-  },
-  vsBadge: {
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.full,
-    marginHorizontal: 6,
-  },
-  vsText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.onSecondary,
-    fontWeight: '900',
-    fontSize: 10,
+    lineHeight: 18,
   },
   confirmCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
-    gap: SPACING.sm,
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#E2E8F0',
+    gap: 12,
   },
-  confirmHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  confirmTitle: {
-    ...TYPOGRAPHY.titleMd,
-    fontWeight: '900',
-    color: COLORS.onSurface,
-    fontSize: 16,
-  },
-  confirmSub: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
-    textAlign: 'center',
-  },
-  scoreboardBox: {
-    backgroundColor: COLORS.background,
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    marginVertical: 8,
-    width: '100%',
-  },
-  scoreboardText: {
-    ...TYPOGRAPHY.headlineXl,
-    fontWeight: '900',
-    color: COLORS.primary,
-    fontSize: 40,
-    lineHeight: 48,
-    letterSpacing: 2,
-  },
-  scoreboardDetails: {
+  confirmHeading: {
     ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 4,
+    fontSize: 14,
     fontWeight: '700',
+    color: '#0F172A',
+  },
+  confirmSubtitle: {
+    ...TYPOGRAPHY.caption,
     fontSize: 12,
+    color: '#64748B',
   },
-  confirmQuestion: {
-    ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    textAlign: 'center',
-    fontSize: 12.5,
-    marginBottom: 8,
-  },
-  confirmBtnRow: {
-    width: '100%',
-    marginTop: 8,
-  },
-  confirmScoreBtn: {
+  cleanScoreBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    backgroundColor: COLORS.primary,
-    borderWidth: 1.5,
-    borderColor: COLORS.secondary,
+    backgroundColor: '#F8FAFC',
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.full,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: BORDER_RADIUS.md,
+    gap: 16,
   },
-  trophyIconBg: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(254, 208, 27, 0.2)',
-    justifyContent: 'center',
+  scoreSide: {
     alignItems: 'center',
+    minWidth: 80,
   },
-  confirmScoreText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
-    fontWeight: '900',
+  scoreClubName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 2,
+  },
+  scoreDigit: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  scoreDash: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  scoreDetailNote: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  actionButtonGroup: {
+    gap: 8,
+    marginTop: 4,
+  },
+  btnPrimary: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnPrimaryCompact: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: 6,
+  },
+  btnPrimaryText: {
     fontSize: 13.5,
-    letterSpacing: 0.4,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  waitingGuestBox: {
+  btnSecondary: {
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  waitingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1.5,
-    borderColor: '#FCD34D',
-    padding: 12,
-    borderRadius: BORDER_RADIUS.lg,
-    marginTop: 8,
-    width: '100%',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
   },
-  waitingGuestText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12.5,
-    color: '#78350F',
+  waitingBadgeText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  modalBackdrop: {
     flex: 1,
-    lineHeight: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  reasonOptionGroup: {
+    gap: 6,
+  },
+  reasonOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  reasonOptionActive: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  reasonOptionText: {
+    fontSize: 12.5,
+    color: '#334155',
+  },
+  reasonOptionTextActive: {
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+  modalInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 8,
+    fontSize: 12.5,
+    minHeight: 48,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 4,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  modalCancelText: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  modalConfirmBtn: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  modalConfirmText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

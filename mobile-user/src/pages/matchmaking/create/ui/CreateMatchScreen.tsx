@@ -16,6 +16,7 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/c
 import { MatchmakingApiRepository } from '../../../../shared/api/matchmaking';
 import { ClubSummaryVM, BookingSummaryVM, MatchType } from '../../../../entities/match/model/match.types';
 import { ClubSelector } from '../../../../features/matchmaking/ui/ClubSelector';
+import { LineupPicker } from '../../../../features/matchmaking/ui/LineupPicker';
 import { PaidBookingPicker } from '../../../../features/matchmaking/ui/PaidBookingPicker';
 import { FeeSplitSelector } from '../../../../features/matchmaking/ui/FeeSplitSelector';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
@@ -63,6 +64,7 @@ export function CreateMatchScreen() {
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   const [selectedClub, setSelectedClub] = useState<ClubSummaryVM | undefined>();
+  const [selectedLineup, setSelectedLineup] = useState<any | undefined>();
   const [selectedBooking, setSelectedBooking] = useState<BookingSummaryVM | undefined>();
   const [matchType, setMatchType] = useState<MatchType>('RANKED');
   const [hostSharePercent, setHostSharePercent] = useState<number>(70);
@@ -79,7 +81,6 @@ export function CreateMatchScreen() {
         setClubs(eligibleClubs || []);
         setBookings(paidBookings || []);
 
-        // Chọn thông minh: Ưu tiên CLB đủ điều kiện VÀ có sẵn lịch đặt sân cùng môn thể thao
         const clubWithBooking = (eligibleClubs || []).find(
           (c) => c.isEligibleForMatchmaking && (paidBookings || []).some((b) => String(b.sportId) === String(c.sportId))
         );
@@ -101,13 +102,11 @@ export function CreateMatchScreen() {
     loadData();
   }, []);
 
-  // Lọc danh sách lịch đặt sân theo đúng môn thể thao của CLB đại diện được chọn
   const availableBookings = React.useMemo(() => {
     if (!selectedClub) return bookings;
     return bookings.filter((b) => String(b.sportId) === String(selectedClub.sportId));
   }, [bookings, selectedClub]);
 
-  // Tự động chọn booking phù hợp khi đổi CLB đại diện
   useEffect(() => {
     if (selectedClub) {
       const matchInAvailable = availableBookings.find((b) => b.id === selectedBooking?.id);
@@ -124,6 +123,10 @@ export function CreateMatchScreen() {
     }
     if (!selectedClub.isEligibleForMatchmaking) {
       showAlert('Chưa đủ thành viên', 'CLB đại diện cần có ít nhất 8 thành viên ACTIVE.', 'warning');
+      return;
+    }
+    if (!selectedLineup) {
+      showAlert('Chưa có đội hình ra sân', 'CLB cần chọn đội hình ra sân sẵn sàng để tạo kèo tìm đối thủ.', 'warning');
       return;
     }
     if (!selectedBooking) {
@@ -144,6 +147,7 @@ export function CreateMatchScreen() {
       const created = await MatchmakingApiRepository.createRoom({
         bookingId: selectedBooking.id,
         hostClubId: selectedClub.id,
+        lineupId: selectedLineup.id,
         matchType,
         hostSharePercent,
         desiredLevels: [desiredLevel],
@@ -170,15 +174,15 @@ export function CreateMatchScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header Bar */}
+      {/* ── Top Header ── */}
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Tạo Bài Ghép Kèo Nhanh</Text>
+          <Text style={styles.headerTitle}>Tạo Kèo Tìm Đối Thủ</Text>
           <View style={{ width: 36 }} />
         </View>
       </View>
@@ -186,10 +190,10 @@ export function CreateMatchScreen() {
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Đang nạp thông tin sân đã đặt...</Text>
+          <Text style={styles.loadingText}>Đang nạp thông tin CLB và sân đã đặt...</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.responsiveContainer}>
             {/* Section 1: Choose Club */}
             <ClubSelector
@@ -198,7 +202,21 @@ export function CreateMatchScreen() {
               onSelectClub={setSelectedClub}
             />
 
-            {/* Section 2: Choose Booking */}
+            {/* Section 2: Choose Lineup */}
+            <LineupPicker
+              clubId={selectedClub?.id}
+              clubName={selectedClub?.name}
+              sportId={selectedClub?.sportId}
+              selectedLineupId={selectedLineup?.id}
+              onSelectLineup={setSelectedLineup}
+              onNavigateToClub={() => {
+                if (selectedClub?.id) {
+                  router.push(`/club/${selectedClub.id}` as any);
+                }
+              }}
+            />
+
+            {/* Section 3: Choose Booking */}
             <PaidBookingPicker
               bookings={availableBookings}
               selectedBookingId={selectedBooking?.id}
@@ -206,9 +224,17 @@ export function CreateMatchScreen() {
               selectedSportName={selectedClub?.sportName}
             />
 
-            {/* Section 3: Match Type Selector */}
+            {/* Section 4: Match Type Selector */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Loại trận đấu</Text>
+              <View style={styles.headerRow}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="trophy" size={16} color="#D97706" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>4. Loại Trận Đấu</Text>
+                  <Text style={styles.subtext}>Chọn thể thức tính điểm xếp hạng</Text>
+                </View>
+              </View>
 
               <View style={styles.typeRow}>
                 <TouchableOpacity
@@ -219,8 +245,12 @@ export function CreateMatchScreen() {
                     matchType === 'RANKED' && styles.typeBtnRanked,
                   ]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="trophy" size={18} color={matchType === 'RANKED' ? '#92400E' : COLORS.onSurfaceVariant} />
+                  <View style={styles.typeBtnHeader}>
+                    <Ionicons
+                      name="trophy"
+                      size={18}
+                      color={matchType === 'RANKED' ? '#B45309' : '#64748B'}
+                    />
                     <Text style={[styles.typeBtnTitle, matchType === 'RANKED' && styles.typeTextRanked]}>
                       Xếp hạng (CRP)
                     </Text>
@@ -238,20 +268,24 @@ export function CreateMatchScreen() {
                     matchType === 'FRIENDLY' && styles.typeBtnFriendly,
                   ]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="people" size={18} color={matchType === 'FRIENDLY' ? '#075985' : COLORS.onSurfaceVariant} />
+                  <View style={styles.typeBtnHeader}>
+                    <Ionicons
+                      name="people"
+                      size={18}
+                      color={matchType === 'FRIENDLY' ? '#0284C7' : '#64748B'}
+                    />
                     <Text style={[styles.typeBtnTitle, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
                       Giao hữu
                     </Text>
                   </View>
                   <Text style={[styles.typeBtnDesc, matchType === 'FRIENDLY' && styles.typeTextFriendly]}>
-                    Thi đấu cọ xát, thư giãn, không tính điểm Elo.
+                    Thi đấu giao lưu cọ xát, không tính điểm Elo.
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Section 4: Fee Split Selector */}
+            {/* Section 5: Fee Split Selector */}
             {selectedBooking && (
               <FeeSplitSelector
                 totalPrice={selectedBooking.totalPrice}
@@ -260,12 +294,19 @@ export function CreateMatchScreen() {
               />
             )}
 
-            {/* Section 5: Opponent Level Target */}
+            {/* Section 6: Opponent Level Target */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Trình độ đối thủ mong muốn</Text>
-              <Text style={styles.subtext}>
-                Gợi ý các CLB có Elo tương đồng để đảm bảo trận đấu diễn ra kịch tính.
-              </Text>
+              <View style={styles.headerRow}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="speedometer" size={16} color="#7C3AED" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>6. Trình độ đối thủ mong muốn</Text>
+                  <Text style={styles.subtext}>
+                    Hệ thống sẽ gắn huy hiệu "Cân kèo" cho đối thủ phù hợp
+                  </Text>
+                </View>
+              </View>
 
               <View style={styles.levelRow}>
                 {levelOptions.map((lvl) => {
@@ -275,6 +316,7 @@ export function CreateMatchScreen() {
                       key={lvl}
                       onPress={() => setDesiredLevel(lvl)}
                       style={[styles.levelChip, isSelected && styles.levelChipActive]}
+                      activeOpacity={0.8}
                     >
                       <Text style={[styles.levelChipText, isSelected && styles.levelChipTextActive]}>
                         {lvl}
@@ -285,16 +327,23 @@ export function CreateMatchScreen() {
               </View>
             </View>
 
-            {/* Section 6: Note */}
+            {/* Section 7: Note */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Lời nhắn gửi tới đối thủ (Tùy chọn)</Text>
+              <View style={styles.headerRow}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="chatbox-ellipses" size={16} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>7. Lời nhắn gửi đối thủ (Tùy chọn)</Text>
+                </View>
+              </View>
 
               <TextInput
                 style={styles.noteInput}
                 multiline
                 numberOfLines={3}
                 placeholder="VD: Đội mình thi đấu giao lưu đúng giờ, fair-play, cần tìm đối thủ vừa miếng..."
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor="#94A3B8"
                 value={note}
                 onChangeText={setNote}
               />
@@ -311,11 +360,11 @@ export function CreateMatchScreen() {
               ]}
             >
               {submitting ? (
-                <ActivityIndicator color={COLORS.white} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
                   <Text style={styles.submitBtnText}>Đăng bài tìm đối thủ ngay</Text>
-                  <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                 </>
               )}
             </TouchableOpacity>
@@ -332,12 +381,12 @@ export function CreateMatchScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+    borderBottomColor: '#F1F5F9',
   },
   headerInner: {
     maxWidth: 760,
@@ -346,14 +395,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 10,
   },
   headerIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(6, 78, 59, 0.06)',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -361,7 +410,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 17,
+    fontSize: 16.5,
   },
   centerContainer: {
     flex: 1,
@@ -371,10 +420,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
   },
   scrollContent: {
-    padding: SPACING.marginMobile,
+    padding: SPACING.md,
     paddingBottom: 40,
   },
   responsiveContainer: {
@@ -384,67 +433,86 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   sectionCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
-    gap: SPACING.sm,
-    shadowColor: '#064E3B',
+    borderColor: '#E2E8F0',
+    gap: 12,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  sectionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
-    fontSize: 16,
+    fontSize: 15.5,
   },
   subtext: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
     fontSize: 12,
+    marginTop: 2,
   },
   typeRow: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-    marginTop: 4,
+    gap: 10,
   },
   typeBtn: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
+    padding: 12,
     borderWidth: 1.5,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#E2E8F0',
     gap: 4,
   },
   typeBtnRanked: {
-    borderColor: '#F59E0B',
     backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
   },
   typeBtnFriendly: {
-    borderColor: '#0284C7',
     backgroundColor: '#E0F2FE',
+    borderColor: '#0284C7',
+  },
+  typeBtnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   typeBtnTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '900',
-    color: COLORS.onSurface,
-    fontSize: 13.5,
+    ...TYPOGRAPHY.titleSm,
+    fontWeight: '800',
+    fontSize: 13,
+    color: '#475569',
   },
   typeTextRanked: {
     color: '#92400E',
   },
   typeTextFriendly: {
-    color: '#075985',
+    color: '#0369A1',
   },
   typeBtnDesc: {
-    ...TYPOGRAPHY.bodyMd,
+    ...TYPOGRAPHY.bodySm,
     fontSize: 11,
-    color: COLORS.onSurfaceVariant,
+    color: '#64748B',
     lineHeight: 15,
   },
   levelRow: {
@@ -456,31 +524,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#CBD5E1',
   },
   levelChipActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
   levelChipText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.onSurface,
+    ...TYPOGRAPHY.labelSm,
     fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
   },
   levelChipTextActive: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   noteInput: {
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
     ...TYPOGRAPHY.bodyMd,
     color: COLORS.onSurface,
+    fontSize: 13,
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -491,7 +561,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: COLORS.primary,
     paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.xl,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -500,11 +570,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   submitBtnDisabled: {
-    opacity: 0.5,
+    backgroundColor: '#CBD5E1',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   submitBtnText: {
-    ...TYPOGRAPHY.labelMd,
-    color: COLORS.white,
+    ...TYPOGRAPHY.titleSm,
+    color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 15,
   },

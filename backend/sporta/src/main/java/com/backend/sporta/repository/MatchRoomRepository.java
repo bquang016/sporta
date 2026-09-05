@@ -15,7 +15,11 @@ import java.util.UUID;
 @Repository
 public interface MatchRoomRepository extends JpaRepository<MatchRoom, UUID> {
 
-    Optional<MatchRoom> findByBookingId(UUID bookingId);
+    Optional<MatchRoom> findFirstByBookingIdOrderByCreatedAtDesc(UUID bookingId);
+
+    default Optional<MatchRoom> findByBookingId(UUID bookingId) {
+        return findFirstByBookingIdOrderByCreatedAtDesc(bookingId);
+    }
 
     List<MatchRoom> findByBookingIdAndStatusIn(UUID bookingId, List<MatchStatus> statuses);
 
@@ -29,4 +33,7 @@ public interface MatchRoomRepository extends JpaRepository<MatchRoom, UUID> {
     List<MatchRoom> findAllByFilters(@Param("sportId") Long sportId, @Param("status") MatchStatus status);
 
     List<MatchRoom> findByHostClubIdInOrGuestClubIdInOrderByCreatedAtDesc(List<Long> hostClubIds, List<Long> guestClubIds);
+
+    @Query("SELECT r FROM MatchRoom r WHERE r.status = 'OPEN' AND r.guestClub IS NULL AND (r.reminderSent = false OR r.reminderSent IS NULL)")
+    List<MatchRoom> findOpenRoomsWithoutGuestNotReminded();
 }

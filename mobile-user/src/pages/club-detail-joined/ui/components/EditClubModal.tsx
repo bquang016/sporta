@@ -7,16 +7,17 @@ import {
   ScrollView, 
   TouchableOpacity, 
   TextInput, 
-  Switch, 
   Image, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Button, Avatar } from '../../../../shared/ui';
-import { Club, useClubs } from '../../../../entities/club';
+import { Club, useClubs, getSafeCoverSource, getSafeAvatarSource } from '../../../../entities/club';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 import { uploadImageApi } from '../../../../shared/api/upload';
 import { ProvincePickerModal, ProvinceItem } from '../../../create-club/ui/components/ProvincePickerModal';
@@ -25,20 +26,22 @@ import { CoverPickerModal, CoverItem } from '../../../create-club/ui/components/
 import { AvatarPickerModal, AvatarItem } from '../../../create-club/ui/components/AvatarPickerModal';
 
 const MOCK_COVERS: CoverItem[] = [
-  { id: 'cover-1', name: 'Bóng đá sân cỏ', url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&auto=format&fit=crop&q=80', color: COLORS.primary },
-  { id: 'cover-2', name: 'Bóng rổ rực lửa', url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&auto=format&fit=crop&q=80', color: COLORS.amber },
-  { id: 'cover-3', name: 'Cầu lông năng động', url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80', color: COLORS.primary },
-  { id: 'cover-4', name: 'Pickleball nhiệt huyết', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80', color: COLORS.pickleball },
+  { id: 'cover-1', name: 'Bóng đá sân cỏ', url: '', color: COLORS.primary },
+  { id: 'cover-2', name: 'Bóng rổ rực lửa', url: '', color: COLORS.amber },
+  { id: 'cover-3', name: 'Cầu lông năng động', url: '', color: COLORS.primary },
+  { id: 'cover-4', name: 'Pickleball nhiệt huyết', url: '', color: COLORS.pickleball },
 ];
 
 const MOCK_AVATARS: AvatarItem[] = [
-  { id: 'avatar-1', name: 'Hải âu', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80', icon: 'sports-soccer' },
-  { id: 'avatar-2', name: 'Chiến binh', url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80', icon: 'sports-basketball' },
-  { id: 'avatar-3', name: 'Bồ câu', url: 'https://images.unsplash.com/photo-1527983359383-4758693f760c?w=200&auto=format&fit=crop&q=80', icon: 'sports-cricket' },
-  { id: 'avatar-4', name: 'Sư tử', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80', icon: 'sports-tennis' },
+  { id: 'avatar-1', name: 'Bóng đá FC', url: '', icon: 'sports-soccer' },
+  { id: 'avatar-2', name: 'Bóng rổ Stars', url: '', icon: 'sports-basketball' },
+  { id: 'avatar-3', name: 'Cầu lông Pro', url: '', icon: 'sports-tennis' },
+  { id: 'avatar-4', name: 'Pickleball Ace', url: '', icon: 'sports-tennis' },
 ];
 
 const ACTIVITY_LEVELS = ['Hàng tuần', '2-3 buổi/tuần', 'Tự do'];
+const ELO_PRESETS = [0, 900, 1200, 1500, 1800, 2100];
+const MEMBER_LIMIT_PRESETS = [20, 30, 50, 100];
 
 export interface EditClubModalProps {
   visible: boolean;
@@ -55,7 +58,8 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
   const [description, setDescription] = useState(club?.description || '');
   const [area, setArea] = useState(club?.area || '');
   const [ward, setWard] = useState('');
-  const [maxMembers, setMaxMembers] = useState(String(club?.maxMembers || 30));
+  const [maxMembers, setMaxMembers] = useState(String(club?.maxMembers || 50));
+  const [minEloRequired, setMinEloRequired] = useState(String(club?.minEloRequired || 0));
   const [activityLevel, setActivityLevel] = useState(club?.activityLevel || 'Hàng tuần');
   const [isPrivate, setIsPrivate] = useState(!!club?.isPrivate);
   const [coverImage, setCoverImage] = useState(club?.coverImage || MOCK_COVERS[0].url);
@@ -129,7 +133,8 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
         setArea(rawArea);
         setWard('');
       }
-      setMaxMembers(String(club.maxMembers || 30));
+      setMaxMembers(String(club.maxMembers || 50));
+      setMinEloRequired(String(club.minEloRequired || 0));
       setActivityLevel(club.activityLevel || 'Hàng tuần');
       setIsPrivate(!!club.isPrivate);
       if (club.coverImage) setCoverImage(club.coverImage);
@@ -138,16 +143,16 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
   }, [club, visible]);
 
   // Pick Image directly from device's library
-  const pickImageFromLibrary = async (type: 'avatar' | 'cover') => {
+  const handlePickFromDevice = async (type: 'avatar' | 'cover') => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showAlert('Quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh.');
+        showAlert('Cần cấp quyền', 'Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh.');
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: type === 'avatar' ? [1, 1] : [16, 9],
         quality: 0.8,
@@ -155,7 +160,6 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const pickedUri = result.assets[0].uri;
-
         if (type === 'avatar') {
           setIsAvatarModalVisible(false);
           setAvatarImage(pickedUri);
@@ -189,6 +193,12 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
       return;
     }
 
+    const numMinElo = parseInt(minEloRequired, 10) || 0;
+    if (numMinElo < 0) {
+      showAlert('Lỗi nhập liệu', 'Yêu cầu Elo tối thiểu không được nhỏ hơn 0.');
+      return;
+    }
+
     const finalArea = ward ? `${ward}, ${area}` : area;
 
     setIsSubmitting(true);
@@ -198,6 +208,7 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
         description: description.trim(),
         area: finalArea.trim(),
         maxMembers: numMax,
+        minEloRequired: numMinElo,
         activityLevel,
         isPrivate,
         coverImage,
@@ -222,7 +233,11 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
       onRequestClose={() => !isSubmitting && onClose()}
     >
       <SafeAreaProvider>
-        <View style={styles.container}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.container}
+        >
+          {/* Header */}
           <SafeAreaView style={styles.headerSafeArea} edges={['top', 'left', 'right']}>
             <View style={styles.header}>
               <TouchableOpacity 
@@ -231,252 +246,360 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
                 disabled={isSubmitting}
                 onPress={onClose}
               >
-                <MaterialIcons name="close" size={24} color={COLORS.onSurface} />
+                <MaterialIcons name="close" size={22} color={COLORS.onSurface} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Sửa thông tin CLB</Text>
-              <View style={styles.headerPlaceholder} />
+              <Text style={styles.headerTitle}>Cài đặt câu lạc bộ</Text>
+              <TouchableOpacity 
+                style={[styles.saveHeaderBtn, isSubmitting && styles.saveHeaderBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveHeaderBtnText}>Lưu</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-            {/* Cover & Avatar Selector */}
-            <View style={styles.mediaSection}>
+          <ScrollView 
+            style={styles.scroll} 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* 1. Cover & Avatar Visual Customizer */}
+            <View style={styles.mediaCard}>
               <TouchableOpacity 
                 style={styles.coverContainer}
                 activeOpacity={0.9}
                 onPress={() => setIsCoverModalVisible(true)}
               >
-                {coverImage && typeof coverImage === 'string' && !coverImage.startsWith('blob:') ? (
-                  <Image source={{ uri: coverImage }} style={styles.coverImage} />
-                ) : (
-                  <View style={[styles.coverImage, { backgroundColor: COLORS.primary }]} />
-                )}
+                <Image source={getSafeCoverSource(club?.sport, coverImage)} style={styles.coverImage} resizeMode="cover" />
                 <View style={styles.editMediaBadge}>
-                  <MaterialIcons name="photo-camera" size={16} color={COLORS.white} />
+                  <MaterialIcons name="photo-camera" size={14} color="#FFFFFF" />
                   <Text style={styles.editMediaBadgeText}>Đổi ảnh bìa</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={styles.avatarContainer}
+                style={styles.avatarWrapper}
                 activeOpacity={0.9}
                 onPress={() => setIsAvatarModalVisible(true)}
               >
-                <Avatar 
-                  source={avatarImage} 
-                  size={80} 
-                  fallbackIcon="groups"
-                  style={styles.avatarImage} 
-                />
-                <View style={styles.avatarEditBadge}>
-                  <MaterialIcons name="edit" size={14} color={COLORS.white} />
+                <Image source={getSafeAvatarSource(club?.sport, avatarImage)} style={styles.avatarImage} />
+                <View style={styles.avatarCameraBadge}>
+                  <MaterialIcons name="photo-camera" size={13} color="#FFFFFF" />
                 </View>
               </TouchableOpacity>
             </View>
 
-            {/* Form Fields */}
-            <View style={styles.formContainer}>
+            {/* 2. Basic Information Card */}
+            <View style={styles.formCard}>
+              <View style={styles.cardHeaderRow}>
+                <Ionicons name="information-circle" size={18} color={COLORS.primary} />
+                <Text style={styles.cardHeaderTitle}>Thông tin cơ bản</Text>
+              </View>
+
               {/* Club Name */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Tên câu lạc bộ</Text>
-                <TextInput
-                  style={styles.input}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Nhập tên câu lạc bộ..."
-                  placeholderTextColor={COLORS.outline}
-                />
+                <Text style={styles.inputLabel}>Tên câu lạc bộ <Text style={styles.requiredMark}>*</Text></Text>
+                <View style={styles.inputBox}>
+                  <MaterialIcons name="badge" size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="Nhập tên câu lạc bộ..."
+                    value={name}
+                    onChangeText={setName}
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
               </View>
 
               {/* Description */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Giới thiệu câu lạc bộ</Text>
+                <Text style={styles.inputLabel}>Giới thiệu & Mô tả hoạt động</Text>
                 <TextInput
-                  style={[styles.input, styles.textArea]}
-                  multiline
-                  numberOfLines={4}
+                  style={styles.textareaField}
+                  placeholder="Mô tả về câu lạc bộ, tinh thần thi đấu, mục tiêu..."
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Nhập mô tả chi tiết về câu lạc bộ..."
-                  placeholderTextColor={COLORS.outline}
+                  multiline
+                  numberOfLines={4}
                   textAlignVertical="top"
+                  placeholderTextColor="#94A3B8"
                 />
               </View>
 
-              {/* Activity Area - Province & Ward Picker API */}
+              {/* Sport (Readonly) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Khu vực / Địa điểm hoạt động</Text>
-                
-                <View style={styles.locationRow}>
-                  {/* Province Selection */}
-                  <View style={styles.locationCol}>
-                    <TouchableOpacity
-                      style={[styles.input, styles.dropdownInput]}
-                      activeOpacity={0.8}
-                      onPress={() => setIsProvinceModalVisible(true)}
-                    >
-                      <Text 
-                        style={[
-                          styles.dropdownInputText,
-                          !area ? styles.dropdownPlaceholderText : null
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {area || 'Chọn tỉnh, TP...'}
-                      </Text>
-                      <MaterialIcons name="arrow-drop-down" size={24} color={COLORS.outline} />
-                    </TouchableOpacity>
-                  </View>
+                <Text style={styles.inputLabel}>Môn thể thao</Text>
+                <View style={styles.readonlyBox}>
+                  <FontAwesome5 name="futbol" size={14} color={COLORS.primary} />
+                  <Text style={styles.readonlyText}>{club.sport || 'Bóng đá'}</Text>
+                  <Text style={styles.readonlyTag}>Cố định</Text>
+                </View>
+              </View>
+            </View>
 
-                  {/* Ward Selection */}
-                  <View style={styles.locationCol}>
-                    <TouchableOpacity
-                      style={[
-                        styles.input,
-                        styles.dropdownInput,
-                        !area && styles.dropdownDisabled
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() => area && setIsWardModalVisible(true)}
-                      disabled={!area}
-                    >
-                      <Text 
-                        style={[
-                          styles.dropdownInputText,
-                          !ward ? styles.dropdownPlaceholderText : null,
-                          !area ? styles.dropdownDisabledText : null
-                        ]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {ward || (area ? 'Chọn phường, xã...' : 'Chọn tỉnh, TP...')}
-                      </Text>
-                      <MaterialIcons 
-                        name="arrow-drop-down" 
-                        size={24} 
-                        color={area ? COLORS.outline : COLORS.outlineVariant} 
-                      />
-                    </TouchableOpacity>
+            {/* 3. Requirements & Membership Settings */}
+            <View style={styles.formCard}>
+              <View style={styles.cardHeaderRow}>
+                <Ionicons name="shield-checkmark" size={18} color="#D97706" />
+                <Text style={styles.cardHeaderTitle}>Yêu cầu & Điều kiện gia nhập</Text>
+              </View>
+
+              {/* Min Elo Requirement (VERIFIED) */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.inputLabel}>Yêu cầu Elo tối thiểu</Text>
+                  <View style={styles.verifiedTag}>
+                    <Ionicons name="checkmark-circle" size={12} color="#059669" />
+                    <Text style={styles.verifiedTagText}>Bắt buộc Elo đã xác minh</Text>
                   </View>
+                </View>
+
+                {/* Custom Elo Input */}
+                <View style={styles.inputBox}>
+                  <MaterialIcons name="stars" size={18} color="#D97706" />
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="Nhập mức Elo (VD: 1200, 1400)..."
+                    value={minEloRequired}
+                    onChangeText={setMinEloRequired}
+                    keyboardType="numeric"
+                    placeholderTextColor="#94A3B8"
+                  />
+                  <Text style={styles.inputSuffix}>Elo</Text>
+                </View>
+
+                {/* Quick Presets */}
+                <View style={styles.presetChipsRow}>
+                  {ELO_PRESETS.map((preset) => {
+                    const isSelected = parseInt(minEloRequired, 10) === preset;
+                    return (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[styles.presetChip, isSelected && styles.presetChipActive]}
+                        onPress={() => setMinEloRequired(String(preset))}
+                      >
+                        <Text style={[styles.presetChipText, isSelected && styles.presetChipTextActive]}>
+                          {preset === 0 ? 'Tự do (0)' : `${preset}+`}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.helperRow}>
+                  <Ionicons name="information-circle-outline" size={14} color="#64748B" style={{ marginTop: 1 }} />
+                  <Text style={styles.helperText}>
+                    Thành viên gửi đơn gia nhập bắt buộc phải hoàn thành 5 trận xác minh Elo và đạt từ mức điểm này trở lên.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Privacy Mode (Segmented) */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Chế độ gia nhập</Text>
+                <View style={styles.segmentedToggle}>
+                  <TouchableOpacity
+                    style={[styles.segmentOption, !isPrivate && styles.segmentOptionActivePublic]}
+                    activeOpacity={0.8}
+                    onPress={() => setIsPrivate(false)}
+                  >
+                    <Ionicons name="globe-outline" size={16} color={!isPrivate ? "#059669" : "#64748B"} />
+                    <View>
+                      <Text style={[styles.segmentTitle, !isPrivate && { color: '#059669', fontWeight: '800' }]}>
+                        Công khai
+                      </Text>
+                      <Text style={styles.segmentSub}>Tự do gia nhập</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.segmentOption, isPrivate && styles.segmentOptionActivePrivate]}
+                    activeOpacity={0.8}
+                    onPress={() => setIsPrivate(true)}
+                  >
+                    <Ionicons name="lock-closed" size={16} color={isPrivate ? "#DC2626" : "#64748B"} />
+                    <View>
+                      <Text style={[styles.segmentTitle, isPrivate && { color: '#DC2626', fontWeight: '800' }]}>
+                        Riêng tư
+                      </Text>
+                      <Text style={styles.segmentSub}>Duyệt đơn thủ công</Text>
+                    </View>
+                  </TouchableOpacity>
                 </View>
               </View>
 
               {/* Max Members */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Số lượng thành viên tối đa</Text>
-                <TextInput
-                  style={styles.input}
-                  value={maxMembers}
-                  onChangeText={setMaxMembers}
-                  keyboardType="numeric"
-                  placeholder="30"
-                  placeholderTextColor={COLORS.outline}
-                />
-              </View>
-
-              {/* Activity Level Chips */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Tần suất hoạt động</Text>
-                <View style={styles.chipsRow}>
-                  {ACTIVITY_LEVELS.map((level) => (
-                    <TouchableOpacity
-                      key={level}
-                      style={[
-                        styles.chip,
-                        activityLevel === level && styles.chipActive
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() => setActivityLevel(level)}
-                    >
-                      <Text style={[
-                        styles.chipText,
-                        activityLevel === level && styles.chipTextActive
-                      ]}>
-                        {level}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <Text style={styles.inputLabel}>Quy mô tối đa (Thành viên)</Text>
+                <View style={styles.inputBox}>
+                  <Ionicons name="people" size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.inputField}
+                    placeholder="VD: 50"
+                    value={maxMembers}
+                    onChangeText={setMaxMembers}
+                    keyboardType="numeric"
+                    placeholderTextColor="#94A3B8"
+                  />
+                  <Text style={styles.inputSuffix}>người</Text>
                 </View>
-              </View>
 
-              {/* Privacy Switch */}
-              <View style={styles.switchRow}>
-                <View style={styles.switchTextContainer}>
-                  <Text style={styles.switchTitle}>Câu lạc bộ riêng tư</Text>
-                  <Text style={styles.switchSubtitle}>
-                    {isPrivate 
-                      ? 'Thành viên mới phải gửi yêu cầu và chờ Trưởng nhóm phê duyệt'
-                      : 'Mọi người có thể tham gia câu lạc bộ tự do'}
-                  </Text>
+                {/* Member presets */}
+                <View style={styles.presetChipsRow}>
+                  {MEMBER_LIMIT_PRESETS.map((limit) => {
+                    const isSelected = parseInt(maxMembers, 10) === limit;
+                    return (
+                      <TouchableOpacity
+                        key={limit}
+                        style={[styles.presetChip, isSelected && styles.presetChipActive]}
+                        onPress={() => setMaxMembers(String(limit))}
+                      >
+                        <Text style={[styles.presetChipText, isSelected && styles.presetChipTextActive]}>
+                          {limit} người
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-                <Switch
-                  value={isPrivate}
-                  onValueChange={setIsPrivate}
-                  trackColor={{ false: COLORS.outlineVariant, true: COLORS.primaryOpacity30 || COLORS.primary }}
-                  thumbColor={isPrivate ? COLORS.primary : COLORS.surface}
-                />
               </View>
             </View>
-          </ScrollView>
 
-          {/* Footer Submit Button */}
-          <View style={styles.footer}>
-            <Button
-              title="Lưu thay đổi"
-              loading={isSubmitting}
+            {/* 4. Area & Activity Frequency */}
+            <View style={styles.formCard}>
+              <View style={styles.cardHeaderRow}>
+                <Ionicons name="location" size={18} color="#059669" />
+                <Text style={styles.cardHeaderTitle}>Địa bàn & Mức độ sinh hoạt</Text>
+              </View>
+
+              {/* Province Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Tỉnh / Thành phố</Text>
+                <TouchableOpacity 
+                  style={styles.selectorBtn}
+                  onPress={() => setIsProvinceModalVisible(true)}
+                >
+                  <Ionicons name="business-outline" size={17} color="#64748B" />
+                  <Text style={[styles.selectorText, !area && styles.selectorTextPlaceholder]}>
+                    {area || 'Chọn tỉnh thành...'}
+                  </Text>
+                  <MaterialIcons name="arrow-drop-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Ward Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Quận / Huyện / Phường</Text>
+                <TouchableOpacity 
+                  style={[styles.selectorBtn, !selectedProvinceCode && styles.selectorBtnDisabled]}
+                  disabled={!selectedProvinceCode}
+                  onPress={() => setIsWardModalVisible(true)}
+                >
+                  <Ionicons name="map-outline" size={17} color="#64748B" />
+                  <Text style={[styles.selectorText, !ward && styles.selectorTextPlaceholder]}>
+                    {ward || (selectedProvinceCode ? 'Chọn phường xã...' : 'Vui lòng chọn tỉnh thành trước')}
+                  </Text>
+                  <MaterialIcons name="arrow-drop-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Activity Level */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Mức độ hoạt động</Text>
+                <View style={styles.presetChipsRow}>
+                  {ACTIVITY_LEVELS.map((lvl) => {
+                    const isSelected = activityLevel === lvl;
+                    return (
+                      <TouchableOpacity
+                        key={lvl}
+                        style={[styles.activityChip, isSelected && styles.activityChipActive]}
+                        onPress={() => setActivityLevel(lvl)}
+                      >
+                        <Ionicons 
+                          name="time-outline" 
+                          size={13} 
+                          color={isSelected ? COLORS.primary : "#64748B"} 
+                        />
+                        <Text style={[styles.activityChipText, isSelected && styles.activityChipTextActive]}>
+                          {lvl}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+
+            {/* Save Button */}
+            <TouchableOpacity 
+              style={[styles.saveMainBtn, isSubmitting && styles.saveMainBtnDisabled]}
               onPress={handleSubmit}
-              style={styles.submitBtn}
-            />
-          </View>
-        </View>
-
-        {/* Province Picker Modal API */}
-        <ProvincePickerModal
-          visible={isProvinceModalVisible}
-          onClose={() => setIsProvinceModalVisible(false)}
-          provinces={provinces}
-          onSelectProvince={(provinceName, provinceCode) => {
-            setArea(provinceName);
-            setSelectedProvinceCode(provinceCode);
-            setWard('');
-          }}
-          loading={loadingProvinces}
-        />
-
-        {/* Ward Picker Modal API */}
-        <WardPickerModal
-          visible={isWardModalVisible}
-          onClose={() => setIsWardModalVisible(false)}
-          wards={wards}
-          onSelectWard={(wardName) => setWard(wardName)}
-          loading={loadingWards}
-        />
-
-        {/* Cover Image Picker Modal */}
-        <CoverPickerModal
-          visible={isCoverModalVisible}
-          onClose={() => setIsCoverModalVisible(false)}
-          covers={MOCK_COVERS}
-          onSelectCover={(coverItem) => {
-            setCoverImage(coverItem.url);
-            setIsCoverModalVisible(false);
-          }}
-          onPickFromLibrary={() => pickImageFromLibrary('cover')}
-        />
-
-        {/* Avatar Image Picker Modal */}
-        <AvatarPickerModal
-          visible={isAvatarModalVisible}
-          onClose={() => setIsAvatarModalVisible(false)}
-          avatars={MOCK_AVATARS}
-          onSelectAvatar={(avatarItem) => {
-            setAvatarImage(avatarItem.url);
-            setIsAvatarModalVisible(false);
-          }}
-          onPickFromLibrary={() => pickImageFromLibrary('avatar')}
-        />
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.saveMainBtnText}>Lưu thay đổi cài đặt</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaProvider>
+
+      {/* Media & Location Pickers */}
+      <CoverPickerModal
+        visible={isCoverModalVisible}
+        onClose={() => setIsCoverModalVisible(false)}
+        covers={MOCK_COVERS}
+        onSelectCover={(cover: CoverItem) => {
+          setCoverImage(cover.url);
+          setIsCoverModalVisible(false);
+        }}
+        onPickFromLibrary={() => handlePickFromDevice('cover')}
+      />
+
+      <AvatarPickerModal
+        visible={isAvatarModalVisible}
+        onClose={() => setIsAvatarModalVisible(false)}
+        avatars={MOCK_AVATARS}
+        onSelectAvatar={(avatar: AvatarItem) => {
+          setAvatarImage(avatar.url);
+          setIsAvatarModalVisible(false);
+        }}
+        onPickFromLibrary={() => handlePickFromDevice('avatar')}
+      />
+
+      <ProvincePickerModal
+        visible={isProvinceModalVisible}
+        onClose={() => setIsProvinceModalVisible(false)}
+        provinces={provinces}
+        loading={loadingProvinces}
+        onSelectProvince={(pName: string, pCode: number) => {
+          setArea(pName);
+          setSelectedProvinceCode(pCode);
+          setWard('');
+          setIsProvinceModalVisible(false);
+        }}
+      />
+
+      <WardPickerModal
+        visible={isWardModalVisible}
+        onClose={() => setIsWardModalVisible(false)}
+        wards={wards}
+        loading={loadingWards}
+        onSelectWard={(wName: string) => {
+          setWard(wName);
+          setIsWardModalVisible(false);
+        }}
+      />
     </Modal>
   );
 }
@@ -484,46 +607,77 @@ export function EditClubModal({ visible, onClose, club, onSuccess }: EditClubMod
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#F8FAFC',
   },
   headerSafeArea: {
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+    borderBottomColor: '#E2E8F0',
   },
   header: {
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.marginMobile,
-    height: 56,
+    paddingHorizontal: 16,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
   },
   headerTitle: {
-    ...TYPOGRAPHY.headlineMd,
-    fontSize: 18,
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 16,
+    fontWeight: '800',
     color: COLORS.onSurface,
-    fontWeight: '700',
   },
-  headerPlaceholder: {
-    width: 40,
+  saveHeaderBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minWidth: 54,
+    alignItems: 'center',
+  },
+  saveHeaderBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveHeaderBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   scroll: {
     flex: 1,
   },
-  mediaSection: {
-    marginBottom: SPACING.lg,
-    position: 'relative',
+  scrollContent: {
+    padding: 16,
+    gap: 14,
+  },
+
+  /* 1. Media Visual Customizer */
+  mediaCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   coverContainer: {
     width: '100%',
-    height: 160,
-    backgroundColor: COLORS.surfaceContainerLow,
+    height: 120,
+    backgroundColor: '#0F172A',
     position: 'relative',
   },
   coverImage: {
@@ -532,199 +686,300 @@ const styles = StyleSheet.create({
   },
   editMediaBadge: {
     position: 'absolute',
-    bottom: SPACING.sm,
-    right: SPACING.sm,
+    right: 12,
+    bottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.blackOpacity50,
-    paddingHorizontal: SPACING.sm + 4,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.full,
-    gap: 6,
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   editMediaBadgeText: {
-    ...TYPOGRAPHY.labelSm,
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  avatarContainer: {
-    position: 'absolute',
-    bottom: -24,
-    left: SPACING.marginMobile,
-    width: 68,
-    height: 68,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 3,
-    borderColor: COLORS.surface,
-    overflow: 'hidden',
+  avatarWrapper: {
+    position: 'relative',
+    marginTop: -36,
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
   },
-  avatarEditBadge: {
+  avatarCameraBadge: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
     right: 0,
-    backgroundColor: COLORS.blackOpacity50,
+    bottom: 0,
+    backgroundColor: COLORS.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 3,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  pickerOptionsRow: {
+
+  /* Form Cards */
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.marginMobile,
-    marginTop: SPACING.md,
-    gap: SPACING.md,
+    alignItems: 'center',
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 8,
   },
-  pickerOptionBtn: {
+  cardHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inputLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  requiredMark: {
+    color: '#EF4444',
+  },
+  verifiedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  verifiedTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    gap: 8,
+  },
+  inputField: {
     flex: 1,
+    fontSize: 13.5,
+    color: '#0F172A',
+  },
+  inputSuffix: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  textareaField: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    fontSize: 13,
+    color: '#0F172A',
+    minHeight: 80,
+  },
+  readonlyBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  readonlyText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  readonlyTag: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#64748B',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  presetChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  presetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  presetChipActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  presetChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  presetChipTextActive: {
+    color: '#1D4ED8',
+    fontWeight: '800',
+  },
+  helperRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    marginTop: 3,
+  },
+  helperText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  segmentedToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  segmentOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  segmentOptionActivePublic: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  segmentOptionActivePrivate: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  segmentTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  segmentSub: {
+    fontSize: 10.5,
+    color: '#64748B',
+  },
+  selectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    gap: 8,
+  },
+  selectorBtnDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  },
+  selectorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  selectorTextPlaceholder: {
+    color: '#94A3B8',
+  },
+  activityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  activityChipActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  activityChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  activityChipTextActive: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  saveMainBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.sm,
-    backgroundColor: COLORS.primaryOpacity08,
-    borderRadius: BORDER_RADIUS.default,
-    borderWidth: 1,
-    borderColor: COLORS.primaryOpacity30,
-    gap: SPACING.xs,
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 13,
+    borderRadius: 12,
+    marginTop: 4,
+    marginBottom: 24,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  pickerOptionBtnText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: '700',
+  saveMainBtnDisabled: {
+    opacity: 0.6,
   },
-  formContainer: {
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl * 2,
-    gap: SPACING.lg,
-  },
-  inputGroup: {
-    gap: SPACING.xs + 2,
-  },
-  label: {
-    ...TYPOGRAPHY.labelMd,
+  saveMainBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.default,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
-    fontSize: 14,
-    color: COLORS.onSurface,
-    backgroundColor: COLORS.surface,
-  },
-  readOnlyInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: COLORS.surfaceContainerLow,
-    borderRadius: BORDER_RADIUS.default,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
-    backgroundColor: COLORS.surfaceContainerLow,
-  },
-  readOnlyText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 14,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '600',
-  },
-  textArea: {
-    height: 100,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  locationCol: {
-    flex: 1,
-  },
-  dropdownInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingRight: SPACING.xs,
-  },
-  dropdownInputText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 14,
-    color: COLORS.onSurface,
-    flex: 1,
-  },
-  dropdownPlaceholderText: {
-    color: COLORS.outline,
-  },
-  dropdownDisabled: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderColor: COLORS.outlineVariant,
-  },
-  dropdownDisabledText: {
-    color: COLORS.outlineVariant,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  chip: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    backgroundColor: COLORS.surface,
-  },
-  chipActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryOpacity08,
-  },
-  chipText: {
-    ...TYPOGRAPHY.labelSm,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
-  },
-  chipTextActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.xs,
-    gap: SPACING.md,
-  },
-  switchTextContainer: {
-    flex: 1,
-  },
-  switchTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  switchSubtitle: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
-  },
-  footer: {
-    padding: SPACING.marginMobile,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.outlineVariant,
-  },
-  submitBtn: {
-    width: '100%',
+    fontWeight: '800',
   },
 });

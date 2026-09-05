@@ -26,4 +26,6 @@ public class CreateMatchRoomRequest {
     private List<String> desiredLevels;
 
     private String note;
+
+    private Long lineupId;
 }

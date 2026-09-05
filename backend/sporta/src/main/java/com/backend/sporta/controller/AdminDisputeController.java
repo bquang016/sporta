@@ -5,6 +5,7 @@ import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.*;
 import com.backend.sporta.exception.CustomException;
 import com.backend.sporta.repository.*;
+import com.backend.sporta.service.MatchmakingService;
 import com.backend.sporta.service.matchmaking.CRPEngine;
 import com.backend.sporta.service.matchmaking.ScoreAdapter;
 import com.backend.sporta.service.matchmaking.ScoreAdapterRegistry;
@@ -54,6 +55,9 @@ public class AdminDisputeController {
 
     @Autowired
     private MatchmakingConfig config;
+
+    @Autowired
+    private MatchmakingService matchmakingService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -166,7 +170,8 @@ public class AdminDisputeController {
             crpLedgerRepository.save(guestLedger);
 
             Club hostClub = match.getHostClub();
-            hostClub.setCrp(crpRes.getHostCrpAfter());
+            int currentHostCrp = hostClub.getCrp() != null ? hostClub.getCrp() : 0;
+            hostClub.setCrp(Math.max(0, currentHostCrp + crpRes.getHostCrpDelta()));
             hostClub.setFinalMatches((hostClub.getFinalMatches() != null ? hostClub.getFinalMatches() : 0) + 1);
             if (outcome == NormalizedOutcome.WIN_HOST) {
                 hostClub.setRankedWins((hostClub.getRankedWins() != null ? hostClub.getRankedWins() : 0) + 1);
@@ -174,12 +179,15 @@ public class AdminDisputeController {
             clubRepository.save(hostClub);
 
             Club guestClub = match.getGuestClub();
-            guestClub.setCrp(crpRes.getGuestCrpAfter());
+            int currentGuestCrp = guestClub.getCrp() != null ? guestClub.getCrp() : 0;
+            guestClub.setCrp(Math.max(0, currentGuestCrp + crpRes.getGuestCrpDelta()));
             guestClub.setFinalMatches((guestClub.getFinalMatches() != null ? guestClub.getFinalMatches() : 0) + 1);
             if (outcome == NormalizedOutcome.WIN_GUEST) {
                 guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
             }
             clubRepository.save(guestClub);
+
+            matchmakingService.updatePlayerElos(match, outcome);
         }
 
         match.setStatus(MatchStatus.RESULT_FINAL);

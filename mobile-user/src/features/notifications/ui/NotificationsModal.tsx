@@ -223,10 +223,18 @@ function NotificationsModalContent({
         // Vé thể thao (Vé lượt / Vé ca ghép) -> Đến Vé của tôi
         router.push('/my-tickets' as any);
       } else if (item.type.startsWith('CLUB_')) {
-        if (item.referenceId) {
-          router.push(`/club-detail-joined/${item.referenceId}` as any);
+        if (item.type === 'CLUB_JOIN_REJECTED' || item.type === 'CLUB_MEMBER_KICKED') {
+          if (item.referenceId) {
+            router.push(`/club-detail-explore/${item.referenceId}` as any);
+          } else {
+            router.push('/my-clubs' as any);
+          }
         } else {
-          router.push('/my-clubs' as any);
+          if (item.referenceId) {
+            router.push(`/club-detail-joined/${item.referenceId}` as any);
+          } else {
+            router.push('/my-clubs' as any);
+          }
         }
       } else if (item.type.startsWith('POST_')) {
         router.push('/social' as any);
@@ -293,6 +301,15 @@ function NotificationsModalContent({
     } else if (type.startsWith('TICKET_')) {
       bgColor = '#8B5CF6'; // Màu tím cho vé thể thao
       iconName = 'ticket-outline';
+    } else if (type === 'CLUB_MEMBER_LEFT_LINEUP') {
+      bgColor = '#EF4444'; // Đỏ cảnh báo đội hình
+      iconName = 'warning-outline';
+    } else if (type === 'CLUB_MEMBER_KICKED') {
+      bgColor = '#E11D48'; // Đỏ hồng trục xuất
+      iconName = 'person-remove-outline';
+    } else if (type === 'CLUB_MEMBER_LEFT') {
+      bgColor = '#F97316'; // Cam thành viên rời CLB
+      iconName = 'exit-outline';
     } else if (type.startsWith('CLUB_')) {
       bgColor = '#F59E0B';
       iconName = 'people-outline';
@@ -450,7 +467,7 @@ function NotificationsModalContent({
                     onPress={() => handlePressItem(item)}
                   >
                     <View style={styles.iconWrapper}>
-                      {renderTypeIcon(item.type, (item.isRead ?? item.read))}
+                      {renderTypeIcon(item.type, !!(item.isRead ?? item.read))}
                     </View>
 
                     <View style={styles.contentGroup}>
@@ -519,7 +536,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   sheetContainer: {

@@ -493,6 +493,7 @@ export function LoginScreen() {
               {/* Forgot Password Link */}
               <TouchableOpacity
                 style={styles.forgotPasswordButton}
+                onPress={() => router.push('/(auth)/forgot-password')}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>

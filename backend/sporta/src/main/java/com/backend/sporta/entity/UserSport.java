@@ -2,7 +2,10 @@ package com.backend.sporta.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.backend.sporta.enums.EloStatus;
 import com.backend.sporta.enums.SportLevel;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_sports")
@@ -28,4 +31,56 @@ public class UserSport {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SportLevel level;
+
+    @Column(name = "elo_rating")
+    @Builder.Default
+    private Integer eloRating = null;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "elo_status", nullable = false)
+    @Builder.Default
+    private EloStatus eloStatus = EloStatus.UNVERIFIED;
+
+    @Column(name = "placement_matches_played", nullable = false)
+    @Builder.Default
+    private Integer placementMatchesPlayed = 0;
+
+    @Column(name = "total_ranked_matches", nullable = false)
+    @Builder.Default
+    private Integer totalRankedMatches = 0;
+
+    @Column(name = "total_wins", nullable = false)
+    @Builder.Default
+    private Integer totalWins = 0;
+
+    @Column(name = "last_match_at")
+    private LocalDateTime lastMatchAt;
+
+    public int getEffectiveElo() {
+        if (this.eloRating != null) {
+            return this.eloRating;
+        }
+        return mapSeedElo(this.level);
+    }
+
+    public static int mapSeedElo(SportLevel level) {
+        if (level == null) return 1350;
+        switch (level) {
+            case WEAK:
+                return 800;
+            case WEAK_AVERAGE:
+                return 1050;
+            case AVERAGE:
+                return 1350;
+            case AVERAGE_GOOD:
+                return 1650;
+            case GOOD:
+                return 1950;
+            case PRO:
+                return 2200;
+            default:
+                return 1350;
+        }
+    }
 }
+

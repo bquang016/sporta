@@ -127,10 +127,11 @@ export const RevenueChart = ({
           >
             <p className="text-[9px] text-slate-400 font-bold uppercase">{chartData.labels[hoveredDataIndex]}</p>
             <p className="text-xs font-black text-brand-yellow mt-0.5">
-              {chartPeriod === 'day' 
-                ? `${(chartData.values[hoveredDataIndex] * 1000).toLocaleString('vi-VN')}đ`
-                : `${(chartData.values[hoveredDataIndex] * 1000000).toLocaleString('vi-VN')}đ`
-              }
+              {(() => {
+                const raw = chartData.values[hoveredDataIndex];
+                const actual = raw > 0 && raw < 10000 ? raw * 1000 : raw;
+                return `${Math.round(actual).toLocaleString('vi-VN')}đ`;
+              })()}
             </p>
           </div>
         )}

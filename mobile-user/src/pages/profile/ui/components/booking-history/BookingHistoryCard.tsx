@@ -40,7 +40,7 @@ export function BookingHistoryCard({
       <View style={styles.cardHeader}>
         <View style={styles.venueRow}>
           <Image 
-            source={{ uri: booking.venueAvatar || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=200&auto=format&fit=crop&q=80' }} 
+            source={{ uri: booking.venueAvatar || '' }} 
             style={styles.venueAvatar} 
           />
           <View style={styles.venueInfo}>

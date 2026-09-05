@@ -4,15 +4,29 @@ import com.backend.sporta.dto.ClubMemberResponse;
 import com.backend.sporta.entity.Club;
 import com.backend.sporta.entity.ClubMember;
 import com.backend.sporta.entity.User;
+import com.backend.sporta.entity.UserSport;
 import com.backend.sporta.enums.ClubMemberRole;
 import com.backend.sporta.enums.ClubMemberStatus;
 import com.backend.sporta.repository.ClubMemberRepository;
 import com.backend.sporta.repository.ClubRepository;
 import com.backend.sporta.repository.UserRepository;
+import com.backend.sporta.repository.UserSportRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.backend.sporta.entity.LineupMember;
+import com.backend.sporta.entity.MatchLineup;
+import com.backend.sporta.entity.MatchPoll;
+import com.backend.sporta.enums.LineupStatus;
+import com.backend.sporta.enums.NotificationType;
+import com.backend.sporta.enums.PollStatus;
+import com.backend.sporta.repository.LineupMemberRepository;
+import com.backend.sporta.repository.MatchLineupRepository;
+import com.backend.sporta.repository.MatchPollRepository;
+import com.backend.sporta.repository.PollVoteRepository;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -29,7 +43,106 @@ public class ClubMemberServiceImpl implements ClubMemberService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserSportRepository userSportRepository;
+
+    @Autowired
+    private com.backend.sporta.service.matchmaking.ClubEloService clubEloService;
+
+    @Autowired
+    private com.backend.sporta.service.ai.PostFeedService postFeedService;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private MatchLineupRepository matchLineupRepository;
+
+    @Autowired
+    private LineupMemberRepository lineupMemberRepository;
+
+    @Autowired
+    private MatchPollRepository matchPollRepository;
+
+    @Autowired
+    private PollVoteRepository pollVoteRepository;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    private List<ClubMember> getClubLeaders(Long clubId) {
+        return clubMemberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED)
+                .stream()
+                .filter(m -> m.getRole() == ClubMemberRole.ADMIN || m.getRole() == ClubMemberRole.SUB_LEADER)
+                .collect(Collectors.toList());
+    }
+
+    private void cleanupMemberFromLineupsAndNotify(Club club, User user) {
+        if (club == null || user == null) return;
+        Long clubId = club.getId();
+        Long userId = user.getId();
+
+        try {
+            // 1. Check all active lineups of this club
+            List<MatchLineup> clubLineups = matchLineupRepository.findByClubIdOrderByCreatedAtDesc(clubId);
+            boolean wasInAnyLineup = false;
+            List<String> affectedLineupNames = new ArrayList<>();
+
+            for (MatchLineup lineup : clubLineups) {
+                if (lineup.getStatus() == LineupStatus.ACTIVE || lineup.getStatus() == LineupStatus.IN_MATCH) {
+                    Optional<LineupMember> lmOpt = lineupMemberRepository.findByLineupIdAndUserId(lineup.getId(), userId);
+                    if (lmOpt.isPresent()) {
+                        wasInAnyLineup = true;
+                        affectedLineupNames.add(lineup.getName());
+                        lineupMemberRepository.deleteByLineupIdAndUserId(lineup.getId(), userId);
+
+                        // Recalculate average Elo for remaining members
+                        List<LineupMember> remainingMembers = lineupMemberRepository.findByLineupId(lineup.getId())
+                                .stream()
+                                .filter(m -> !m.getUser().getId().equals(userId))
+                                .collect(Collectors.toList());
+
+                        if (remainingMembers.isEmpty()) {
+                            lineup.setEloAvg(0);
+                        } else {
+                            int totalElo = remainingMembers.stream()
+                                    .mapToInt(m -> m.getUserEloSnapshot() != null ? m.getUserEloSnapshot() : 1000)
+                                    .sum();
+                            lineup.setEloAvg(totalElo / remainingMembers.size());
+                        }
+                        matchLineupRepository.save(lineup);
+                    }
+                }
+            }
+
+            // 2. Clean up from active poll votes in this club
+            List<MatchPoll> activePolls = matchPollRepository.findByClubIdAndStatusOrderByCreatedAtDesc(clubId, PollStatus.OPEN);
+            for (MatchPoll poll : activePolls) {
+                pollVoteRepository.deleteByPollIdAndUserId(poll.getId(), userId);
+            }
+
+            // 3. If the member was in active lineup(s), immediately alert all club leaders (ADMIN & SUB_LEADER)
+            if (wasInAnyLineup) {
+                String lineupStr = String.join(", ", affectedLineupNames);
+                List<ClubMember> leaders = getClubLeaders(clubId);
+                for (ClubMember leader : leaders) {
+                    if (leader.getUser() != null && !leader.getUser().getId().equals(userId)) {
+                        notificationService.createNotification(
+                                leader.getUser().getId(),
+                                leader.getUser().getRole(),
+                                "Cảnh báo đội hình thi đấu",
+                                "Thành viên " + user.getFullName() + " (đang trong đội hình " + lineupStr + ") vừa rời khỏi hoặc bị xóa khỏi CLB " + club.getName() + ". Vui lòng kiểm tra và sắp xếp lại đội hình!",
+                                NotificationType.CLUB_MEMBER_LEFT_LINEUP,
+                                String.valueOf(clubId),
+                                user.getId(),
+                                user.getAvatarUrl()
+                        );
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Log error without blocking transaction
+        }
+    }
 
     @Override
     @Transactional
@@ -39,6 +152,29 @@ public class ClubMemberServiceImpl implements ClubMemberService {
 
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
+
+        long currentMembersCount = clubMemberRepository.countByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
+        if (currentMembersCount >= club.getMaxMembers()) {
+            throw new RuntimeException("Câu lạc bộ đã đạt số lượng thành viên tối đa");
+        }
+
+        // Check Elo requirement if club has minEloRequired > 0 (Must have VERIFIED Elo)
+        if (club.getMinEloRequired() != null && club.getMinEloRequired() > 0) {
+            Long sportId = club.getSport() != null ? club.getSport().getId() : null;
+            Optional<UserSport> usOpt = sportId != null ? userSportRepository.findByUserIdAndSportId(user.getId(), sportId) : Optional.empty();
+            int userElo = usOpt.map(UserSport::getEffectiveElo).orElse(1000);
+            com.backend.sporta.enums.EloStatus eloStatus = usOpt.map(UserSport::getEloStatus).orElse(com.backend.sporta.enums.EloStatus.UNVERIFIED);
+
+            if (eloStatus != com.backend.sporta.enums.EloStatus.VERIFIED) {
+                throw new RuntimeException("Câu lạc bộ này yêu cầu điểm Elo đã xác minh (VERIFIED qua 5 trận đấu). "
+                        + "Trình độ hiện tại của bạn chưa hoàn thành 5 trận đấu xếp hạng/xé vé.");
+            }
+
+            if (userElo < club.getMinEloRequired()) {
+                throw new RuntimeException(String.format("Bạn cần tối thiểu %d điểm Elo để gia nhập CLB này (Điểm Elo hiện tại của bạn: %d).",
+                        club.getMinEloRequired(), userElo));
+            }
+        }
 
         Optional<ClubMember> existingMemberOpt = clubMemberRepository.findByClubIdAndUserId(clubId, user.getId());
         if (existingMemberOpt.isPresent()) {
@@ -56,11 +192,6 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             }
         }
 
-        long currentMembersCount = clubMemberRepository.countByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
-        if (currentMembersCount >= club.getMaxMembers()) {
-            throw new RuntimeException("Câu lạc bộ đã đạt số lượng thành viên tối đa");
-        }
-
         ClubMemberStatus joinStatus = club.getIsPrivate() ? ClubMemberStatus.PENDING : ClubMemberStatus.APPROVED;
 
         ClubMember newMember = ClubMember.builder()
@@ -71,6 +202,26 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .build();
 
         newMember = clubMemberRepository.save(newMember);
+
+        // Notify leaders if join request is pending
+        if (joinStatus == ClubMemberStatus.PENDING) {
+            List<ClubMember> leaders = getClubLeaders(clubId);
+            for (ClubMember leader : leaders) {
+                if (leader.getUser() != null && !leader.getUser().getId().equals(user.getId())) {
+                    notificationService.createNotification(
+                            leader.getUser().getId(),
+                            leader.getUser().getRole(),
+                            "Yêu cầu gia nhập CLB mới",
+                            user.getFullName() + " đã gửi yêu cầu gia nhập câu lạc bộ " + club.getName() + ".",
+                            NotificationType.CLUB_JOIN_REQUEST,
+                            String.valueOf(clubId),
+                            user.getId(),
+                            user.getAvatarUrl()
+                    );
+                }
+            }
+        }
+
         return mapToResponse(newMember);
     }
 
@@ -92,23 +243,55 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 throw new RuntimeException("Trưởng câu lạc bộ không thể rời câu lạc bộ khi còn thành viên khác. Vui lòng chuyển nhượng quyền Trưởng câu lạc bộ trước.");
             }
             // Sole member admin leaving will delete the club
+            List<ClubMember> allMembers = clubMemberRepository.findByClubId(clubId);
+            clubMemberRepository.deleteAll(allMembers);
             clubRepository.delete(club);
+            postFeedService.clearFeedCache(user.getId());
             return;
         }
 
+        // Sub-leaders and regular members can freely leave the club
+        cleanupMemberFromLineupsAndNotify(club, user);
+
+        // Notify leaders that a member left
+        List<ClubMember> leaders = getClubLeaders(clubId);
+        for (ClubMember leader : leaders) {
+            if (leader.getUser() != null && !leader.getUser().getId().equals(user.getId())) {
+                notificationService.createNotification(
+                        leader.getUser().getId(),
+                        leader.getUser().getRole(),
+                        "Thành viên rời CLB",
+                        user.getFullName() + " đã rời khỏi câu lạc bộ " + club.getName() + ".",
+                        NotificationType.CLUB_MEMBER_LEFT,
+                        String.valueOf(clubId),
+                        user.getId(),
+                        user.getAvatarUrl()
+                );
+            }
+        }
+
         clubMemberRepository.delete(member);
+        postFeedService.clearFeedCache(user.getId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ClubMemberResponse> getClubMembers(Long clubId, String userEmail) {
-        clubRepository.findById(clubId)
+        Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy câu lạc bộ"));
 
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
+        User user = (userEmail != null && !userEmail.equals("anonymousUser") && !userEmail.isBlank())
+                ? userRepository.findByEmail(userEmail).orElse(null)
+                : null;
 
-        Optional<ClubMember> callerOpt = clubMemberRepository.findByClubIdAndUserId(clubId, user.getId());
+        Optional<ClubMember> callerOpt = (user != null)
+                ? clubMemberRepository.findByClubIdAndUserId(clubId, user.getId())
+                : Optional.empty();
+
+        // If club is private, only approved members can view the member list
+        if (Boolean.TRUE.equals(club.getIsPrivate()) && (callerOpt.isEmpty() || callerOpt.get().getStatus() != ClubMemberStatus.APPROVED)) {
+            return Collections.emptyList();
+        }
 
         List<ClubMember> members;
         // If ADMIN or SUB_LEADER, show all members (including PENDING requests to approve)
@@ -148,6 +331,21 @@ public class ClubMemberServiceImpl implements ClubMemberService {
 
         memberToApprove.setStatus(ClubMemberStatus.APPROVED);
         memberToApprove = clubMemberRepository.save(memberToApprove);
+        postFeedService.clearFeedCache(userIdToApprove);
+
+        // Notify member that their join request was accepted
+        if (memberToApprove.getUser() != null) {
+            notificationService.createNotification(
+                    memberToApprove.getUser().getId(),
+                    memberToApprove.getUser().getRole(),
+                    "Yêu cầu gia nhập CLB được chấp thuận",
+                    "Chúc mừng! Yêu cầu gia nhập câu lạc bộ " + club.getName() + " của bạn đã được phê duyệt thành công.",
+                    NotificationType.CLUB_JOIN_ACCEPTED,
+                    String.valueOf(clubId),
+                    caller.getId(),
+                    caller.getAvatarUrl()
+            );
+        }
 
         return mapToResponse(memberToApprove);
     }
@@ -169,6 +367,20 @@ public class ClubMemberServiceImpl implements ClubMemberService {
 
         memberToReject.setStatus(ClubMemberStatus.REJECTED);
         memberToReject = clubMemberRepository.save(memberToReject);
+
+        // Notify member that their join request was rejected
+        if (memberToReject.getUser() != null && memberToReject.getClub() != null) {
+            notificationService.createNotification(
+                    memberToReject.getUser().getId(),
+                    memberToReject.getUser().getRole(),
+                    "Yêu cầu gia nhập CLB bị từ chối",
+                    "Rất tiếc, yêu cầu gia nhập câu lạc bộ " + memberToReject.getClub().getName() + " của bạn đã bị từ chối.",
+                    NotificationType.CLUB_JOIN_REJECTED,
+                    String.valueOf(clubId),
+                    caller.getId(),
+                    caller.getAvatarUrl()
+            );
+        }
 
         return mapToResponse(memberToReject);
     }
@@ -198,7 +410,41 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             throw new RuntimeException("Phó câu lạc bộ không thể trục xuất Phó câu lạc bộ khác");
         }
 
+        cleanupMemberFromLineupsAndNotify(callerMember.getClub(), memberToRemove.getUser());
+
+        // Notify the kicked member
+        if (memberToRemove.getUser() != null && callerMember.getClub() != null) {
+            notificationService.createNotification(
+                    memberToRemove.getUser().getId(),
+                    memberToRemove.getUser().getRole(),
+                    "Bạn đã bị xóa khỏi CLB",
+                    "Bạn đã bị xóa khỏi câu lạc bộ " + callerMember.getClub().getName() + " bởi Ban quản trị.",
+                    NotificationType.CLUB_MEMBER_KICKED,
+                    String.valueOf(clubId),
+                    caller.getId(),
+                    caller.getAvatarUrl()
+            );
+        }
+
+        // Notify other leaders
+        List<ClubMember> leaders = getClubLeaders(clubId);
+        for (ClubMember leader : leaders) {
+            if (leader.getUser() != null && !leader.getUser().getId().equals(caller.getId()) && !leader.getUser().getId().equals(userIdToRemove)) {
+                notificationService.createNotification(
+                        leader.getUser().getId(),
+                        leader.getUser().getRole(),
+                        "Thành viên bị trục xuất khỏi CLB",
+                        memberToRemove.getUser().getFullName() + " đã bị xóa khỏi câu lạc bộ " + callerMember.getClub().getName() + " bởi " + caller.getFullName() + ".",
+                        NotificationType.CLUB_MEMBER_KICKED,
+                        String.valueOf(clubId),
+                        caller.getId(),
+                        caller.getAvatarUrl()
+                );
+            }
+        }
+
         clubMemberRepository.delete(memberToRemove);
+        postFeedService.clearFeedCache(userIdToRemove);
     }
 
     private void checkAdminPrivileges(Long clubId, Long userId) {
@@ -226,12 +472,24 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             roleText = "Phó câu lạc bộ";
         }
 
-        // Elo default logic for users
-        Integer userElo = 1200; // Mock ELO as user profile currently has no ELO field, 1200 is default ELO.
+        // User Elo and verification status
+        Integer userElo = 1000;
+        com.backend.sporta.enums.EloStatus eloStatus = com.backend.sporta.enums.EloStatus.UNVERIFIED;
+        String levelLabel = "TB";
+
+        if (member.getUser() != null && member.getClub() != null && member.getClub().getSport() != null) {
+            Optional<UserSport> us = userSportRepository.findByUserIdAndSportId(
+                    member.getUser().getId(), member.getClub().getSport().getId());
+            if (us.isPresent()) {
+                userElo = us.get().getEffectiveElo();
+                eloStatus = us.get().getEloStatus() != null ? us.get().getEloStatus() : com.backend.sporta.enums.EloStatus.UNVERIFIED;
+                levelLabel = clubEloService.getLevelLabel(userElo);
+            }
+        }
 
         String avatar = (member.getUser() != null && member.getUser().getAvatarUrl() != null && !member.getUser().getAvatarUrl().trim().isEmpty())
                 ? member.getUser().getAvatarUrl()
-                : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
+                : null;
 
         return ClubMemberResponse.builder()
                 .id(member.getId())
@@ -239,6 +497,8 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .name(member.getUser() != null ? member.getUser().getFullName() : "")
                 .role(roleText)
                 .elo(userElo)
+                .eloStatus(eloStatus)
+                .levelLabel(levelLabel)
                 .avatar(avatar)
                 .status(member.getStatus() != null ? member.getStatus().name() : ClubMemberStatus.APPROVED.name())
                 .joinedAt(member.getJoinedAt() != null ? member.getJoinedAt().format(DATE_FORMATTER) : null)

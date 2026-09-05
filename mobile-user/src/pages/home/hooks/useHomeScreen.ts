@@ -9,14 +9,22 @@ import { useTicketSessions } from '../../../entities/ticket/model/useTicketSessi
 import { clubStore } from '../../../entities/club';
 import { useAlert } from '../../../shared/contexts/AlertContext';
 import { getBaseUrl } from '../../../shared/api/config';
+import {
+  getCachedUserSession,
+  loadNativeUserSessionAsync,
+  saveUserSession,
+  clearUserSession,
+} from '../../../shared/lib/userSession';
 
 export function useHomeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { showAlert, showConfirm } = useAlert();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userName, setUserName] = useState('Khách');
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  
+  const initialSession = getCachedUserSession();
+  const [isAuthenticated, setIsAuthenticated] = useState(initialSession.isAuthenticated);
+  const [userName, setUserName] = useState(initialSession.userName || 'Khách');
+  const [userAvatar, setUserAvatar] = useState<string | null>(initialSession.userAvatar);
   const [refreshing, setRefreshing] = useState(false);
 
   const [recommendedVenues, setRecommendedVenues] = useState<RecommendedVenue[]>([]);
@@ -67,43 +75,22 @@ export function useHomeScreen() {
 
   const checkAuth = async () => {
     try {
-      let token = '';
-      let name = '';
-      let avatar = '';
-      if (Platform.OS === 'web') {
-        token = localStorage.getItem('accessToken') || '';
-        name = localStorage.getItem('userName') || '';
-        avatar = localStorage.getItem('userAvatar') || '';
-      } else {
-        token = (await SecureStore.getItemAsync('accessToken')) || '';
-        name = (await SecureStore.getItemAsync('userName')) || '';
-        avatar = (await SecureStore.getItemAsync('userAvatar')) || '';
-      }
+      const session = await loadNativeUserSessionAsync();
 
-      if (token) {
+      if (session.isAuthenticated && session.accessToken) {
         setIsAuthenticated(true);
-        setUserName(name || 'Thành viên');
-        setUserAvatar(avatar || null);
+        setUserName(session.userName || 'Thành viên');
+        setUserAvatar(session.userAvatar || null);
 
         try {
           const response = await fetch(`${getBaseUrl()}/auth/ping`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${session.accessToken}` },
           });
 
           if (response.status === 403) {
             const errorData = await response.json().catch(() => ({}));
             if (errorData.message && errorData.message.includes('đã bị khóa')) {
-              if (Platform.OS === 'web') {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('userName');
-                localStorage.removeItem('userEmail');
-                localStorage.removeItem('userAvatar');
-              } else {
-                await SecureStore.deleteItemAsync('accessToken');
-                await SecureStore.deleteItemAsync('userName');
-                await SecureStore.deleteItemAsync('userEmail');
-                await SecureStore.deleteItemAsync('userAvatar');
-              }
+              await clearUserSession();
               showAlert('Tài khoản bị khóa', errorData.message);
               setIsAuthenticated(false);
               setUserName('Khách');
@@ -113,17 +100,7 @@ export function useHomeScreen() {
           }
 
           if (response.status === 401) {
-            if (Platform.OS === 'web') {
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('userName');
-              localStorage.removeItem('userEmail');
-              localStorage.removeItem('userAvatar');
-            } else {
-              await SecureStore.deleteItemAsync('accessToken');
-              await SecureStore.deleteItemAsync('userName');
-              await SecureStore.deleteItemAsync('userEmail');
-              await SecureStore.deleteItemAsync('userAvatar');
-            }
+            await clearUserSession();
             setIsAuthenticated(false);
             setUserName('Khách');
             setUserAvatar(null);
@@ -135,30 +112,17 @@ export function useHomeScreen() {
             const { usersApi } = require('../../../shared/api/users');
             const profile = await usersApi.getProfile();
             if (profile) {
-              if (profile.fullName) {
-                setUserName(profile.fullName);
-                if (Platform.OS === 'web') {
-                  localStorage.setItem('userName', profile.fullName);
-                } else {
-                  await SecureStore.setItemAsync('userName', profile.fullName);
-                }
-              }
-
-              const currentAvatar = profile.avatarUrl || null;
-              setUserAvatar(currentAvatar);
-              if (Platform.OS === 'web') {
-                if (currentAvatar) {
-                  localStorage.setItem('userAvatar', currentAvatar);
-                } else {
-                  localStorage.removeItem('userAvatar');
-                }
-              } else {
-                if (currentAvatar) {
-                  await SecureStore.setItemAsync('userAvatar', currentAvatar);
-                } else {
-                  await SecureStore.deleteItemAsync('userAvatar');
-                }
-              }
+              const freshName = profile.fullName || session.userName || 'Thành viên';
+              const freshAvatar = profile.avatarUrl || null;
+              
+              setUserName(freshName);
+              setUserAvatar(freshAvatar);
+              
+              await saveUserSession({
+                userName: freshName,
+                userAvatar: freshAvatar,
+                userEmail: profile.email || session.userEmail,
+              });
             }
           } catch (profileErr) {
             console.log('Profile sync on Home warning:', profileErr);
@@ -257,7 +221,8 @@ export function useHomeScreen() {
         handleLoginPress,
         undefined,
         'Đăng nhập',
-        'Hủy'
+        'Hủy',
+        { icon: 'login', iconColor: '#064E3B' }
       );
     }
   };

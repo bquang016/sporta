@@ -7,7 +7,8 @@ import {
   ViewStyle, 
   TextStyle,
   StyleProp,
-  ImageSourcePropType
+  ImageSourcePropType,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../config/theme';
@@ -63,12 +64,13 @@ export function Avatar({
     style,
   ] as ViewStyle[];
 
-  const uriStr = typeof source === 'string' ? source : (source as any)?.uri;
-  const isBlobUri = typeof uriStr === 'string' && uriStr.startsWith('blob:');
-
   const renderContent = () => {
-    // 1. If valid image source exists (number or valid remote string URI) and hasn't errored
-    if (source && !isBlobUri && !imageError) {
+    // 1. If valid image source exists (number or valid string URI or source object) and hasn't errored
+    const isInvalidBlob = typeof source === 'string' && source.startsWith('blob:') && Platform.OS !== 'web';
+    const isValidString = typeof source === 'string' && source.trim().length > 0 && !isInvalidBlob;
+    const isValidSource = source && (typeof source === 'number' || typeof source === 'object' || isValidString);
+
+    if (isValidSource && !imageError) {
       const imgSource = typeof source === 'string' 
         ? { uri: source } 
         : typeof source === 'number' 
@@ -110,6 +112,7 @@ export function Avatar({
 
     // 4. Default Placeholders: Club vs User
     const defaultPlaceholder = fallbackType === 'club' ? DEFAULT_CLUB_AVATAR : DEFAULT_USER_AVATAR;
+    
     return (
       <Image 
         source={defaultPlaceholder} 

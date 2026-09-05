@@ -19,7 +19,7 @@ export function MatchInvitations() {
           </View>
           <View>
             <View style={styles.titleWithBadge}>
-              <Text style={styles.sectionTitle}>Ghép Kèo Thể Thao</Text>
+              <Text style={styles.sectionTitle}>Ghép kèo thể thao</Text>
               {rooms.length > 0 ? (
                 <View style={styles.liveBadge}>
                   <View style={styles.livePulseDot} />

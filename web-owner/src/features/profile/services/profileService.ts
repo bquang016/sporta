@@ -4,11 +4,14 @@ export interface OwnerProfileData {
   phone: string;
   role: string;
   venueId?: string;
-  facilityName: string;
-  address: string;
-  openHours: string;
-  description: string;
+  facilityName?: string;
+  address?: string;
+  openHours?: string;
+  description?: string;
   avatarUrl?: string;
+  idNumber?: string;
+  dateOfBirth?: string;
+  hometown?: string;
 }
 
 export const fetchOwnerProfileApi = async (): Promise<OwnerProfileData> => {

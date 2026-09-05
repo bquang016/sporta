@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
+import { getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 interface TicketSessionsSectionProps {
   sessions: TicketSession[];
@@ -31,16 +32,6 @@ function getSportIcon(sport: string | undefined): keyof typeof Ionicons.glyphMap
   return (sport && map[sport]) ? map[sport] : 'ticket-outline';
 }
 
-function getSportLevelLabel(level: SportLevel): string {
-  switch (level) {
-    case 'WEAK': return 'Mới chơi';
-    case 'WEAK_AVERAGE': return 'Yếu - TB';
-    case 'AVERAGE': return 'Trung bình';
-    case 'AVERAGE_GOOD': return 'Bán chuyên';
-    case 'GOOD': return 'Chuyên nghiệp';
-    default: return 'Mọi trình độ';
-  }
-}
 
 function formatPlayDate(dateStr: string): string {
   if (!dateStr) return '';
@@ -167,7 +158,7 @@ export function TicketSessionsSection({ sessions, loading, error }: TicketSessio
             <Ionicons name="ticket-outline" size={17} color={COLORS.primary} />
           </View>
           <View>
-            <Text style={styles.sectionTitle}>Sân Chơi Xé Vé</Text>
+            <Text style={styles.sectionTitle}>Sân chơi xé vé</Text>
             <Text style={styles.sectionSub}>Ghé sân chơi lẻ · Tiết kiệm chi phí</Text>
           </View>
         </View>

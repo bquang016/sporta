@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ContractFullscreenModal } from './ContractFullscreenModal';
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { 
+  FileText, 
+  ShieldCheck, 
+  Building2, 
+  Eye, 
+  X, 
+  Download
+} from 'lucide-react';
 
 interface ContractsListModalProps {
   isOpen: boolean;
@@ -16,12 +26,15 @@ interface ContractInfo {
   status: string;
   ownerFullName: string;
   ownerIdCard: string;
+  venueAddress?: string;
 }
 
-export const ContractsListModal = ({ isOpen, onClose }: ContractsListModalProps) => {
+export const ContractsListModal: React.FC<ContractsListModalProps> = ({ isOpen, onClose }) => {
   const [contracts, setContracts] = useState<ContractInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedContract, setSelectedContract] = useState<ContractInfo | null>(null);
+
+  useBodyScrollLock(isOpen || !!selectedContract);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,97 +67,133 @@ export const ContractsListModal = ({ isOpen, onClose }: ContractsListModalProps)
   };
 
   if (!isOpen && !selectedContract) return null;
+  if (typeof document === 'undefined') return null;
 
   // If a contract is selected, render the fullscreen view instead
   if (selectedContract) {
-    return (
+    return createPortal(
       <ContractFullscreenModal 
         contract={selectedContract} 
         onClose={() => setSelectedContract(null)} 
-      />
+      />,
+      document.body
     );
   }
 
-  return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 transition-opacity" onClick={onClose} />
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fadeIn p-0 sm:p-4 select-none">
+      {/* Backdrop Dismiss */}
+      <div className="fixed inset-0" onClick={onClose} />
       
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      {/* Container: Bottom Sheet on Mobile, Centered Card on Desktop */}
+      <div 
+        className="relative w-full max-w-2xl bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl z-10 flex flex-col max-h-[88dvh] sm:max-h-[85vh] animate-slideUp sm:animate-in sm:zoom-in-95 duration-200 overflow-hidden font-sans border border-slate-200/80"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
+      >
+        {/* Mobile Drag Handle */}
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+
+        {/* Modal Header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-950 via-[#064e3b] to-emerald-900 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-brand-emerald/10 flex items-center justify-center text-brand-emerald">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+            <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-brand-yellow backdrop-blur-md shadow-xs">
+              <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-800">Hợp đồng Hợp tác</h2>
-              <p className="text-xs text-slate-500 font-medium">Danh sách các hợp đồng bạn đã ký kết với Sporta</p>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-base font-black tracking-tight text-white">Hợp Đồng & Pháp Lý</h2>
+                <span className="px-2 py-0.2 rounded-full bg-brand-yellow text-[#064e3b] text-[9px] font-black uppercase">
+                  Điện tử
+                </span>
+              </div>
+              <p className="text-[11px] text-white/70 font-medium mt-0.5">Danh sách văn bản hợp tác ký kết với Sporta</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 flex items-center justify-center transition-colors"
+            className="touch-target w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition-colors backdrop-blur-md"
+            title="Đóng"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto matrix-scroll flex-1">
+        {/* Modal Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1">
           {isLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center">
-              <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-emerald rounded-full animate-spin"></div>
-              <p className="mt-4 text-xs font-bold text-slate-500">Đang tải danh sách hợp đồng...</p>
+            <div className="py-12 flex flex-col items-center justify-center space-y-3">
+              <div className="w-8 h-8 border-3 border-slate-200 border-t-brand-emerald rounded-full animate-spin" />
+              <p className="text-xs font-bold text-slate-500">Đang tải danh sách hợp đồng...</p>
             </div>
           ) : contracts.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+            <div className="py-10 text-center space-y-3 bg-slate-50 rounded-3xl border border-dashed border-slate-200 p-6">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <FileText className="w-6 h-6" />
               </div>
-              <p className="text-sm font-bold text-slate-700">Chưa có hợp đồng nào</p>
-              <p className="text-xs text-slate-500 mt-1">Các hợp đồng sau khi đăng ký cụm sân thành công sẽ xuất hiện tại đây.</p>
+              <div>
+                <h4 className="text-xs font-black text-slate-800">Chưa có hợp đồng nào</h4>
+                <p className="text-[11px] text-slate-400 font-medium mt-1">Khi bạn tạo cụm sân mới và hoàn tất ký điện tử, hợp đồng sẽ hiển thị tại đây.</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {contracts.map(contract => (
-                <div 
-                  key={contract.id}
-                  onClick={() => setSelectedContract(contract)}
-                  className="p-4 border border-slate-200 rounded-xl hover:border-brand-emerald hover:shadow-md transition-all cursor-pointer bg-white group flex items-center justify-between"
-                >
-                  <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded-lg bg-emerald-50 text-brand-emerald flex items-center justify-center font-bold">
-                      PDF
+            contracts.map((c) => (
+              <div 
+                key={c.id} 
+                className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs hover:border-emerald-300 transition-all space-y-3 relative overflow-hidden"
+              >
+                {/* Header Row */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 text-brand-emerald" />
+                        <span>ĐÃ KÝ KẾT • CÓ HIỆU LỰC</span>
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-slate-400">
+                        {c.contractCode}
+                      </span>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-800 group-hover:text-brand-emerald transition-colors">
-                        Hợp đồng {contract.venueName}
-                      </h4>
-                      <p className="text-xs text-slate-500 mt-0.5">Mã: {contract.contractCode}</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1">Ký ngày: {new Date(contract.signedAt).toLocaleDateString('vi-VN')}</p>
-                    </div>
+
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight pt-0.5 truncate flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>{c.venueName}</span>
+                    </h3>
                   </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-brand-emerald text-[10px] font-black uppercase tracking-wider">
-                      {contract.status === 'ACTIVE' ? 'Đang hiệu lực' : contract.status}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedContract(c)}
+                    className="touch-target px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-brand-emerald text-xs font-black flex items-center gap-1 active:scale-95 transition-all shrink-0 shadow-2xs cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Xem chi tiết</span>
+                  </button>
+                </div>
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-2 border-t border-slate-100 bg-slate-50/60 -mx-4 -mb-4 p-4 rounded-b-3xl">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block">Chủ thể ký kết</span>
+                    <span className="font-black text-slate-800 truncate block mt-0.5">{c.ownerFullName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block">Số CCCD / CMND</span>
+                    <span className="font-mono font-bold text-slate-700 truncate block mt-0.5">{c.ownerIdCard || 'Đã xác minh'}</span>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-[10px] text-slate-400 font-bold block">Thời gian ký kết</span>
+                    <span className="font-bold text-slate-700 truncate block mt-0.5">
+                      {new Date(c.signedAt).toLocaleDateString('vi-VN')} {new Date(c.signedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <button className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 group-hover:bg-brand-emerald group-hover:text-white flex items-center justify-center transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
       </div>
-    </>
+    </div>,
+    document.body
   );
 };
+export default ContractsListModal;

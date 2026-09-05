@@ -1,3 +1,9 @@
+export interface VenuePolicyDTO {
+  freeCancellationHours: number | null;
+  lateCancellationRefundRate: number | null;
+  rainRescheduleAllowed: boolean | null;
+}
+
 // ─── Existing VenueResponse (for list) ───────────────────────────────────────
 
 export interface VenueResponse {
@@ -25,6 +31,8 @@ export interface VenueResponse {
   // Điểm đánh giá (cache từ bảng venue_reviews)
   averageRating?: number;
   totalReviews?: number;
+  // Chính sách hoàn hủy sân
+  policy?: VenuePolicyDTO | null;
 }
 
 // ─── Recommended Venue (AI Matching) ──────────────────────────────────────────

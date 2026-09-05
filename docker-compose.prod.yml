@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # Database: PostgreSQL 15 Alpine
+  # ==========================================
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: sporta_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-sporta_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sporta_password}
+      POSTGRES_DB: ${DB_NAME:-sporta_database}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sporta_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sporta_dev} -d ${DB_NAME:-sporta_database}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Backend API: Spring Boot (Java 21)
+  # ==========================================
+  sporta-backend:
+    build:
+      context: ./backend/sporta
+      dockerfile: Dockerfile
+    container_name: sporta_backend
+    restart: always
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    env_file:
+      - ./backend/sporta/.env
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/${DB_NAME:-sporta_database}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-sporta_dev}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-sporta_password}
+      - SERVER_PORT=8387
+      - SERVER_ADDRESS=0.0.0.0
+    ports:
+      - "127.0.0.1:8387:8387"
+    networks:
+      - sporta_network
+
+networks:
+  sporta_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

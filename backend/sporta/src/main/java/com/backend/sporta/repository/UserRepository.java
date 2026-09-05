@@ -26,4 +26,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRoleIn(List<Role> roles);
     List<User> findAllByOrderByCreatedAtDesc();
+
+    @Query("SELECT u.id FROM User u WHERE u.role = 'PLAYER' AND u.notifPromo = true AND (u.isDeleted = false OR u.isDeleted IS NULL)")
+    List<Long> findPlayerIdsForPromo();
 }

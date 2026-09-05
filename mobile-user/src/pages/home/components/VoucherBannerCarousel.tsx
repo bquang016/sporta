@@ -51,7 +51,7 @@ const DEFAULT_FEATURED_BANNERS: FallbackBanner[] = [
     badgeColor: '#FED01B',
     code: 'SPORTA50',
     discountText: 'GIẢM 50K',
-    imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&auto=format&fit=crop&q=80',
+    imageUrl: '',
     gradientColors: ['rgba(6, 78, 59, 0.2)', 'rgba(0, 33, 23, 0.88)'],
     targetRoute: '/vouchers/explore',
     voucherData: {
@@ -70,37 +70,37 @@ const DEFAULT_FEATURED_BANNERS: FallbackBanner[] = [
       usedQuantity: 45,
       voucherScope: VoucherScope.SYSTEM,
       status: VoucherStatus.ACTIVE,
-      bannerImageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&auto=format&fit=crop&q=80',
+      bannerImageUrl: '',
     },
   },
   {
     id: 'promo-summer-cup',
     isFallback: true,
-    title: 'Siêu Giải Đấu Sporta Cup 2026',
+    title: 'Siêu giải đấu Sporta Cup 2026',
     subtitle: 'Tổng giải thưởng 50 triệu đồng · Đăng ký thi đấu ngay!',
     badge: 'GIẢI ĐẤU',
     badgeColor: '#10B981',
     code: 'SPORTACUP',
     discountText: 'HOT EVENT',
-    imageUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1200&auto=format&fit=crop&q=80',
+    imageUrl: '',
     gradientColors: ['rgba(30, 58, 138, 0.2)', 'rgba(15, 23, 42, 0.88)'],
     targetRoute: '/clubs',
   },
   {
     id: 'promo-happy-hour',
     isFallback: true,
-    title: 'Giờ Vàng Thể Thao · Giảm 20%',
+    title: 'Giờ vàng thể thao · Giảm 20%',
     subtitle: 'Khung giờ 14:00 - 17:00 các ngày trong tuần tại mọi cụm sân',
     badge: 'GIỜ VÀNG',
     badgeColor: '#F59E0B',
     code: 'GIOVANG20',
     discountText: 'GIẢM 20%',
-    imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1200&auto=format&fit=crop&q=80',
+    imageUrl: '',
     gradientColors: ['rgba(180, 83, 9, 0.2)', 'rgba(67, 20, 7, 0.88)'],
     targetRoute: '/vouchers/explore',
     voucherData: {
       id: 'mock-giovang20',
-      name: 'Giờ Vàng Thể Thao · Giảm 20%',
+      name: 'Giờ vàng thể thao · Giảm 20%',
       code: 'GIOVANG20',
       discountType: DiscountType.PERCENTAGE,
       discountValue: 20,
@@ -114,7 +114,7 @@ const DEFAULT_FEATURED_BANNERS: FallbackBanner[] = [
       usedQuantity: 30,
       voucherScope: VoucherScope.SYSTEM,
       status: VoucherStatus.ACTIVE,
-      bannerImageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1200&auto=format&fit=crop&q=80',
+      bannerImageUrl: '',
     },
   },
 ];
@@ -231,7 +231,7 @@ export function VoucherBannerCarousel({ onVoucherPress }: VoucherBannerCarouselP
         {displayItems.map((item, index) => {
           const isVoucher = !('isFallback' in item);
           const bannerImage = isVoucher
-            ? item.bannerImageUrl || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&auto=format&fit=crop&q=80'
+            ? item.bannerImageUrl || ''
             : item.imageUrl;
 
           const title = isVoucher ? item.name : item.title;

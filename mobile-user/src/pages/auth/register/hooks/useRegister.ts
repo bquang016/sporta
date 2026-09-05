@@ -34,7 +34,7 @@ export function useRegister() {
         handleBackendGoogleLogin(idToken);
       }
     } else if (response?.type === 'error') {
-      const errorMsg = response.error?.message || 'Không thể đăng nhập Google.';
+      const errorMsg = (response?.error as any)?.message || 'Không thể đăng nhập Google.';
       showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);
@@ -44,13 +44,11 @@ export function useRegister() {
     try {
       const res = await googleLoginApi(idToken);
       if (res.isNewUser) {
-        const dummyPassword = `google_${Math.random().toString(36).substring(2, 11)}`;
         router.push({
           pathname: '/(auth)/personal-info',
           params: {
             registrationToken: res.registrationToken,
             email: res.email,
-            password: dummyPassword,
             fullName: res.fullName,
           },
         });

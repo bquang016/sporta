@@ -1,4 +1,4 @@
-export type SportLevel = 'WEAK' | 'WEAK_AVERAGE' | 'AVERAGE' | 'AVERAGE_GOOD' | 'GOOD' | 'ALL';
+export type SportLevel = 'WEAK' | 'WEAK_AVERAGE' | 'AVERAGE' | 'AVERAGE_GOOD' | 'GOOD' | 'PRO' | 'ALL';
 export type TicketSessionStatus = 'OPEN' | 'FULL' | 'CANCELLED';
 export type TicketStatus = 'UNUSED' | 'USED' | 'REFUNDED';
 
@@ -22,6 +22,9 @@ export interface TicketSession {
   bookedSlots: number;
   sportLevel: SportLevel;
   status: TicketSessionStatus;
+  hasHostTeam?: boolean;
+  hostTeamName?: string;
+  hostTeamLevel?: SportLevel;
 }
 
 export interface UserTicket {
@@ -37,11 +40,23 @@ export interface UserTicket {
   price: number;
   quantity?: number;
   totalPrice?: number;
+  discountAmount?: number;
+  finalPrice?: number;
+  paymentMethod?: string;
+  checkoutUrl?: string;
+  orderCode?: number;
   sportLevel: SportLevel;
   status: TicketStatus;
   qrCodeToken: string;
   shortCode: string;
   createdAt: string;
+}
+
+export interface PurchaseTicketPayload {
+  quantity: number;
+  paymentMethod?: string; // 'wallet' | 'payos' | 'cash' | 'dev'
+  ownerVoucherCode?: string;
+  systemVoucherCode?: string;
 }
 
 export interface TicketFilterState {

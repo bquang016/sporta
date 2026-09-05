@@ -145,10 +145,17 @@ public class AuthService {
             permissions = java.util.List.of("ALL_FEATURES");
         }
 
+        // Compute passwordSnoozeUntil ISO string for response
+        String snoozeUntilStr = null;
+        if (user.getPasswordSnoozeUntil() != null) {
+            snoozeUntilStr = user.getPasswordSnoozeUntil().toString();
+        }
+
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .message("Đăng nhập thành công.")
                 .mustChangePassword(user.isMustChangePassword())
+                .passwordSnoozeUntil(snoozeUntilStr)
                 .permissions(permissions)
                 .build();
     }
@@ -171,11 +178,13 @@ public class AuthService {
         }
 
         String otpCode = otpService.generateAndSaveOtp(email);
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA OTP] >>> EMAIL: " + email + " | MÃ OTP: " + otpCode + " <<<");
+        System.out.println("==================================================================");
         try {
             emailService.sendOtpEmail(email, otpCode);
         } catch (Exception e) {
-            System.err.println("Email send failed for " + email + ": " + e.getMessage());
-            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
+            System.err.println("WARN: Email send failed for " + email + ": " + e.getMessage() + " (Đã in mã OTP lên terminal để test)");
         }
         return otpCode;
     }
@@ -188,11 +197,13 @@ public class AuthService {
 
         // Do not check if email exists because the user is already logged in
         String otpCode = otpService.generateAndSaveOtp(email);
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA OTP CONTRACT] >>> EMAIL: " + email + " | MÃ OTP: " + otpCode + " <<<");
+        System.out.println("==================================================================");
         try {
             emailService.sendOtpEmail(email, otpCode);
         } catch (Exception e) {
-            System.err.println("Email send failed for " + email + ": " + e.getMessage());
-            throw new CustomException("Không thể gửi email OTP. Vui lòng kiểm tra lại địa chỉ email của bạn.", 400);
+            System.err.println("WARN: Email send failed for " + email + ": " + e.getMessage() + " (Đã in mã OTP lên terminal để test)");
         }
         return otpCode;
     }
@@ -212,6 +223,76 @@ public class AuthService {
                 .registrationToken(registrationToken)
                 .message("Mã xác thực chính xác. Vui lòng hoàn tất thông tin.")
                 .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  FORGOT PASSWORD FLOW
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public String sendForgotPasswordOtp(ForgotPasswordSendOtpRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (email.isEmpty() || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw new CustomException("Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.", 400);
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Email không tồn tại trong hệ thống.", 404));
+
+        if (user.getIsDeleted()) {
+            throw new CustomException("Tài khoản của bạn đã bị ngừng hoạt động.", 403);
+        }
+
+        String otpCode = otpService.generateAndSaveOtp(email);
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA FORGOT PASSWORD OTP] >>> EMAIL: " + email + " | MÃ OTP: " + otpCode + " <<<");
+        System.out.println("==================================================================");
+        try {
+            emailService.sendForgotPasswordOtpEmail(email, otpCode);
+        } catch (Exception e) {
+            System.err.println("WARN: Email send failed for " + email + ": " + e.getMessage() + " (Đã in mã OTP lên terminal để test)");
+        }
+        return otpCode;
+    }
+
+    public ForgotPasswordVerifyOtpResponse verifyForgotPasswordOtp(ForgotPasswordVerifyOtpRequest request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        if (!userRepository.existsByEmail(email)) {
+            throw new CustomException("Email không tồn tại trong hệ thống.", 404);
+        }
+
+        otpService.verifyOtp(email, request.getOtp());
+
+        String resetToken = jwtTokenProvider.generateResetPasswordToken(email);
+
+        return ForgotPasswordVerifyOtpResponse.builder()
+                .resetToken(resetToken)
+                .message("Xác thực OTP thành công. Vui lòng đặt mật khẩu mới.")
+                .build();
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new CustomException("Mật khẩu xác nhận không khớp.", 400);
+        }
+
+        if (!jwtTokenProvider.validateToken(request.getResetToken())) {
+            throw new CustomException("Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.", 400);
+        }
+
+        io.jsonwebtoken.Claims claims = jwtTokenProvider.getClaimsFromToken(request.getResetToken());
+        String tokenType = claims.get("type", String.class);
+        if (!"RESET_PASSWORD".equals(tokenType)) {
+            throw new CustomException("Token không hợp lệ cho thao tác này.", 400);
+        }
+
+        String email = claims.getSubject();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -237,6 +318,7 @@ public class AuthService {
                 .fullName(request.getFullName())
                 .gender(request.getGender())
                 .dateOfBirth(request.getDateOfBirth())
+                .avatarUrl(request.getAvatarUrl())
                 .role(Role.PLAYER) // Default role
                 .status(UserStatus.ACTIVE)
                 .build();
@@ -274,6 +356,11 @@ public class AuthService {
             String registrationToken,
             String fullName,
             String idNumber,
+            String gender,
+            String nationality,
+            String hometown,
+            String permanentAddress,
+            String phoneNumber,
             String venueName,
             String province,
             String district,
@@ -334,6 +421,11 @@ public class AuthService {
                 .email(email)
                 .fullName(fullName)
                 .idNumber(idNumber)
+                .gender(gender)
+                .nationality(nationality)
+                .hometown(hometown)
+                .permanentAddress(permanentAddress)
+                .phoneNumber(phoneNumber)
                 .idFrontImage(idFrontUrl)
                 .idBackImage(idBackUrl)
                 .venueName(venueName)
@@ -392,11 +484,24 @@ public class AuthService {
         // 1. Generate random password
         String rawPassword = generateRandomPassword(8);
 
+        Gender genderEnum = null;
+        if (reg.getGender() != null) {
+            if (reg.getGender().equalsIgnoreCase("Nam") || reg.getGender().equalsIgnoreCase("MALE")) {
+                genderEnum = Gender.MALE;
+            } else if (reg.getGender().equalsIgnoreCase("Nữ") || reg.getGender().equalsIgnoreCase("FEMALE")) {
+                genderEnum = Gender.FEMALE;
+            } else if (reg.getGender().equalsIgnoreCase("Khác") || reg.getGender().equalsIgnoreCase("OTHER")) {
+                genderEnum = Gender.OTHER;
+            }
+        }
+
         // 2. Create User (role=OWNER, status=ACTIVE, mustChangePassword=true)
         User user = User.builder()
                 .email(reg.getEmail())
                 .password(passwordEncoder.encode(rawPassword))
                 .fullName(reg.getFullName())
+                .phoneNumber(reg.getPhoneNumber())
+                .gender(genderEnum)
                 .role(Role.OWNER)
                 .status(UserStatus.ACTIVE)
                 .mustChangePassword(true)
@@ -407,10 +512,14 @@ public class AuthService {
         Owner owner = Owner.builder()
                 .user(user)
                 .fullName(reg.getFullName())
+                .phoneNumber(reg.getPhoneNumber())
                 .idNumber(reg.getIdNumber())
                 .idFrontImage(reg.getIdFrontImage())
                 .idBackImage(reg.getIdBackImage())
-                .phoneNumber("") // will be updated later
+                .gender(reg.getGender())
+                .nationality(reg.getNationality())
+                .hometown(reg.getHometown())
+                .permanentAddress(reg.getPermanentAddress())
                 .build();
         owner = ownerRepository.save(owner);
 
@@ -592,6 +701,9 @@ public class AuthService {
         ownerRegistrationRepository.save(reg);
 
         // 8. Send email with account credentials
+        System.out.println("==================================================================");
+        System.out.println(" [SPORTA OWNER APPROVED] >>> EMAIL: " + reg.getEmail() + " | PASSWORD: " + rawPassword + " <<<");
+        System.out.println("==================================================================");
         try {
             emailService.sendAccountApprovedEmail(reg.getEmail(), rawPassword);
         } catch (Exception e) {
@@ -640,9 +752,14 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
 
-        // Verify current password
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new CustomException("Mật khẩu hiện tại không chính xác.", 400);
+        // Verify current password, UNLESS the user is forced to change password (mustChangePassword == true)
+        if (!user.isMustChangePassword()) {
+            if (request.getCurrentPassword() == null || request.getCurrentPassword().trim().isEmpty()) {
+                throw new CustomException("Vui lòng nhập mật khẩu hiện tại.", 400);
+            }
+            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                throw new CustomException("Mật khẩu hiện tại không chính xác.", 400);
+            }
         }
 
         // Ensure new password is different from current
@@ -653,6 +770,37 @@ public class AuthService {
         // Update password and clear the mustChangePassword flag
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  SNOOZE CHANGE PASSWORD REMINDER
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void snoozeChangePassword(String authorizationHeader, SnoozeChangePasswordRequest request) {
+        // Validate snoozeDays
+        if (request.getSnoozeDays() == null || (request.getSnoozeDays() != 1 && request.getSnoozeDays() != 3)) {
+            throw new CustomException("Chỉ được nhắc lại sau 1 hoặc 3 ngày.", 400);
+        }
+
+        // Extract user from JWT
+        String token = extractToken(authorizationHeader);
+        if (token == null || !jwtTokenProvider.validateToken(token)) {
+            throw new CustomException("Token không hợp lệ.", 401);
+        }
+
+        String email = jwtTokenProvider.getEmailFromToken(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản.", 404));
+
+        // Only allow snooze if the user still needs to change password
+        if (!user.isMustChangePassword()) {
+            throw new CustomException("Bạn đã đổi mật khẩu rồi, không cần nhắc lại.", 400);
+        }
+
+        // Set snooze until
+        user.setPasswordSnoozeUntil(java.time.LocalDateTime.now().plusDays(request.getSnoozeDays()));
         userRepository.save(user);
     }
 
@@ -691,6 +839,7 @@ public class AuthService {
             GoogleIdToken.Payload payload = idToken.getPayload();
             String email = payload.getEmail();
             String fullName = (String) payload.get("name");
+            String avatarUrl = (String) payload.get("picture");
 
             Optional<User> userOpt = userRepository.findByEmail(email);
             if (userOpt.isPresent()) {
@@ -706,13 +855,21 @@ public class AuthService {
                     }
                     throw new CustomException("Tài khoản của bạn không ở trạng thái hoạt động.", 403);
                 }
+                
+                if (user.getAvatarUrl() == null && avatarUrl != null && !avatarUrl.isEmpty()) {
+                    user.setAvatarUrl(avatarUrl);
+                    userRepository.save(user);
+                }
+                
                 String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
                 return GoogleLoginResponse.builder()
                         .isNewUser(false)
                         .accessToken(accessToken)
                         .email(email)
                         .fullName(user.getFullName())
+                        .avatarUrl(user.getAvatarUrl())
                         .message("Đăng nhập Google thành công.")
+                        .mustChangePassword(user.isMustChangePassword())
                         .build();
             } else {
                 String registrationToken = jwtTokenProvider.generateRegistrationToken(email);
@@ -721,6 +878,7 @@ public class AuthService {
                         .registrationToken(registrationToken)
                         .email(email)
                         .fullName(fullName)
+                        .avatarUrl(avatarUrl)
                         .message("Tài khoản chưa tồn tại. Vui lòng hoàn tất thông tin.")
                         .build();
             }

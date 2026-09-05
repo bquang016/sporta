@@ -36,6 +36,9 @@ public class ClubServiceImpl implements ClubService {
     @Autowired
     private ClubMemberRepository clubMemberRepository;
 
+    @Autowired
+    private com.backend.sporta.service.matchmaking.ClubEloService clubEloService;
+
     @Override
     @Transactional
     public ClubResponse createClub(ClubCreateRequest request, String userEmail) {
@@ -58,6 +61,7 @@ public class ClubServiceImpl implements ClubService {
                 .activityLevel(request.getActivityLevel() != null ? request.getActivityLevel() : "Mới thành lập")
                 .area(request.getArea())
                 .maxMembers(request.getMaxMembers() != null ? request.getMaxMembers() : 50)
+                .minEloRequired(request.getMinEloRequired() != null ? request.getMinEloRequired() : 0)
                 .elo(1000)
                 .sport(sport)
                 .creator(user)
@@ -108,6 +112,7 @@ public class ClubServiceImpl implements ClubService {
         if (request.getActivityLevel() != null) club.setActivityLevel(request.getActivityLevel());
         if (request.getArea() != null) club.setArea(request.getArea());
         if (request.getMaxMembers() != null) club.setMaxMembers(request.getMaxMembers());
+        if (request.getMinEloRequired() != null) club.setMinEloRequired(request.getMinEloRequired());
         if (request.getElo() != null) club.setElo(request.getElo());
 
         club = clubRepository.save(club);
@@ -194,6 +199,23 @@ public class ClubServiceImpl implements ClubService {
         return clubs.stream().map(c -> mapToResponse(c, user)).collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClubResponse> getAllClubs(Long sportId, String query, String userEmail) {
+        User user = (userEmail != null && !userEmail.equals("anonymousUser"))
+                ? userRepository.findByEmail(userEmail).orElse(null)
+                : null;
+
+        String searchQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
+        List<Club> clubs;
+        if (searchQuery == null) {
+            clubs = clubRepository.findAllClubsWithoutQuery(sportId);
+        } else {
+            clubs = clubRepository.findAllClubsWithQuery(sportId, searchQuery);
+        }
+        return clubs.stream().map(c -> mapToResponse(c, user)).collect(Collectors.toList());
+    }
+
     private ClubResponse mapToResponse(Club club, User currentUser) {
         long memberCount = clubMemberRepository.countByClubIdAndStatus(club.getId(), ClubMemberStatus.APPROVED);
         
@@ -221,6 +243,9 @@ public class ClubServiceImpl implements ClubService {
             else if (sportName.contains("pickleball")) sportIcon = "sports-tennis";
         }
 
+        int realClubElo = clubEloService.getClubElo(club);
+        String levelLabel = clubEloService.getLevelLabel(realClubElo);
+
         return ClubResponse.builder()
                 .id(club.getId())
                 .name(club.getName())
@@ -232,7 +257,13 @@ public class ClubServiceImpl implements ClubService {
                 .area(club.getArea())
                 .members((int) memberCount)
                 .maxMembers(club.getMaxMembers())
-                .elo(club.getElo())
+                .elo(realClubElo)
+                .minEloRequired(club.getMinEloRequired() != null ? club.getMinEloRequired() : 0)
+                .averageElo(realClubElo)
+                .crp(club.getCrp() != null ? club.getCrp() : 0)
+                .rankedWins(club.getRankedWins() != null ? club.getRankedWins() : 0)
+                .finalMatches(club.getFinalMatches() != null ? club.getFinalMatches() : 0)
+                .levelLabel(levelLabel)
                 .sport(club.getSport() != null ? club.getSport().getName() : null)
                 .sportId(club.getSport() != null ? club.getSport().getId() : null)
                 .sportIcon(sportIcon)

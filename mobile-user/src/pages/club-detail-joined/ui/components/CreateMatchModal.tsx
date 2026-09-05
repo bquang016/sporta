@@ -81,7 +81,7 @@ export function CreateMatchModal({ visible, onClose, club, onSuccess }: CreateMa
       opponentScore: nOpp,
       result: result,
       location: location.trim() || 'Chưa xác định sân',
-      opponentAvatar: 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=100&auto=format&fit=crop&q=80',
+      opponentAvatar: '',
     };
 
     setIsSubmitting(true);

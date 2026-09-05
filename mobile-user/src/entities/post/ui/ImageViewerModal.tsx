@@ -377,7 +377,7 @@ export function ImageViewerModal({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#000000',
   },
   imageContainerLayer: {

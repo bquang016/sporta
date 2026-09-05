@@ -19,6 +19,7 @@ import { WalletPage } from './features/wallet'
 import { VoucherListPage } from './features/voucher/pages/VoucherListPage'
 import { VoucherFormPage } from './features/voucher/pages/VoucherFormPage'
 import { NotificationCenterPage } from './features/notifications'
+import { RevenueReportPage } from './features/reports'
 
 function App() {
   const isMobile = useIsMobile();
@@ -54,6 +55,7 @@ function App() {
         <Route path="/vouchers" element={<VoucherListPage />} />
         <Route path="/vouchers/create" element={<VoucherFormPage />} />
         <Route path="/vouchers/:id/edit" element={<VoucherFormPage />} />
+        <Route path="/reports" element={<RevenueReportPage />} />
       </Route>
 
       {/* Catch-all */}

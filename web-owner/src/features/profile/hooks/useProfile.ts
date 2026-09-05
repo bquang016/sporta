@@ -15,14 +15,14 @@ export const useProfile = () => {
   const userInitials = userEmail.substring(0, 2).toUpperCase();
 
   const [profileData, setProfileData] = useState<OwnerProfileData>({
-    name: 'Nguyễn Quang Huy',
+    name: 'Bùi Đăng Quang',
     email: userEmail,
     phone: '0987 654 321',
     role: 'Chủ sân',
-    facilityName: 'Sporta Arena Quận 7',
-    address: '152 Nguyễn Văn Linh, Phường Tân Thuận Tây, Quận 7, TP. HCM',
-    openHours: '05:00 - 23:00',
-    description: 'Hệ thống cụm 4 sân bóng cỏ nhân tạo chất lượng cao, trang bị đèn LED chuẩn thi đấu và dịch vụ nước uống, phòng tắm miễn phí.'
+    idNumber: '',
+    dateOfBirth: '',
+    hometown: '',
+    avatarUrl: ''
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -48,11 +48,14 @@ export const useProfile = () => {
             phone: data.phone || '',
             role: data.role || 'Chủ sân',
             venueId: data.venueId,
-            facilityName: data.facilityName || 'Cụm sân Sporta',
-            address: data.address || '',
-            openHours: data.openHours || '05:00 - 23:00',
-            description: data.description || '',
-            avatarUrl: data.avatarUrl
+            facilityName: data.facilityName,
+            address: data.address,
+            openHours: data.openHours,
+            description: data.description,
+            avatarUrl: data.avatarUrl,
+            idNumber: data.idNumber || '',
+            dateOfBirth: data.dateOfBirth || '',
+            hometown: data.hometown || ''
           });
         }
       })
@@ -90,9 +93,12 @@ export const useProfile = () => {
         address: updated.address || profileData.address,
         openHours: updated.openHours || profileData.openHours,
         description: updated.description || profileData.description,
-        avatarUrl: updated.avatarUrl || profileData.avatarUrl
+        avatarUrl: updated.avatarUrl || profileData.avatarUrl,
+        idNumber: updated.idNumber || profileData.idNumber,
+        dateOfBirth: updated.dateOfBirth || profileData.dateOfBirth,
+        hometown: updated.hometown || profileData.hometown
       });
-      setMessage({ type: 'success', text: 'Cập nhật thông tin cá nhân và cơ sở thành công!' });
+      setMessage({ type: 'success', text: 'Cập nhật thông tin cá nhân thành công!' });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Lưu thông tin thất bại. Vui lòng thử lại.' });
     } finally {

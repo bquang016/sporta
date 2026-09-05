@@ -14,6 +14,7 @@ interface User {
   email: string;
   role: string;
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING_APPROVAL' | 'BANNED';
+  isDevTester?: boolean;
   createdAt: string;
 }
 
@@ -102,6 +103,36 @@ export const UserManagement: React.FC = () => {
       setIsUnlockModalOpen(true);
     } else {
       setIsLockModalOpen(true);
+    }
+  };
+
+  // Toggle DEV Tester status
+  const handleToggleDevTester = async (user: User) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`http://localhost:8387/api/v1/admin/users/${user.id}/dev-tester`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          isDevTester: !user.isDevTester
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Cập nhật quyền DEV thất bại');
+      }
+
+      const data = await response.json();
+      showToast('success', data.message || 'Đã cập nhật quyền DEV Tester');
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, isDevTester: !u.isDevTester } : u))
+      );
+    } catch (err: any) {
+      showToast('error', err.message || 'Có lỗi xảy ra khi cập nhật quyền DEV');
     }
   };
 
@@ -249,7 +280,8 @@ export const UserManagement: React.FC = () => {
                   <th className="px-6 py-3.5">Email</th>
                   <th className="px-6 py-3.5">Ngày Tham Gia</th>
                   <th className="px-6 py-3.5">Trạng Thái</th>
-                  <th className="px-6 py-3.5 text-center w-24">Thao Tác</th>
+                  <th className="px-6 py-3.5 text-center">Tài Khoản DEV</th>
+                  <th className="px-6 py-3.5 text-center w-24">Khóa TK</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -257,11 +289,21 @@ export const UserManagement: React.FC = () => {
                   const isSelf = !!(currentAdmin && user.id === currentAdmin.userId);
                   const isLocked = user.status === 'BANNED';
                   const isChecked = !isLocked; // Toggle checked = Active, unchecked = Locked
+                  const isDev = !!user.isDevTester;
 
                   return (
                     <tr key={user.id} className="hover:bg-slate-50/40 transition-colors">
                       <td className="px-6 py-4 font-black text-slate-400">#{user.id}</td>
-                      <td className="px-6 py-4 font-black text-slate-800">{user.fullName}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-slate-800">{user.fullName}</span>
+                          {isDev && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 border border-purple-200">
+                              DEV TESTER
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 font-mono text-slate-500">{user.email}</td>
                       <td className="px-6 py-4 text-slate-500 font-bold">
                         {new Date(user.createdAt).toLocaleDateString('vi-VN', {
@@ -274,6 +316,21 @@ export const UserManagement: React.FC = () => {
                         <Badge variant={user.status === 'ACTIVE' ? 'warning' : user.status === 'BANNED' ? 'error' : 'default'}>
                           {user.status === 'ACTIVE' ? 'Hoạt Động' : user.status === 'BANNED' ? 'Bị Khóa' : 'Chưa kích hoạt'}
                         </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex justify-center items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDevTester(user)}
+                            className={`
+                              px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5
+                              ${isDev ? 'bg-purple-600 text-white shadow-sm hover:bg-purple-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}
+                            `}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${isDev ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`} />
+                            {isDev ? 'Bật DEV' : 'Tắt DEV'}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center" title={isSelf ? "Bạn không thể tự khóa tài khoản của mình" : ""}>

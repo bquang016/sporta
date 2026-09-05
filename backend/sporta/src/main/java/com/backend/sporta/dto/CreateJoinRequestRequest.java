@@ -9,4 +9,6 @@ public class CreateJoinRequestRequest {
     private Long applicantClubId;
 
     private String note;
+
+    private Long lineupId;
 }

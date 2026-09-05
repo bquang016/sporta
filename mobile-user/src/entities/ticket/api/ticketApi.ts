@@ -1,5 +1,5 @@
 import { apiFetch } from '../../../shared/api/apiClient';
-import { TicketSession, UserTicket, TicketFilterState } from '../model/ticket.types';
+import { TicketSession, UserTicket, TicketFilterState, PurchaseTicketPayload } from '../model/ticket.types';
 
 /** GET /api/v1/ticket-sessions — lấy danh sách ca xé vé khả dụng theo bộ lọc */
 export const fetchAvailableSessions = (filters?: TicketFilterState): Promise<TicketSession[]> => {
@@ -19,10 +19,18 @@ export const fetchSessionDetail = (sessionId: string): Promise<TicketSession> =>
   return apiFetch<TicketSession>(`/ticket-sessions/${sessionId}`, { method: 'GET' }, false);
 };
 
-/** POST /api/v1/ticket-sessions/{id}/purchase — mua vé xé (hỗ trợ mua số lượng nhiều slot) (cần JWT) */
-export const purchaseTicket = (sessionId: string, quantity: number = 1): Promise<UserTicket> => {
-  return apiFetch<UserTicket>(`/ticket-sessions/${sessionId}/purchase?quantity=${quantity}`, {
+/** POST /api/v1/ticket-sessions/{id}/purchase — mua vé xé (hỗ trợ mua số lượng, chọn paymentMethod, voucher) (cần JWT) */
+export const purchaseTicket = (
+  sessionId: string, 
+  payloadOrQuantity: PurchaseTicketPayload | number = 1
+): Promise<UserTicket> => {
+  const payload: PurchaseTicketPayload = typeof payloadOrQuantity === 'number'
+    ? { quantity: payloadOrQuantity, paymentMethod: 'payos' }
+    : payloadOrQuantity;
+
+  return apiFetch<UserTicket>(`/ticket-sessions/${sessionId}/purchase`, {
     method: 'POST',
+    body: JSON.stringify(payload),
   }, true);
 };
 
@@ -35,3 +43,39 @@ export const fetchMyTickets = (): Promise<UserTicket[]> => {
 export const fetchTicketDetail = (ticketId: string): Promise<UserTicket> => {
   return apiFetch<UserTicket>(`/user/tickets/${ticketId}`, { method: 'GET' }, true);
 };
+
+export interface DevUserSummary {
+  id: number;
+  fullName: string;
+  email: string;
+  avatarUrl?: string;
+  role?: string;
+  elo?: number;
+  level?: string;
+}
+
+export interface DevForceFinishXeVePayload {
+  hostScore: string;
+  guestScore: string;
+  rawScoreDetails?: string;
+  hostUserIds: number[];
+  guestUserIds: number[];
+}
+
+/** GET /api/v1/ticket-sessions/dev/users — DEV tool: lấy danh sách users */
+export const fetchDevUsers = (keyword?: string): Promise<DevUserSummary[]> => {
+  const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : '';
+  return apiFetch<DevUserSummary[]>(`/ticket-sessions/dev/users${query}`, { method: 'GET' }, true);
+};
+
+/** POST /api/v1/ticket-sessions/dev/{id}/force-finish — DEV tool: phân đội, nhập tỷ số và settle Elo */
+export const devForceFinishXeVe = (
+  sessionId: string,
+  payload: DevForceFinishXeVePayload
+): Promise<TicketSession> => {
+  return apiFetch<TicketSession>(`/ticket-sessions/dev/${sessionId}/force-finish`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, true);
+};
+

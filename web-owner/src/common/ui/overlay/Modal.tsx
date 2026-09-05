@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../utils';
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ export interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | '3/4';
   footer?: React.ReactNode;
   className?: string;
+  zIndex?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -21,18 +23,9 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = 'md',
   footer,
   className,
+  zIndex = 'z-[99999]',
 }) => {
-  // Disable body scroll
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
+  useBodyScrollLock(isOpen);
 
   // Handle escape key
   useEffect(() => {
@@ -62,7 +55,7 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 font-sans animate-fadeIn">
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 font-sans animate-fadeIn`}>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity cursor-pointer"

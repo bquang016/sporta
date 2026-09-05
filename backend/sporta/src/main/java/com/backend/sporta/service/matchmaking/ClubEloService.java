@@ -36,53 +36,56 @@ public class ClubEloService {
         }
 
         Long sportId = club.getSport() != null ? club.getSport().getId() : null;
-        int totalElo = 0;
-        int count = 0;
+        double weightedTotal = 0.0;
+        double totalWeight = 0.0;
 
         for (ClubMember member : activeMembers) {
             if (member.getUser() == null) continue;
-            int memberElo = 1000; // default TB
+            int memberElo = 1000;
+            double weight = 0.5; // base weight for unverified
+
             if (sportId != null) {
                 Optional<UserSport> us = userSportRepository.findByUserIdAndSportId(member.getUser().getId(), sportId);
-                if (us.isPresent() && us.get().getLevel() != null) {
-                    memberElo = mapSportLevelToElo(us.get().getLevel());
+                if (us.isPresent()) {
+                    UserSport userSport = us.get();
+                    memberElo = userSport.getEffectiveElo();
+                    if (userSport.getEloStatus() != null) {
+                        weight = switch (userSport.getEloStatus()) {
+                            case VERIFIED -> 1.0;
+                            case CALIBRATING -> 0.75;
+                            case UNVERIFIED -> 0.5;
+                        };
+                    }
                 }
             }
-            totalElo += memberElo;
-            count++;
+
+            if (member.getRole() == com.backend.sporta.enums.ClubMemberRole.ADMIN
+                    || member.getRole() == com.backend.sporta.enums.ClubMemberRole.SUB_LEADER) {
+                weight *= 1.2;
+            }
+
+            weightedTotal += memberElo * weight;
+            totalWeight += weight;
         }
 
-        if (count == 0) {
+        if (totalWeight <= 0) {
             return club.getElo() != null ? club.getElo() : 1000;
         }
 
-        return (int) Math.round((double) totalElo / count);
+        return (int) Math.round(weightedTotal / totalWeight);
     }
 
     public int mapSportLevelToElo(SportLevel level) {
-        if (level == null) return 1000;
-        switch (level) {
-            case WEAK:
-                return 900;
-            case WEAK_AVERAGE:
-                return 1200;
-            case AVERAGE:
-                return 1500;
-            case AVERAGE_GOOD:
-                return 1800;
-            case GOOD:
-                return 2100;
-            default:
-                return 1000;
-        }
+        return UserSport.mapSeedElo(level);
     }
 
     public String getLevelLabel(int elo) {
-        if (elo < 1050) return "Yếu";
-        if (elo < 1350) return "TBY";
-        if (elo < 1650) return "TB";
-        if (elo < 1950) return "TBK";
-        return "Khá";
+        if (elo < 900) return "Yếu";
+        if (elo < 1200) return "Trung bình - Yếu";
+        if (elo < 1500) return "Trung bình";
+        if (elo < 1800) return "Trung bình - Khá";
+        if (elo < 2100) return "Bán chuyên";
+        return "Chuyên nghiệp";
     }
 
     public String getBalanceLabel(int hostElo, int guestElo) {

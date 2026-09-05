@@ -16,7 +16,11 @@ import java.util.UUID;
 @Repository
 public interface MatchRepository extends JpaRepository<Match, UUID> {
 
-    Optional<Match> findByRoomId(UUID roomId);
+    Optional<Match> findFirstByRoomIdOrderByCreatedAtDesc(UUID roomId);
+
+    default Optional<Match> findByRoomId(UUID roomId) {
+        return findFirstByRoomIdOrderByCreatedAtDesc(roomId);
+    }
 
     List<Match> findByStatusNotIn(List<MatchStatus> statuses);
 
@@ -27,4 +31,7 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
             @Param("matchType") MatchType matchType,
             @Param("since") LocalDateTime since
     );
+
+    @Query("SELECT m FROM Match m WHERE (m.hostClub.id = :clubId OR m.guestClub.id = :clubId) AND m.status = 'RESULT_FINAL' AND m.matchType = 'RANKED' ORDER BY m.createdAt DESC")
+    List<Match> findFinalRankedMatchesByClubId(@Param("clubId") Long clubId);
 }

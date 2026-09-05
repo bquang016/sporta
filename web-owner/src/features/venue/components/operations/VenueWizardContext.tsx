@@ -131,7 +131,7 @@ export const VenueWizardProvider = ({ children, onClose, initialVenue, initialCo
   
   const [openingTime, setOpeningTime] = useState('06:00');
   const [closingTime, setClosingTime] = useState('22:00');
-  const [shiftDurationMinutes, setShiftDurationMinutes] = useState<number | undefined>(undefined);
+  const [shiftDurationMinutes, setShiftDurationMinutes] = useState<number | undefined>(60);
   const [hasSurcharge, setHasSurcharge] = useState(false);
   const [surchargeAmount, setSurchargeAmount] = useState<number | undefined>(undefined);
   const [surchargeDescription, setSurchargeDescription] = useState('');

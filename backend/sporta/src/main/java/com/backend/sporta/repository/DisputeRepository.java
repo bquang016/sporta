@@ -14,7 +14,11 @@ public interface DisputeRepository extends JpaRepository<Dispute, UUID> {
 
     List<Dispute> findByMatchId(UUID matchId);
 
-    Optional<Dispute> findByMatchIdAndStatusIn(UUID matchId, List<DisputeStatus> statuses);
+    Optional<Dispute> findFirstByMatchIdAndStatusInOrderByCreatedAtDesc(UUID matchId, List<DisputeStatus> statuses);
+
+    default Optional<Dispute> findByMatchIdAndStatusIn(UUID matchId, List<DisputeStatus> statuses) {
+        return findFirstByMatchIdAndStatusInOrderByCreatedAtDesc(matchId, statuses);
+    }
 
     List<Dispute> findByStatus(DisputeStatus status);
 }

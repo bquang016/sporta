@@ -5,6 +5,7 @@ export interface ClubCreatePayload {
   description: string;
   sportId: number;
   maxMembers: number;
+  minEloRequired?: number;
   isPrivate: boolean;
   coverImage?: string;
   avatarImage?: string;
@@ -17,6 +18,7 @@ export interface ClubUpdatePayload {
   description?: string;
   sportId?: number;
   maxMembers?: number;
+  minEloRequired?: number;
   isPrivate?: boolean;
   coverImage?: string;
   avatarImage?: string;
@@ -156,4 +158,113 @@ export const addClubMatchApi = async (clubId: number, data: ClubMatchPayload): P
     body: JSON.stringify(data),
   });
 };
+
+// ================= MATCH POLL API (v2.0) =================
+export interface CreateMatchPollPayload {
+  title: string;
+  pollType: 'INTERNAL' | 'MATCHMAKING';
+  deadline?: string;
+  maxPlayers?: number;
+  minPlayers?: number;
+  customOptions?: string[];
+}
+
+export const getClubMatchPollsApi = async (clubId: number): Promise<any[]> => {
+  return requestApi(`/clubs/${clubId}/match-polls`, { method: 'GET' });
+};
+
+export const getMatchPollDetailApi = async (pollId: number): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}`, { method: 'GET' });
+};
+
+export const createMatchPollApi = async (clubId: number, payload: CreateMatchPollPayload): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/match-polls`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const voteMatchPollApi = async (pollId: number, optionId: number): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ optionId }),
+  });
+};
+
+export const closeMatchPollApi = async (pollId: number): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/close`, { method: 'POST' });
+};
+
+export const splitInternalTeamsApi = async (pollId: number): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/split-teams`, { method: 'POST' });
+};
+
+export const formMatchmakingLineupApi = async (pollId: number): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/form-gt`, { method: 'POST' });
+};
+
+export const deleteMatchPollApi = async (pollId: number): Promise<void> => {
+  return requestApi(`/clubs/match-polls/${pollId}`, { method: 'DELETE' });
+};
+
+export const addCustomPollOptionApi = async (pollId: number, label: string): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/options`, {
+    method: 'POST',
+    body: JSON.stringify({ label }),
+  });
+};
+
+export interface DevAssignVotesPayload {
+  userIds: number[];
+  optionId: number;
+  clearExisting?: boolean;
+}
+
+export const devAssignVotesApi = async (pollId: number, payload: DevAssignVotesPayload): Promise<any> => {
+  return requestApi(`/clubs/match-polls/${pollId}/dev-assign-votes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+// ================= LINEUP API (v2.0) =================
+export const getClubLineupsApi = async (clubId: number): Promise<any[]> => {
+  return requestApi(`/clubs/${clubId}/lineups`, { method: 'GET' });
+};
+
+export const getAvailableLineupsApi = async (clubId: number, sportId?: number): Promise<any[]> => {
+  const url = sportId !== undefined ? `/clubs/${clubId}/lineups/available?sportId=${sportId}` : `/clubs/${clubId}/lineups/available`;
+  return requestApi(url, { method: 'GET' });
+};
+
+export const getLineupDetailApi = async (lineupId: number): Promise<any> => {
+  return requestApi(`/clubs/lineups/${lineupId}`, { method: 'GET' });
+};
+
+export const createLineupApi = async (clubId: number, name: string, lineupType: string = 'MATCHMAKING'): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/lineups`, {
+    method: 'POST',
+    body: JSON.stringify({ name, lineupType }),
+  });
+};
+
+export const addLineupMemberApi = async (lineupId: number, userId: number): Promise<any> => {
+  return requestApi(`/clubs/lineups/${lineupId}/members/${userId}`, { method: 'POST' });
+};
+
+export const removeLineupMemberApi = async (lineupId: number, userId: number): Promise<any> => {
+  return requestApi(`/clubs/lineups/${lineupId}/members/${userId}`, { method: 'DELETE' });
+};
+
+export const swapLineupMembersApi = async (data: { sourceLineupId: number; targetLineupId: number; userIdA: number; userIdB: number }): Promise<void> => {
+  return requestApi(`/clubs/lineups/swap`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const disbandLineupApi = async (lineupId: number): Promise<void> => {
+  return requestApi(`/clubs/lineups/${lineupId}`, { method: 'DELETE' });
+};
+
 

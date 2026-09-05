@@ -472,12 +472,12 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
       {selectedVenueIdForModal && (
         <VenueDetailModal
           visible={isVenueModalVisible}
-          facilityId={selectedVenueIdForModal}
+          venueId={selectedVenueIdForModal}
           onClose={() => {
             setIsVenueModalVisible(false);
             setSelectedVenueIdForModal(null);
           }}
-          onBookPress={(venueId) => {
+          onBookNow={(venueId: string) => {
             setIsVenueModalVisible(false);
             setSelectedVenueIdForModal(null);
             handleClose();
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(6, 30, 24, 0.55)', // Deep Emerald tinted dark overlay
   },
   sheetContainer: {

@@ -189,37 +189,10 @@ export function MembersModal({
 
   // Trigger Confirmation for Leaving Club
   const handlePromptLeaveClub = () => {
-    if (isLeadership) {
-      if (approvedMembers.length > 1) {
-        setConfirmDialog({
-          type: 'leave_blocked',
-          title: 'Không thể rời nhóm',
-          message:
-            'Bạn đang là Trưởng câu lạc bộ. Vui lòng chuyển quyền Trưởng câu lạc bộ cho thành viên khác trước khi rời, hoặc chọn Giải tán câu lạc bộ.',
-          confirmText: 'Đã hiểu',
-          confirmVariant: 'info',
-          icon: 'info-outline',
-          iconColor: '#0284C7',
-        });
-        return;
-      }
-    }
-
-    setConfirmDialog({
-      type: 'leave',
-      title: isLeadership ? 'Giải tán câu lạc bộ' : 'Rời khỏi câu lạc bộ',
-      message: isLeadership
-        ? 'Bạn là thành viên duy nhất. Rời nhóm đồng nghĩa với việc giải tán câu lạc bộ này hoàn toàn. Bạn có chắc chắn không?'
-        : 'Bạn có chắc chắn muốn rời khỏi câu lạc bộ này không? Bạn sẽ không còn quyền truy cập vào các trận đấu và hoạt động nội bộ.',
-      confirmText: isLeadership ? 'Giải tán' : 'Rời nhóm',
-      confirmVariant: 'danger',
-      icon: 'logout',
-      iconColor: '#EF4444',
-      onConfirmAction: () => {
-        setConfirmDialog(null);
-        onLeavePress();
-      },
-    });
+    onClose();
+    setTimeout(() => {
+      onLeavePress();
+    }, 200);
   };
 
   // Execute Dialog Action
@@ -455,7 +428,7 @@ export function MembersModal({
                             <Avatar
                               source={member.avatar}
                               size={44}
-                              fallbackIcon="person"
+                              fallbackType="user"
                             />
                             {isLeaderRole && (
                               <View style={styles.crownBadgeLeader}>
@@ -585,7 +558,7 @@ export function MembersModal({
                   pendingMembers.map((member) => (
                     <View key={member.id} style={styles.pendingCard}>
                       <View style={styles.pendingCardHeader}>
-                        <Avatar source={member.avatar} size={44} fallbackIcon="person" />
+                        <Avatar source={member.avatar} size={44} fallbackType="user" />
                         <View style={styles.pendingInfoCol}>
                           <Text style={styles.pendingName}>{member.name}</Text>
                           <View style={styles.pendingMetaRow}>
@@ -670,7 +643,7 @@ export function MembersModal({
 
                 {/* Member summary header */}
                 <View style={styles.sheetMemberHeader}>
-                  <Avatar source={selectedMemberForAction.avatar} size={40} fallbackIcon="person" />
+                  <Avatar source={selectedMemberForAction.avatar} size={40} fallbackType="user" />
                   <View style={styles.sheetMemberInfo}>
                     <Text style={styles.sheetMemberName}>{selectedMemberForAction.name}</Text>
                     <Text style={styles.sheetMemberRole}>
@@ -1268,13 +1241,13 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   sheetOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: 'flex-end',
     zIndex: 1000,
   },
   sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   sheetContent: {
     backgroundColor: '#FFFFFF',
@@ -1367,7 +1340,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   dialogOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1375,7 +1348,7 @@ const styles = StyleSheet.create({
     zIndex: 2000,
   },
   dialogBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   dialogCard: {
     width: '100%',

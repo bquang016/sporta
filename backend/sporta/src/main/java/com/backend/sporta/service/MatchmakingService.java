@@ -20,6 +20,8 @@ public interface MatchmakingService {
 
     void cancelRoom(UUID roomId, String userEmail);
 
+    void cancelRoom(UUID roomId, String reason, String userEmail);
+
     JoinRequestResponse createJoinRequest(UUID roomId, CreateJoinRequestRequest request, String userEmail);
 
     void withdrawJoinRequest(UUID requestId, String userEmail);
@@ -41,4 +43,10 @@ public interface MatchmakingService {
     void openDispute(UUID matchId, OpenDisputeRequest request, String userEmail);
 
     RankingPreviewResponse previewRanking(UUID matchId, String hostScore, String guestScore, String rawScoreDetails);
+
+    void updatePlayerElos(com.backend.sporta.entity.Match match, com.backend.sporta.enums.NormalizedOutcome outcome);
+
+    MatchRoomResponse devAssignClubs(UUID roomId, DevAssignClubsRequest request, String userEmail);
+
+    MatchRoomResponse devForceFinishMatch(UUID roomId, DevForceFinishMatchRequest request, String userEmail);
 }

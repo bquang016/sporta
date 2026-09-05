@@ -54,7 +54,7 @@ public class ClubPollServiceImpl implements ClubPollService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
 
-        checkApprovedMemberPrivileges(clubId, user.getId());
+        checkLeaderOrSubLeaderPrivileges(clubId, user.getId());
 
         // Close any active poll before creating a new one
         Optional<ClubPoll> activePollOpt = clubPollRepository.findFirstByClubIdAndIsClosedFalseOrderByCreatedAtDesc(clubId);
@@ -305,7 +305,7 @@ public class ClubPollServiceImpl implements ClubPollService {
         Integer virtualElo = 1000 + (int)(user.getId() % 300) + 150;
         String avatar = (user.getAvatarUrl() != null && !user.getAvatarUrl().trim().isEmpty())
                 ? user.getAvatarUrl()
-                : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
+                : null;
 
         return PollVoterDto.builder()
                 .userId(user.getId())

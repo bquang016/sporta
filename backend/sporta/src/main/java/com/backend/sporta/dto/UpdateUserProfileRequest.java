@@ -20,4 +20,10 @@ public class UpdateUserProfileRequest {
 
     private Integer height;
     private Double weight;
+    
+    private Boolean notifBooking;
+    private Boolean notifPromo;
+    private Boolean notifMatchmake;
+    private Boolean enableBiometrics;
+    private Boolean privateMode;
 }

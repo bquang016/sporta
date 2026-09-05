@@ -1,4 +1,4 @@
-export type SportLevel = 'WEAK' | 'WEAK_AVERAGE' | 'AVERAGE' | 'AVERAGE_GOOD' | 'GOOD' | 'ALL';
+export type SportLevel = 'WEAK' | 'WEAK_AVERAGE' | 'AVERAGE' | 'AVERAGE_GOOD' | 'GOOD' | 'PRO' | 'ALL';
 
 export type TicketSessionStatus = 'OPEN' | 'FULL' | 'CANCELLED';
 
@@ -16,6 +16,9 @@ export interface TicketSessionResponse {
   bookedSlots: number;
   sportLevel: SportLevel;
   status: TicketSessionStatus;
+  hasHostTeam?: boolean;
+  hostTeamName?: string;
+  hostTeamLevel?: SportLevel;
 }
 
 export interface TicketSessionRequest {
@@ -27,15 +30,24 @@ export interface TicketSessionRequest {
   pricePerTicket: number;
   maxSlots: number;
   sportLevel: SportLevel;
+  hasHostTeam?: boolean;
+  hostTeamName?: string;
+  hostTeamLevel?: SportLevel;
 }
 
 export interface TicketCheckInResponse {
   ticketId: string;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerAvatar?: string;
+  venueName?: string;
   courtName: string;
+  shortCode?: string;
   startTime: string;
   endTime: string;
   playDate: string;
+  checkInTime?: string;
   sportLevel: SportLevel;
   quantity?: number;
   status: 'USED';

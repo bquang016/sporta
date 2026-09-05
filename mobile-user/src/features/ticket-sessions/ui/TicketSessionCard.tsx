@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
+import { TicketSession } from '../../../entities/ticket/model/ticket.types';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 interface TicketSessionCardProps {
   session: TicketSession;
@@ -14,16 +15,6 @@ export function TicketSessionCard({ session, onPress, onBuyPress }: TicketSessio
   const remainingSlots = session.maxSlots - session.bookedSlots;
   const isFull = remainingSlots <= 0 || session.status === 'FULL';
 
-  const getSportLevelLabel = (level: SportLevel) => {
-    switch (level) {
-      case 'WEAK': return 'Mới chơi';
-      case 'WEAK_AVERAGE': return 'Yếu - Trung bình';
-      case 'AVERAGE': return 'Trung bình';
-      case 'AVERAGE_GOOD': return 'Bán chuyên';
-      case 'GOOD': return 'Chuyên nghiệp';
-      default: return 'Tất cả trình độ';
-    }
-  };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -79,6 +70,16 @@ export function TicketSessionCard({ session, onPress, onBuyPress }: TicketSessio
               {session.startTime} - {session.endTime} • {formatDate(session.playDate)}
             </Text>
           </View>
+
+          {/* Host Team Banner if present */}
+          {session.hasHostTeam && (
+            <View style={styles.hostTeamBanner}>
+              <MaterialIcons name="shield" size={12} color="#4338CA" />
+              <Text style={styles.hostTeamText} numberOfLines={1}>
+                Đối đầu: <Text style={{ fontWeight: '800', color: '#312E81' }}>{session.hostTeamName || 'Đội Sân Nhà'}</Text>
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -287,5 +288,24 @@ const styles = StyleSheet.create({
   },
   buyBtnTextDisabled: {
     color: COLORS.outline,
+  },
+  hostTeamBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 0.5,
+    borderColor: '#C7D2FE',
+  },
+  hostTeamText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    color: '#3730A3',
+    fontWeight: '600',
   },
 });

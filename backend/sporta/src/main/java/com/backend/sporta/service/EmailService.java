@@ -5,9 +5,12 @@ import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import org.springframework.scheduling.annotation.Async;
 
 @Service
 public class EmailService {
@@ -15,12 +18,16 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Value("${spring.mail.username:hethongthethaosporta@gmail.com}")
+    private String fromEmail;
+
     private File getLogoFile() {
         String[] candidatePaths = new String[]{
-            "d:/Sporta/sporta/mobile-user/assets/logo/logo-main_699x699.png",
+            "c:/Users/buida/sporta-platform/mobile-user/assets/logo/logo-main_699x699.png",
             "mobile-user/assets/logo/logo-main_699x699.png",
             "../mobile-user/assets/logo/logo-main_699x699.png",
-            "d:/Sporta/sporta/mobile-user/assets/logo/logo-horizontal_1600x400.png"
+            "../../mobile-user/assets/logo/logo-main_699x699.png",
+            "d:/Sporta/sporta/mobile-user/assets/logo/logo-main_699x699.png"
         };
         for (String path : candidatePaths) {
             File file = new File(path);
@@ -31,12 +38,13 @@ public class EmailService {
         return null;
     }
 
+    @Async
     public void sendOtpEmail(String toEmail, String otpCode) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("shethongthethao@gmail.com", "SPORTA System");
+            helper.setFrom(fromEmail, "SPORTA System");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Mã OTP xác thực của bạn");
 
@@ -104,16 +112,86 @@ public class EmailService {
         }
     }
 
+    @Async
+    public void sendForgotPasswordOtpEmail(String toEmail, String otpCode) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, "SPORTA System");
+            helper.setTo(toEmail);
+            helper.setSubject("SPORTA - Mã OTP đặt lại mật khẩu của bạn");
+
+            File logoFile = getLogoFile();
+            boolean hasLogo = (logoFile != null);
+
+            String logoHtml;
+            if (hasLogo) {
+                logoHtml = "<div style=\"margin-bottom: 8px;\">"
+                         + "<img src=\"cid:sportaLogo\" alt=\"SPORTA\" style=\"max-height: 55px; width: auto; display: inline-block;\" />"
+                         + "</div>";
+            } else {
+                logoHtml = "<div style=\"margin-bottom: 8px;\">"
+                         + "<svg width=\"44\" height=\"44\" viewBox=\"0 0 48 48\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"display: inline-block; vertical-align: middle;\">"
+                         + "<circle cx=\"24\" cy=\"24\" r=\"22\" fill=\"#064E3B\" fill-opacity=\"0.1\" stroke=\"#064E3B\" stroke-width=\"2\"/>"
+                         + "<path d=\"M24 10L35 16V25C35 32 29 37 24 40C19 37 13 32 13 25V16L24 10Z\" fill=\"#064E3B\" stroke=\"#FED01B\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/>"
+                         + "<path d=\"M20 23.5L23 26.5L28.5 19.5\" stroke=\"#FED01B\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"
+                         + "</svg>"
+                         + "</div>";
+            }
+
+            String htmlContent = "<div style=\"font-family: 'Hanken Grotesk', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; max-width: 580px; margin: 0 auto; background-color: #f8fafc; padding: 24px 16px; color: #0f172a;\">"
+                    + "<div style=\"background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;\">"
+                    + "<div style=\"background-color: #ffffff; border-bottom: 3px solid #064E3B; padding: 28px 24px; text-align: center;\">"
+                    + logoHtml
+                    + "<h1 style=\"color: #064E3B; margin: 4px 0 0; font-size: 24px; font-weight: 800; letter-spacing: 1px;\">SPORTA</h1>"
+                    + "<p style=\"color: #64748b; margin: 4px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;\">YÊU CẦU ĐẶT LẠI MẬT KHẨU</p>"
+                    + "</div>"
+                    + "<div style=\"padding: 28px 24px; text-align: center;\">"
+                    + "<h2 style=\"color: #064E3B; margin: 0 0 10px; font-size: 18px; font-weight: 700;\">Mã OTP Đặt Lại Mật Khẩu</h2>"
+                    + "<p style=\"color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px;\">"
+                    + "Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>" + toEmail + "</strong>. Vui lòng sử dụng mã OTP bên dưới để tiếp tục:"
+                    + "</p>"
+                    + "<div style=\"background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px 24px; margin: 0 auto 20px; max-width: 280px;\">"
+                    + "<span style=\"font-size: 32px; font-weight: 700; color: #064E3B; letter-spacing: 8px; font-family: 'Hanken Grotesk', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; display: block;\">"
+                    + otpCode
+                    + "</span>"
+                    + "</div>"
+                    + "<p style=\"color: #64748b; font-size: 13px; margin: 0 0 16px; line-height: 1.5;\">"
+                    + "Mã OTP này có hiệu lực trong <strong style=\"color: #064E3B;\">5 phút</strong>. Vui lòng không chia sẻ mã này cho bất kỳ ai."
+                    + "</p>"
+                    + "<hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;\" />"
+                    + "<p style=\"color: #94a3b8; font-size: 11.5px; margin: 0;\">"
+                    + "Nếu bạn không thực hiện yêu cầu này, vui lòng đảm bảo tài khoản của bạn được an toàn và bỏ qua email này."
+                    + "</p>"
+                    + "</div>"
+                    + "<div style=\"background-color: #f8fafc; padding: 16px 24px; border-top: 1px solid #e2e8f0; text-align: center;\">"
+                    + "<p style=\"margin: 0; color: #94a3b8; font-size: 11px;\">© 2026 Sporta, Inc. Tất cả các quyền được bảo lưu.</p>"
+                    + "</div>"
+                    + "</div>"
+                    + "</div>";
+
+            helper.setText(htmlContent, true);
+            if (hasLogo) {
+                helper.addInline("sportaLogo", logoFile);
+            }
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send forgot password OTP email: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Send an email notifying the owner that their registration has been approved.
      * Includes login credentials (email + temporary password).
      */
+    @Async
     public void sendAccountApprovedEmail(String toEmail, String temporaryPassword) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("shethongthethao@gmail.com", "SPORTA Owner Portal");
+            helper.setFrom(fromEmail, "SPORTA Owner Portal");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Tài khoản Chủ sân của bạn đã được kích hoạt");
 
@@ -197,12 +275,13 @@ public class EmailService {
     /**
      * Send booking success confirmation email with full details to the user.
      */
+    @Async
     public void sendBookingSuccessEmail(String toEmail, com.backend.sporta.entity.Booking booking) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("shethongthethao@gmail.com", "SPORTA Booking");
+            helper.setFrom(fromEmail, "SPORTA Booking");
             helper.setTo(toEmail);
             helper.setSubject("SPORTA - Xác nhận đặt sân thành công (Mã: " + booking.getBookingCode() + ")");
 

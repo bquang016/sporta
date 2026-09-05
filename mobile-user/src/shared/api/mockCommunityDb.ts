@@ -3,7 +3,7 @@ import { Post, AuthorUser as User, Comment } from '../../entities/post';
 export const CURRENT_USER: User = {
   id: 'current-user',
   name: 'Bùi Quang',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+  avatar: '',
   handle: '@bquang_sporta',
 };
 
@@ -13,7 +13,7 @@ export const MOCK_COMMENTS: Comment[] = [
     author: {
       id: 'quanluu08',
       name: 'Quan Luu',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@quanluu08',
     },
     content: 'Kèo này hấp dẫn quá anh em ơi! Cho mình xin 1 suất với nhé 🏸🔥',
@@ -26,7 +26,7 @@ export const MOCK_COMMENTS: Comment[] = [
     author: {
       id: 'user-1',
       name: 'Nguyễn Văn Nam',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@namvugi',
     },
     content: 'Sân Cầu Giấy đánh buổi tối cực thoáng mát, anh em vào nhanh kẻo hết chỗ!',
@@ -43,7 +43,7 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: 'user-1',
       name: 'Nguyễn Văn Nam',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@namvugi',
     },
     audience: 'PUBLIC',
@@ -72,7 +72,7 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: 'quanluu08',
       name: 'Quan Luu',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@quanluu08',
     },
     audience: 'PUBLIC',
@@ -101,7 +101,7 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: 'user-3',
       name: 'Phạm Ngọc Lê',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@ngocle_badminton',
     },
     audience: 'PUBLIC',
@@ -130,7 +130,7 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: 'user-2',
       name: 'Trần Thanh Sơn',
-      avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@sontran_hoop',
     },
     audience: 'PUBLIC',
@@ -159,18 +159,18 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: 'quanluu08',
       name: 'Quan Luu',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@quanluu08',
     },
     clubInfo: {
       id: 'club-1',
       name: 'Pickleball Cầu Giấy Official',
-      avatarUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80',
+      avatarUrl: '',
     },
     audience: 'CLUB_MEMBERS',
     content: 'Thông báo giải đấu nội bộ tháng này của CLB Pickleball Cầu Giấy! Anh em đăng ký cặp thi đấu trước thứ 6 tuần này nhé. Giải thưởng hấp dẫn cho top 3 cặp đấu xuất sắc nhất! 🏆🔥',
     mediaUrls: [
-      'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80',
+      '',
     ],
     createdAt: '5 giờ trước',
     type: 'COMMUNITY',
@@ -185,7 +185,7 @@ export const MOCK_POSTS: Post[] = [
         author: {
           id: 'user-2',
           name: 'Trần Thanh Sơn',
-          avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=300&auto=format&fit=crop&q=80',
+          avatar: '',
           handle: '@sontran_hoop',
         },
         content: 'Chỗ này sân đẹp, hôm nào giao lưu đi anh em',
@@ -220,13 +220,13 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: 'owner-1',
       name: 'Sân Pickleball Thăng Long',
-      avatar: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@thanglong_pickleball',
     },
     audience: 'PUBLIC',
     content: '🎉 KHUYẾN MÃI GIỜ VÀNG SÂN PICKLEBALL THĂNG LONG! Giảm ngay 20% cho tất cả các khung giờ từ 13:00 - 17:00 các ngày trong tuần. Sân mái che đạt chuẩn quốc tế, trang thiết bị hiện đại sẵn sàng đón anh em! 🏟️✨',
     mediaUrls: [
-      'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80',
+      '',
     ],
     type: 'VENUE_PROMO',
     venuePromoAttachment: {
@@ -250,19 +250,19 @@ export const MOCK_POSTS: Post[] = [
     author: {
       id: `user-${(i % 4) + 1}`,
       name: i % 2 === 0 ? `Vận động viên Nguyễn Hùng #${i + 1}` : `Hoàng Thị Mai #${i + 1}`,
-      avatar: `https://images.unsplash.com/photo-${1535713875002 + i}?w=300&auto=format&fit=crop&q=80`,
+      avatar: '',
       handle: `@athlete_${i + 1}`,
     },
     audience: (i % 3 === 0 ? 'CLUB_MEMBERS' : 'PUBLIC') as any,
     clubInfo: i % 3 === 0 ? {
       id: 'club-1',
       name: 'Pickleball Cầu Giấy Official',
-      avatarUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80',
+      avatarUrl: '',
     } : undefined,
     content: i % 2 === 0
       ? `Buổi tập luyện hăng hái cùng các đồng đội! Thể thao giúp giải tỏa căng thẳng sau những giờ làm việc mệt mỏi. Cố gắng luyện tập đều đặn mỗi ngày 💪🔥 #${i + 1}`
       : `Hôm nay thời tiết đẹp quá anh em ơi! Ai rảnh lên sân giao lưu vài séc đấu nhẹ nhàng nào! 🏓⚽🏸`,
-    mediaUrls: i % 3 === 0 ? ['https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80'] : undefined,
+    mediaUrls: i % 3 === 0 ? [''] : undefined,
     type: 'COMMUNITY' as any,
     createdAt: `${i + 7} giờ trước`,
     reactionsCount: { like: 12 + i * 2, love: 5 + i, fire: 8 + i * 3, clap: 4 },

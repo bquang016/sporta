@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Animated,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../model/post.types';
@@ -18,8 +17,12 @@ interface PostOptionsMenuModalProps {
   post: Post | null;
   currentUserId: string;
   onClose: () => void;
+  onEditPost?: (post: Post) => void;
+  onChangeAudience?: (post: Post) => void;
+  onHidePost?: (post: Post) => void;
   onDeletePost?: (postId: string) => void;
   onReportPost?: (postId: string) => void;
+  onCopyLink?: (post: Post) => void;
 }
 
 export const PostOptionsMenuModal = React.memo(({
@@ -27,8 +30,12 @@ export const PostOptionsMenuModal = React.memo(({
   post,
   currentUserId,
   onClose,
+  onEditPost,
+  onChangeAudience,
+  onHidePost,
   onDeletePost,
   onReportPost,
+  onCopyLink,
 }: PostOptionsMenuModalProps) => {
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const sheetAnim = useRef(new Animated.Value(350)).current;
@@ -53,7 +60,7 @@ export const PostOptionsMenuModal = React.memo(({
     }
   }, [visible, backdropAnim, sheetAnim]);
 
-  const handleClose = () => {
+  const handleClose = (callback?: () => void) => {
     Animated.parallel([
       Animated.timing(backdropAnim, {
         toValue: 0,
@@ -67,38 +74,35 @@ export const PostOptionsMenuModal = React.memo(({
       }),
     ]).start(() => {
       onClose();
+      if (callback) {
+        setTimeout(callback, 50);
+      }
     });
   };
 
   if (!visible || !post) return null;
 
-  const isOwner = post.author.id === currentUserId || currentUserId === 'current-user';
+  const isOwner =
+    post.author.id === currentUserId ||
+    currentUserId === 'current-user' ||
+    (currentUserId && String(post.author.id) === String(currentUserId));
 
-  const handleDelete = () => {
-    handleClose();
-    setTimeout(() => {
-      if (onDeletePost) onDeletePost(post.id);
-    }, 200);
-  };
-
-  const handleAction = (actionName: string) => {
-    handleClose();
-    setTimeout(() => {
-      if (actionName === 'report' && onReportPost) {
-        onReportPost(post.id);
-      }
-    }, 200);
-  };
+  const isNormalPost =
+    !post.type ||
+    post.type === 'COMMUNITY' ||
+    post.type === 'STANDARD' ||
+    post.type === 'POST' ||
+    post.type === 'SOCIAL';
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={() => handleClose()}>
       <View style={styles.overlay}>
-        {/* Animated Smooth Fade-In Dark Backdrop */}
+        {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleClose} />
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => handleClose()} />
         </Animated.View>
 
-        {/* Animated Slide-Up Sheet */}
+        {/* Slide-Up Sheet */}
         <Animated.View
           style={[
             styles.sheetContainer,
@@ -115,31 +119,59 @@ export const PostOptionsMenuModal = React.memo(({
             <View style={styles.menuList}>
               {isOwner ? (
                 <>
-                  {/* 1. Edit Post */}
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    activeOpacity={0.7}
-                    onPress={() => handleAction('Chỉnh sửa bài viết')}
-                  >
-                    <Ionicons name="create-outline" size={22} color={COLORS.onSurface} />
-                    <Text style={styles.menuItemText}>Chỉnh sửa bài viết</Text>
-                  </TouchableOpacity>
+                  {/* 1. Edit Post (Only for normal posts, not promotion or match finding) */}
+                  {isNormalPost && (
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        handleClose(() => {
+                          if (onEditPost) onEditPost(post);
+                        })
+                      }
+                    >
+                      <Ionicons name="create-outline" size={22} color={COLORS.onSurface} />
+                      <Text style={styles.menuItemText}>Chỉnh sửa bài viết</Text>
+                    </TouchableOpacity>
+                  )}
 
-                  {/* 3. Change Audience */}
+                  {/* 2. Change Audience / Privacy */}
                   <TouchableOpacity
                     style={styles.menuItem}
                     activeOpacity={0.7}
-                    onPress={() => handleAction('Thay đổi quyền riêng tư')}
+                    onPress={() =>
+                      handleClose(() => {
+                        if (onChangeAudience) onChangeAudience(post);
+                      })
+                    }
                   >
                     <Ionicons name="lock-closed-outline" size={22} color={COLORS.onSurface} />
                     <Text style={styles.menuItemText}>Thay đổi đối tượng xem</Text>
                   </TouchableOpacity>
 
-                  {/* 4. Delete Post */}
+                  {/* 3. Hide Post (Available for everyone) */}
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      handleClose(() => {
+                        if (onHidePost) onHidePost(post);
+                      })
+                    }
+                  >
+                    <Ionicons name="eye-off-outline" size={22} color={COLORS.onSurface} />
+                    <Text style={styles.menuItemText}>Ẩn bài viết</Text>
+                  </TouchableOpacity>
+
+                  {/* 4. Delete Post (Soft delete) */}
                   <TouchableOpacity
                     style={[styles.menuItem, styles.deleteItem]}
                     activeOpacity={0.7}
-                    onPress={handleDelete}
+                    onPress={() =>
+                      handleClose(() => {
+                        if (onDeletePost) onDeletePost(post.id);
+                      })
+                    }
                   >
                     <Ionicons name="trash-outline" size={22} color={COLORS.error} />
                     <Text style={[styles.menuItemText, { color: COLORS.error }]}>Xóa bài viết</Text>
@@ -147,41 +179,43 @@ export const PostOptionsMenuModal = React.memo(({
                 </>
               ) : (
                 <>
-                  {/* 1. Save Post */}
+                  {/* 1. Hide Post */}
                   <TouchableOpacity
                     style={styles.menuItem}
                     activeOpacity={0.7}
-                    onPress={() => handleAction('Lưu bài viết')}
-                  >
-                    <Ionicons name="bookmark-outline" size={22} color={COLORS.onSurface} />
-                    <Text style={styles.menuItemText}>Lưu bài viết</Text>
-                  </TouchableOpacity>
-
-                  {/* 2. Hide Post */}
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    activeOpacity={0.7}
-                    onPress={() => handleAction('Ẩn bài viết khỏi Bảng tin')}
+                    onPress={() =>
+                      handleClose(() => {
+                        if (onHidePost) onHidePost(post);
+                      })
+                    }
                   >
                     <Ionicons name="eye-off-outline" size={22} color={COLORS.onSurface} />
-                    <Text style={styles.menuItemText}>Ẩn bài viết này</Text>
+                    <Text style={styles.menuItemText}>Ẩn bài viết</Text>
                   </TouchableOpacity>
 
-                  {/* 3. Copy Link */}
+                  {/* 2. Copy Link */}
                   <TouchableOpacity
                     style={styles.menuItem}
                     activeOpacity={0.7}
-                    onPress={() => handleAction('Sao chép liên kết')}
+                    onPress={() =>
+                      handleClose(() => {
+                        if (onCopyLink) onCopyLink(post);
+                      })
+                    }
                   >
                     <Ionicons name="link-outline" size={22} color={COLORS.onSurface} />
                     <Text style={styles.menuItemText}>Sao chép liên kết</Text>
                   </TouchableOpacity>
 
-                  {/* 4. Report Post */}
+                  {/* 3. Report Post */}
                   <TouchableOpacity
                     style={[styles.menuItem, styles.deleteItem]}
                     activeOpacity={0.7}
-                    onPress={() => handleAction('report')}
+                    onPress={() =>
+                      handleClose(() => {
+                        if (onReportPost) onReportPost(post.id);
+                      })
+                    }
                   >
                     <Ionicons name="warning-outline" size={22} color={COLORS.error} />
                     <Text style={[styles.menuItemText, { color: COLORS.error }]}>
@@ -204,7 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   sheetContainer: {

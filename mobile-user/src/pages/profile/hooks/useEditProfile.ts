@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
 import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { useProfile } from './useProfile';
 import { useAlert } from '../../../shared/contexts/AlertContext';
+import { getCachedUserSession, saveUserSession } from '../../../shared/lib/userSession';
 
 export function useEditProfile() {
   const router = useRouter();
   const { showAlert, showConfirm } = useAlert();
   const { profileData, refreshProfile } = useProfile();
   
-  const [fullName, setFullName] = useState('');
+  const initialSession = getCachedUserSession();
+  const [fullName, setFullName] = useState(initialSession.userName || '');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [gender, setGender] = useState('MALE');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(initialSession.userAvatar || null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -44,7 +44,7 @@ export function useEditProfile() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -62,13 +62,15 @@ export function useEditProfile() {
     setIsConfirmAvatarModalVisible(false);
     try {
       const response = await usersApi.updateProfile({}, pendingAvatarUri);
-      setAvatarUri(pendingAvatarUri);
       if (response && response.avatarUrl) {
-         if (Platform.OS === 'web') {
-           localStorage.setItem('userAvatar', response.avatarUrl);
-         } else {
-           await SecureStore.setItemAsync('userAvatar', response.avatarUrl);
-         }
+        setAvatarUri(response.avatarUrl);
+        await saveUserSession({
+          userAvatar: response.avatarUrl,
+          userName: response.fullName || fullName,
+          userEmail: response.email,
+        });
+      } else {
+        setAvatarUri(pendingAvatarUri);
       }
       await refreshProfile();
       showAlert('Thành công', 'Cập nhật ảnh đại diện thành công!');

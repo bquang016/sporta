@@ -2,6 +2,7 @@ package com.backend.sporta.controller;
 
 import com.backend.sporta.dto.AuthResponse;
 import com.backend.sporta.dto.ChangePasswordRequest;
+import com.backend.sporta.dto.SnoozeChangePasswordRequest;
 import com.backend.sporta.dto.LoginRequest;
 import com.backend.sporta.dto.RegisterRequest;
 import com.backend.sporta.dto.SendOtpRequest;
@@ -10,6 +11,10 @@ import com.backend.sporta.dto.VerifyOtpResponse;
 import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
 import com.backend.sporta.dto.RegisterOwnerResponse;
+import com.backend.sporta.dto.ForgotPasswordSendOtpRequest;
+import com.backend.sporta.dto.ForgotPasswordVerifyOtpRequest;
+import com.backend.sporta.dto.ForgotPasswordVerifyOtpResponse;
+import com.backend.sporta.dto.ResetPasswordRequest;
 import com.backend.sporta.service.AuthService;
 import com.backend.sporta.service.EmailService;
 import jakarta.validation.Valid;
@@ -32,6 +37,24 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<?> forgotPasswordSendOtp(@Valid @RequestBody ForgotPasswordSendOtpRequest request) {
+        authService.sendForgotPasswordOtp(request);
+        return ResponseEntity.ok(Map.of("message", "Mã OTP đặt lại mật khẩu đã được gửi đến email của bạn."));
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<ForgotPasswordVerifyOtpResponse> forgotPasswordVerifyOtp(@Valid @RequestBody ForgotPasswordVerifyOtpRequest request) {
+        ForgotPasswordVerifyOtpResponse response = authService.verifyForgotPasswordOtp(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/reset-password")
+    public ResponseEntity<?> forgotPasswordResetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại bằng mật khẩu mới."));
     }
 
     @PostMapping("/send-otp")
@@ -63,6 +86,11 @@ public class AuthController {
             @RequestParam("registrationToken") String registrationToken,
             @RequestParam("fullName") String fullName,
             @RequestParam("idNumber") String idNumber,
+            @RequestParam(value = "gender", required = false, defaultValue = "") String gender,
+            @RequestParam(value = "nationality", required = false, defaultValue = "Việt Nam") String nationality,
+            @RequestParam(value = "hometown", required = false, defaultValue = "") String hometown,
+            @RequestParam(value = "permanentAddress", required = false, defaultValue = "") String permanentAddress,
+            @RequestParam(value = "phoneNumber", required = false, defaultValue = "") String phoneNumber,
             @RequestParam("venueName") String venueName,
             @RequestParam("province") String province,
             @RequestParam("district") String district,
@@ -99,8 +127,8 @@ public class AuthController {
                 : java.time.LocalTime.of(22, 0);
 
         RegisterOwnerResponse response = authService.registerOwner(
-                registrationToken, fullName, idNumber, venueName, province,
-                district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge,
+                registrationToken, fullName, idNumber, gender, nationality, hometown, permanentAddress, phoneNumber,
+                venueName, province, district, ward, addressDetail, sportId, openingTime, closingTime, shiftDurationMinutes, hasSurcharge,
                 surchargeAmount, surchargeDescription, latitude, longitude, subCourtCount, description,
                 courts, freeCancellationHours, lateCancellationRefundRate, rainRescheduleAllowed, idFrontImage,
                 idBackImage, coverImage, registrationImages, isContractSigned, signatureTimestamp, signatureIp);
@@ -129,6 +157,14 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(authHeader, request);
         return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
+    }
+
+    @PostMapping("/snooze-change-password")
+    public ResponseEntity<?> snoozeChangePassword(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @Valid @RequestBody SnoozeChangePasswordRequest request) {
+        authService.snoozeChangePassword(authHeader, request);
+        return ResponseEntity.ok(Map.of("message", "Đã tạm hoãn nhắc nhở đổi mật khẩu."));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

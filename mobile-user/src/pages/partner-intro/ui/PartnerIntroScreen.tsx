@@ -19,7 +19,7 @@ export function PartnerIntroScreen() {
       {/* Hero Section */}
       <View style={[styles.heroContainer, !showMore && { minHeight: Dimensions.get('window').height }]}>
         <ImageBackground 
-          source={{ uri: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=1000' }} 
+          source={{ uri: '' }} 
           style={styles.heroBackground}
           imageStyle={{ opacity: 0.15 }}
         />
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 24 : 0,
   },
   heroBackground: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroOverlay: {
     paddingBottom: SPACING.xl,

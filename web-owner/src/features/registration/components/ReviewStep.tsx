@@ -85,7 +85,12 @@ export const ReviewStep = ({
           icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
         />
         <InfoRow label="Họ tên" value={personalInfo.fullName} />
+        <InfoRow label="Giới tính" value={personalInfo.gender} />
+        <InfoRow label="Số điện thoại" value={personalInfo.phoneNumber} />
         <InfoRow label="Số CCCD" value={personalInfo.idNumber} />
+        <InfoRow label="Quốc tịch" value={personalInfo.nationality} />
+        <InfoRow label="Quê quán" value={personalInfo.hometown} />
+        <InfoRow label="Nơi thường trú" value={personalInfo.permanentAddress} />
         <div className="flex items-center gap-2 py-1">
           <span className="text-[10px] font-semibold text-slate-400 min-w-[80px] shrink-0">Ảnh CCCD</span>
           <div className="flex gap-2">

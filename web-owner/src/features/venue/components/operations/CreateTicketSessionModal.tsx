@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Users } from 'lucide-react';
 import { Modal } from '../../../../common/ui/overlay/Modal';
 import { DatePicker } from '../../../../common/ui/form/DatePicker';
 import { Dropdown } from '../../../../components/ui/Dropdown';
@@ -22,6 +23,9 @@ interface CreateTicketSessionModalProps {
     pricePerTicket: number;
     maxSlots: number;
     sportLevel: SportLevel;
+    hasHostTeam?: boolean;
+    hostTeamName?: string;
+    hostTeamLevel?: SportLevel;
   }) => Promise<any>;
 }
 
@@ -34,7 +38,7 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
 }) => {
   const { showToast } = useToast();
   const activeCourts = courts.filter(c => c.status === 'ACTIVE');
-  
+
   const [courtId, setCourtId] = useState('');
   const [playDate, setPlayDate] = useState(() => {
     const today = new Date();
@@ -45,7 +49,11 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
   const [pricePerTicket, setPricePerTicket] = useState(50000);
   const [maxSlots, setMaxSlots] = useState(10);
   const [sportLevel, setSportLevel] = useState<SportLevel>('ALL');
-  
+
+  const [hasHostTeam, setHasHostTeam] = useState(false);
+  const [hostTeamName, setHostTeamName] = useState('Đội Sân Nhà');
+  const [hostTeamLevel, setHostTeamLevel] = useState<SportLevel>('AVERAGE');
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -145,6 +153,9 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
         pricePerTicket,
         maxSlots,
         sportLevel,
+        hasHostTeam,
+        hostTeamName: hasHostTeam ? hostTeamName.trim() : undefined,
+        hostTeamLevel: hasHostTeam ? hostTeamLevel : undefined,
       });
       showToast('success', 'Tạo ca xé vé mới thành công!');
       onClose();
@@ -166,12 +177,13 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
   }));
 
   const sportLevelOptions = [
-    { value: 'ALL', label: 'Mọi trình độ (All levels)' },
-    { value: 'WEAK', label: 'Yếu (Beginner)' },
-    { value: 'WEAK_AVERAGE', label: 'Yếu - Trung bình' },
-    { value: 'AVERAGE', label: 'Trung bình (Intermediate)' },
-    { value: 'AVERAGE_GOOD', label: 'Trung bình - Khá' },
-    { value: 'GOOD', label: 'Khá - Tốt (Advanced)' },
+    { value: 'ALL', label: 'Mọi trình độ (Tất cả Elo)' },
+    { value: 'WEAK', label: 'Yếu (< 900 Elo)' },
+    { value: 'WEAK_AVERAGE', label: 'Trung bình - Yếu (900 - 1199 Elo)' },
+    { value: 'AVERAGE', label: 'Trung bình (1200 - 1499 Elo)' },
+    { value: 'AVERAGE_GOOD', label: 'Trung bình - Khá (1500 - 1799 Elo)' },
+    { value: 'GOOD', label: 'Bán chuyên (1800 - 2099 Elo)' },
+    { value: 'PRO', label: 'Chuyên nghiệp (≥ 2100 Elo)' },
   ];
 
   const selectedCourt = useMemo(() => courts.find(c => c.id === courtId), [courts, courtId]);
@@ -374,7 +386,64 @@ export const CreateTicketSessionModal: React.FC<CreateTicketSessionModalProps> =
                 value={sportLevel}
                 onChange={(val) => setSportLevel(val as SportLevel)}
                 placeholder="Chọn trình độ yêu cầu"
+                direction="up"
               />
+            </div>
+
+            {/* Host Team Configuration */}
+            <div className="p-3.5 bg-gradient-to-br from-indigo-50/70 to-purple-50/70 border border-indigo-200/80 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-2xs">
+                    <Users className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-extrabold text-indigo-950 block">Đã có sẵn Đội Sân Nhà (Mở kèo tìm đối thủ)</span>
+                    <span className="text-[10px] text-indigo-600/90 font-medium">Vé mở bán sẽ dành riêng cho Đội Thách Đấu vào so tài</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasHostTeam}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setHasHostTeam(checked);
+                      if (checked && maxSlots > 7) {
+                        setMaxSlots(Math.max(1, Math.floor(maxSlots / 2)));
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              {hasHostTeam && (
+                <div className="pt-2 border-t border-indigo-200/60 grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wide">Tên Đội Sân Nhà</label>
+                    <input
+                      type="text"
+                      value={hostTeamName}
+                      onChange={(e) => setHostTeamName(e.target.value)}
+                      placeholder="Ví dụ: FC Sân Nhà"
+                      className="w-full text-xs font-bold text-slate-800 bg-white border border-indigo-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wide">Trình độ Đội Nhà</label>
+                    <Dropdown
+                      options={sportLevelOptions.filter(o => o.value !== 'ALL')}
+                      value={hostTeamLevel}
+                      onChange={(val) => setHostTeamLevel(val as SportLevel)}
+                      placeholder="Chọn trình độ"
+                      direction="up"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

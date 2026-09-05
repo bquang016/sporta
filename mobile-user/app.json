@@ -53,7 +53,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Sporta cần truy cập vị trí để hiển thị sân gần bạn trên bản đồ."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }

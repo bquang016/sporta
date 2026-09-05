@@ -42,7 +42,7 @@ const MOCK_CHAT_THREADS: ChatThreadItem[] = [
     user: {
       id: 'quanluu08',
       name: 'Quan Luu',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@quanluu08',
     },
     lastMessage: 'Kèo này hấp dẫn quá anh em ơi! Cho mình xin 1 suất với nhé 🏸🔥',
@@ -56,7 +56,7 @@ const MOCK_CHAT_THREADS: ChatThreadItem[] = [
     user: {
       id: 'user-1',
       name: 'Nguyễn Văn Nam',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@namvugi',
     },
     lastMessage: 'Tối nay nhóm mình còn thiếu 2 tay vợt Pickleball trình DUPR 3.0',
@@ -70,7 +70,7 @@ const MOCK_CHAT_THREADS: ChatThreadItem[] = [
     user: {
       id: 'club-1',
       name: 'CLB Cầu Lông Cầu Giấy Official',
-      avatar: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=150&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@clb_caugiay',
     },
     lastMessage: 'Admin: Yêu cầu tham gia CLB của bạn đã được duyệt 🎉',
@@ -84,7 +84,7 @@ const MOCK_CHAT_THREADS: ChatThreadItem[] = [
     user: {
       id: 'user-pending-1',
       name: 'Trần Hoàng Bách',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@bach_tennis',
     },
     lastMessage: 'Chào bạn, mình thấy bạn vừa đăng bài tìm đối Tennis sân Quần Ngựa...',
@@ -98,7 +98,7 @@ const MOCK_CHAT_THREADS: ChatThreadItem[] = [
     user: {
       id: 'club-pending-2',
       name: 'CLB Pickleball Hà Nội Mở Rộng',
-      avatar: 'https://images.unsplash.com/photo-1517649763962-0c623266010b?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@pb_hanoi_open',
     },
     lastMessage: 'Mời bạn tham gia giải giao lưu Pickleball mở rộng tháng này!',
@@ -112,7 +112,7 @@ const MOCK_CHAT_THREADS: ChatThreadItem[] = [
     user: {
       id: 'user-3',
       name: 'Phạm Ngọc Lê',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&auto=format&fit=crop&q=80',
+      avatar: '',
       handle: '@ngocle_badminton',
     },
     lastMessage: 'Đã gửi lời mời giao lưu Cầu lông cho bạn 🏸',
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   sheetContainer: {

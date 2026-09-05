@@ -16,6 +16,7 @@ import { registerUser } from '../../../../shared/api/auth';
 import { usersApi } from '../../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
+import { saveUserSession } from '../../../../shared/lib/userSession';
 
 // 4 Official Sports with distinct category tints per design system
 const SPORTS_LIST = [
@@ -57,13 +58,14 @@ const SPORTS_LIST = [
   },
 ];
 
-// 5 Standard Skill Levels
+// 6 Standard Skill Levels
 const LEVELS = [
-  { id: 'WEAK', label: 'Yếu', desc: 'Mới bắt đầu làm quen môn thể thao, nắm cơ bản quy luật.' },
-  { id: 'WEAK_AVERAGE', label: 'Trung bình yếu', desc: 'Giao lưu phong trào cơ bản, đang rèn luyện kỹ thuật.' },
-  { id: 'AVERAGE', label: 'Trung bình', desc: 'Chơi thường xuyên, kiểm soát bóng và duy trì nhịp độ ổn định.' },
-  { id: 'AVERAGE_GOOD', label: 'Trung bình khá', desc: 'Kỹ năng vững, phối hợp chiến thuật ăn ý cùng đồng đội.' },
-  { id: 'GOOD', label: 'Khá', desc: 'Kỹ thuật chuyên sâu, thể lực tốt và kinh nghiệm thi đấu phong phú.' },
+  { id: 'WEAK', label: 'Yếu', desc: 'Mới bắt đầu làm quen môn thể thao, nắm cơ bản quy luật (< 900 Elo).' },
+  { id: 'WEAK_AVERAGE', label: 'Trung bình - Yếu', desc: 'Giao lưu phong trào cơ bản, đang rèn luyện kỹ thuật (900 - 1199 Elo).' },
+  { id: 'AVERAGE', label: 'Trung bình', desc: 'Chơi thường xuyên, kiểm soát bóng và duy trì nhịp độ ổn định (1200 - 1499 Elo).' },
+  { id: 'AVERAGE_GOOD', label: 'Trung bình - Khá', desc: 'Kỹ năng vững, phối hợp chiến thuật ăn ý cùng đồng đội (1500 - 1799 Elo).' },
+  { id: 'GOOD', label: 'Bán chuyên', desc: 'Tập luyện bài bản, thi đấu giải phong trào, kỹ thuật cao (1800 - 2099 Elo).' },
+  { id: 'PRO', label: 'Chuyên nghiệp', desc: 'Vận động viên thi đấu chuyên nghiệp, đẳng cấp đỉnh cao (≥ 2100 Elo).' },
 ];
 
 // Time Slots
@@ -242,33 +244,25 @@ export function SportLevelScreen() {
       const emailStr = email as string;
       const nameStr = fullName as string;
 
-      if (Platform.OS === 'web') {
-        localStorage.setItem('accessToken', response.accessToken);
-        localStorage.setItem('userEmail', emailStr);
-        localStorage.setItem('userName', nameStr);
-      } else {
-        await SecureStore.setItemAsync('accessToken', response.accessToken);
-        await SecureStore.setItemAsync('userEmail', emailStr);
-        await SecureStore.setItemAsync('userName', nameStr);
-      }
+      await saveUserSession({
+        accessToken: response.accessToken,
+        userEmail: emailStr,
+        userName: nameStr,
+        userAvatar: null,
+      });
 
-      if (avatarUri && typeof avatarUri === 'string' && avatarUri.length > 0) {
+      if (avatarUri && typeof avatarUri === 'string' && avatarUri.trim().length > 0) {
         try {
-          const fileData = {
-            uri: avatarUri,
-            name: 'avatar.jpg',
-            type: 'image/jpeg',
-          };
-          const updatedProfile = await usersApi.updateProfile({}, fileData as any);
+          const updatedProfile = await usersApi.updateProfile({}, avatarUri);
           if (updatedProfile && updatedProfile.avatarUrl) {
-            if (Platform.OS === 'web') {
-              localStorage.setItem('userAvatar', updatedProfile.avatarUrl);
-            } else {
-              await SecureStore.setItemAsync('userAvatar', updatedProfile.avatarUrl);
-            }
+            await saveUserSession({
+              userAvatar: updatedProfile.avatarUrl,
+              userName: updatedProfile.fullName || nameStr,
+              userEmail: updatedProfile.email || emailStr,
+            });
           }
         } catch (avatarErr) {
-          console.log('Avatar upload background warning:', avatarErr);
+          console.error('Avatar upload error during registration:', avatarErr);
         }
       }
 

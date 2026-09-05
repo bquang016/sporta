@@ -155,9 +155,37 @@ export const RegistrationDetailModal: React.FC<RegistrationDetailModalProps> = (
                 <div className="text-slate-500 font-medium text-xs uppercase mb-1">Email</div>
                 <div className="font-bold text-slate-800 break-all">{data.email}</div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-slate-500 font-medium text-xs uppercase mb-1">Số điện thoại</div>
+                  <div className="font-bold text-slate-800">{data.phoneNumber || 'Chưa cập nhật'}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500 font-medium text-xs uppercase mb-1">Giới tính</div>
+                  <div className="font-bold text-slate-800">{data.gender || 'Chưa cập nhật'}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-slate-500 font-medium text-xs uppercase mb-1">Số CMND / CCCD</div>
+                  <div className="font-bold text-slate-800">{data.idNumber || 'Chưa cập nhật'}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500 font-medium text-xs uppercase mb-1">Quốc tịch</div>
+                  <div className="font-bold text-slate-800">{data.nationality || 'Việt Nam'}</div>
+                </div>
+              </div>
+
               <div>
-                <div className="text-slate-500 font-medium text-xs uppercase mb-1">Số CMND / CCCD</div>
-                <div className="font-bold text-slate-800">{data.idNumber || 'Chưa cập nhật'}</div>
+                <div className="text-slate-500 font-medium text-xs uppercase mb-1">Quê quán</div>
+                <div className="font-bold text-slate-800">{data.hometown || 'Chưa cập nhật'}</div>
+              </div>
+
+              <div>
+                <div className="text-slate-500 font-medium text-xs uppercase mb-1">Nơi thường trú</div>
+                <div className="font-bold text-slate-800">{data.permanentAddress || 'Chưa cập nhật'}</div>
               </div>
             </div>
 

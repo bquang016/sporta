@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,19 +51,6 @@ public class TicketSessionService {
 
     @Autowired
     private NotificationService notificationService;
-
-    private User getOrCreateTestUser(String email, String fullName) {
-        return userRepository.findByEmail(email).orElseGet(() -> {
-            User user = User.builder()
-                    .email(email)
-                    .password("$2a$10$Jk8Bv4c8.fH3p7F4/P.v2Ox2V/yD.H16U0kR1Z4Fw1Y8u0/x4/W/6") // bcrypt dummy
-                    .fullName(fullName)
-                    .role(com.backend.sporta.enums.Role.PLAYER)
-                    .status(com.backend.sporta.enums.UserStatus.ACTIVE)
-                    .build();
-            return userRepository.save(user);
-        });
-    }
 
     private String generateUniqueShortCode() {
         String code;
@@ -131,7 +119,7 @@ public class TicketSessionService {
         booking.setDetails(details);
         bookingRepository.save(booking);
 
-        // Lưu TicketSession
+        // Lưu TicketSession sạch (không thêm tài khoản ảo, bắt đầu với 0 slot đã đặt)
         TicketSession session = TicketSession.builder()
                 .venue(venue)
                 .court(court)
@@ -142,45 +130,13 @@ public class TicketSessionService {
                 .maxSlots(request.getMaxSlots())
                 .bookedSlots(0)
                 .sportLevel(request.getSportLevel())
+                .hasHostTeam(Boolean.TRUE.equals(request.getHasHostTeam()))
+                .hostTeamName(request.getHostTeamName())
+                .hostTeamLevel(request.getHostTeamLevel())
                 .status(TicketSessionStatus.OPEN)
                 .build();
 
         TicketSession savedSession = ticketSessionRepository.save(session);
-
-        // Tạo sẵn 2 vé test nếu maxSlots >= 2
-        int initialBooked = 0;
-        if (savedSession.getMaxSlots() >= 2) {
-            User testUser1 = getOrCreateTestUser("player1@sporta.vn", "Nguyễn Văn Hùng");
-            User testUser2 = getOrCreateTestUser("player2@sporta.vn", "Trần Anh Tuấn");
-
-            Ticket t1 = Ticket.builder()
-                    .session(savedSession)
-                    .user(testUser1)
-                    .status(TicketStatus.UNUSED)
-                    .shortCode(generateUniqueShortCode())
-                    .build();
-            t1 = ticketRepository.save(t1);
-            t1.setQrCodeToken(jwtTokenProvider.generateTicketToken(t1.getId(), testUser1.getId(), savedSession.getId()));
-            ticketRepository.save(t1);
-
-            Ticket t2 = Ticket.builder()
-                    .session(savedSession)
-                    .user(testUser2)
-                    .status(TicketStatus.UNUSED)
-                    .shortCode(generateUniqueShortCode())
-                    .build();
-            t2 = ticketRepository.save(t2);
-            t2.setQrCodeToken(jwtTokenProvider.generateTicketToken(t2.getId(), testUser2.getId(), savedSession.getId()));
-            ticketRepository.save(t2);
-
-            initialBooked = 2;
-            savedSession.setBookedSlots(initialBooked);
-            if (savedSession.getBookedSlots() >= savedSession.getMaxSlots()) {
-                savedSession.setStatus(TicketSessionStatus.FULL);
-            }
-            savedSession = ticketSessionRepository.save(savedSession);
-        }
-
         return mapToResponse(savedSession);
     }
 
@@ -239,37 +195,70 @@ public class TicketSessionService {
         if (ticket.getStatus() == TicketStatus.REFUNDED) {
             throw new CustomException("Vé này đã được hoàn trả, không thể sử dụng.", 400);
         }
-        if (ticket.getSession().getStatus() == TicketSessionStatus.CANCELLED) {
-            throw new CustomException("Ca xé vé này đã bị hủy bởi chủ sân, không thể check-in.", 400);
+        TicketSession session = ticket.getSession();
+
+        // Kiểm tra hiệu lực ngày và giờ thi đấu
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+        LocalDate playDate = session.getPlayDate();
+        LocalTime endTime = session.getEndTime();
+
+        if (playDate != null) {
+            if (playDate.isAfter(today)) {
+                throw new CustomException(String.format("Vé này có hiệu lực vào ngày %s. Chưa đến ngày diễn ra ca đấu.", playDate), 400);
+            } else if (playDate.isBefore(today)) {
+                throw new CustomException(String.format("Vé đã quá hạn (Ngày diễn ra %s).", playDate), 400);
+            }
+        }
+
+        if (endTime != null && now.isAfter(endTime.plusMinutes(15))) {
+            throw new CustomException(String.format("Vé đã hết hạn sử dụng. Ca chơi đã kết thúc lúc %s.", endTime), 400);
         }
 
         ticket.setStatus(TicketStatus.USED);
         ticketRepository.save(ticket);
 
-        TicketSession session = ticket.getSession();
-
         
         try {
             if (ticket.getUser() != null) {
+                String vName = session.getVenue() != null ? session.getVenue().getName() : "Sân thể thao";
+                String cName = session.getCourt() != null ? session.getCourt().getName() : "Sân đấu";
+                String sTime = session.getStartTime() != null ? session.getStartTime().toString().substring(0, 5) : "";
+                String eTime = session.getEndTime() != null ? session.getEndTime().toString().substring(0, 5) : "";
+
                 notificationService.createNotification(
                         ticket.getUser().getId(),
                         ticket.getUser().getRole() != null ? ticket.getUser().getRole() : Role.PLAYER,
                         "Check-in vé thành công",
                         String.format("Vé %s của bạn đã được quét check-in tại %s (%s, %s - %s). Chúc bạn thi đấu vui vẻ!",
-                                ticket.getShortCode(), session.getVenue().getName(), session.getCourt().getName(), session.getStartTime(), session.getEndTime()),
+                                ticket.getShortCode() != null ? ticket.getShortCode() : "", vName, cName, sTime, eTime),
                         NotificationType.TICKET_CHECKIN_SUCCESS,
                         ticket.getId().toString()
                 );
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi thông báo check-in: " + e.getMessage());
+        }
+
+        String customerName = ticket.getUser() != null && ticket.getUser().getFullName() != null ? ticket.getUser().getFullName() : "Khách hàng";
+        String customerPhone = ticket.getUser() != null ? ticket.getUser().getPhoneNumber() : null;
+        String customerEmail = ticket.getUser() != null ? ticket.getUser().getEmail() : null;
+        String customerAvatar = ticket.getUser() != null ? ticket.getUser().getAvatarUrl() : null;
+        String venueName = session.getVenue() != null ? session.getVenue().getName() : "Sân thể thao Sporta";
 
         return TicketCheckInResponse.builder()
                 .ticketId(ticket.getId())
-                .customerName(ticket.getUser().getFullName())
+                .customerName(customerName)
+                .customerPhone(customerPhone)
+                .customerEmail(customerEmail)
+                .customerAvatar(customerAvatar)
+                .venueName(venueName)
                 .courtName(session.getCourt().getName())
+                .shortCode(ticket.getShortCode())
                 .startTime(session.getStartTime())
                 .endTime(session.getEndTime())
                 .playDate(session.getPlayDate())
+                .checkInTime(LocalDateTime.now())
                 .sportLevel(session.getSportLevel())
                 .quantity(ticket.getQuantity())
                 .status("USED")
@@ -302,6 +291,9 @@ public class TicketSessionService {
                 .bookedSlots(session.getBookedSlots())
                 .sportLevel(session.getSportLevel())
                 .status(session.getStatus())
+                .hasHostTeam(session.getHasHostTeam())
+                .hostTeamName(session.getHostTeamName())
+                .hostTeamLevel(session.getHostTeamLevel())
                 .build();
     }
 

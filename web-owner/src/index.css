@@ -67,8 +67,82 @@
 }
 
 @layer base {
+  html {
+    /* Tránh auto-zoom trên iOS khi focus input (font-size < 16px) */
+    -webkit-text-size-adjust: 100%;
+    /* Chiều cao viewport chính xác trên mobile (tính cả browser chrome) */
+    height: -webkit-fill-available;
+  }
+
   body {
     @apply bg-background text-on-background font-sans antialiased;
+    /* Loại bỏ flash xanh/vàng khi tap element trên mobile */
+    -webkit-tap-highlight-color: transparent;
+    /* Tắt bounce scroll iOS — tránh confuse khi scroll đến đầu/cuối trang */
+    overscroll-behavior: none;
+    /* Font rendering mượt nhất có thể */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Hỗ trợ chiều cao fallback cho mobile browsers */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* ── Safe Area Utilities (iOS Dynamic Island / Notch / Home Indicator) ── */
+  /* Dùng: pt-safe, pb-safe, pl-safe, pr-safe */
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+  .mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* ── Minimum Touch Target 44×44pt (Apple HIG / WCAG 2.5.5) ── */
+  /* Dùng class .touch-target trên Link, button icon nhỏ */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* ── Mobile Scroll Container ── */
+  /* Dùng: .scroll-x-touch cho horizontal scroll lists */
+  .scroll-x-touch {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    /* Ẩn scrollbar nhưng vẫn scroll được */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scroll-x-touch::-webkit-scrollbar { display: none; }
+
+  /* ── Dynamic Viewport Height (tránh lỗi modal bị keyboard đẩy trên mobile) ── */
+  /* Dùng: h-dvh thay vì h-screen trong modal overlay */
+  .h-dvh { height: 100dvh; }
+  .min-h-dvh { min-height: 100dvh; }
+
+  /* ── Form Input Protection (tránh iOS auto-zoom khi font < 16px) ── */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  /* ── Scroll Snap Item (dùng trong horizontal card lists) ── */
+  .snap-item {
+    scroll-snap-align: start;
+    flex-shrink: 0;
   }
 }
 

@@ -1,6 +1,6 @@
-export type PostType = 'COMMUNITY' | 'MATCH_FINDING' | 'VENUE_PROMO';
+export type PostType = 'COMMUNITY' | 'MATCH_FINDING' | 'VENUE_PROMO' | 'STANDARD' | 'POST' | 'SOCIAL';
 
-export type PostAudience = 'PUBLIC' | 'CLUB_MEMBERS';
+export type PostAudience = 'PUBLIC' | 'CLUB_MEMBERS' | 'CLUB';
 
 export interface AuthorUser {
   id: string;
@@ -64,6 +64,8 @@ export interface Post {
   author: AuthorUser;
   content: string;
   mediaUrls?: string[];
+  backgroundGradient?: string[];
+  backgroundId?: string;
   createdAt: string;
   type: PostType;
   audience?: PostAudience;
@@ -73,18 +75,51 @@ export interface Post {
   voucher?: any;
   isPinned?: boolean;
 
+  // Structured Match Finding fields
+  matchRoomId?: string;
+  sportName?: string;
+  venueId?: string;
+  venueName?: string;
+  venue?: any;
+  timeSlot?: string;
+  playDate?: string;
+  startTime?: string;
+  endTime?: string;
+  targetLevel?: string;
+  slotsNeeded?: number;
+  currentSlots?: number;
+  matchStatus?: string;
+  isJoined?: boolean;
+  memberFee?: string;
+  memberFeeAmount?: number;
+  totalPrice?: number;
+  note?: string;
+  currency?: string;
+
+  // Structured Venue Promo fields
+  promoTitle?: string;
+  promoCode?: string;
+  discountText?: string;
+  validUntil?: string;
+  rankingScore?: number;
+
   // Reaction fields compatibility
   isLiked?: boolean;
   likeCount?: number;
+  likesCount?: number;
+
+  // Realtime Uploading & Progress
+  isUploading?: boolean;
+  uploadProgress?: number;
 
   // Reactions & Counters
   reactionsCount: {
-    like: number;
-    love: number;
-    fire: number;
-    clap: number;
-    muscle: number;
-    trophy: number;
+    like?: number;
+    love?: number;
+    fire?: number;
+    clap?: number;
+    muscle?: number;
+    trophy?: number;
   };
   userReaction?: 'like' | 'love' | 'fire' | 'clap' | 'trophy' | 'muscle' | null;
   commentsCount: number;

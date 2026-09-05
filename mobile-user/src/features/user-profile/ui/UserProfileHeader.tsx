@@ -1,174 +1,161 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { PublicUserProfile } from '../../../entities/user';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { PublicUserProfileResponse } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { getSportLevelLabel } from '../../../shared/lib/utils/elo';
 
 interface UserProfileHeaderProps {
-  profile: PublicUserProfile;
-  genderAgeLabel: string;
-  friendStatus: 'none' | 'pending' | 'friend';
-  onToggleFriend: () => void;
-  onOpenInviteOptions: () => void;
-  onOpenChat: () => void;
+  profile: PublicUserProfileResponse;
+  genderLabel: string;
+  joinedYearLabel: string;
 }
 
 export const UserProfileHeader = React.memo(({
   profile,
-  genderAgeLabel,
-  friendStatus,
-  onToggleFriend,
-  onOpenInviteOptions,
-  onOpenChat,
+  genderLabel,
+  joinedYearLabel,
 }: UserProfileHeaderProps) => {
-  const renderFriendBtnConfig = () => {
-    if (friendStatus === 'friend') {
-      return {
-        label: 'Bạn bè',
-        icon: 'checkmark-circle-outline' as const,
-        style: styles.friendBtnActive,
-        textStyle: styles.friendBtnActiveText,
-      };
-    }
-    if (friendStatus === 'pending') {
-      return {
-        label: 'Đã gửi lời',
-        icon: 'time-outline' as const,
-        style: styles.friendBtnPending,
-        textStyle: styles.friendBtnPendingText,
-      };
-    }
-    return {
-      label: 'Thêm bạn',
-      icon: 'person-add-outline' as const,
-      style: styles.friendBtnAdd,
-      textStyle: styles.friendBtnAddText,
-    };
-  };
-
-  const friendBtn = renderFriendBtnConfig();
-
   return (
     <View style={styles.container}>
-      {/* ── Avatar & Info Layout ── */}
+      {/* ── Avatar & Main Info Row ── */}
       <View style={styles.profileMainRow}>
-        {/* Avatar Container with Border and Badges */}
-        <View style={styles.avatarContainer}>
-          <Image 
-            source={profile.avatarUrl ? { uri: profile.avatarUrl } : require('../../../../assets/player/player_699x699.png')} 
-            style={styles.avatarImage} 
+        {/* Avatar with Glow & Border */}
+        <View style={styles.avatarWrapper}>
+          <Image
+            source={
+              profile.avatarUrl && typeof profile.avatarUrl === 'string' && !profile.avatarUrl.startsWith('blob:')
+                ? { uri: profile.avatarUrl }
+                : require('../../../../assets/player/player_699x699.png')
+            }
+            style={styles.avatarImage}
           />
-          {profile.sportaPoints && (
-            <View style={styles.pointsBadge}>
-              <Text style={styles.pointsText}>{profile.sportaPoints}</Text>
+          <View style={styles.onlineBadge}>
+            <View style={styles.onlineDot} />
+          </View>
+        </View>
+
+        {/* User Details */}
+        <View style={styles.infoColumn}>
+          <View style={styles.nameRow}>
+            <Text style={styles.fullName} numberOfLines={1}>
+              {profile.fullName || 'Người dùng Sporta'}
+            </Text>
+            <Ionicons name="checkmark-circle" size={17} color="#2563EB" style={{ marginLeft: 4 }} />
+          </View>
+
+          {/* Quick Badges Row (Gender & Role) */}
+          <View style={styles.badgesRow}>
+            {/* Gender Badge */}
+            <View style={styles.genderBadge}>
+              <Text style={styles.genderBadgeText}>{genderLabel}</Text>
+            </View>
+
+            {/* Member Since Year */}
+            <View style={styles.yearBadge}>
+              <Ionicons name="calendar-outline" size={12} color="#64748B" />
+              <Text style={styles.yearBadgeText}>Gia nhập {joinedYearLabel}</Text>
+            </View>
+          </View>
+
+          {/* Sports Level Badges */}
+          {profile.sports && profile.sports.length > 0 && (
+            <View style={styles.sportBadgesRow}>
+              {profile.sports.map(sport => (
+                <View key={sport.sportId} style={styles.sportLevelBadge}>
+                   <Ionicons name="trophy-outline" size={12} color="#D97706" />
+                   <Text style={styles.sportLevelBadgeText}>
+                     {sport.sportName}: {sport.levelLabel || getSportLevelLabel(sport.level) || 'Chưa xác định'}
+                   </Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
+      </View>
 
-        {/* User Info Column */}
-        <View style={styles.infoColumn}>
-          <View style={styles.nameRow}>
-            <Text style={styles.fullName}>{profile.fullName}</Text>
-            {profile.isVerified && (
-              <Ionicons name="checkmark-circle" size={18} color="#3B82F6" style={{ marginLeft: 4 }} />
-            )}
+      {/* ── Public Stats Grid (Lượt đặt sân & Điểm uy tín) ── */}
+      {!profile.privateMode && (
+        <View style={styles.statsGrid}>
+          {/* Total Bookings Stat */}
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="football-outline" size={18} color="#2563EB" />
+            </View>
+            <View style={styles.statTextBox}>
+              <Text style={styles.statValue}>
+                {profile.totalBookings || 0}
+              </Text>
+              <Text style={styles.statLabel}>Lượt đặt sân</Text>
+            </View>
           </View>
 
-          <Text style={styles.genderAgeText}>{genderAgeLabel}</Text>
-          <Text style={styles.usernameText}>{profile.username}</Text>
+          <View style={styles.statDivider} />
+
+          {/* Clubs Joined Count */}
+          <View style={styles.statCard}>
+            <View style={[styles.statIconBox, { backgroundColor: '#FDF4FF' }]}>
+              <Ionicons name="people-outline" size={18} color="#A855F7" />
+            </View>
+            <View style={styles.statTextBox}>
+              <Text style={[styles.statValue, { color: '#9333EA' }]}>
+                {(profile.joinedClubs || []).length}
+              </Text>
+              <Text style={styles.statLabel}>CLB tham gia</Text>
+            </View>
+          </View>
         </View>
-      </View>
-
-      {/* ── Bio Section ── */}
-      {profile.bio ? (
-        <View style={styles.bioContainer}>
-          <Text style={styles.bioText}>{profile.bio}</Text>
-        </View>
-      ) : null}
-
-      {/* ── Integrated Compact Action Buttons Row (Nằm ngang hàng ngay dưới thông tin profile) ── */}
-      <View style={styles.actionsRow}>
-        {/* 1. Add / Pending / Friend Button */}
-        <TouchableOpacity
-          style={[styles.actionBtn, friendBtn.style]}
-          activeOpacity={0.8}
-          onPress={onToggleFriend}
-        >
-          <Ionicons name={friendBtn.icon} size={16} color={friendBtn.textStyle.color} />
-          <Text style={[styles.actionBtnText, friendBtn.textStyle]}>{friendBtn.label}</Text>
-        </TouchableOpacity>
-
-        {/* 2. Invite Button (Opens Options Modal) */}
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.actionBtnOutline]}
-          activeOpacity={0.8}
-          onPress={onOpenInviteOptions}
-        >
-          <Ionicons name="mail-outline" size={16} color={COLORS.primary} />
-          <Text style={[styles.actionBtnText, { color: COLORS.primary }]}>Mời bạn</Text>
-        </TouchableOpacity>
-
-        {/* 3. Chat Button */}
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.actionBtnOutline]}
-          activeOpacity={0.8}
-          onPress={onOpenChat}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={16} color={COLORS.primary} />
-          <Text style={[styles.actionBtnText, { color: COLORS.primary }]}>Trò chuyện</Text>
-        </TouchableOpacity>
-      </View>
+      )}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.marginMobile,
-    paddingTop: SPACING.xs,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.md,
-    borderBottomWidth: 8,
-    borderBottomColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   profileMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: 14,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
-    width: 76,
-    height: 76,
   },
   avatarImage: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.surfaceDim,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 2.5,
+    borderColor: '#3B82F6',
+    backgroundColor: '#F1F5F9',
   },
-  pointsBadge: {
+  onlineBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#10B981',
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 2,
-    borderColor: COLORS.surface,
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
   },
-  pointsText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: '700',
+  onlineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
   },
   infoColumn: {
     flex: 1,
-    justifyContent: 'center',
+    gap: 6,
   },
   nameRow: {
     flexDirection: 'row',
@@ -176,77 +163,115 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   fullName: {
-    ...TYPOGRAPHY.headlineMd,
-    fontSize: 20,
+    ...TYPOGRAPHY.titleLg,
+    fontSize: 18,
     fontWeight: '800',
-    color: COLORS.onSurface,
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
-  genderAgeText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.onSurfaceVariant,
-    marginTop: 2,
-  },
-  usernameText: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 13,
-    color: COLORS.grayText,
-    marginTop: 2,
-  },
-  bioContainer: {
-    marginTop: SPACING.sm,
-  },
-  bioText: {
-    ...TYPOGRAPHY.bodyLg,
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.onSurface,
-  },
-  actionsRow: {
+  badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    marginTop: SPACING.md,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  actionBtn: {
+  genderBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  genderBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  yearBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  yearBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  statCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.default,
-    gap: 5,
+    gap: 8,
   },
-  actionBtnOutline: {
-    backgroundColor: COLORS.surfaceContainerLow,
+  statIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statTextBox: {
+    alignItems: 'flex-start',
+  },
+  statValue: {
+    ...TYPOGRAPHY.titleSm,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 18,
+  },
+  statLabel: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#E2E8F0',
+  },
+  sportBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  sportLevelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEFCE8',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+    borderColor: '#FEF08A',
+    gap: 4,
   },
-  actionBtnText: {
-    fontFamily: 'HankenGrotesk-Bold',
-    fontSize: 13,
+  sportLevelBadgeText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 11,
     fontWeight: '700',
-  },
-  friendBtnAdd: {
-    backgroundColor: COLORS.primary,
-  },
-  friendBtnAddText: {
-    color: '#FFFFFF',
-  },
-  friendBtnPending: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-  friendBtnPendingText: {
-    color: COLORS.onSurfaceVariant,
-  },
-  friendBtnActive: {
-    backgroundColor: COLORS.primaryOpacity10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  friendBtnActiveText: {
-    color: COLORS.primary,
+    color: '#A16207',
   },
 });

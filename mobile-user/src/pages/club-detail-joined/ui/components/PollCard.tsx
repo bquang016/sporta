@@ -1,87 +1,161 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Modal } from 'react-native';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { Avatar } from '../../../../shared/ui';
+import { MatchPollVM, PollOptionVM, LineupVM, LineupMemberVM } from '../../../../entities/match/model/match.types';
+import { useAlert } from '../../../../shared/contexts/AlertContext';
+import { DevPollVoteModal } from './DevPollVoteModal';
+import { EditLineupModal } from '../../../../features/matchmaking/ui/EditLineupModal';
+import { UserAvatar } from '../../../../shared/ui/UserAvatar';
 
 export interface PollVoter {
   userId: number;
-  name: string;
-  avatar: string;
-  elo: number;
-  role: string;
-}
-
-export interface MatchmadeTeams {
-  teamA: string[];
-  teamB: string[];
-  teamAPlayers?: PollVoter[];
-  teamBPlayers?: PollVoter[];
-  teamATotalElo?: number;
-  teamBTotalElo?: number;
-}
-
-export interface PollData {
-  id: string;
-  title: string;
-  closeTime: string;
-  isClosed: boolean;
-  votes: {
-    join: string[];
-    absent: string[];
-  };
-  joinedVoters?: PollVoter[];
-  absentVoters?: PollVoter[];
-  creatorId?: number;
-  creatorName?: string;
+  fullName?: string;
+  name?: string;
+  avatarUrl?: string;
+  avatar?: string;
+  elo?: number;
+  role?: string;
 }
 
 export interface PollCardProps {
-  activePoll: PollData | null;
-  userVote: 'join' | 'absent' | null;
-  matchmadeTeams: MatchmadeTeams | null;
+  polls: MatchPollVM[];
   isLeaderOrSubLeader: boolean;
-  onVote: (option: 'join' | 'absent') => void;
-  onClosePoll: () => void;
-  onReopenPoll?: () => void;
-  onStartMatchmaking: () => void;
-  onDeletePoll: () => void;
+  onVote: (pollId: number, optionId: number) => void;
+  onClosePoll: (pollId: number) => void;
+  onSplitInternalTeams: (pollId: number) => void;
+  onFormGTLineup: (pollId: number) => void;
+  onDeletePoll: (pollId: number) => void;
   onCreatePollPress: () => void;
+  votingPollId?: number | null;
+  members?: any[];
+  onRefreshPolls?: () => void;
+  isDevUser?: boolean;
 }
 
 export function PollCard({
-  activePoll,
-  userVote,
-  matchmadeTeams,
+  polls = [],
   isLeaderOrSubLeader,
   onVote,
   onClosePoll,
-  onReopenPoll,
-  onStartMatchmaking,
+  onSplitInternalTeams,
+  onFormGTLineup,
   onDeletePoll,
   onCreatePollPress,
+  votingPollId,
+  members = [],
+  onRefreshPolls,
+  isDevUser = false,
 }: PollCardProps) {
-  const [expandedSection, setExpandedSection] = useState<'join' | 'absent' | null>(null);
+  const { showAlert } = useAlert();
+  const [expandedOptionId, setExpandedOptionId] = useState<number | null>(null);
+  const [isDevModalVisible, setIsDevModalVisible] = useState(false);
 
-  if (!activePoll) {
-    return (
-      <View style={styles.pollSection}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionTitleCol}>
-            <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Biểu quyết ghép trận</Text>
-          </View>
+  // Tab State: 'OPEN' vs 'HISTORY'
+  const [activeTab, setActiveTab] = useState<'OPEN' | 'HISTORY'>('OPEN');
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(3);
+
+  // Delete Confirmation Modal State
+  const [pollToDelete, setPollToDelete] = useState<MatchPollVM | null>(null);
+
+  // Edit Lineup Modal State
+  const [isEditLineupModalVisible, setIsEditLineupModalVisible] = useState(false);
+  const [editLineupMode, setEditLineupMode] = useState<'INTERNAL' | 'MATCHMAKING'>('MATCHMAKING');
+  const [selectedGtLineup, setSelectedGtLineup] = useState<any>(null);
+  const [selectedEditLineupA, setSelectedEditLineupA] = useState<any>(null);
+  const [selectedEditLineupB, setSelectedEditLineupB] = useState<any>(null);
+
+  const canShowDev = isDevUser || __DEV__;
+
+  const openPolls = (polls || []).filter((p) => p.status === 'OPEN');
+  const historyPolls = (polls || []).filter((p) => p.status !== 'OPEN');
+
+  const displayedPolls = activeTab === 'OPEN'
+    ? openPolls
+    : historyPolls.slice(0, visibleHistoryCount);
+
+  return (
+    <View style={styles.pollSection}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionTitleCol}>
+          <MaterialIcons name="how-to-vote" size={18} color={COLORS.primary} />
+          <Text style={styles.sectionTitle} numberOfLines={1}>Biểu quyết ({polls?.length || 0})</Text>
         </View>
 
+        <View style={styles.headerRightActions}>
+          {canShowDev && (
+            <TouchableOpacity
+              style={styles.devBtn}
+              activeOpacity={0.8}
+              onPress={() => setIsDevModalVisible(true)}
+            >
+              <Ionicons name="construct" size={11} color="#4338CA" />
+              <Text style={styles.devBtnText}>DEV: Vote</Text>
+            </TouchableOpacity>
+          )}
+
+          {isLeaderOrSubLeader && (
+            <TouchableOpacity
+              style={styles.headerCreateBtn}
+              activeOpacity={0.8}
+              onPress={onCreatePollPress}
+            >
+              <Ionicons name="add" size={15} color={COLORS.primary} />
+              <Text style={styles.headerCreateBtnText}>Tạo mới</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* ── Sub-Tabs Navigation (Đang mở vs Lịch sử) ── */}
+      <View style={styles.tabSwitcherRow}>
+        <TouchableOpacity
+          style={[styles.tabSegmentBtn, activeTab === 'OPEN' && styles.tabSegmentBtnActive]}
+          activeOpacity={0.8}
+          onPress={() => setActiveTab('OPEN')}
+        >
+          <View style={[styles.tabStatusDot, { backgroundColor: activeTab === 'OPEN' ? '#10B981' : '#94A3B8' }]} />
+          <Text style={[styles.tabSegmentText, activeTab === 'OPEN' && styles.tabSegmentTextActive]}>
+            Đang mở ({openPolls.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabSegmentBtn, activeTab === 'HISTORY' && styles.tabSegmentBtnActive]}
+          activeOpacity={0.8}
+          onPress={() => setActiveTab('HISTORY')}
+        >
+          <Ionicons
+            name="time-outline"
+            size={13}
+            color={activeTab === 'HISTORY' ? COLORS.primary : '#64748B'}
+          />
+          <Text style={[styles.tabSegmentText, activeTab === 'HISTORY' && styles.tabSegmentTextActive]}>
+            Lịch sử & Đã chia ({historyPolls.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Empty State for Active Tab ── */}
+      {displayedPolls.length === 0 && (
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconCircle}>
-            <MaterialIcons name="poll" size={28} color={COLORS.primary} />
+            <MaterialIcons
+              name={activeTab === 'OPEN' ? 'poll' : 'history'}
+              size={28}
+              color={COLORS.primary}
+            />
           </View>
-          <Text style={styles.emptyTitle}>Chưa có biểu quyết nào</Text>
-          <Text style={styles.emptySubtitle}>
-            Tạo biểu quyết để thống kê quân số, chia đội hình thi đấu hoặc bình chọn lịch giao lưu nội bộ.
+          <Text style={styles.emptyTitle}>
+            {activeTab === 'OPEN' ? 'Không có biểu quyết nào đang mở' : 'Chưa có biểu quyết trong lịch sử'}
           </Text>
-          {isLeaderOrSubLeader ? (
+          <Text style={styles.emptySubtitle}>
+            {activeTab === 'OPEN'
+              ? 'Tạo biểu quyết mới để khảo sát quân số và chuẩn bị đội hình cho trận đấu sắp tới.'
+              : 'Các biểu quyết đã đóng hoặc đã chia đội hình hoàn tất sẽ được lưu trữ gọn gàng tại đây.'}
+          </Text>
+          {activeTab === 'OPEN' && isLeaderOrSubLeader && (
             <TouchableOpacity
               style={styles.createPollBtn}
               activeOpacity={0.85}
@@ -90,832 +164,1341 @@ export function PollCard({
               <MaterialIcons name="add-circle-outline" size={18} color="#FFFFFF" />
               <Text style={styles.createPollBtnText}>Tạo biểu quyết mới</Text>
             </TouchableOpacity>
-          ) : (
-            <View style={styles.emptyNoticePill}>
-              <Text style={styles.emptyNoticeText}>Chờ Ban quản trị tạo biểu quyết mới</Text>
-            </View>
           )}
         </View>
-      </View>
-    );
-  }
+      )}
 
-  const joinCount = activePoll.joinedVoters ? activePoll.joinedVoters.length : activePoll.votes.join.length;
-  const absentCount = activePoll.absentVoters ? activePoll.absentVoters.length : activePoll.votes.absent.length;
-  const totalVotes = joinCount + absentCount;
-  const joinPercent = totalVotes > 0 ? Math.round((joinCount / totalVotes) * 100) : 0;
-  const absentPercent = totalVotes > 0 ? Math.round((absentCount / totalVotes) * 100) : 0;
+      {/* ── List of Displayed Polls ── */}
+      {displayedPolls.map((poll) => {
+        const isInternal = poll.pollType === 'INTERNAL';
+        const isClosed = poll.status !== 'OPEN';
+        const isVoting = votingPollId === poll.id;
+        const totalVotes = poll.totalVotes || 0;
 
-  // Joined voters list
-  const joinedList: PollVoter[] = activePoll.joinedVoters || activePoll.votes.join.map((name, i) => ({
-    userId: i,
-    name,
-    avatar: '',
-    elo: 1200,
-    role: 'Thành viên',
-  }));
+        const internalTeamsA = poll.lineups?.find((l) => l.lineupType === 'INTERNAL_A');
+        const internalTeamsB = poll.lineups?.find((l) => l.lineupType === 'INTERNAL_B');
+        const gtLineup = poll.lineups?.find((l) => l.lineupType === 'MATCHMAKING');
 
-  // Absent voters list
-  const absentList: PollVoter[] = activePoll.absentVoters || activePoll.votes.absent.map((name, i) => ({
-    userId: i,
-    name,
-    avatar: '',
-    elo: 1200,
-    role: 'Thành viên',
-  }));
-
-  // Average ELO calculation for teams
-  const teamAPlayers = matchmadeTeams?.teamAPlayers || (matchmadeTeams?.teamA || []).map((name, i) => ({
-    userId: i,
-    name,
-    avatar: '',
-    elo: 1200,
-    role: 'Thành viên',
-  }));
-
-  const teamBPlayers = matchmadeTeams?.teamBPlayers || (matchmadeTeams?.teamB || []).map((name, i) => ({
-    userId: i,
-    name,
-    avatar: '',
-    elo: 1200,
-    role: 'Thành viên',
-  }));
-
-  const avgEloA = teamAPlayers.length > 0
-    ? Math.round(teamAPlayers.reduce((sum, p) => sum + (p.elo || 1200), 0) / teamAPlayers.length)
-    : 0;
-
-  const avgEloB = teamBPlayers.length > 0
-    ? Math.round(teamBPlayers.reduce((sum, p) => sum + (p.elo || 1200), 0) / teamBPlayers.length)
-    : 0;
-
-  return (
-    <View style={styles.pollSection}>
-      {/* Section Header */}
-      <View style={styles.sectionHeaderRow}>
-        <View style={styles.sectionTitleCol}>
-          <MaterialIcons name="how-to-vote" size={20} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Biểu quyết ghép trận</Text>
-        </View>
-
-        {isLeaderOrSubLeader && (
-          <TouchableOpacity
-            onPress={onDeletePoll}
-            style={styles.deleteBtn}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="delete-outline" size={18} color="#EF4444" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Main Poll Card */}
-      <View style={[styles.pollCard, activePoll.isClosed && styles.pollCardClosed]}>
-        {/* Top Meta Bar */}
-        <View style={styles.cardTopRow}>
-          <View style={[
-            styles.statusPill,
-            activePoll.isClosed ? styles.statusPillClosed : styles.statusPillActive,
-          ]}>
-            <View style={[
-              styles.statusDot,
-              activePoll.isClosed ? styles.statusDotClosed : styles.statusDotActive,
-            ]} />
-            <Text style={[
-              styles.statusText,
-              activePoll.isClosed ? styles.statusTextClosed : styles.statusTextActive,
-            ]}>
-              {activePoll.isClosed ? 'Đã chốt sổ' : 'Đang bình chọn'}
-            </Text>
-          </View>
-
-          <View style={styles.deadlineContainer}>
-            <MaterialIcons
-              name="schedule"
-              size={13}
-              color={activePoll.isClosed ? '#94A3B8' : COLORS.primary}
-            />
-            <Text style={styles.deadlineText}>
-              {activePoll.isClosed ? `Đã đóng (${activePoll.closeTime})` : `Hạn: ${activePoll.closeTime}`}
-            </Text>
-          </View>
-        </View>
-
-        {/* Title */}
-        <Text style={styles.pollTitle}>{activePoll.title}</Text>
-
-        {/* ================= OPTION 1: THAM GIA ================= */}
-        <TouchableOpacity
-          style={[
-            styles.optionCard,
-            userVote === 'join' && styles.optionCardActiveJoin,
-            activePoll.isClosed && styles.optionCardDisabled,
-          ]}
-          activeOpacity={activePoll.isClosed ? 1 : 0.75}
-          onPress={() => !activePoll.isClosed && onVote('join')}
-        >
-          <View style={styles.optionHeader}>
-            <View style={styles.optionLeft}>
-              <View style={[
-                styles.radioCircle,
-                userVote === 'join' && styles.radioCircleActiveJoin,
-              ]}>
-                {userVote === 'join' && (
-                  <MaterialIcons name="check" size={13} color="#FFFFFF" />
-                )}
-              </View>
-              <Text style={[
-                styles.optionLabel,
-                userVote === 'join' && styles.optionLabelActiveJoin,
-              ]}>
-                Tham gia thi đấu
-              </Text>
-            </View>
-
-            <View style={styles.optionRight}>
-              <Text style={styles.optionCountText}>{joinCount} người</Text>
-              <Text style={styles.optionPercentText}>({joinPercent}%)</Text>
-            </View>
-          </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFillJoin, { width: `${joinPercent}%` }]} />
-          </View>
-
-          {/* Voter Avatar Stack & Summary */}
-          {joinedList.length > 0 && (
-            <View style={styles.votersRow}>
-              <View style={styles.avatarStack}>
-                {joinedList.slice(0, 5).map((voter, idx) => (
-                  <View key={voter.userId || idx} style={[styles.stackedAvatar, { left: idx * 18, zIndex: 10 - idx }]}>
-                    <Avatar source={voter.avatar} size={24} fallbackIcon="person" />
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={styles.expandVotersBtn}
-                activeOpacity={0.7}
-                onPress={() => setExpandedSection(expandedSection === 'join' ? null : 'join')}
-              >
-                <Text style={styles.expandVotersText}>
-                  {expandedSection === 'join' ? 'Ẩn bớt' : `Xem tất cả ${joinedList.length} người`}
-                </Text>
-                <MaterialIcons
-                  name={expandedSection === 'join' ? 'expand-less' : 'expand-more'}
-                  size={16}
-                  color={COLORS.primary}
+        return (
+          <View key={poll.id} style={[styles.pollCard, isClosed && styles.pollCardClosed]}>
+            {/* Top Bar: Type Badge & Status */}
+            <View style={styles.pollTopRow}>
+              <View style={[styles.typeBadge, isInternal ? styles.internalBadge : styles.matchmakingBadge]}>
+                <Ionicons
+                  name={isInternal ? 'people' : 'trophy'}
+                  size={12}
+                  color={isInternal ? '#0284C7' : '#D97706'}
                 />
-              </TouchableOpacity>
-            </View>
-          )}
+                <Text style={[styles.typeBadgeText, isInternal ? styles.internalText : styles.matchmakingText]}>
+                  {isInternal ? 'Thi đấu nội bộ' : 'Thi đấu ghép trận'}
+                </Text>
+              </View>
 
-          {/* Expanded Voters List */}
-          {expandedSection === 'join' && joinedList.length > 0 && (
-            <View style={styles.expandedVotersList}>
-              {joinedList.map((v, i) => (
-                <View key={v.userId || i} style={styles.expandedVoterItem}>
-                  <Avatar source={v.avatar} size={26} fallbackIcon="person" />
-                  <Text style={styles.expandedVoterName} numberOfLines={1}>{v.name}</Text>
-                  <View style={styles.voterEloBadge}>
-                    <Text style={styles.voterEloText}>{v.elo || 1200} ELO</Text>
+              <View style={styles.pollStatusRow}>
+                {isClosed ? (
+                  <View style={styles.closedPill}>
+                    <Ionicons name="lock-closed" size={11} color="#64748B" />
+                    <Text style={styles.closedPillText}>
+                      {poll.status === 'TEAM_FORMED' ? 'Đã chia đội' : 'Đã đóng'}
+                    </Text>
                   </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* ================= OPTION 2: VẮNG MẶT ================= */}
-        <TouchableOpacity
-          style={[
-            styles.optionCard,
-            userVote === 'absent' && styles.optionCardActiveAbsent,
-            activePoll.isClosed && styles.optionCardDisabled,
-          ]}
-          activeOpacity={activePoll.isClosed ? 1 : 0.75}
-          onPress={() => !activePoll.isClosed && onVote('absent')}
-        >
-          <View style={styles.optionHeader}>
-            <View style={styles.optionLeft}>
-              <View style={[
-                styles.radioCircle,
-                userVote === 'absent' && styles.radioCircleActiveAbsent,
-              ]}>
-                {userVote === 'absent' && (
-                  <MaterialIcons name="close" size={13} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.openPill}>
+                    <View style={styles.openDot} />
+                    <Text style={styles.openPillText}>Đang mở</Text>
+                  </View>
                 )}
-              </View>
-              <Text style={[
-                styles.optionLabel,
-                userVote === 'absent' && styles.optionLabelActiveAbsent,
-              ]}>
-                Bận / Vắng mặt
-              </Text>
-            </View>
 
-            <View style={styles.optionRight}>
-              <Text style={styles.optionCountText}>{absentCount} người</Text>
-              <Text style={styles.optionPercentText}>({absentPercent}%)</Text>
-            </View>
-          </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFillAbsent, { width: `${absentPercent}%` }]} />
-          </View>
-
-          {/* Voter Avatar Stack & Summary */}
-          {absentList.length > 0 && (
-            <View style={styles.votersRow}>
-              <View style={styles.avatarStack}>
-                {absentList.slice(0, 4).map((voter, idx) => (
-                  <View key={voter.userId || idx} style={[styles.stackedAvatar, { left: idx * 18, zIndex: 10 - idx }]}>
-                    <Avatar source={voter.avatar} size={24} fallbackIcon="person" />
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={styles.expandVotersBtn}
-                activeOpacity={0.7}
-                onPress={() => setExpandedSection(expandedSection === 'absent' ? null : 'absent')}
-              >
-                <Text style={[styles.expandVotersText, { color: '#64748B' }]}>
-                  {expandedSection === 'absent' ? 'Ẩn bớt' : `Xem ${absentList.length} người`}
-                </Text>
-                <MaterialIcons
-                  name={expandedSection === 'absent' ? 'expand-less' : 'expand-more'}
-                  size={16}
-                  color="#64748B"
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Expanded Voters List */}
-          {expandedSection === 'absent' && absentList.length > 0 && (
-            <View style={styles.expandedVotersList}>
-              {absentList.map((v, i) => (
-                <View key={v.userId || i} style={styles.expandedVoterItem}>
-                  <Avatar source={v.avatar} size={26} fallbackIcon="person" />
-                  <Text style={styles.expandedVoterName} numberOfLines={1}>{v.name}</Text>
-                  <Text style={styles.absentReasonText}>• Vắng</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* ================= MATCHMAKING SPLIT ROSTER (WHEN CLOSED) ================= */}
-        {activePoll.isClosed && matchmadeTeams && (
-          <View style={styles.matchupCard}>
-            <View style={styles.matchupHeader}>
-              <MaterialIcons name="sports-kabaddi" size={18} color={COLORS.primary} />
-              <Text style={styles.matchupTitle}>Đội hình thi đấu đã chia</Text>
-              <View style={styles.playerCountBadge}>
-                <Text style={styles.playerCountText}>
-                  {teamAPlayers.length + teamBPlayers.length} cầu thủ
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.teamsSplitRow}>
-              {/* Team A Card */}
-              <View style={styles.teamCol}>
-                <View style={styles.teamBadgeA}>
-                  <Text style={styles.teamBadgeTextA}>ĐỘI XANH ({teamAPlayers.length})</Text>
-                  <Text style={styles.teamAvgEloText}>Avg {avgEloA} ELO</Text>
-                </View>
-                <View style={styles.playerList}>
-                  {teamAPlayers.map((p, idx) => (
-                    <View key={idx} style={styles.playerRow}>
-                      <Avatar source={p.avatar} size={22} fallbackIcon="person" />
-                      <Text style={styles.playerName} numberOfLines={1}>{p.name}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* VS Divider */}
-              <View style={styles.vsCircle}>
-                <Text style={styles.vsText}>VS</Text>
-              </View>
-
-              {/* Team B Card */}
-              <View style={styles.teamCol}>
-                <View style={styles.teamBadgeB}>
-                  <Text style={styles.teamBadgeTextB}>ĐỘI CAM ({teamBPlayers.length})</Text>
-                  <Text style={styles.teamAvgEloText}>Avg {avgEloB} ELO</Text>
-                </View>
-                <View style={styles.playerList}>
-                  {teamBPlayers.map((p, idx) => (
-                    <View key={idx} style={styles.playerRow}>
-                      <Avatar source={p.avatar} size={22} fallbackIcon="person" />
-                      <Text style={styles.playerName} numberOfLines={1}>{p.name}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* ================= CONTROLS FOR LEADER / SUB-LEADER ================= */}
-        {isLeaderOrSubLeader && (
-          <View style={styles.controlActionRow}>
-            {!activePoll.isClosed ? (
-              <TouchableOpacity
-                style={styles.closePollBtn}
-                activeOpacity={0.85}
-                onPress={onClosePoll}
-              >
-                <MaterialIcons name="lock-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.closePollBtnText}>Chốt danh sách & Chia đội</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.closedActionsGroup}>
-                <TouchableOpacity
-                  style={styles.reshuffleBtn}
-                  activeOpacity={0.85}
-                  onPress={onStartMatchmaking}
-                >
-                  <MaterialIcons name="shuffle" size={16} color="#FFFFFF" />
-                  <Text style={styles.reshuffleBtnText}>
-                    {matchmadeTeams ? 'Chia lại đội hình' : 'Tự động chia đội'}
-                  </Text>
-                </TouchableOpacity>
-
-                {onReopenPoll && (
+                {isLeaderOrSubLeader && (
                   <TouchableOpacity
-                    style={styles.reopenBtn}
-                    activeOpacity={0.8}
-                    onPress={onReopenPoll}
+                    style={styles.deleteIconBtn}
+                    onPress={() => setPollToDelete(poll)}
+                    activeOpacity={0.7}
                   >
-                    <MaterialIcons name="lock-open" size={16} color={COLORS.primary} />
-                    <Text style={styles.reopenBtnText}>Mở lại</Text>
+                    <Ionicons name="trash-outline" size={16} color="#94A3B8" />
                   </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Poll Title & Creator */}
+            <Text style={styles.pollTitle}>{poll.title}</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>
+                Tạo bởi <Text style={{ fontWeight: '700' }}>{poll.creatorName}</Text>
+              </Text>
+              {poll.deadline && (
+                <Text style={styles.metaText}>
+                  • Hạn: <Text style={{ color: '#D97706', fontWeight: '700' }}>{poll.deadline}</Text>
+                </Text>
+              )}
+            </View>
+
+            {/* Matchmaking Progress towards max players */}
+            {!isInternal && poll.maxPlayers && (
+              <View style={styles.gtProgressBox}>
+                <View style={styles.gtProgressHeader}>
+                  <Text style={styles.gtProgressLabel}>Quân số đăng ký ghép trận:</Text>
+                  <Text style={styles.gtProgressValue}>
+                    {poll.joinVotesCount || 0} / {poll.maxPlayers} người
+                  </Text>
+                </View>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${Math.min(100, ((poll.joinVotesCount || 0) / poll.maxPlayers) * 100)}%`,
+                        backgroundColor: (poll.joinVotesCount || 0) >= poll.maxPlayers ? '#10B981' : COLORS.primary,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Options List */}
+            <View style={styles.optionsContainer}>
+              {poll.options?.map((opt) => {
+                const isSelected = (poll.myVotedOptionIds && poll.myVotedOptionIds.length > 0)
+                  ? poll.myVotedOptionIds.includes(opt.id)
+                  : poll.myVoteOptionId === opt.id;
+                const percent = totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0;
+                const isOptionExpanded = expandedOptionId === opt.id;
+
+                return (
+                  <View key={opt.id} style={styles.optionWrapper}>
+                    <TouchableOpacity
+                      disabled={isClosed || isVoting}
+                      activeOpacity={0.75}
+                      onPress={() => onVote(poll.id, opt.id)}
+                      style={[
+                        styles.optionBtn,
+                        isSelected && styles.optionBtnSelected,
+                        opt.isJoinOption && styles.optionBtnJoin,
+                      ]}
+                    >
+                      {/* Background fill */}
+                      <View style={[styles.optionFill, { width: `${percent}%` }]} />
+
+                      <View style={styles.optionContent}>
+                        <View style={styles.optionLeft}>
+                          <View
+                            style={[
+                              styles.radioCircle,
+                              isSelected && styles.radioCircleSelected,
+                              opt.isJoinOption && styles.radioCircleJoin,
+                            ]}
+                          >
+                            {isSelected && <View style={styles.radioDot} />}
+                          </View>
+                          <Text
+                            style={[
+                              styles.optionLabel,
+                              isSelected && styles.optionLabelSelected,
+                              opt.isJoinOption && styles.optionLabelJoin,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                        </View>
+
+                        <View style={styles.optionRight}>
+                          <Text style={styles.voteCountText}>
+                            {opt.voteCount} ({percent}%)
+                          </Text>
+                          {opt.voters && opt.voters.length > 0 && (
+                            <TouchableOpacity
+                              onPress={() => setExpandedOptionId(isOptionExpanded ? null : opt.id)}
+                              style={styles.expandIconBtn}
+                            >
+                              <Ionicons
+                                name={isOptionExpanded ? 'chevron-up' : 'chevron-down'}
+                                size={16}
+                                color="#64748B"
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Expanded Voter Avatars */}
+                    {isOptionExpanded && opt.voters && opt.voters.length > 0 && (
+                      <View style={styles.votersList}>
+                        {opt.voters.map((voter) => (
+                          <View key={voter.userId} style={styles.voterRow}>
+                            <UserAvatar
+                              uri={voter.avatarUrl}
+                              name={voter.fullName}
+                              size={32}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.voterName} numberOfLines={1}>
+                                {voter.fullName}
+                              </Text>
+                              <Text style={styles.voterRole}>{voter.role || 'Thành viên'}</Text>
+                            </View>
+                            <View style={styles.voterEloPill}>
+                              <Text style={styles.voterEloText}>{voter.elo || 1200} Elo</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* ── Compact Internal Split Result Display ── */}
+            {isInternal && internalTeamsA && internalTeamsB && (
+              <TouchableOpacity
+                style={styles.compactInternalBanner}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setSelectedEditLineupA(internalTeamsA);
+                  setSelectedEditLineupB(internalTeamsB);
+                  setEditLineupMode('INTERNAL');
+                  setIsEditLineupModalVisible(true);
+                }}
+              >
+                <View style={styles.compactInternalHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="git-branch" size={15} color="#0284C7" />
+                    <Text style={styles.compactInternalTitle}>Đội hình 2 bên cân ELO</Text>
+                  </View>
+                  <View style={styles.compactViewActionInternal}>
+                    <Text style={styles.compactViewActionTextInternal}>
+                      {isLeaderOrSubLeader ? 'Xem & Hoán đổi' : 'Xem chi tiết'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={13} color="#0284C7" />
+                  </View>
+                </View>
+
+                <View style={styles.compactInternalMatchupRow}>
+                  {/* Team A */}
+                  <View style={styles.compactInternalTeamA}>
+                    <Text style={styles.compactInternalTeamName} numberOfLines={1}>
+                      {internalTeamsA.name || 'Đội A'}
+                    </Text>
+                    <Text style={styles.compactInternalTeamElo}>⭐ {internalTeamsA.eloAvg || 1200} ELO • {internalTeamsA.members?.length || 0} người</Text>
+                  </View>
+
+                  <View style={styles.compactVsPill}>
+                    <Text style={styles.compactVsPillText}>VS</Text>
+                  </View>
+
+                  {/* Team B */}
+                  <View style={styles.compactInternalTeamB}>
+                    <Text style={styles.compactInternalTeamName} numberOfLines={1}>
+                      {internalTeamsB.name || 'Đội B'}
+                    </Text>
+                    <Text style={styles.compactInternalTeamElo}>⭐ {internalTeamsB.eloAvg || 1200} ELO • {internalTeamsB.members?.length || 0} người</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* ── Compact Matchmaking Lineup Display ── */}
+            {!isInternal && gtLineup && (
+              <TouchableOpacity
+                style={styles.compactLineupBanner}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setSelectedGtLineup(gtLineup);
+                  setEditLineupMode('MATCHMAKING');
+                  setIsEditLineupModalVisible(true);
+                }}
+              >
+                <View style={styles.compactBannerLeft}>
+                  <View style={styles.compactIconCircle}>
+                    <Ionicons name="shield-checkmark" size={18} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.compactTitleRow}>
+                      <Text style={styles.compactLineupName} numberOfLines={1}>
+                        {gtLineup.name || 'Đội hình Ghép trận'}
+                      </Text>
+                      <View style={styles.compactEloBadge}>
+                        <Ionicons name="star" size={10} color="#FFFFFF" />
+                        <Text style={styles.compactEloText}>{gtLineup.eloAvg || 1200} ELO</Text>
+                      </View>
+                    </View>
+
+                    {/* Avatar Stack + Count */}
+                    <View style={styles.compactMetaRow}>
+                      <View style={styles.compactAvatarStack}>
+                        {gtLineup.members?.slice(0, 4).map((m: any, idx: number) => (
+                          <UserAvatar
+                            key={m.userId || idx}
+                            uri={m.avatarUrl || m.avatar}
+                            name={m.fullName || m.name}
+                            size={22}
+                            style={{ marginLeft: idx === 0 ? 0 : -6, zIndex: 10 - idx }}
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.compactCountText}>
+                        {gtLineup.members?.length || 0} cầu thủ ra sân
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.compactViewAction}>
+                  <Text style={styles.compactViewActionText}>
+                    {isLeaderOrSubLeader ? 'Đổi người' : 'Chi tiết'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#059669" />
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Admin Action Bar for this poll */}
+            {isLeaderOrSubLeader && (
+              <View style={styles.adminActionRow}>
+                {!isClosed ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.closeActionBtn}
+                      activeOpacity={0.8}
+                      onPress={() => onClosePoll(poll.id)}
+                    >
+                      <Ionicons name="stop-circle-outline" size={15} color="#475569" />
+                      <Text style={styles.closeActionBtnText}>Đóng biểu quyết</Text>
+                    </TouchableOpacity>
+
+                    {isInternal && (
+                      <TouchableOpacity
+                        style={[
+                          styles.splitActionBtn,
+                          (poll.joinVotesCount || 0) < ((poll.minPlayers && poll.minPlayers > 2) ? poll.minPlayers : 2) && { opacity: 0.65 }
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          const minReq = (poll.minPlayers && poll.minPlayers > 2) ? poll.minPlayers : 2;
+                          const currentJoin = poll.joinVotesCount || 0;
+                          if (currentJoin < minReq) {
+                            showAlert(
+                              'Chưa đủ thành viên',
+                              `Cần tối thiểu ${minReq} thành viên chọn tham gia để chia 2 đội ra sân. Hiện tại mới có ${currentJoin} người.`
+                            );
+                            return;
+                          }
+                          onSplitInternalTeams(poll.id);
+                        }}
+                      >
+                        <Ionicons name="git-branch-outline" size={15} color="#FFFFFF" />
+                        <Text style={styles.splitActionBtnText}>Chia 2 đội cân sức</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {!isInternal && (
+                      <TouchableOpacity
+                        style={[
+                          styles.formGtActionBtn,
+                          (poll.joinVotesCount || 0) < (poll.minPlayers || 1) && { opacity: 0.65 }
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          const minReq = poll.minPlayers || 1;
+                          const currentJoin = poll.joinVotesCount || 0;
+                          if (currentJoin < minReq) {
+                            showAlert(
+                              'Chưa đủ thành viên',
+                              `Cần tối thiểu ${minReq} thành viên chọn tham gia để chốt đội hình ra sân. Hiện tại mới có ${currentJoin} người.`
+                            );
+                            return;
+                          }
+                          onFormGTLineup(poll.id);
+                        }}
+                      >
+                        <Ionicons name="trophy-outline" size={15} color="#FFFFFF" />
+                        <Text style={styles.splitActionBtnText}>Chốt đội hình ra sân</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  isInternal && (
+                    <TouchableOpacity
+                      style={styles.reSplitActionBtn}
+                      activeOpacity={0.8}
+                      onPress={() => onSplitInternalTeams(poll.id)}
+                    >
+                      <Ionicons name="shuffle" size={15} color={COLORS.primary} />
+                      <Text style={styles.reSplitActionBtnText}>Chia lại 2 đội</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
             )}
           </View>
-        )}
-      </View>
+        );
+      })}
+
+      {/* ── History Pagination Controls ── */}
+      {activeTab === 'HISTORY' && historyPolls.length > 3 && (
+        <View style={styles.historyPaginationRow}>
+          {visibleHistoryCount < historyPolls.length ? (
+            <TouchableOpacity
+              style={styles.showMoreHistoryBtn}
+              onPress={() => setVisibleHistoryCount((prev) => prev + 5)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.showMoreHistoryBtnText}>
+                Xem thêm ({historyPolls.length - visibleHistoryCount} biểu quyết cũ hơn)
+              </Text>
+              <Ionicons name="chevron-down" size={15} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.showMoreHistoryBtn}
+              onPress={() => setVisibleHistoryCount(3)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.showMoreHistoryBtnText}>Thu gọn danh sách lịch sử</Text>
+              <Ionicons name="chevron-up" size={15} color={COLORS.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* ── Delete Poll Confirmation Modal ── */}
+      <Modal
+        visible={!!pollToDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPollToDelete(null)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalCard}>
+            <View style={styles.deleteModalIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#DC2626" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Xóa biểu quyết?</Text>
+            <Text style={styles.deleteModalSub} numberOfLines={2}>
+              "{pollToDelete?.title}"
+            </Text>
+
+            <View style={styles.deleteWarningBox}>
+              <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
+              <Text style={styles.deleteWarningText}>
+                Toàn bộ kết quả bình chọn và các <Text style={{ fontWeight: '700' }}>Team-line (Đội hình ra sân)</Text> được tạo từ biểu quyết này cũng sẽ bị xóa.
+              </Text>
+            </View>
+
+            <View style={styles.deleteModalBtnRow}>
+              <TouchableOpacity
+                style={styles.deleteCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setPollToDelete(null)}
+              >
+                <Text style={styles.deleteCancelBtnText}>Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteConfirmBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (pollToDelete) {
+                    const id = pollToDelete.id;
+                    setPollToDelete(null);
+                    onDeletePoll(id);
+                  }
+                }}
+              >
+                <Ionicons name="trash" size={15} color="#FFFFFF" />
+                <Text style={styles.deleteConfirmBtnText}>Xác nhận xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* DEV Panel Modal */}
+      <DevPollVoteModal
+        visible={isDevModalVisible}
+        onClose={() => setIsDevModalVisible(false)}
+        polls={polls}
+        members={members}
+        onSuccess={() => {
+          showAlert('Thành công', 'Đã gán vote DEV cho các thành viên thành công!');
+          if (onRefreshPolls) onRefreshPolls();
+        }}
+      />
+
+      {/* Edit Lineup Modal */}
+      <EditLineupModal
+        visible={isEditLineupModalVisible}
+        onClose={() => setIsEditLineupModalVisible(false)}
+        mode={editLineupMode}
+        lineup={selectedGtLineup}
+        lineupA={selectedEditLineupA}
+        lineupB={selectedEditLineupB}
+        clubId={polls[0]?.clubId ? Number(polls[0].clubId) : 0}
+        clubMembers={members}
+        isLeaderOrSubLeader={isLeaderOrSubLeader}
+        onSuccess={() => {
+          if (onRefreshPolls) onRefreshPolls();
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   pollSection: {
-    gap: 10,
+    marginVertical: SPACING.md,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+    paddingHorizontal: 4,
   },
   sectionTitleCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  deleteBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#FEF2F2',
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  devBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#4338CA',
+  },
+  headerCreateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  headerCreateBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E8EDF5',
-    gap: 8,
+    borderColor: '#E2E8F0',
   },
   emptyIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryOpacity10,
-    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
     alignItems: 'center',
-    marginBottom: 2,
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
   },
   emptyTitle: {
-    fontSize: 14.5,
-    fontWeight: '600',
+    ...TYPOGRAPHY.labelMd,
+    fontWeight: '800',
+    fontSize: 15,
     color: '#1E293B',
+    marginBottom: 4,
   },
   emptySubtitle: {
-    fontSize: 12,
+    ...TYPOGRAPHY.bodySm,
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 18,
-    paddingHorizontal: 12,
+    marginBottom: SPACING.md,
   },
   createPollBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     backgroundColor: COLORS.primary,
     paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
-    gap: 6,
-    marginTop: 4,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
   },
   createPollBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...TYPOGRAPHY.labelSm,
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   emptyNoticePill: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
   },
   emptyNoticeText: {
-    fontSize: 11.5,
+    ...TYPOGRAPHY.caption,
     color: '#64748B',
-    fontWeight: '500',
   },
   pollCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   pollCardClosed: {
-    backgroundColor: '#FAFBFD',
-    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    borderColor: '#CBD5E1',
   },
-  cardTopRow: {
+  pollTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 5,
-  },
-  statusPillActive: {
-    backgroundColor: '#ECFDF5',
-  },
-  statusPillClosed: {
-    backgroundColor: '#F1F5F9',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusDotActive: {
-    backgroundColor: '#10B981',
-  },
-  statusDotClosed: {
-    backgroundColor: '#94A3B8',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  statusTextActive: {
-    color: '#059669',
-  },
-  statusTextClosed: {
-    color: '#64748B',
-  },
-  deadlineContainer: {
+  typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.md,
   },
-  deadlineText: {
-    fontSize: 11.5,
-    color: '#64748B',
-    fontWeight: '400',
+  internalBadge: {
+    backgroundColor: '#E0F2FE',
   },
-  pollTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0F172A',
-    lineHeight: 20,
+  matchmakingBadge: {
+    backgroundColor: '#FEF3C7',
   },
-  optionCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#F1F5F9',
+  typeBadgeText: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  internalText: {
+    color: '#0369A1',
+  },
+  matchmakingText: {
+    color: '#B45309',
+  },
+  pollStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  optionCardActiveJoin: {
+  openPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  openDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16A34A',
+  },
+  openPillText: {
+    ...TYPOGRAPHY.caption,
+    color: '#16A34A',
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  closedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  closedPillText: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  deleteIconBtn: {
+    padding: 4,
+  },
+  pollTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: SPACING.sm,
+  },
+  metaText: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 11.5,
+  },
+  gtProgressBox: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 10,
+    marginBottom: SPACING.sm,
+  },
+  gtProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  gtProgressLabel: {
+    ...TYPOGRAPHY.caption,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  gtProgressValue: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  optionsContainer: {
+    gap: 8,
+    marginVertical: 4,
+  },
+  optionWrapper: {
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  optionBtn: {
+    position: 'relative',
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minHeight: 44,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  optionBtnSelected: {
     borderColor: COLORS.primary,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: 'rgba(6, 78, 59, 0.04)',
   },
-  optionCardActiveAbsent: {
-    borderColor: '#F59E0B',
-    backgroundColor: '#FFFBEB',
+  optionBtnJoin: {
+    borderColor: '#A7F3D0',
   },
-  optionCardDisabled: {
-    opacity: 0.95,
+  optionFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
   },
-  optionHeader: {
+  optionContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   optionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    flex: 1,
   },
   radioCircle: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    justifyContent: 'center',
+    borderColor: '#94A3B8',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  radioCircleActiveJoin: {
-    backgroundColor: COLORS.primary,
+  radioCircleSelected: {
     borderColor: COLORS.primary,
   },
-  radioCircleActiveAbsent: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#F59E0B',
+  radioCircleJoin: {
+    borderColor: '#10B981',
+  },
+  radioDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: COLORS.primary,
   },
   optionLabel: {
-    fontSize: 13.5,
-    fontWeight: '500',
+    ...TYPOGRAPHY.bodySm,
     color: '#334155',
+    fontWeight: '600',
+    fontSize: 13,
   },
-  optionLabelActiveJoin: {
+  optionLabelSelected: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: '800',
   },
-  optionLabelActiveAbsent: {
-    color: '#B45309',
-    fontWeight: '600',
+  optionLabelJoin: {
+    color: '#065F46',
   },
   optionRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
-  optionCountText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  optionPercentText: {
-    fontSize: 11.5,
+  voteCountText: {
+    ...TYPOGRAPHY.caption,
     color: '#64748B',
-    fontWeight: '400',
+    fontWeight: '700',
   },
-  progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E2E8F0',
-    overflow: 'hidden',
+  expandIconBtn: {
+    padding: 2,
   },
-  progressBarFillJoin: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 3,
-  },
-  progressBarFillAbsent: {
-    height: '100%',
-    backgroundColor: '#F59E0B',
-    borderRadius: 3,
-  },
-  votersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  avatarStack: {
-    flexDirection: 'row',
-    height: 24,
-    minWidth: 100,
-    position: 'relative',
-  },
-  stackedAvatar: {
-    position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    borderRadius: 12,
-  },
-  expandVotersBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  expandVotersText: {
-    fontSize: 11.5,
-    fontWeight: '500',
-    color: COLORS.primary,
-  },
-  expandedVotersList: {
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 8,
+  votersList: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomLeftRadius: BORDER_RADIUS.lg,
+    borderBottomRightRadius: BORDER_RADIUS.lg,
     gap: 6,
   },
-  expandedVoterItem: {
+  voterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  expandedVoterName: {
-    flex: 1,
-    fontSize: 12.5,
-    color: '#334155',
-    fontWeight: '500',
+  voterAvatarWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  voterEloBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+  voterAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  voterAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0284C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voterAvatarText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  voterName: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  voterRole: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 10,
+  },
+  voterEloPill: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 4,
   },
   voterEloText: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#B45309',
+    ...TYPOGRAPHY.caption,
+    fontWeight: '700',
+    color: '#334155',
+    fontSize: 10.5,
   },
-  absentReasonText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '400',
-  },
-  matchupCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
+  lineupResultBox: {
+    marginTop: SPACING.md,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 10,
+    padding: 12,
   },
-  matchupHeader: {
+  lineupResultHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 10,
   },
-  matchupTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#1E293B',
-    flex: 1,
+  lineupResultTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  playerCountBadge: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  playerCountText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  teamsSplitRow: {
+  teamsArenaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  teamCol: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 8,
-    gap: 6,
-  },
-  teamBadgeA: {
-    backgroundColor: '#E0F2FE',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  teamBadgeTextA: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#0284C7',
-  },
-  teamBadgeB: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  teamBadgeTextB: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#D97706',
-  },
-  teamAvgEloText: {
-    fontSize: 9.5,
-    color: '#64748B',
-    fontWeight: '400',
-    marginTop: 1,
-  },
-  playerList: {
-    gap: 4,
-  },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  playerName: {
-    fontSize: 11.5,
-    color: '#334155',
-    fontWeight: '500',
-    flex: 1,
-  },
-  vsCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vsText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  controlActionRow: {
-    marginTop: 2,
-  },
-  closePollBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-  },
-  closePollBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  closedActionsGroup: {
-    flexDirection: 'row',
+    alignItems: 'stretch',
     gap: 8,
   },
-  reshuffleBtn: {
-    flex: 1.6,
+  teamBox: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.md,
+    borderTopWidth: 3,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  teamBoxTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  teamEloBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  teamEloText: {
+    ...TYPOGRAPHY.caption,
+    color: '#0369A1',
+    fontWeight: '800',
+    fontSize: 10.5,
+  },
+  teamCountText: {
+    ...TYPOGRAPHY.caption,
+    color: '#64748B',
+    fontSize: 10,
+    marginBottom: 6,
+  },
+  compactInternalBanner: {
+    marginTop: SPACING.md,
+    backgroundColor: '#F0F9FF',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    padding: 12,
+  },
+  compactInternalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0284C7',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  reshuffleBtnText: {
+  compactInternalTitle: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  compactViewActionInternal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  compactViewActionTextInternal: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  compactInternalMatchupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E0F2FE',
+    gap: 8,
+  },
+  compactInternalTeamA: {
+    flex: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: '#0284C7',
+    paddingLeft: 6,
+  },
+  compactInternalTeamB: {
+    flex: 1,
+    borderRightWidth: 3,
+    borderRightColor: '#E11D48',
+    paddingRight: 6,
+    alignItems: 'flex-end',
+  },
+  compactInternalTeamName: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  compactInternalTeamElo: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  compactVsPill: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  compactVsPillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  compactLineupBanner: {
+    marginTop: SPACING.md,
+    backgroundColor: '#F0FDF4',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  compactBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  compactIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  compactLineupName: {
+    ...TYPOGRAPHY.labelSm,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  compactEloBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  compactEloText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
-  reopenBtn: {
+  compactMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactAvatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#CBD5E1',
+  },
+  compactCountText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: '#047857',
+    fontWeight: '600',
+  },
+  compactViewAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  compactViewActionText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  adminActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  closeActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  closeActionBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 11.5,
+  },
+  splitActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  formGtActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  splitActionBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 11.5,
+  },
+  reSplitActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(6, 78, 59, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  reSplitActionBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 11.5,
+  },
+  tabSwitcherRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 3,
+    marginBottom: SPACING.md,
+    gap: 4,
+  },
+  tabSegmentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 4,
+    gap: 6,
+    paddingVertical: 7,
+    borderRadius: BORDER_RADIUS.md,
   },
-  reopenBtnText: {
-    fontSize: 13,
+  tabSegmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  tabSegmentText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
     fontWeight: '600',
+    color: '#64748B',
+  },
+  tabSegmentTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  historyPaginationRow: {
+    marginTop: 4,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  showMoreHistoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  showMoreHistoryBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 12,
+    fontWeight: '700',
     color: COLORS.primary,
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  deleteModalIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  deleteModalTitle: {
+    ...TYPOGRAPHY.titleMd,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  deleteModalSub: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  deleteWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 10,
+    marginBottom: 16,
+  },
+  deleteWarningText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#92400E',
+    flex: 1,
+  },
+  deleteModalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  deleteCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 11,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteCancelBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  deleteConfirmBtn: {
+    flex: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingVertical: 11,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  deleteConfirmBtnText: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

@@ -4,11 +4,14 @@ import com.backend.sporta.entity.Post;
 import com.backend.sporta.entity.PostComment;
 import com.backend.sporta.entity.PostReaction;
 import com.backend.sporta.entity.User;
+import com.backend.sporta.enums.NotificationType;
+import com.backend.sporta.enums.Role;
 import com.backend.sporta.repository.PostCommentRepository;
 import com.backend.sporta.repository.PostReactionRepository;
 import com.backend.sporta.repository.PostRepository;
 import com.backend.sporta.repository.UserRepository;
 import com.backend.sporta.security.JwtTokenProvider;
+import com.backend.sporta.service.NotificationService;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,7 +24,9 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/posts")
 @CrossOrigin(origins = "*")
@@ -42,6 +47,15 @@ public class PostController {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private com.backend.sporta.service.ai.PostFeedService postFeedService;
+
+    @Autowired
+    private com.backend.sporta.repository.UserHiddenPostRepository userHiddenPostRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
     private Long getUserIdFromHeader(String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
@@ -51,120 +65,219 @@ public class PostController {
                 if (userIdNum != null) {
                     return userIdNum.longValue();
                 }
+                String email = claims.getSubject();
+                if (email != null) {
+                    User u = userRepository.findByEmail(email).orElse(null);
+                    if (u != null) return u.getId();
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * Bảng tin thông minh đa chiều (Smart Multidimensional Feed)
+     */
+    @GetMapping("/feed")
+    public ResponseEntity<?> getSmartFeed(
+            @RequestParam(defaultValue = "FOR_YOU") String tab,
+            @RequestParam(required = false) String sportTag,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        Page<Map<String, Object>> feedPage = postFeedService.getFeed(currentUserId, tab, sportTag, latitude, longitude, page, size);
+        return ResponseEntity.ok(feedPage);
     }
 
     @GetMapping
     public ResponseEntity<?> getAllPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String tab,
+            @RequestParam(required = false) String sportTag,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Post> postsPage = postRepository.findByIsDeletedFalseOrderByCreatedAtDesc(pageable);
-        
-        // If DB is empty, seed initial data for demo
-        if (postsPage.isEmpty() && page == 0) {
-            seedInitialPosts();
-            postsPage = postRepository.findByIsDeletedFalseOrderByCreatedAtDesc(pageable);
-        }
-
         Long currentUserId = getUserIdFromHeader(authHeader);
-
-        List<Long> postIds = postsPage.getContent().stream().map(Post::getId).collect(Collectors.toList());
-        Map<Long, String> userReactions = new HashMap<>();
-        
-        if (currentUserId != null && !postIds.isEmpty()) {
-            List<PostReaction> reactions = postReactionRepository.findByPostIdInAndUserId(postIds, currentUserId);
-            for (PostReaction r : reactions) {
-                userReactions.put(r.getPost().getId(), r.getReactionType());
-            }
-        }
-
-        // Build per-post, per-type reaction counts from DB
-        Map<Long, Map<String, Long>> postReactionCounts = new HashMap<>();
-        if (!postIds.isEmpty()) {
-            List<Object[]> rawCounts = postReactionRepository.countByPostIdsGroupedByType(postIds);
-            for (Object[] row : rawCounts) {
-                Long postId = ((Number) row[0]).longValue();
-                String type = (String) row[1];
-                Long count = ((Number) row[2]).longValue();
-                postReactionCounts.computeIfAbsent(postId, k -> new HashMap<>()).put(type, count);
-            }
-        }
-
-        Page<Map<String, Object>> responsePage = postsPage.map(post -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", post.getId());
-            map.put("author", post.getAuthor());
-            map.put("content", post.getContent());
-            map.put("mediaUrls", post.getMediaUrls());
-            map.put("type", post.getType());
-            map.put("audience", post.getAudience());
-            map.put("sportName", post.getSportName());
-            map.put("venueName", post.getVenueName());
-            map.put("timeSlot", post.getTimeSlot());
-            map.put("memberFee", post.getMemberFee());
-            map.put("promoTitle", post.getPromoTitle());
-            map.put("promoCode", post.getPromoCode());
-            map.put("discountText", post.getDiscountText());
-            map.put("likeCount", post.getLikeCount());
-            map.put("commentCount", post.getCommentCount());
-            map.put("shareCount", post.getShareCount());
-            map.put("createdAt", post.getCreatedAt());
-
-            // Attach per-type reaction counts
-            Map<String, Long> countsForPost = postReactionCounts.getOrDefault(post.getId(), new HashMap<>());
-            Map<String, Long> reactionsCount = new HashMap<>();
-            for (String key : new String[]{"like", "love", "fire", "clap", "muscle", "trophy"}) {
-                reactionsCount.put(key, countsForPost.getOrDefault(key, 0L));
-            }
-            map.put("reactionsCount", reactionsCount);
-            
-            if (currentUserId != null && userReactions.containsKey(post.getId())) {
-                map.put("userReaction", userReactions.get(post.getId()));
-            }
-            return map;
-        });
-
-        return ResponseEntity.ok(responsePage);
+        String selectedTab = (tab != null && !tab.isBlank()) ? tab : "FOR_YOU";
+        Page<Map<String, Object>> feedPage = postFeedService.getFeed(currentUserId, selectedTab, sportTag, latitude, longitude, page, size);
+        return ResponseEntity.ok(feedPage);
     }
 
     @PostMapping
-    public ResponseEntity<?> createPost(@RequestBody Map<String, Object> payload) {
-        String content = (String) payload.getOrDefault("content", "");
-        @SuppressWarnings("unchecked")
-        List<String> mediaUrls = (List<String>) payload.getOrDefault("mediaUrls", Collections.emptyList());
+    public ResponseEntity<?> createPost(
+            @RequestBody Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        if (currentUserId == null && payload.get("authorId") != null) {
+            currentUserId = ((Number) payload.get("authorId")).longValue();
+        }
+        
+        if (currentUserId == null) {
+            User defaultUser = userRepository.findAll().stream().findFirst().orElse(null);
+            if (defaultUser != null) {
+                currentUserId = defaultUser.getId();
+            } else {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+        }
+
+        Post savedPost = postFeedService.createPostWithSecurity(payload, currentUserId);
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id", savedPost.getId());
+        resp.put("content", savedPost.getContent());
+        resp.put("type", savedPost.getType());
+        resp.put("backgroundGradient", savedPost.getBackgroundGradient() != null ? Arrays.asList(savedPost.getBackgroundGradient().split(",")) : null);
+        resp.put("backgroundId", savedPost.getBackgroundId());
+        resp.put("totalPrice", savedPost.getTotalPrice());
+        resp.put("note", savedPost.getNote());
+        resp.put("venueId", savedPost.getVenue() != null ? savedPost.getVenue().getId().toString() : null);
+        resp.put("venueName", savedPost.getVenueName());
+        resp.put("createdAt", savedPost.getCreatedAt());
+        resp.put("message", "Tạo bài viết thành công");
+        return ResponseEntity.ok(resp);
+    }
+
+    /**
+     * Tham gia vào bài viết ghép kèo (Có khóa bi quan Pessimistic Lock)
+     */
+    @PostMapping("/{id}/join")
+    public ResponseEntity<?> joinMatch(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        if (currentUserId == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Vui lòng đăng nhập để tham gia ghép kèo"));
+        }
+
+        Map<String, Object> result = postFeedService.joinMatchSlot(id, currentUserId);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Rời khỏi kèo đấu
+     */
+    @DeleteMapping("/{id}/leave")
+    public ResponseEntity<?> leaveMatch(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        if (currentUserId == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Vui lòng đăng nhập"));
+        }
+
+        Map<String, Object> result = postFeedService.leaveMatchSlot(id, currentUserId);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Lấy danh sách thành viên đã tham gia kèo
+     */
+    @GetMapping("/{id}/participants")
+    public ResponseEntity<?> getParticipants(@PathVariable Long id) {
+        List<Map<String, Object>> participants = postFeedService.getPostParticipants(id);
+        return ResponseEntity.ok(participants);
+    }
+
+    @Autowired
+    private com.backend.sporta.repository.ClubRepository clubRepository;
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> editPost(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        if (currentUserId == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Vui lòng đăng nhập"));
+        }
+
+        Optional<Post> optionalPost = postRepository.findById(id);
+        if (optionalPost.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Post post = optionalPost.get();
+        if (!post.getAuthor().getId().equals(currentUserId)) {
+            return ResponseEntity.status(403).body(Map.of("message", "Bạn không có quyền chỉnh sửa bài viết này"));
+        }
+
+        // Only NORMAL / COMMUNITY / STANDARD posts can be edited (no promotion / match finding)
+        if ("MATCH_FINDING".equalsIgnoreCase(post.getType()) || "PROMOTION".equalsIgnoreCase(post.getType())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Chỉ có thể chỉnh sửa bài viết thông thường"));
+        }
+
+        if (payload.containsKey("content")) {
+            post.setContent((String) payload.get("content"));
+        }
+
+        // Edit images (only allowed to keep/remove existing images, no new images)
+        if (payload.containsKey("mediaUrls")) {
+            List<?> rawUrls = (List<?>) payload.get("mediaUrls");
+            List<String> newUrls = new ArrayList<>();
+            if (rawUrls != null) {
+                for (Object u : rawUrls) {
+                    if (u != null) newUrls.add(u.toString());
+                }
+            }
+            post.setMediaUrls(newUrls);
+        }
+
+        postRepository.save(post);
+        return ResponseEntity.ok(Map.of("message", "Chỉnh sửa bài viết thành công", "id", post.getId()));
+    }
+
+    @PutMapping("/{id}/audience")
+    public ResponseEntity<?> updatePostAudience(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        if (currentUserId == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Vui lòng đăng nhập"));
+        }
+
+        Optional<Post> optionalPost = postRepository.findById(id);
+        if (optionalPost.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Post post = optionalPost.get();
+        if (!post.getAuthor().getId().equals(currentUserId)) {
+            return ResponseEntity.status(403).body(Map.of("message", "Bạn không có quyền thay đổi đối tượng xem"));
+        }
+
         String audience = (String) payload.getOrDefault("audience", "PUBLIC");
-        String type = (String) payload.getOrDefault("type", "COMMUNITY");
+        post.setAudience(audience);
 
-        Number authorIdNum = (Number) payload.get("authorId");
-        User author = null;
-        
-        if (authorIdNum != null) {
-            author = userRepository.findById(authorIdNum.longValue()).orElse(null);
-        }
-        
-        if (author == null) {
-            author = userRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No user found"));
+        if ("CLUB".equalsIgnoreCase(audience) && payload.get("clubId") != null) {
+            try {
+                Long clubId = Long.parseLong(payload.get("clubId").toString());
+                clubRepository.findById(clubId).ifPresent(post::setClub);
+            } catch (Exception ignored) {}
+        } else if ("PUBLIC".equalsIgnoreCase(audience)) {
+            post.setClub(null);
         }
 
-        Post newPost = Post.builder()
-                .author(author)
-                .content(content)
-                .mediaUrls(mediaUrls != null ? mediaUrls : Collections.emptyList())
-                .type(type)
-                .audience(audience)
-                .likeCount(0)
-                .commentCount(0)
-                .shareCount(0)
-                .createdAt(LocalDateTime.now())
-                .build();
+        postRepository.save(post);
 
-        Post saved = postRepository.save(newPost);
-        return ResponseEntity.ok(saved);
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("message", "Cập nhật đối tượng xem thành công");
+        resp.put("audience", audience);
+        if (post.getClub() != null) {
+            Map<String, Object> clubMap = new HashMap<>();
+            clubMap.put("id", post.getClub().getId().toString());
+            clubMap.put("name", post.getClub().getName());
+            clubMap.put("avatarUrl", post.getClub().getAvatarImage());
+            resp.put("clubInfo", clubMap);
+        }
+        return ResponseEntity.ok(resp);
     }
 
     @DeleteMapping("/{id}")
@@ -189,15 +302,13 @@ public class PostController {
         return ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/{id}/like")
-    public ResponseEntity<?> likePost(
+    @PostMapping("/{id}/hide")
+    public ResponseEntity<?> hidePost(
             @PathVariable Long id,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestBody(required = false) Map<String, String> payload) {
-        
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Long currentUserId = getUserIdFromHeader(authHeader);
         if (currentUserId == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
+            return ResponseEntity.status(401).body(Map.of("message", "Vui lòng đăng nhập"));
         }
 
         Optional<Post> optionalPost = postRepository.findById(id);
@@ -205,44 +316,131 @@ public class PostController {
             return ResponseEntity.notFound().build();
         }
 
-        Post post = optionalPost.get();
         User user = userRepository.findById(currentUserId).orElse(null);
-        if (user == null) return ResponseEntity.status(401).build();
-
-        String reactionType = payload != null && payload.containsKey("reactionType") 
-                              ? payload.get("reactionType") : "like";
-
-        Optional<PostReaction> existingOpt = postReactionRepository.findByPostAndUser(post, user);
-
-        if (existingOpt.isPresent()) {
-            PostReaction existing = existingOpt.get();
-            if (existing.getReactionType().equals(reactionType)) {
-                // Toggle off (unlike)
-                postReactionRepository.delete(existing);
-                post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
-            } else {
-                // Change reaction
-                existing.setReactionType(reactionType);
-                postReactionRepository.save(existing);
-            }
-        } else {
-            // New reaction
-            try {
-                PostReaction newReaction = PostReaction.builder()
-                        .post(post)
-                        .user(user)
-                        .reactionType(reactionType)
-                        .createdAt(LocalDateTime.now())
-                        .build();
-                postReactionRepository.save(newReaction);
-                post.setLikeCount(post.getLikeCount() + 1);
-            } catch (DataIntegrityViolationException e) {
-                // Ignore duplicate key constraint
-            }
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Người dùng không tồn tại"));
         }
 
-        postRepository.save(post);
-        return ResponseEntity.ok().build();
+        Post post = optionalPost.get();
+        Optional<com.backend.sporta.entity.UserHiddenPost> existing = userHiddenPostRepository.findByUserAndPost(user, post);
+        if (existing.isEmpty()) {
+            com.backend.sporta.entity.UserHiddenPost hiddenPost = com.backend.sporta.entity.UserHiddenPost.builder()
+                    .user(user)
+                    .post(post)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            userHiddenPostRepository.save(hiddenPost);
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Đã ẩn bài viết thành công"));
+    }
+
+    @PostMapping("/{id}/unhide")
+    public ResponseEntity<?> unhidePost(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long currentUserId = getUserIdFromHeader(authHeader);
+        if (currentUserId == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Vui lòng đăng nhập"));
+        }
+
+        Optional<Post> optionalPost = postRepository.findById(id);
+        if (optionalPost.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = userRepository.findById(currentUserId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "Người dùng không tồn tại"));
+        }
+
+        Post post = optionalPost.get();
+        Optional<com.backend.sporta.entity.UserHiddenPost> existing = userHiddenPostRepository.findByUserAndPost(user, post);
+        existing.ifPresent(userHiddenPostRepository::delete);
+
+        return ResponseEntity.ok(Map.of("message", "Đã hoàn tác ẩn bài viết"));
+    }
+
+    @PostMapping(value = {"/{id}/like", "/{id}/react"})
+    public ResponseEntity<?> likePost(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody(required = false) Map<String, String> payload) {
+        
+        try {
+            Long currentUserId = getUserIdFromHeader(authHeader);
+            if (currentUserId == null) {
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+
+            Optional<Post> optionalPost = postRepository.findById(id);
+            if (optionalPost.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = optionalPost.get();
+            User user = userRepository.findById(currentUserId).orElse(null);
+            if (user == null) return ResponseEntity.status(401).build();
+
+            String action = payload != null ? payload.get("action") : null;
+            String reactionType = payload != null && payload.containsKey("reactionType") 
+                                  ? payload.get("reactionType") : "like";
+
+            Optional<PostReaction> existingOpt = postReactionRepository.findByPostAndUser(post, user);
+
+            log.info("[REACT-DEBUG] postId={}, userId={}, action={}, reactionType={}, authorId={}, existingReaction={}", 
+                    id, user.getId(), action, reactionType, 
+                    post.getAuthor() != null ? post.getAuthor().getId() : "null",
+                    existingOpt.map(PostReaction::getReactionType).orElse("NONE"));
+
+            boolean isExplicitUnlike = "unlike".equalsIgnoreCase(action) || "null".equalsIgnoreCase(reactionType) || reactionType == null;
+
+            if (isExplicitUnlike) {
+                if (existingOpt.isPresent()) {
+                    postReactionRepository.delete(existingOpt.get());
+                    post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+                    if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                        notificationService.deleteReactionNotification(post.getAuthor().getId(), user.getId(), post.getId());
+                    }
+                    postRepository.save(post);
+                }
+                return ResponseEntity.ok().build();
+            }
+
+            // Apply / Update Reaction
+            if (existingOpt.isPresent()) {
+                PostReaction existing = existingOpt.get();
+                existing.setReactionType(reactionType);
+                postReactionRepository.save(existing);
+            } else {
+                try {
+                    PostReaction newReaction = PostReaction.builder()
+                            .post(post)
+                            .user(user)
+                            .reactionType(reactionType)
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    postReactionRepository.save(newReaction);
+                    post.setLikeCount(post.getLikeCount() + 1);
+                } catch (DataIntegrityViolationException ignored) {}
+            }
+
+            // Trigger notification when reaction is set (if not self)
+            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                String actorName = user.getFullName() != null && !user.getFullName().trim().isEmpty() ? user.getFullName() : (user.getEmail() != null ? user.getEmail().split("@")[0] : "Người chơi Sporta");
+                try {
+                    notificationService.upsertReactionNotification(post.getAuthor().getId(), user.getId(), actorName, user.getAvatarUrl(), post.getId(), reactionType);
+                } catch (Exception notifEx) {
+                    log.error("[REACT-DEBUG] Notification error (non-fatal): {}", notifEx.getMessage(), notifEx);
+                }
+            }
+
+            postRepository.save(post);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("[REACT-DEBUG] FATAL ERROR in likePost for postId={}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(500).body("Internal error: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/share")
@@ -303,65 +501,25 @@ public class PostController {
 
             post.setCommentCount(post.getCommentCount() + 1);
             postRepository.save(post);
+
+            // Send notification to post author if not self
+            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                String actorName = user.getFullName() != null && !user.getFullName().trim().isEmpty() ? user.getFullName() : (user.getEmail() != null ? user.getEmail().split("@")[0] : "Người chơi Sporta");
+                String snippet = content.length() > 60 ? content.substring(0, 60) + "..." : content;
+                notificationService.createNotification(
+                        post.getAuthor().getId(),
+                        Role.PLAYER,
+                        actorName,
+                        "đã bình luận về bài viết của bạn: \"" + snippet + "\"",
+                        NotificationType.POST_COMMENTED,
+                        "post:" + post.getId(),
+                        user.getId(),
+                        user.getAvatarUrl()
+                );
+            }
             
             return ResponseEntity.ok(comment);
         }
         return ResponseEntity.notFound().build();
-    }
-
-    private void seedInitialPosts() {
-        User defaultAuthor = userRepository.findAll().stream().findFirst().orElseGet(() -> {
-            User newUser = User.builder()
-                    .email("quanluu@sporta.vn")
-                    .fullName("Quan Luu")
-                    .phoneNumber("0987654321")
-                    .avatarUrl("https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80")
-                    .password("secret")
-                    .role(com.backend.sporta.enums.Role.PLAYER)
-                    .status(com.backend.sporta.enums.UserStatus.ACTIVE)
-                    .build();
-            return userRepository.save(newUser);
-        });
-
-        Post p1 = Post.builder()
-                .author(defaultAuthor)
-                .content("Chiều nay vừa hoàn thành buổi tập Pickleball giao lưu cùng anh em CLB Cầu Giấy! Sân bãi cực êm, hệ thống đèn chiếu sáng tiêu chuẩn. Hẹn anh em kèo tuần sau nhé! 🏓🔥")
-                .mediaUrls(List.of("https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"))
-                .type("COMMUNITY")
-                .audience("PUBLIC")
-                .likeCount(24)
-                .commentCount(5)
-                .shareCount(2)
-                .createdAt(LocalDateTime.now().minusHours(1))
-                .build();
-
-        Post p2 = Post.builder()
-                .author(defaultAuthor)
-                .content("Cần tìm 2 tay vợt Pickleball trình DUPR 3.0+ giao lưu đôi nam/nữ tối nay từ 19:30 - 21:30. Anh em nào rảnh chốt kèo ngay nhé!")
-                .type("MATCH_FINDING")
-                .sportName("Pickleball")
-                .venueName("Sân Pickleball Quần Ngựa, Hà Nội")
-                .timeSlot("Tối nay • 19:30 - 21:30")
-                .memberFee("50k / người")
-                .likeCount(12)
-                .commentCount(8)
-                .shareCount(1)
-                .createdAt(LocalDateTime.now().minusHours(3))
-                .build();
-
-        Post p3 = Post.builder()
-                .author(defaultAuthor)
-                .content("🔥 ƯU ĐÃI ĐẶC BIỆT GIỜ VÀNG - SÂN CẦU LÔNG CẦU GIẤY 🔥\nGiảm ngay 20% cho tất cả các khung giờ từ 13h00 đến 16h00 từ Thứ 2 đến Thứ 6 tuần này!")
-                .type("VENUE_PROMO")
-                .promoTitle("Voucher Giảm 20% Giờ Vàng")
-                .promoCode("SPORTAGIOGANG")
-                .discountText("Giảm 20% tổng hóa đơn")
-                .likeCount(45)
-                .commentCount(14)
-                .shareCount(10)
-                .createdAt(LocalDateTime.now().minusHours(5))
-                .build();
-
-        postRepository.saveAll(List.of(p1, p2, p3));
     }
 }

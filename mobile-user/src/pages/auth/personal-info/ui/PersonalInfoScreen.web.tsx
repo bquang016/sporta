@@ -14,6 +14,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/config/theme';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 
@@ -22,10 +23,19 @@ const DEFAULT_PLAYER_AVATAR = require('../../../../../assets/player/player_699x6
 export function PersonalInfoScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { registrationToken, email, password, fullName: initialFullName } = useLocalSearchParams();
+  const { registrationToken, email, password: initialPassword, fullName: initialFullName, avatarUrl: initialAvatarUrl } = useLocalSearchParams();
+
+  const [password, setPassword] = useState(
+    typeof initialPassword === 'string' ? initialPassword : ''
+  );
+  const [showPassword, setShowPassword] = useState(false);
+  const [isFocusedPassword, setIsFocusedPassword] = useState(false);
 
   const [fullName, setFullName] = useState(
     typeof initialFullName === 'string' ? initialFullName : ''
+  );
+  const [avatarUri, setAvatarUri] = useState<string | null>(
+    typeof initialAvatarUrl === 'string' ? initialAvatarUrl : null
   );
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(new Date(2000, 0, 1));
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE');
@@ -34,6 +44,29 @@ export function PersonalInfoScreen() {
   const [isFocusedDate, setIsFocusedDate] = useState(false);
 
   const heroBg = require('../../../../../assets/auth/sport_auth_hero.jpg');
+
+  const handlePickAvatar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert('Quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.log('Pick avatar error:', e);
+    }
+  };
 
   const handleDateTextChange = (text: string) => {
     let cleaned = text.replace(/[^0-9/]/g, '');
@@ -85,7 +118,8 @@ export function PersonalInfoScreen() {
   };
 
   const handleNext = () => {
-    if (!fullName.trim()) {
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
       showAlert('Thiếu thông tin', 'Vui lòng nhập họ và tên.');
       return;
     }
@@ -94,6 +128,10 @@ export function PersonalInfoScreen() {
         'Ngày sinh không hợp lệ',
         'Vui lòng nhập ngày sinh đúng định dạng DD/MM/YYYY.'
       );
+      return;
+    }
+    if (!initialPassword && (!password || password.length < 6)) {
+      showAlert('Thiếu thông tin', 'Vui lòng tạo mật khẩu (ít nhất 6 ký tự).');
       return;
     }
 
@@ -106,10 +144,11 @@ export function PersonalInfoScreen() {
       params: {
         registrationToken,
         email,
-        password,
-        fullName,
+        password: initialPassword || password,
+        fullName: trimmedName,
         dateOfBirth: formattedDob,
         gender,
+        avatarUri: avatarUri || '',
       },
     });
   };
@@ -176,17 +215,24 @@ export function PersonalInfoScreen() {
               </View>
             </View>
 
-            {/* Avatar Placeholder / Selector */}
+            {/* Avatar Selector with Aura Ring */}
             <View style={styles.avatarSection}>
-              <View style={styles.avatarWrapper}>
+              <TouchableOpacity
+                style={styles.avatarWrapper}
+                onPress={handlePickAvatar}
+                activeOpacity={0.85}
+              >
                 <View style={styles.avatarAura} />
                 <Image
-                  source={DEFAULT_PLAYER_AVATAR}
+                  source={avatarUri ? { uri: avatarUri } : DEFAULT_PLAYER_AVATAR}
                   style={styles.avatarImage}
                   resizeMode="cover"
                 />
-              </View>
-              <Text style={styles.avatarHint}>Ảnh đại diện Sporta</Text>
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.avatarHint}>Chạm để chọn ảnh đại diện (Tùy chọn)</Text>
             </View>
 
             {/* Form Inputs */}
@@ -219,6 +265,48 @@ export function PersonalInfoScreen() {
                   />
                 </View>
               </View>
+
+              {/* Password Input for Google Login Flow */}
+              {!initialPassword && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Tạo mật khẩu <Text style={styles.requiredStar}>*</Text>
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      isFocusedPassword && styles.inputWrapperFocused,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="lock-outline"
+                      size={20}
+                      color={isFocusedPassword ? '#064E3B' : '#8A929A'}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Ít nhất 6 ký tự"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      placeholderTextColor="#9AA1A9"
+                      onFocus={() => setIsFocusedPassword(true)}
+                      onBlur={() => setIsFocusedPassword(false)}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#8A929A"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               {/* Date of Birth */}
               <View style={styles.inputGroup}>
@@ -488,6 +576,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 46,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#064E3B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatarHint: {
     fontSize: 12,

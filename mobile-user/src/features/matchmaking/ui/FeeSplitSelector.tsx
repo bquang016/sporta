@@ -8,6 +8,7 @@ interface FeeSplitSelectorProps {
   hostPercent: number;
   onChangeHostPercent: (percent: number) => void;
   isLocked?: boolean;
+  stepNumber?: number;
 }
 
 export function FeeSplitSelector({
@@ -15,17 +16,22 @@ export function FeeSplitSelector({
   hostPercent,
   onChangeHostPercent,
   isLocked = false,
+  stepNumber = 5,
 }: FeeSplitSelectorProps) {
   const [isCustom, setIsCustom] = useState<boolean>(false);
   const [customInput, setCustomInput] = useState<string>(hostPercent.toString());
 
   const guestPercent = 100 - hostPercent;
-  const guestAmount = Math.round((totalPrice * guestPercent) / 100);
+  const winnerPercent = Math.min(hostPercent, guestPercent);
+  const loserPercent = Math.max(hostPercent, guestPercent);
+
+  const winnerAmount = Math.round((totalPrice * winnerPercent) / 100);
+  const loserAmount = totalPrice - winnerAmount;
 
   const presets = [
-    { label: '50/50 (Chia đôi)', host: 50 },
-    { label: '70/30 (Thắng trả 30%)', host: 70 },
-    { label: '100/0 (Thua bao sân)', host: 100 },
+    { label: '50/50', sub: 'Chia đôi', desc: 'Mỗi đội 50%', host: 50 },
+    { label: '70/30', sub: 'Thắng trả 30%', desc: 'Đội thắng giảm 40%', host: 70 },
+    { label: '100/0', sub: 'Thua bao sân', desc: 'Đội thắng miễn 100%', host: 100 },
   ];
 
   const handleSelectPreset = (pHost: number) => {
@@ -45,21 +51,27 @@ export function FeeSplitSelector({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Tỉ lệ chia tiền sân (Cơ chế Đội Thắng trả ít hơn)</Text>
-        {isLocked && (
-          <View style={styles.lockedBadge}>
-            <Ionicons name="lock-closed" size={12} color={COLORS.error} />
-            <Text style={styles.lockedText}>Đã khóa</Text>
+        <View style={styles.sectionIconCircle}>
+          <Ionicons name="flame" size={16} color="#EA580C" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={styles.sectionTitle}>{stepNumber}. Tỉ Lệ Chia Tiền Sân</Text>
+            {isLocked && (
+              <View style={styles.lockedBadge}>
+                <Ionicons name="lock-closed" size={11} color="#DC2626" />
+                <Text style={styles.lockedText}>Đã khóa</Text>
+              </View>
+            )}
           </View>
-        )}
+          <Text style={styles.subtext}>
+            Quy tắc khuyến khích thi đấu: <Text style={{ fontWeight: '800', color: COLORS.primary }}>Đội Thắng trả ít hơn</Text>.
+          </Text>
+        </View>
       </View>
 
-      <Text style={styles.subtext}>
-        Tổng giá trị tiền sân: <Text style={styles.totalHighlight}>{totalPrice.toLocaleString('vi-VN')}đ</Text>
-      </Text>
-
-      {/* Presets */}
-      <View style={styles.presetRow}>
+      {/* Presets Grid */}
+      <View style={styles.presetGrid}>
         {presets.map((p) => {
           const isSelected = !isCustom && hostPercent === p.host;
           return (
@@ -69,34 +81,48 @@ export function FeeSplitSelector({
               activeOpacity={0.85}
               onPress={() => handleSelectPreset(p.host)}
               style={[
-                styles.presetBtn,
-                isSelected && styles.presetBtnActive,
+                styles.presetCard,
+                isSelected && styles.presetCardActive,
                 isLocked && styles.btnDisabled,
               ]}
             >
-              <Text style={[styles.presetText, isSelected && styles.presetTextActive]}>
+              <Text style={[styles.presetMain, isSelected && styles.presetMainActive]}>
                 {p.label}
+              </Text>
+              <Text style={[styles.presetSub, isSelected && styles.presetSubActive]}>
+                {p.sub}
+              </Text>
+              <Text style={[styles.presetDesc, isSelected && styles.presetDescActive]}>
+                {p.desc}
               </Text>
             </TouchableOpacity>
           );
         })}
-
-        <TouchableOpacity
-          disabled={isLocked}
-          activeOpacity={0.85}
-          onPress={() => {
-            if (isLocked) return;
-            setIsCustom(true);
-          }}
-          style={[
-            styles.presetBtn,
-            isCustom && styles.presetBtnActive,
-            isLocked && styles.btnDisabled,
-          ]}
-        >
-          <Text style={[styles.presetText, isCustom && styles.presetTextActive]}>Tùy chỉnh</Text>
-        </TouchableOpacity>
       </View>
+
+      {/* Custom Option Button */}
+      <TouchableOpacity
+        disabled={isLocked}
+        activeOpacity={0.85}
+        onPress={() => {
+          if (isLocked) return;
+          setIsCustom(true);
+        }}
+        style={[
+          styles.customBtn,
+          isCustom && styles.customBtnActive,
+          isLocked && styles.btnDisabled,
+        ]}
+      >
+        <Ionicons
+          name="options-outline"
+          size={14}
+          color={isCustom ? COLORS.primary : '#64748B'}
+        />
+        <Text style={[styles.customBtnText, isCustom && styles.customBtnTextActive]}>
+          Tùy chỉnh tỉ lệ phần trăm
+        </Text>
+      </TouchableOpacity>
 
       {/* Custom Input */}
       {isCustom && !isLocked && (
@@ -110,205 +136,256 @@ export function FeeSplitSelector({
             onChangeText={handleCustomChange}
           />
           <Text style={styles.customCalc} numberOfLines={1}>
-            → Đối thủ chịu {guestPercent}% (~{guestAmount.toLocaleString('vi-VN')}đ)
+            → Đối thủ: {guestPercent}%
           </Text>
         </View>
       )}
 
-      {/* Incentive Explanation Summary Box */}
-      <View style={styles.summaryBox}>
-        <View style={styles.summaryHeader}>
-          <Ionicons name="trophy-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.summaryHeaderTitle}>Quy tắc thanh toán theo kết quả:</Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="trophy" size={14} color="#15803D" />
-            <Text style={styles.summaryLabel}>Nếu Đội Thắng:</Text>
+      {/* Calculated Breakdown Box */}
+      <View style={styles.breakdownBox}>
+        <View style={styles.breakdownItemWin}>
+          <View style={styles.breakdownTitleRow}>
+            <Ionicons name="trophy" size={13} color="#15803D" />
+            <Text style={styles.breakdownTitleWin}>Đội Thắng ({winnerPercent}%)</Text>
           </View>
-          <Text style={styles.summaryHostValue}>
-            Giảm/miễn trả chỉ còn {Math.min(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.min(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)
+          <Text style={styles.breakdownAmountWin}>
+            ~{winnerAmount.toLocaleString('vi-VN')}đ
           </Text>
         </View>
 
-        <View style={styles.summaryRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="alert-circle" size={14} color="#B91C1C" />
-            <Text style={styles.summaryLabel}>Nếu Đội Thua:</Text>
+        <View style={styles.breakdownDivider} />
+
+        <View style={styles.breakdownItemLose}>
+          <View style={styles.breakdownTitleRow}>
+            <Ionicons name="alert-circle" size={13} color="#B91C1C" />
+            <Text style={styles.breakdownTitleLose}>Đội Thua ({loserPercent}%)</Text>
           </View>
-          <Text style={styles.summaryGuestValue}>
-            Thanh toán phần còn lại {Math.max(hostPercent, guestPercent)}% (~{Math.round((totalPrice * Math.max(hostPercent, guestPercent)) / 100).toLocaleString('vi-VN')}đ)
+          <Text style={styles.breakdownAmountLose}>
+            ~{loserAmount.toLocaleString('vi-VN')}đ
           </Text>
         </View>
       </View>
-
-      <Text style={styles.noteCopy}>
-        Đội đối thủ sẽ <Text style={{ fontWeight: '800' }}>thanh toán trực tiếp</Text> khoản tiền sân ngoài đời cho Chủ sân theo kết quả trận đấu.
-      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: 'rgba(6, 78, 59, 0.08)',
-    gap: SPACING.sm,
-    shadowColor: '#064E3B',
+    borderColor: '#E2E8F0',
+    gap: 12,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  sectionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFF7ED',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
   sectionTitle: {
     ...TYPOGRAPHY.titleMd,
     fontWeight: '800',
     color: COLORS.onSurface,
     fontSize: 15.5,
-    flex: 1,
   },
   lockedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEE2E2',
+    gap: 3,
+    backgroundColor: '#FEF2F2',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2.5,
     borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
   },
   lockedText: {
     ...TYPOGRAPHY.labelSm,
-    color: COLORS.error,
+    color: '#DC2626',
     fontWeight: '800',
     fontSize: 10,
   },
   subtext: {
     ...TYPOGRAPHY.bodyMd,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12.5,
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 2,
   },
-  totalHighlight: {
-    fontWeight: '800',
-    color: COLORS.primary,
-  },
-  presetRow: {
+  presetGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginTop: 4,
   },
-  presetBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+  presetCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    gap: 2,
   },
-  presetBtnActive: {
-    backgroundColor: COLORS.primary,
+  presetCardActive: {
+    backgroundColor: 'rgba(6, 78, 59, 0.05)',
     borderColor: COLORS.primary,
   },
   btnDisabled: {
     opacity: 0.5,
   },
-  presetText: {
-    ...TYPOGRAPHY.labelMd,
+  presetMain: {
+    ...TYPOGRAPHY.titleMd,
+    fontWeight: '800',
+    fontSize: 15,
     color: COLORS.onSurface,
+  },
+  presetMainActive: {
+    color: COLORS.primary,
+  },
+  presetSub: {
+    ...TYPOGRAPHY.labelSm,
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#475569',
+    textAlign: 'center',
+  },
+  presetSubActive: {
+    color: COLORS.primary,
+  },
+  presetDesc: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 9.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  presetDescActive: {
+    color: '#059669',
+    fontWeight: '600',
+  },
+  customBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  customBtnActive: {
+    backgroundColor: 'rgba(6, 78, 59, 0.05)',
+    borderColor: COLORS.primary,
+  },
+  customBtnText: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#64748B',
+    fontWeight: '600',
     fontSize: 12,
   },
-  presetTextActive: {
-    color: COLORS.white,
+  customBtnTextActive: {
+    color: COLORS.primary,
     fontWeight: '800',
   },
   customRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: COLORS.background,
-    padding: 10,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: BORDER_RADIUS.md,
   },
   customLabel: {
-    ...TYPOGRAPHY.labelMd,
+    ...TYPOGRAPHY.labelSm,
     color: COLORS.onSurface,
     fontSize: 12,
+    fontWeight: '600',
   },
   customInput: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: 12,
+    borderColor: '#CBD5E1',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    width: 60,
+    width: 50,
     textAlign: 'center',
     fontWeight: '800',
     color: COLORS.onSurface,
+    fontSize: 13,
   },
   customCalc: {
     ...TYPOGRAPHY.bodyMd,
-    fontSize: 11.5,
+    fontSize: 12,
     color: COLORS.primary,
     fontWeight: '700',
     flex: 1,
   },
-  summaryBox: {
-    backgroundColor: COLORS.background,
-    padding: SPACING.md,
+  breakdownBox: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.lg,
-    gap: 6,
-    marginTop: 4,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  summaryHeader: {
+  breakdownItemWin: {
+    flex: 1,
+    gap: 3,
+  },
+  breakdownItemLose: {
+    flex: 1,
+    gap: 3,
+    alignItems: 'flex-end',
+  },
+  breakdownTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
+    gap: 4,
   },
-  summaryHeaderTitle: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: COLORS.primary,
-    fontSize: 12.5,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryLabel: {
-    ...TYPOGRAPHY.bodyMd,
-    fontSize: 12.5,
-    color: COLORS.onSurface,
-    fontWeight: '700',
-  },
-  summaryHostValue: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
+  breakdownTitleWin: {
+    ...TYPOGRAPHY.labelSm,
     color: '#15803D',
-    fontSize: 12,
-  },
-  summaryGuestValue: {
-    ...TYPOGRAPHY.labelMd,
-    fontWeight: '800',
-    color: '#B91C1C',
-    fontSize: 12,
-  },
-  noteCopy: {
-    ...TYPOGRAPHY.bodyMd,
+    fontWeight: '700',
     fontSize: 11.5,
-    color: COLORS.onSurfaceVariant,
-    lineHeight: 16,
+  },
+  breakdownTitleLose: {
+    ...TYPOGRAPHY.labelSm,
+    color: '#B91C1C',
+    fontWeight: '700',
+    fontSize: 11.5,
+  },
+  breakdownAmountWin: {
+    ...TYPOGRAPHY.titleMd,
+    color: '#15803D',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  breakdownAmountLose: {
+    ...TYPOGRAPHY.titleMd,
+    color: '#B91C1C',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  breakdownDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 10,
   },
 });

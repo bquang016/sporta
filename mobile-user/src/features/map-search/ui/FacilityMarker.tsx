@@ -30,9 +30,9 @@ export const SPORT_ICON_MAP: Record<
 };
 
 export const getSportIcon = (sport?: string | null) => {
-  if (!sport) return { type: 'material', name: 'sports' };
+  if (!sport) return { type: 'material', name: 'place' };
   const key = sport.toLowerCase();
-  return SPORT_ICON_MAP[key] ?? { type: 'material', name: 'sports' };
+  return SPORT_ICON_MAP[key] ?? { type: 'material', name: 'place' };
 };
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ export const VenueMarker = memo(
       setTracksViewChanges(true);
       const timer = setTimeout(() => {
         setTracksViewChanges(false);
-      }, 350);
+      }, 200);
       return () => clearTimeout(timer);
     }, [isActive]);
 
@@ -71,7 +71,7 @@ export const VenueMarker = memo(
         anchor={{ x: 0.5, y: 1 }}
         zIndex={isActive ? 99 : 1}
       >
-        <View style={styles.pinWrapper}>
+        <View key={isActive ? 'active' : 'inactive'} style={styles.pinWrapper}>
           {/* Pin bubble */}
           <View
             style={[
@@ -186,7 +186,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.white,
     borderWidth: 2.5,
-    transform: [{ scale: 1.15 }],
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     shadowColor: COLORS.primary,
     shadowOpacity: 0.45,
     shadowRadius: 8,

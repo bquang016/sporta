@@ -36,11 +36,19 @@ public class UserTicketResponse {
     private BigDecimal price;
     private Integer quantity;
     private BigDecimal totalPrice;
+    private BigDecimal discountAmount;
+    private BigDecimal finalPrice;
+    private String paymentMethod;
+    private String checkoutUrl;
+    private Long orderCode;
     private SportLevel sportLevel;
     private TicketStatus status;
     
     private String qrCodeToken;
     private String shortCode;
+    private com.backend.sporta.enums.TeamSide team;
+    private Boolean isCaptain;
+    private Boolean isScoreConfirmed;
     
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
