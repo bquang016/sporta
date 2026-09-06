@@ -22,7 +22,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useCommentPost } from '../model/useCommentPost';
 import { UserProfileModal } from '../../user-profile';
-import { CommentItem } from '../../../entities/post';
+import { CommentItem } from '../../../entities/post/ui/CommentItem';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { CommentSkeleton } from './CommentSkeleton';
 import { Avatar } from '../../../shared/ui';

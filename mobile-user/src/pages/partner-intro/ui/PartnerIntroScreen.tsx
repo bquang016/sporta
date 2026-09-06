@@ -6,10 +6,6 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/conf
 import { Button } from '../../../shared/ui';
 import { Card } from '../../../shared/ui/Card';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 export function PartnerIntroScreen() {
   const router = useRouter();
   const [showMore, setShowMore] = useState(false);

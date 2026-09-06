@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PostComment } from '../../../entities/post';
+import type { PostComment } from '../../../entities/post/model/post.types';
 import { commentPostApi, fetchCommentsApi } from '../../../shared/api/posts';
 
 export function useCommentPost(postId: string, currentUser?: any) {

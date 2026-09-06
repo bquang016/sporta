@@ -24,7 +24,8 @@ import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { SocialNotificationApi } from '../../../shared/api/socialNotifications';
 import { Post } from '../../../entities/post';
 import { Avatar } from '../../../shared/ui';
-import { getCachedUserSession, saveUserSession } from '../../../shared/lib/userSession';
+import { getCachedUserSession, saveUserSession, loadNativeUserSessionAsync } from '../../../shared/lib/userSession';
+import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -77,6 +78,7 @@ export function SocialScreen() {
   // Create Post Modal State & Feed Refetch Key
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createModalInitialMode, setCreateModalInitialMode] = useState<'COMMUNITY' | 'MATCH_FINDING'>('COMMUNITY');
+  const [authModalVisible, setAuthModalVisible] = useState(false);
 
   // Social Notifications State
   const [unreadSocialCount, setUnreadSocialCount] = useState<number>(0);
@@ -301,7 +303,12 @@ export function SocialScreen() {
     lastScrollY.current = currentY;
   }, [topControlsAnim]);
 
-  const openCreateModal = (mode: 'COMMUNITY' | 'MATCH_FINDING' = 'COMMUNITY') => {
+  const openCreateModal = async (mode: 'COMMUNITY' | 'MATCH_FINDING' = 'COMMUNITY') => {
+    const session = await loadNativeUserSessionAsync();
+    if (!session.isAuthenticated) {
+      setAuthModalVisible(true);
+      return;
+    }
     setCreateModalInitialMode(mode);
     setIsCreateModalOpen(true);
   };
@@ -335,7 +342,14 @@ export function SocialScreen() {
           <TouchableOpacity
             style={styles.headerIconButton}
             activeOpacity={0.7}
-            onPress={() => setIsSocialNotificationsVisible(true)}
+            onPress={async () => {
+              const session = await loadNativeUserSessionAsync();
+              if (!session.isAuthenticated) {
+                setAuthModalVisible(true);
+                return;
+              }
+              setIsSocialNotificationsVisible(true);
+            }}
           >
             <Ionicons name="notifications-outline" size={21} color={COLORS.onSurface} />
             {unreadSocialCount > 0 && (
@@ -566,6 +580,15 @@ export function SocialScreen() {
         visible={isSocialNotificationsVisible}
         onClose={() => setIsSocialNotificationsVisible(false)}
         onUnreadCountChange={setUnreadSocialCount}
+      />
+
+      {/* Auth Required Guard */}
+      <AuthRequiredModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        actionTitle="Đăng nhập để tương tác cộng đồng"
+        actionDescription="Vui lòng đăng nhập tài khoản Sporta để đăng bài viết, chia sẻ khoảnh khắc và kết nối với các vận động viên."
+        actionIcon="chatbubbles-outline"
       />
       </SafeAreaView>
     </ReactionOverlayProvider>

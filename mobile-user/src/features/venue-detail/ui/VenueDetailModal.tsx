@@ -23,6 +23,8 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
+import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
+import { loadNativeUserSessionAsync } from '../../../shared/lib/userSession';
 import { fetchVenueDetail } from '../../../entities/facility/api/facilityApi';
 import { VenueDetail } from '../../../entities/facility/model/facility.types';
 import { Facility } from '../../../entities/facility/ui/FacilityCard';
@@ -106,6 +108,7 @@ export function VenueDetailModal({
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedReviewFilter, setSelectedReviewFilter] = useState<'all' | '5' | '4'>('all');
   const [showWriteReview, setShowWriteReview] = useState(false);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
 
   // 60FPS Slide & Fade Animation
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -228,7 +231,12 @@ export function VenueDetailModal({
   };
 
   // Booking Action
-  const handleBookingAction = () => {
+  const handleBookingAction = async () => {
+    const session = await loadNativeUserSessionAsync();
+    if (!session.isAuthenticated) {
+      setAuthModalVisible(true);
+      return;
+    }
     const targetId = venueId || (initialFacility?.id ? String(initialFacility.id) : null);
     if (!targetId) return;
     handleClose();
@@ -921,7 +929,14 @@ export function VenueDetailModal({
                     <TouchableOpacity
                       style={styles.writeReviewBtn}
                       activeOpacity={0.85}
-                      onPress={() => setShowWriteReview(true)}
+                      onPress={async () => {
+                        const session = await loadNativeUserSessionAsync();
+                        if (!session.isAuthenticated) {
+                          setAuthModalVisible(true);
+                          return;
+                        }
+                        setShowWriteReview(true);
+                      }}
                     >
                       <MaterialIcons name="edit" size={16} color={COLORS.primary} />
                       <Text style={styles.writeReviewBtnText}>
@@ -1061,6 +1076,15 @@ export function VenueDetailModal({
           setShowWriteReview(false);
           refetchReviews();
         }}
+      />
+
+      {/* Auth Required Guard */}
+      <AuthRequiredModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        actionTitle="Đăng nhập để đặt sân & trải nghiệm"
+        actionDescription="Vui lòng đăng nhập tài khoản Sporta để tiếp tục đặt lịch sân, đánh giá hoặc sử dụng các tiện ích khác."
+        actionIcon="calendar-today"
       />
     </Modal>
   );

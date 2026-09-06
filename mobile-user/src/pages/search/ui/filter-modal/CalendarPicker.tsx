@@ -3,13 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, UIManager, P
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../../shared/config/theme';
 
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 interface CalendarPickerProps {
   selectedDate?: Date;
   onSelectDate: (date: Date) => void;
