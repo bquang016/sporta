@@ -5,7 +5,8 @@ import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../../shared/c
 
 if (
   Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
+  UIManager.setLayoutAnimationEnabledExperimental &&
+  !(globalThis as any).nativeFabricUIManager
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }

@@ -26,7 +26,7 @@ import { getWalletBalance, checkPaymentStatus } from '../../../features/wallet/a
 import { VoucherBottomSheet } from '../../../features/voucher/ui/VoucherBottomSheet';
 import { UserVoucher, DiscountType, VoucherScope } from '../../../features/voucher/types';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental && !(globalThis as any).nativeFabricUIManager) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
