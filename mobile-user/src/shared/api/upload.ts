@@ -16,10 +16,10 @@ const getToken = async (): Promise<string> => {
 
 export const uploadImageApi = async (
   uri: string,
-  type: 'avatar' | 'court_cover' | 'general' | 'post' = 'general'
+  type: 'avatar' | 'court_cover' | 'court_detail' | 'general' | 'post' = 'general'
 ): Promise<string> => {
   const token = await getToken();
-  
+
   // 1. Convert to WebP (No crop/resize, just compress to save 80% size)
   let localUriToUpload = uri;
   try {
@@ -33,48 +33,86 @@ export const uploadImageApi = async (
     console.log('WebP conversion failed, fallback to original:', error);
   }
 
-  // 2. Fetch Presigned URL
-  const headers: Record<string, string> = {};
+  const authHeaders: Record<string, string> = {};
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    authHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const presignResponse = await fetch(
-    `${getBaseUrl()}/upload/presigned-url?type=${type}&extension=.webp&contentType=image/webp`,
-    {
-      method: 'GET',
-      headers,
+  // 2. PRIMARY STRATEGY: Direct Multipart Upload via Backend Server
+  // This bypasses client-side Cloudflare R2 CORS restrictions and React Native PUT Blob issues
+  try {
+    const formData = new FormData();
+    const filename = `upload_${Date.now()}.webp`;
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(localUriToUpload);
+      const blob = await response.blob();
+      formData.append('file', blob, filename);
+    } else {
+      // React Native Native Form Attachment
+      formData.append('file', {
+        uri: localUriToUpload,
+        name: filename,
+        type: 'image/webp',
+      } as any);
     }
-  );
 
-  if (!presignResponse.ok) {
-    throw new Error('Could not get presigned url');
+    const uploadRes = await fetch(`${getBaseUrl()}/upload/image?type=${type}`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        // Do NOT set Content-Type header manually for FormData so boundary is auto-generated
+      },
+      body: formData,
+    });
+
+    if (uploadRes.ok) {
+      const data = await uploadRes.json();
+      if (data?.imageUrl) {
+        return data.imageUrl;
+      }
+    } else {
+      console.warn('Backend multipart upload failed with status:', uploadRes.status);
+    }
+  } catch (multipartError) {
+    console.warn('Backend multipart upload exception, trying Presigned URL fallback:', multipartError);
   }
 
-  const { presignedUrl, publicUrl } = await presignResponse.json();
+  // 3. FALLBACK STRATEGY: Presigned URL Direct S3 PUT
+  try {
+    const presignResponse = await fetch(
+      `${getBaseUrl()}/upload/presigned-url?type=${type}&extension=.webp&contentType=image/webp`,
+      {
+        method: 'GET',
+        headers: authHeaders,
+      }
+    );
 
-  // 3. Upload File Directly to R2
-  let blob: Blob;
-  if (Platform.OS === 'web') {
-    const response = await fetch(localUriToUpload);
-    blob = await response.blob();
-  } else {
-    // For React Native, we can use fetch to convert local file uri to blob
-    const response = await fetch(localUriToUpload);
-    blob = await response.blob();
+    if (!presignResponse.ok) {
+      const errText = await presignResponse.text().catch(() => '');
+      throw new Error(`Không thể tạo presigned URL (${presignResponse.status}): ${errText}`);
+    }
+
+    const { presignedUrl, publicUrl } = await presignResponse.json();
+
+    const fileResp = await fetch(localUriToUpload);
+    const fileBlob = await fileResp.blob();
+
+    const uploadResponse = await fetch(presignedUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'image/webp',
+      },
+      body: fileBlob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Upload trực tiếp R2 thất bại (HTTP ${uploadResponse.status})`);
+    }
+
+    return publicUrl;
+  } catch (presignError: any) {
+    console.error('All upload strategies failed:', presignError);
+    throw new Error(presignError.message || 'Không thể tải ảnh lên hệ thống');
   }
-
-  const uploadResponse = await fetch(presignedUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'image/webp',
-    },
-    body: blob,
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error('Failed to upload to R2 directly');
-  }
-
-  return publicUrl;
 };

@@ -36,6 +36,17 @@ public class FileStorageService {
         String extension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        } else {
+            String ct = file.getContentType();
+            if (ct != null) {
+                if (ct.contains("webp")) extension = ".webp";
+                else if (ct.contains("png")) extension = ".png";
+                else if (ct.contains("jpeg") || ct.contains("jpg")) extension = ".jpg";
+                else if (ct.contains("gif")) extension = ".gif";
+            }
+            if (extension.isEmpty()) {
+                extension = ".webp";
+            }
         }
 
         String pathPrefix = folder;
@@ -47,12 +58,13 @@ public class FileStorageService {
         }
 
         String fileName = pathPrefix + "/" + UUID.randomUUID().toString() + extension;
+        String contentType = file.getContentType() != null ? file.getContentType() : "image/webp";
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(fileName)
-                    .contentType(file.getContentType())
+                    .contentType(contentType)
                     .build();
 
             s3Client.putObject(putObjectRequest,

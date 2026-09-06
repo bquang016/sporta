@@ -32,6 +32,9 @@ public class ImageUploadController {
             case "court_detail":
                 folder = "courts/details";
                 break;
+            case "post":
+                folder = "posts";
+                break;
             default:
                 folder = "general";
                 break;
