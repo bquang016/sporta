@@ -40,3 +40,5 @@ build/
 **/firebase-service-account*.json
 **/google-services.json
 **/GoogleService-Info.plist
+
+HOSTING_DEPLOYMENT_SUMMARY.md
