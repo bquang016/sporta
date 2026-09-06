@@ -150,13 +150,12 @@ export function RegisterScreen() {
     }).start();
   }, [modalProgress]);
 
-  // Dedicated Drag Handle Swipe Down PanResponder (Attached only to the top drag handle)
+  // Full-Modal Swipe Down PanResponder (Works anywhere on the modal)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only capture on intentional downward vertical drag > 10px
-        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+        return gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.1;
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0 && !isCollapsedRef.current) {
@@ -194,10 +193,9 @@ export function RegisterScreen() {
     outputRange: [0, SCREEN_HEIGHT * 0.84],
   });
 
-  // Zero-degree rotation when sheet is active/open to keep Android coordinate mapping stable
   const sheetRotate = modalProgress.interpolate({
-    inputRange: [0, 0.2, 1],
-    outputRange: ['0deg', '0deg', '3.8deg'],
+    inputRange: [0, 1],
+    outputRange: ['0deg', '3.8deg'],
   });
 
   const sheetScale = modalProgress.interpolate({
@@ -257,10 +255,6 @@ export function RegisterScreen() {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleCarouselScroll}
           decelerationRate="fast"
-          removeClippedSubviews={Platform.OS === 'android'}
-          initialNumToRender={1}
-          maxToRenderPerBatch={2}
-          windowSize={3}
           style={StyleSheet.absoluteFill}
           renderItem={({ item }) => (
             <View style={styles.carouselSlideItem}>
@@ -390,9 +384,10 @@ export function RegisterScreen() {
       </View>
 
       {/* ========================================================
-          ANIMATED FLOATING MODAL SHEET (Stable Native Touch)
+          ANIMATED FLOATING MODAL SHEET (With Full-Modal Swipe Down)
          ======================================================== */}
       <Animated.View
+        {...panResponder.panHandlers}
         style={[
           styles.modalSheetAnimatedWrapper,
           {
@@ -414,23 +409,17 @@ export function RegisterScreen() {
             contentContainerStyle={styles.sheetScrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            nestedScrollEnabled={true}
-            overScrollMode="never"
             bounces={false}
           >
-            {/* Top Pull-down handle bar with isolated PanResponder */}
-            <View
-              style={styles.dragHandleContainer}
-              {...panResponder.panHandlers}
-            >
+            {/* Top Pull-down handle bar */}
+            <View style={styles.dragHandleContainer}>
               <View style={styles.dragHandleBar} />
               <TouchableOpacity
                 onPress={() => toggleModal(true)}
                 style={styles.collapseHintButton}
                 activeOpacity={0.7}
               >
-                <Text style={styles.collapseHintText}>Vuốt thanh kéo xuống để ngắm ảnh</Text>
+                <Text style={styles.collapseHintText}>Vuốt xuống bất kỳ đâu để khám phá</Text>
                 <Ionicons name="chevron-down" size={14} color="#8A929A" />
               </TouchableOpacity>
             </View>
@@ -472,8 +461,6 @@ export function RegisterScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    autoComplete="email"
-                    textContentType="emailAddress"
                     placeholderTextColor="#9AA1A9"
                     onFocus={() => setIsFocusedEmail(true)}
                     onBlur={() => setIsFocusedEmail(false)}
@@ -511,10 +498,6 @@ export function RegisterScreen() {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="password"
-                    textContentType="newPassword"
                     placeholderTextColor="#9AA1A9"
                     onFocus={() => setIsFocusedPassword(true)}
                     onBlur={() => setIsFocusedPassword(false)}
@@ -532,26 +515,22 @@ export function RegisterScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Stable Height Password Strength Indicator */}
-                <View style={styles.strengthContainer}>
-                  {password.length > 0 ? (
-                    <>
-                      <View style={styles.strengthBarBg}>
-                        <View
-                          style={[
-                            styles.strengthBarFill,
-                            { width: strength.width as any, backgroundColor: strength.color },
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.strengthLabel, { color: strength.color }]}>
-                        {strength.label}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={styles.strengthHintText}>Tối thiểu 6 ký tự bao gồm chữ và số</Text>
-                  )}
-                </View>
+                {/* Password Strength Indicator */}
+                {password.length > 0 && (
+                  <View style={styles.strengthContainer}>
+                    <View style={styles.strengthBarBg}>
+                      <View
+                        style={[
+                          styles.strengthBarFill,
+                          { width: strength.width as any, backgroundColor: strength.color },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.strengthLabel, { color: strength.color }]}>
+                      {strength.label}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Confirm Password Input */}
@@ -575,30 +554,24 @@ export function RegisterScreen() {
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showConfirmPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="password"
-                    textContentType="newPassword"
                     placeholderTextColor="#9AA1A9"
                     onFocus={() => setIsFocusedConfirm(true)}
                     onBlur={() => setIsFocusedConfirm(false)}
                   />
-                  <View style={styles.rightAccessoriesRow}>
-                    {isMatching && (
-                      <Ionicons name="checkmark-circle" size={18} color="#064E3B" style={{ marginRight: 6 }} />
-                    )}
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      style={styles.iconButton}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialCommunityIcons
-                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color="#8A929A"
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  {isMatching && (
+                    <Ionicons name="checkmark-circle" size={20} color="#064E3B" style={{ marginRight: 6 }} />
+                  )}
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.iconButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#8A929A"
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -892,9 +865,8 @@ const styles = StyleSheet.create({
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingVertical: 10,
-    marginBottom: 6,
-    width: '100%',
+    paddingVertical: 8,
+    marginBottom: 8,
   },
   dragHandleBar: {
     width: 44,
@@ -907,8 +879,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
   },
   collapseHintText: {
     fontSize: 11.5,
@@ -975,17 +947,11 @@ const styles = StyleSheet.create({
   inputWrapperFocused: {
     backgroundColor: '#FFFFFF',
     borderColor: '#064E3B',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#064E3B',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.12,
-        shadowRadius: 6,
-      },
-      android: {
-        // Keep elevation static on Android to avoid relayout
-      },
-    }),
+    shadowColor: '#064E3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
   inputIcon: {
     marginRight: 10,
@@ -1002,22 +968,12 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 4,
   },
-  rightAccessoriesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   strengthContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
     paddingHorizontal: 4,
-    minHeight: 18,
-  },
-  strengthHintText: {
-    fontSize: 11.5,
-    color: '#8A929A',
-    fontWeight: '500',
   },
   strengthBarBg: {
     flex: 1,

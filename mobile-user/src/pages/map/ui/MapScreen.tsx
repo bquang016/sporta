@@ -9,7 +9,7 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
-import MapView, { Region } from 'react-native-maps';
+import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -321,6 +321,7 @@ export function MapScreen() {
         <MapView
           ref={mapRef}
           style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={DEFAULT_REGION}
           onRegionChangeComplete={handleRegionChangeComplete}
           showsUserLocation={locationGranted === true}
