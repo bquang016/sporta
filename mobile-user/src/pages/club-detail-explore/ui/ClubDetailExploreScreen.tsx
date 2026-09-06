@@ -90,15 +90,25 @@ export function ClubDetailExploreScreen() {
     try {
       const res = await getClubMembersApi(clubId);
       if (Array.isArray(res)) {
-        const mapped: MemberItem[] = res.map((m: any) => ({
-          id: m.id || m.userId,
-          userId: m.userId,
-          name: m.fullName || m.name || 'Thành viên',
-          role: m.role === 'ADMIN' ? 'Trưởng câu lạc bộ' : (m.role === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên'),
-          elo: m.elo || 1200,
-          avatar: m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-          status: m.status || 'APPROVED',
-        }));
+        const mapped: MemberItem[] = res.map((m: any) => {
+          let roleText = 'Thành viên';
+          const r = String(m.role || m.roleCode || '').toUpperCase();
+          if (r === 'ADMIN' || r === 'TRƯỞNG CÂU LẠC BỘ' || r === 'TRƯỞNG NHÓM' || m.role === 'Trưởng câu lạc bộ' || m.role === 'Trưởng nhóm') {
+            roleText = 'Trưởng câu lạc bộ';
+          } else if (r === 'SUB_LEADER' || r === 'PHÓ CÂU LẠC BỘ' || r === 'PHÓ NHÓM' || m.role === 'Phó câu lạc bộ' || m.role === 'Phó nhóm') {
+            roleText = 'Phó câu lạc bộ';
+          }
+
+          return {
+            id: m.id || m.userId,
+            userId: m.userId,
+            name: m.fullName || m.name || 'Thành viên',
+            role: roleText,
+            elo: m.elo || 1200,
+            avatar: m.avatar || m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+            status: m.status || 'APPROVED',
+          };
+        });
         setMembers(mapped);
       }
     } catch (e) {

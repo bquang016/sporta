@@ -417,17 +417,17 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
   },
   facilitiesScrollList: {
-    gap: SPACING.sm,
+    gap: 12,
     paddingVertical: 4,
   },
   facilityCardWrapper: {
-    width: 235,
+    width: 242,
   },
   facilitySkeletonCard: {
-    width: 235,
-    height: 200,
+    width: 242,
+    height: 235,
     backgroundColor: COLORS.surfaceContainerHigh,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: 18,
     opacity: 0.6,
   },
   errorBox: {

@@ -66,7 +66,7 @@ export function PollCard({
   const [selectedEditLineupA, setSelectedEditLineupA] = useState<any>(null);
   const [selectedEditLineupB, setSelectedEditLineupB] = useState<any>(null);
 
-  const canShowDev = isDevUser || __DEV__;
+  const canShowDev = isDevUser;
 
   const openPolls = (polls || []).filter((p) => p.status === 'OPEN');
   const historyPolls = (polls || []).filter((p) => p.status !== 'OPEN');
@@ -90,7 +90,7 @@ export function PollCard({
               activeOpacity={0.8}
               onPress={() => setIsDevModalVisible(true)}
             >
-              <Ionicons name="construct" size={11} color="#4338CA" />
+              <Ionicons name="construct" size={11} color="#7C3AED" />
               <Text style={styles.devBtnText}>DEV: Vote</Text>
             </TouchableOpacity>
           )}
@@ -657,17 +657,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
     paddingHorizontal: 4,
+    gap: 8,
   },
   sectionTitleCol: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   sectionTitle: {
     ...TYPOGRAPHY.labelMd,
     fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
+    flexShrink: 1,
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -677,10 +680,11 @@ const styles = StyleSheet.create({
   devBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#F5F3FF',
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: '#DDD6FE',
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: BORDER_RADIUS.md,
@@ -688,11 +692,14 @@ const styles = StyleSheet.create({
   devBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#4338CA',
+    color: '#7C3AED',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   headerCreateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     backgroundColor: 'rgba(6, 78, 59, 0.08)',
     paddingHorizontal: 10,
@@ -704,6 +711,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
     fontSize: 12,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',

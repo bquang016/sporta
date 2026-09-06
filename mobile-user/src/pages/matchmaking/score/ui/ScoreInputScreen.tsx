@@ -23,7 +23,7 @@ import { ScoreInputForm } from '../../../../features/matchmaking/ui/ScoreInputFo
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 import { DevMatchTestPanel } from '../../../../features/matchmaking/ui/DevMatchTestPanel';
 import { UserAvatar } from '../../../../shared/ui/UserAvatar';
-import { usersApi, UserProfileDto } from '../../../../shared/api/users';
+import { usersApi, UserProfileDto, isDevUser } from '../../../../shared/api/users';
 
 function isMatchTimeStarted(dateStr?: string, startTimeStr?: string): boolean {
   if (!dateStr || !startTimeStr) return true;
@@ -239,7 +239,7 @@ export function ScoreInputScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.responsiveContainer}>
           {/* [DEV] Tester Control Panel */}
-          {(currentUser?.isDevTester || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+          {isDevUser(currentUser) && (
             <DevMatchTestPanel room={room} onRefresh={refetch} />
           )}
 
@@ -280,7 +280,7 @@ export function ScoreInputScreen() {
 
           {/* STATE A: MATCHED & Not Submitted Yet */}
           {room.status === 'MATCHED' && !submission && (
-            (!currentUser?.isDevTester && !isMatchTimeStarted(room.booking.date, room.booking.startTime)) ? (
+            (!isDevUser(currentUser) && !isMatchTimeStarted(room.booking.date, room.booking.startTime)) ? (
               <View style={styles.cardInfo}>
                 <Ionicons name="time-outline" size={24} color="#D97706" />
                 <Text style={styles.cardInfoTitle}>Chưa đến giờ thi đấu</Text>
@@ -288,7 +288,7 @@ export function ScoreInputScreen() {
                   Trận đấu diễn ra lúc {room.booking.date} ({room.booking.startTime}). Bạn có thể cập nhật tỷ số sau khi trận đấu bắt đầu.
                 </Text>
               </View>
-            ) : (room.permissions?.canEnterScore || currentUser?.isDevTester) ? (
+            ) : (room.permissions?.canEnterScore || isDevUser(currentUser)) ? (
               <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} loading={submitting} />
             ) : (
               <View style={styles.cardInfo}>

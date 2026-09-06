@@ -40,6 +40,11 @@ export interface UserProfileDto {
   privateMode?: boolean;
 }
 
+export const isDevUser = (user?: UserProfileDto | { isDevTester?: boolean; role?: string } | null): boolean => {
+  if (!user) return false;
+  return Boolean(user.isDevTester) || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+};
+
 export interface UpdateUserProfileRequest {
   fullName?: string;
   phoneNumber?: string;

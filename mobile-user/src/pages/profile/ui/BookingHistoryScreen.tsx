@@ -211,14 +211,17 @@ export function BookingHistoryScreen({ showHeader = true }: BookingHistoryScreen
             ? `${cancelSuccessData.message}\n\nSố dư ví Sporta hiện tại: ${formatVND(cancelSuccessData.userWalletBalance)}`
             : cancelSuccessData?.message || 'Đơn đặt sân đã được hủy thành công.'
         }
-        confirmText="Xem Ví Sporta"
-        cancelText="Đóng"
+        confirmText={cancelSuccessData?.refundAmount && cancelSuccessData.refundAmount > 0 ? "Xem Ví Sporta" : "Đã hiểu"}
+        cancelText={cancelSuccessData?.refundAmount && cancelSuccessData.refundAmount > 0 ? "Đóng" : undefined}
         confirmVariant="primary"
         icon="check-circle"
         iconColor={COLORS.primary}
         onConfirm={() => {
+          const hasRefund = cancelSuccessData?.refundAmount && cancelSuccessData.refundAmount > 0;
           setCancelSuccessData(null);
-          router.push('/wallet' as any);
+          if (hasRefund) {
+            router.push('/wallet' as any);
+          }
         }}
         onCancel={() => setCancelSuccessData(null)}
       />
