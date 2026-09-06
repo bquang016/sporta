@@ -12,7 +12,8 @@ public class ClubMemberResponse {
     private Long userId;
     private String name;
     private String fullName;
-    private String role; // "Trưởng nhóm", "Phó nhóm", "Thành viên"
+    private String role; // "Trưởng câu lạc bộ", "Phó câu lạc bộ", "Thành viên"
+    private String roleCode; // "ADMIN", "SUB_LEADER", "MEMBER"
     private Integer elo;
     private com.backend.sporta.enums.EloStatus eloStatus;
     private String levelLabel;

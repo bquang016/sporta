@@ -303,7 +303,15 @@ public class ClubMemberServiceImpl implements ClubMemberService {
             members = clubMemberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
         }
 
-        return members.stream().map(this::mapToResponse).collect(Collectors.toList());
+        // Sort: ADMIN first (0), then SUB_LEADER (1), then MEMBER (2)
+        return members.stream()
+                .sorted((a, b) -> {
+                    int rankA = a.getRole() == ClubMemberRole.ADMIN ? 0 : (a.getRole() == ClubMemberRole.SUB_LEADER ? 1 : 2);
+                    int rankB = b.getRole() == ClubMemberRole.ADMIN ? 0 : (b.getRole() == ClubMemberRole.SUB_LEADER ? 1 : 2);
+                    return Integer.compare(rankA, rankB);
+                })
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -500,6 +508,7 @@ public class ClubMemberServiceImpl implements ClubMemberService {
                 .name(fullName)
                 .fullName(fullName)
                 .role(roleText)
+                .roleCode(member.getRole() != null ? member.getRole().name() : "MEMBER")
                 .elo(userElo)
                 .eloStatus(eloStatus)
                 .levelLabel(levelLabel)

@@ -162,13 +162,12 @@ export function ClubDetailJoinedScreen() {
     try {
       const data = await getClubMembersApi(numericClubId);
       const mapped: MemberItem[] = (data || []).map(m => {
-        let roleText = m.role;
-        if (m.role === 'Trưởng nhóm' || m.role === 'ADMIN' || m.role === 'Trưởng câu lạc bộ') {
+        let roleText = 'Thành viên';
+        const r = String(m.role || m.roleCode || '').toUpperCase();
+        if (r === 'ADMIN' || r === 'TRƯỞNG CÂU LẠC BỘ' || r === 'TRƯỞNG NHÓM' || m.role === 'Trưởng câu lạc bộ' || m.role === 'Trưởng nhóm') {
           roleText = 'Trưởng câu lạc bộ';
-        } else if (m.role === 'Phó nhóm' || m.role === 'SUB_LEADER' || m.role === 'Phó câu lạc bộ') {
+        } else if (r === 'SUB_LEADER' || r === 'PHÓ CÂU LẠC BỘ' || r === 'PHÓ NHÓM' || m.role === 'Phó câu lạc bộ' || m.role === 'Phó nhóm') {
           roleText = 'Phó câu lạc bộ';
-        } else {
-          roleText = 'Thành viên';
         }
 
         return {
