@@ -40,7 +40,7 @@ export function BookingHistoryCard({
       <View style={styles.cardHeader}>
         <View style={styles.venueRow}>
           <Image 
-            source={{ uri: booking.venueAvatar || '' }} 
+            source={booking.venueAvatar ? { uri: booking.venueAvatar } : require('../../../../../../assets/auth/sport_auth_hero.jpg')} 
             style={styles.venueAvatar} 
           />
           <View style={styles.venueInfo}>

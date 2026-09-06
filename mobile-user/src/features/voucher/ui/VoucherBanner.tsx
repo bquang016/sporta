@@ -31,7 +31,7 @@ export const VoucherBanner: React.FC<VoucherBannerProps> = ({ voucher, width }) 
       disabled={loading}
     >
       <ImageBackground
-        source={{ uri: voucher.bannerImageUrl || '' }}
+        source={voucher.bannerImageUrl ? { uri: voucher.bannerImageUrl } : require('../../../../assets/auth/sport_auth_hero.jpg')}
         style={styles.imageCard}
         imageStyle={{ borderRadius: BORDER_RADIUS.lg }}
       >
