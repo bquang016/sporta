@@ -33,7 +33,7 @@ import {
   CreateMatchPollPayload,
 } from '../../../shared/api/clubs';
 import { useAlert } from '../../../shared/contexts/AlertContext';
-import { usersApi, UserProfileDto } from '../../../shared/api/users';
+import { usersApi, UserProfileDto, isDevUser } from '../../../shared/api/users';
 
 export function ClubDetailJoinedScreen() {
   const router = useRouter();
@@ -75,7 +75,7 @@ export function ClubDetailJoinedScreen() {
     usersApi.getProfile().then(setCurrentUserProfile).catch(() => {});
   }, []);
 
-  const isDevUser = __DEV__ || !!currentUserProfile?.isDevTester || currentUserProfile?.role === 'ADMIN' || currentUserProfile?.role === 'SUPER_ADMIN';
+  const hasDevPrivileges = isDevUser(currentUserProfile);
 
   const baseClub = joinedClubs.find(c => String(c.id) === String(id)) || clubs.find(c => String(c.id) === String(id));
   const club = authoritativeClub || baseClub;
@@ -679,7 +679,7 @@ export function ClubDetailJoinedScreen() {
             onCreatePollPress={handleOpenCreatePoll}
             members={members}
             onRefreshPolls={fetchClubPolls}
-            isDevUser={isDevUser}
+            isDevUser={hasDevPrivileges}
           />
         </View>
       </ScrollView>

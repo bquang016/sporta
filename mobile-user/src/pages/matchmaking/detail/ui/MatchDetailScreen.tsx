@@ -24,7 +24,7 @@ import { useMatchDetail } from '../../../../features/matchmaking/model/useMatchm
 import { getJoinedClubsApi } from '../../../../shared/api/clubs';
 import { MatchmakingService } from '../../../../shared/api/matchmaking';
 import { createPostApi } from '../../../../shared/api/posts';
-import { usersApi, UserProfileDto } from '../../../../shared/api/users';
+import { usersApi, UserProfileDto, isDevUser } from '../../../../shared/api/users';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
 import { AuthRequiredModal } from '../../../../shared/ui/AuthRequiredModal';
 import { loadNativeUserSessionAsync } from '../../../../shared/lib/userSession';
@@ -380,7 +380,7 @@ export function MatchDetailScreen() {
 
         if (hostSportId && clubSportId && hostSportId === clubSportId) return true;
         if (hostSportName && clubSportName && (hostSportName.includes(clubSportName) || clubSportName.includes(hostSportName))) return true;
-        return currentUser?.isDevTester || false;
+        return isDevUser(currentUser);
       });
 
       if (sameSportClubs.length === 0) {
@@ -396,7 +396,7 @@ export function MatchDetailScreen() {
       }
 
       const leaderClubs = sameSportClubs.filter((c: any) =>
-        c.isLeaderOrSubLeader || c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER' || currentUser?.isDevTester
+        c.isLeaderOrSubLeader || c.userStatus === 'ADMIN' || c.userStatus === 'SUB_LEADER' || isDevUser(currentUser)
       );
 
       if (leaderClubs.length === 0) {
@@ -619,7 +619,7 @@ export function MatchDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.responsiveContainer}>
           {/* ── [DEV] Tester Control Panel ── */}
-          {(currentUser?.isDevTester || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+          {isDevUser(currentUser) && (
             <DevMatchTestPanel room={room} onRefresh={refetch} />
           )}
 

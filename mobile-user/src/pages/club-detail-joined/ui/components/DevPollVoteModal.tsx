@@ -277,7 +277,7 @@ export function DevPollVoteModal({
                 <Text style={styles.sectionLabel}>
                   3. Chọn Thành viên ({selectedUserIds.length}/{activeMembers.length})
                 </Text>
-                {loadingMembers && <ActivityIndicator size="small" color="#6366F1" />}
+                {loadingMembers && <ActivityIndicator size="small" color="#7C3AED" />}
               </View>
 
               {/* Quick Actions */}
@@ -419,6 +419,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
+    maxHeight: '90%',
     height: '90%',
     width: '100%',
     display: 'flex',
@@ -432,17 +433,20 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    gap: 8,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   devBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#7C3AED',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
@@ -452,12 +456,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   modalTitle: {
     ...TYPOGRAPHY.titleSm,
     fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
+    flexShrink: 1,
   },
   closeBtn: {
     padding: 4,
@@ -504,8 +511,8 @@ const styles = StyleSheet.create({
     width: 170,
   },
   pollCardSelected: {
-    borderColor: '#6366F1',
-    backgroundColor: '#EEF2FF',
+    borderColor: '#7C3AED',
+    backgroundColor: '#F5F3FF',
   },
   pollCardTop: {
     flexDirection: 'row',
@@ -521,7 +528,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   pollCardTypeSelected: {
-    color: '#6366F1',
+    color: '#7C3AED',
   },
   pollCardCount: {
     fontSize: 11,
@@ -535,7 +542,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   pollCardTitleSelected: {
-    color: '#4338CA',
+    color: '#7C3AED',
   },
   optionsRow: {
     flexDirection: 'row',
@@ -545,6 +552,7 @@ const styles = StyleSheet.create({
   optionPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -554,35 +562,43 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   optionPillSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
   },
   optionPillText: {
     ...TYPOGRAPHY.labelSm,
     fontSize: 12,
     fontWeight: '700',
     color: '#334155',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   optionPillTextSelected: {
     color: '#FFFFFF',
   },
   quickActionsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
     marginBottom: 8,
   },
   quickActionBtn: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickActionBtnText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#475569',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   quickActionBtnClear: {
     backgroundColor: '#FEF2F2',
@@ -599,17 +615,20 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    gap: 6,
+    height: 40,
+    gap: 8,
     marginBottom: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 12.5,
+    height: '100%',
+    ...TYPOGRAPHY.bodySm,
     color: '#0F172A',
-    padding: 0,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   membersList: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: BORDER_RADIUS.md,
@@ -619,23 +638,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     gap: 10,
   },
   memberRowChecked: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#F5F3FF',
   },
   memberAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#E2E8F0',
   },
   memberInfo: {
     flex: 1,
+    justifyContent: 'center',
   },
   memberNameRow: {
     flexDirection: 'row',
@@ -647,50 +667,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    flexShrink: 1,
   },
   roleTag: {
-    backgroundColor: '#E0E7FF',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    backgroundColor: '#F5F3FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 4,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   roleTagText: {
     fontSize: 9.5,
     fontWeight: '700',
-    color: '#4338CA',
+    color: '#7C3AED',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   memberMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 1,
+    marginTop: 2,
   },
   memberElo: {
     ...TYPOGRAPHY.caption,
     fontSize: 10.5,
     color: '#D97706',
     fontWeight: '600',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   memberVoteStatus: {
     ...TYPOGRAPHY.caption,
     fontSize: 10.5,
     fontWeight: '700',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   voteYes: {
     color: '#10B981',
   },
   voteOther: {
-    color: '#6366F1',
+    color: '#7C3AED',
   },
   memberNoVote: {
     ...TYPOGRAPHY.caption,
     fontSize: 10.5,
     color: '#94A3B8',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
     justifyContent: 'center',
@@ -698,8 +730,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   checkboxChecked: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
   },
   modalFooter: {
     paddingHorizontal: SPACING.lg,
@@ -711,5 +743,6 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     width: '100%',
+    backgroundColor: '#7C3AED',
   },
 });

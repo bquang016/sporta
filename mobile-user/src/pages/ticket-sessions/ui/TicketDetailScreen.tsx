@@ -17,7 +17,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { fetchSessionDetail } from '../../../entities/ticket/api/ticketApi';
 import { TicketSession, SportLevel } from '../../../entities/ticket/model/ticket.types';
 import { DevXeVeTestPanel } from '../../../features/ticket-sessions';
-import { usersApi, UserProfileDto } from '../../../shared/api/users';
+import { usersApi, UserProfileDto, isDevUser } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { getSportLevelMeta } from '../../../shared/lib/utils/elo';
 import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
@@ -217,7 +217,7 @@ export function TicketDetailScreen() {
         </View>
 
         {/* ── 1.5. DEV TEST PANEL (Only for DEV Testers / Admins) ── */}
-        {(currentUser?.isDevTester || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+        {isDevUser(currentUser) && (
           <DevXeVeTestPanel session={session} onRefresh={loadSession} />
         )}
 

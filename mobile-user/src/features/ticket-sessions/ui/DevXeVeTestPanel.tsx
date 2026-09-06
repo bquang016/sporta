@@ -559,13 +559,13 @@ export function DevXeVeTestPanel({ session, onRefresh }: DevXeVeTestPanelProps) 
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>
+              <View style={styles.modalHeaderLeft}>
+                <Text style={styles.modalTitle} numberOfLines={1}>
                   {isFixedHost
                     ? 'Chọn Đấu Thủ Thách Đấu'
                     : targetTeam === 'HOST'
-                    ? 'Chọn Người Chơi Cho Đội A (Xanh)'
-                    : 'Chọn Người Chơi Cho Đội B (Cam)'}
+                    ? 'Chọn Người Chơi Đội A (Xanh)'
+                    : 'Chọn Người Chơi Đội B (Cam)'}
                 </Text>
                 <Text style={styles.modalSub}>Chạm vào người dùng để thêm hoặc gỡ bỏ</Text>
               </View>
@@ -689,21 +689,24 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     backgroundColor: '#7C3AED',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   headerTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
     color: '#5B21B6',
     flex: 1,
   },
@@ -900,6 +903,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   scoreSeparator: {
     fontSize: 20,
@@ -947,21 +952,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 10,
+    gap: 10,
+  },
+  modalHeaderLeft: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     color: '#0F172A',
+    flexShrink: 1,
   },
   modalSub: {
-    fontSize: 11.5,
-    color: '#64748B',
+    fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '600',
     marginTop: 2,
   },
   modalCloseBtn: {
     padding: 6,
     borderRadius: 12,
     backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchBar: {
     flexDirection: 'row',
@@ -972,13 +988,15 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    height: 40,
   },
   searchInput: {
     flex: 1,
+    height: '100%',
     fontSize: 13,
     color: '#0F172A',
-    padding: 0,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   modalLoading: {
     padding: 30,

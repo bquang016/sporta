@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,12 +25,21 @@ import type { SlotInfo } from '../../../entities/facility/model/facility.types';
 import { getWalletBalance, checkPaymentStatus } from '../../../features/wallet/api/walletApi';
 import { VoucherBottomSheet } from '../../../features/voucher/ui/VoucherBottomSheet';
 import { UserVoucher, DiscountType, VoucherScope } from '../../../features/voucher/types';
+import { usersApi, isDevUser, UserProfileDto } from '../../../shared/api/users';
 
 export function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { mutate: createBooking, loading } = useCreateBooking();
   const insets = useSafeAreaInsets();
+
+  const [currentUser, setCurrentUser] = useState<UserProfileDto | null>(null);
+
+  useEffect(() => {
+    usersApi.getProfile().then(setCurrentUser).catch(() => {});
+  }, []);
+
+  const isDevTester = isDevUser(currentUser);
 
   const [selectedMethod, setSelectedMethod] = useState('wallet');
   const [isMethodsExpanded, setIsMethodsExpanded] = useState(true);
@@ -47,38 +56,51 @@ export function PaymentScreen() {
     queryFn: getWalletBalance,
   });
 
-  const paymentMethods = [
-    {
-      id: 'wallet',
-      label: 'Ví Sporta',
-      sublabel: 'Thanh toán tức thì · Hoàn 5% vào ví',
-      icon: 'wallet-outline',
-      badge: 'KHUYÊN DÙNG',
-      badgeColor: '#10B981',
-      enabled: true,
-    },
-    {
-      id: 'payos',
-      label: 'Mã QR Ngân Hàng (PayOS)',
-      sublabel: 'Quét VietQR từ mọi ứng dụng ngân hàng',
-      icon: 'qr-code-outline',
-      enabled: true,
-    },
-    {
-      id: 'cash',
-      label: 'Thanh toán tại sân',
-      sublabel: 'Trả tiền mặt hoặc chuyển khoản cho chủ sân',
-      icon: 'cash-outline',
-      enabled: true,
-    },
-    {
-      id: 'dev',
-      label: 'Thanh toán DEV (Test Auto Success)',
-      sublabel: 'Môi trường kiểm thử đặt sân',
-      icon: 'code-slash-outline',
-      enabled: true,
-    },
-  ];
+  const paymentMethods = useMemo(() => {
+    const methods = [
+      {
+        id: 'wallet',
+        label: 'Ví Sporta',
+        sublabel: 'Thanh toán tức thì · Hoàn 5% vào ví',
+        icon: 'wallet-outline',
+        badge: 'KHUYÊN DÙNG',
+        badgeColor: '#10B981',
+        enabled: true,
+      },
+      {
+        id: 'payos',
+        label: 'Mã QR Ngân Hàng (PayOS)',
+        sublabel: 'Quét VietQR từ mọi ứng dụng ngân hàng',
+        icon: 'qr-code-outline',
+        badge: undefined,
+        badgeColor: undefined,
+        enabled: true,
+      },
+      {
+        id: 'cash',
+        label: 'Thanh toán tại sân',
+        sublabel: 'Trả tiền mặt hoặc chuyển khoản cho chủ sân',
+        icon: 'cash-outline',
+        badge: undefined,
+        badgeColor: undefined,
+        enabled: true,
+      },
+    ];
+
+    if (isDevTester) {
+      methods.push({
+        id: 'dev',
+        label: 'Thanh toán DEV',
+        sublabel: 'Môi trường kiểm thử đặt sân (Tự động thành công)',
+        icon: 'code-slash-outline',
+        badge: 'DEV TESTER',
+        badgeColor: '#7C3AED',
+        enabled: true,
+      });
+    }
+
+    return methods;
+  }, [isDevTester]);
 
   // Parse params safely
   const venueId = params.venueId as string;
@@ -374,12 +396,14 @@ export function PaymentScreen() {
             <View style={styles.methodsList}>
               {paymentMethods.map((method) => {
                 const isSelected = selectedMethod === method.id;
+                const isDevMethod = method.id === 'dev';
                 return (
                   <TouchableOpacity
                     key={method.id}
                     style={[
                       styles.methodItem,
-                      isSelected && styles.methodItemSelected,
+                      isSelected && (isDevMethod ? { borderColor: '#7C3AED', backgroundColor: '#F5F3FF' } : styles.methodItemSelected),
+                      isDevMethod && !isSelected && { borderColor: '#DDD6FE', backgroundColor: '#FAFAFF' },
                       !method.enabled && styles.methodItemDisabled,
                     ]}
                     onPress={() => method.enabled && setSelectedMethod(method.id)}
@@ -387,21 +411,27 @@ export function PaymentScreen() {
                     disabled={!method.enabled}
                   >
                     {/* Radio Button */}
-                    <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                      {isSelected && <View style={styles.radioInner} />}
+                    <View style={[
+                      styles.radioOuter,
+                      isSelected && (isDevMethod ? { borderColor: '#7C3AED' } : styles.radioOuterSelected),
+                    ]}>
+                      {isSelected && <View style={[styles.radioInner, isDevMethod && { backgroundColor: '#7C3AED' }]} />}
                     </View>
 
-                    <View style={styles.methodIconWrap}>
+                    <View style={[styles.methodIconWrap, isDevMethod && { backgroundColor: '#EDE9FE' }]}>
                       <Ionicons
                         name={method.icon as any}
                         size={20}
-                        color={isSelected ? COLORS.primary : COLORS.onSurfaceVariant}
+                        color={isDevMethod ? '#7C3AED' : (isSelected ? COLORS.primary : COLORS.onSurfaceVariant)}
                       />
                     </View>
 
                     <View style={styles.methodInfo}>
                       <View style={styles.methodTitleRow}>
-                        <Text style={[styles.methodLabel, isSelected && styles.methodLabelSelected]}>
+                        <Text style={[
+                          styles.methodLabel,
+                          isSelected && (isDevMethod ? { color: '#7C3AED' } : styles.methodLabelSelected),
+                        ]}>
                           {method.label}
                         </Text>
                         {method.badge ? (
@@ -982,13 +1012,14 @@ const styles = StyleSheet.create({
   methodTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 6,
   },
   methodLabel: {
     fontSize: 13.5,
     fontWeight: '700',
     color: COLORS.onSurface,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   methodLabelSelected: {
     color: COLORS.primary,
@@ -997,11 +1028,16 @@ const styles = StyleSheet.create({
   methodBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   methodBadgeText: {
     fontSize: 9.5,
     fontWeight: '800',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   methodSublabel: {
     fontSize: 11.5,

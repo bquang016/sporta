@@ -439,11 +439,17 @@ public class BookingService {
         int freeHours = (policy.getFreeCancellationHours() != null) ? policy.getFreeCancellationHours() : 24;
         int lateRate = (policy.getLateCancellationRefundRate() != null) ? policy.getLateCancellationRefundRate() : 50;
 
+        boolean isCash = "cash".equalsIgnoreCase(booking.getPaymentMethod());
+
         int refundRate;
         String policyDesc;
         boolean eligible = true;
 
-        if (isGracePeriod) {
+        if (isCash) {
+            refundRate = 0;
+            eligible = false;
+            policyDesc = "Đơn đặt sân sử dụng phương thức \"Thanh toán tại sân\" (chưa thanh toán qua hệ thống Sporta). Khi hủy đơn, khung giờ sẽ được giải phóng và không phát sinh giao dịch hoàn tiền vào ví.";
+        } else if (isGracePeriod) {
             refundRate = 100;
             policyDesc = "Trong thời gian 10 phút sau khi đặt: Miễn phí hủy, hoàn 100% toàn bộ tiền vào Ví Sporta (còn " + (graceMinutesRemaining > 0 ? graceMinutesRemaining + " phút" : "dưới 1 phút") + ").";
         } else if (hoursRemaining >= freeHours) {
@@ -460,8 +466,8 @@ public class BookingService {
         }
 
         double paid = booking.getFinalPrice() != null ? booking.getFinalPrice() : 0.0;
-        long refundAmount = Math.round(paid * (refundRate / 100.0));
-        long cancellationFee = Math.round(paid) - refundAmount;
+        long refundAmount = isCash ? 0L : Math.round(paid * (refundRate / 100.0));
+        long cancellationFee = isCash ? 0L : (Math.round(paid) - refundAmount);
 
         String courtName = (booking.getDetails() != null && !booking.getDetails().isEmpty()
                 && booking.getDetails().get(0).getCourt() != null)
@@ -476,15 +482,15 @@ public class BookingService {
                 .startTime(startTime)
                 .hoursRemaining(Math.round(hoursRemaining * 10.0) / 10.0)
                 .originalPrice(booking.getTotalPrice())
-                .finalPaidPrice(paid)
+                .finalPaidPrice(isCash ? 0.0 : paid)
                 .refundRate(refundRate)
                 .refundAmount(refundAmount)
                 .cancellationFee(cancellationFee)
                 .policyDescription(policyDesc)
                 .isEligibleForRefund(eligible)
-                .refundDestination("Ví Sporta")
-                .isGracePeriod(isGracePeriod)
-                .graceMinutesRemaining(graceMinutesRemaining)
+                .refundDestination(isCash ? "Không áp dụng (Thanh toán tại sân)" : "Ví Sporta")
+                .isGracePeriod(isCash ? false : isGracePeriod)
+                .graceMinutesRemaining(isCash ? 0L : graceMinutesRemaining)
                 .build();
     }
 
@@ -553,8 +559,12 @@ public class BookingService {
         int freeHours = (policy.getFreeCancellationHours() != null) ? policy.getFreeCancellationHours() : 24;
         int lateRate = (policy.getLateCancellationRefundRate() != null) ? policy.getLateCancellationRefundRate() : 50;
 
+        boolean isCash = "cash".equalsIgnoreCase(booking.getPaymentMethod());
+
         int refundRate;
-        if (isGracePeriod) {
+        if (isCash) {
+            refundRate = 0;
+        } else if (isGracePeriod) {
             refundRate = 100;
         } else if (hoursRemaining >= freeHours) {
             refundRate = 100;
@@ -565,12 +575,12 @@ public class BookingService {
         }
 
         double paid = booking.getFinalPrice() != null ? booking.getFinalPrice() : 0.0;
-        long refundAmount = Math.round(paid * (refundRate / 100.0));
-        long cancellationFee = Math.round(paid) - refundAmount;
+        long refundAmount = isCash ? 0L : Math.round(paid * (refundRate / 100.0));
+        long cancellationFee = isCash ? 0L : (Math.round(paid) - refundAmount);
 
-        // 1. Hoàn tiền vào ví người dùng nếu có hoàn tiền
+        // 1. Hoàn tiền vào ví người dùng nếu có hoàn tiền (CHỈ ÁP DỤNG cho đơn KHÔNG PHẢI cash và refundAmount > 0)
         long userNewBalance = 0L;
-        if (refundAmount > 0) {
+        if (!isCash && refundAmount > 0) {
             userNewBalance = userWalletService.creditBookingRefund(
                     booking.getUser().getId(),
                     booking.getId(),
@@ -582,8 +592,8 @@ public class BookingService {
             userNewBalance = balanceResp.getBalance();
         }
 
-        // 2. Khấu trừ doanh thu của Owner nếu đã được cộng trước đó
-        if (venue != null && venue.getOwner() != null && refundAmount > 0) {
+        // 2. Khấu trừ doanh thu của Owner nếu đã được cộng trước đó (Chỉ khi không phải cash và refundAmount > 0)
+        if (!isCash && venue != null && venue.getOwner() != null && refundAmount > 0) {
             try {
                 ownerWalletService.debitBookingRefund(
                         venue.getOwner().getId(),
@@ -627,11 +637,13 @@ public class BookingService {
         // 6. Gửi thông báo Push Notification
         try {
             // Cho User
-            String userMsg = refundAmount > 0
-                    ? String.format("Đã hủy đơn %s và hoàn %s VNĐ vào Ví Sporta của bạn (Tỷ lệ hoàn %d%%).",
-                            booking.getBookingCode(), VND_FORMAT.format(refundAmount), refundRate)
-                    : String.format("Đã hủy đơn %s. Đơn hủy sát giờ không đủ điều kiện hoàn tiền theo chính sách sân.",
-                            booking.getBookingCode());
+            String userMsg = isCash
+                    ? String.format("Đã hủy đơn đặt sân %s (Thanh toán tại sân). Khung giờ đã được mở lại.", booking.getBookingCode())
+                    : (refundAmount > 0
+                            ? String.format("Đã hủy đơn %s và hoàn %s VNĐ vào Ví Sporta của bạn (Tỷ lệ hoàn %d%%).",
+                                    booking.getBookingCode(), VND_FORMAT.format(refundAmount), refundRate)
+                            : String.format("Đã hủy đơn %s. Đơn hủy sát giờ không đủ điều kiện hoàn tiền theo chính sách sân.",
+                                    booking.getBookingCode()));
 
             eventPublisher.publishEvent(new NotificationEvent(
                     this,
@@ -650,8 +662,8 @@ public class BookingService {
                         Role.OWNER,
                         "Khách hàng đã hủy lịch đặt sân ⚠️",
                         String.format(
-                                "Khách hàng %s đã hủy đơn %s tại %s. Khung giờ thi đấu đã được tự động mở lại trên lịch.",
-                                booking.getUser().getFullName(), booking.getBookingCode(), venue.getName()),
+                                "Khách hàng %s đã hủy đơn %s (%s) tại %s. Khung giờ thi đấu đã được tự động mở lại trên lịch.",
+                                booking.getUser().getFullName(), booking.getBookingCode(), isCash ? "Thanh toán tại sân" : "Đã thanh toán online", venue.getName()),
                         NotificationType.OWNER_BOOKING_CANCELLED,
                         booking.getId().toString()));
             }
@@ -659,10 +671,12 @@ public class BookingService {
             log.warn("Lỗi gửi thông báo khi hủy booking: {}", e.getMessage());
         }
 
-        String successMsg = refundAmount > 0
-                ? String.format("Hủy đơn thành công. Đã hoàn %s VNĐ vào ví Sporta của bạn.",
-                        VND_FORMAT.format(refundAmount))
-                : "Hủy đơn thành công.";
+        String successMsg = isCash
+                ? "Hủy đơn đặt sân thành công (Đơn thanh toán tại sân không phát sinh hoàn tiền vào ví)."
+                : (refundAmount > 0
+                        ? String.format("Hủy đơn thành công. Đã hoàn %s VNĐ vào ví Sporta của bạn.",
+                                VND_FORMAT.format(refundAmount))
+                        : "Hủy đơn thành công.");
 
         return CancelBookingResponse.builder()
                 .success(true)

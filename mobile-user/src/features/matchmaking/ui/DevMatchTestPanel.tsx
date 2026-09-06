@@ -240,10 +240,15 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
       >
         <View style={styles.headerLeft}>
           <View style={styles.devIconCircle}>
-            <Ionicons name="code-slash" size={16} color="#FFFFFF" />
+            <Ionicons name="code-slash" size={15} color="#FFFFFF" />
           </View>
-          <View>
-            <Text style={styles.headerTitle}>BẢNG ĐIỀU KHIỂN TEST DEV</Text>
+          <View style={styles.headerTitleWrap}>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerTitle}>BẢNG ĐIỀU KHIỂN TEST</Text>
+              <View style={styles.devBadgeInline}>
+                <Text style={styles.devBadgeInlineText}>DEV</Text>
+              </View>
+            </View>
             <Text style={styles.headerSub}>Tài khoản DEV Tester • Tùy chỉnh Team-line & Elo</Text>
           </View>
         </View>
@@ -673,23 +678,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   devIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTitleWrap: {
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   headerTitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '900',
     color: '#581C87',
     letterSpacing: 0.5,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
+  devBadgeInline: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devBadgeInlineText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   headerSub: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: '#7E22CE',
-    marginTop: 1,
+    marginTop: 2,
   },
   body: {
     padding: 14,
@@ -739,6 +769,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#7C3AED',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   lineupHeaderRow: {
     flexDirection: 'row',
@@ -759,6 +791,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#7C3AED',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   lineupContainer: {
     backgroundColor: '#FFFFFF',
@@ -828,11 +862,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eloBadgeText: {
     fontSize: 9,
     fontWeight: '800',
     color: '#92400E',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   playerCountText: {
     fontSize: 9.5,
@@ -868,6 +906,8 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '700',
     color: '#7C3AED',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   quickScoreRow: {
     flexDirection: 'row',
@@ -875,11 +915,13 @@ const styles = StyleSheet.create({
   },
   quickScoreChip: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E9D5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickScoreChipActive: {
     backgroundColor: '#7C3AED',
@@ -889,6 +931,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#6B21A8',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   quickScoreChipTextActive: {
     color: '#FFFFFF',
@@ -920,6 +964,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#1E293B',
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   scoreVsText: {
     fontSize: 20,
@@ -942,6 +988,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.3,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   modalBackdrop: {
     flex: 1,
@@ -965,11 +1013,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     paddingBottom: 10,
+    gap: 10,
   },
   modalTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: '#0F172A',
+    flexShrink: 1,
   },
   modalSubTitle: {
     fontSize: 11,
@@ -992,14 +1042,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    height: 40,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   searchInput: {
     flex: 1,
+    height: '100%',
     fontSize: 13,
     color: '#0F172A',
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   modalLoading: {
     padding: 30,
