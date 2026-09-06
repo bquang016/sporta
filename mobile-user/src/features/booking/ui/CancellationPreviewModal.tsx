@@ -207,7 +207,7 @@ export const CancellationPreviewModal: React.FC<CancellationPreviewModalProps> =
                           <View style={[
                             styles.policyBanner,
                             isCashBooking
-                              ? styles.policyBannerZero
+                              ? styles.policyBannerCash
                               : previewData.isGracePeriod
                               ? styles.policyBannerGrace
                               : previewData.refundRate === 100 
@@ -220,7 +220,7 @@ export const CancellationPreviewModal: React.FC<CancellationPreviewModalProps> =
                               <View style={[
                                 styles.rateBadge,
                                 isCashBooking
-                                  ? styles.rateBadgeZero
+                                  ? styles.rateBadgeCash
                                   : previewData.isGracePeriod
                                   ? styles.rateBadgeGrace
                                   : previewData.refundRate === 100 
@@ -232,22 +232,25 @@ export const CancellationPreviewModal: React.FC<CancellationPreviewModalProps> =
                                 <Ionicons 
                                   name={isCashBooking ? "cash-outline" : previewData.isGracePeriod ? "flash" : previewData.refundRate === 100 ? "checkmark-circle" : previewData.refundRate > 0 ? "information-circle" : "close-circle"} 
                                   size={13} 
-                                  color={isCashBooking ? "#475569" : previewData.isGracePeriod ? "#047857" : previewData.refundRate === 100 ? "#15803D" : previewData.refundRate > 0 ? "#B45309" : "#B91C1C"} 
+                                  color={isCashBooking ? "#334155" : previewData.isGracePeriod ? "#047857" : previewData.refundRate === 100 ? "#15803D" : previewData.refundRate > 0 ? "#B45309" : "#B91C1C"} 
                                 />
-                                <Text style={[
-                                  styles.rateBadgeText,
-                                  isCashBooking
-                                    ? { color: "#475569" }
-                                    : previewData.isGracePeriod
-                                    ? styles.rateBadgeTextGrace
-                                    : previewData.refundRate === 100 
-                                      ? styles.rateBadgeTextFull 
-                                      : previewData.refundRate > 0 
-                                        ? styles.rateBadgeTextPartial 
-                                        : styles.rateBadgeTextZero
-                                ]}>
+                                <Text 
+                                  style={[
+                                    styles.rateBadgeText,
+                                    isCashBooking
+                                      ? styles.rateBadgeTextCash
+                                      : previewData.isGracePeriod
+                                      ? styles.rateBadgeTextGrace
+                                      : previewData.refundRate === 100 
+                                        ? styles.rateBadgeTextFull 
+                                        : previewData.refundRate > 0 
+                                          ? styles.rateBadgeTextPartial 
+                                          : styles.rateBadgeTextZero
+                                  ]}
+                                  numberOfLines={1}
+                                >
                                   {isCashBooking
-                                    ? "Thanh toán tại sân (Không hoàn tiền)"
+                                    ? "Thanh toán tại sân"
                                     : previewData.isGracePeriod 
                                     ? "Huỷ miễn phí (Hoàn 100%)" 
                                     : previewData.refundRate === 100 
@@ -274,7 +277,7 @@ export const CancellationPreviewModal: React.FC<CancellationPreviewModalProps> =
 
                             <Text style={styles.policyDescText}>
                               {isCashBooking
-                                ? previewData.policyDescription || "Đơn đặt sân chưa thanh toán qua hệ thống Sporta. Khi hủy, khung giờ sẽ được giải phóng mà không phát sinh hoàn tiền vào ví."
+                                ? previewData.policyDescription || "Đơn đặt sân chọn hình thức thanh toán tại sân (chưa thanh toán trước). Khi hủy đơn, khung giờ sẽ được giải phóng và không phát sinh hoàn tiền vào ví."
                                 : previewData.isGracePeriod
                                 ? `Trong thời gian 10 phút sau khi đặt: Miễn phí hủy, hoàn 100% toàn bộ tiền vào Ví Sporta.`
                                 : previewData.policyDescription}
@@ -296,10 +299,11 @@ export const CancellationPreviewModal: React.FC<CancellationPreviewModalProps> =
 
                             {isCashBooking ? (
                               <View style={styles.financialRow}>
-                                <Text style={styles.financialLabelFee}>Hình thức thanh toán</Text>
-                                <Text style={[styles.financialValue, { color: '#64748B', fontSize: 12.5 }]}>
-                                  Thanh toán tại sân (chưa thanh toán)
-                                </Text>
+                                <Text style={styles.financialLabel}>Hình thức thanh toán</Text>
+                                <View style={styles.cashPaymentTag}>
+                                  <Ionicons name="cash-outline" size={12} color="#475569" />
+                                  <Text style={styles.cashPaymentTagText}>Tại sân (Chưa trả)</Text>
+                                </View>
                               </View>
                             ) : previewData.cancellationFee > 0 ? (
                               <View style={styles.financialRow}>
@@ -310,15 +314,19 @@ export const CancellationPreviewModal: React.FC<CancellationPreviewModalProps> =
 
                             <View style={styles.divider} />
 
-                            <View style={styles.refundBox}>
+                            <View style={[styles.refundBox, isCashBooking && styles.refundBoxCash]}>
                               <View style={styles.refundLabelGroup}>
-                                <Ionicons name="wallet-outline" size={15} color={isCashBooking ? "#64748B" : "#047857"} />
-                                <Text style={[styles.refundLabel, isCashBooking && { color: "#64748B" }]}>
-                                  {isCashBooking ? "Tiền hoàn về ví" : "Tiền hoàn vào Ví Sporta"}
+                                <Ionicons 
+                                  name={isCashBooking ? "information-circle-outline" : "wallet-outline"} 
+                                  size={15} 
+                                  color={isCashBooking ? "#64748B" : "#047857"} 
+                                />
+                                <Text style={[styles.refundLabel, isCashBooking && styles.refundLabelCash]}>
+                                  {isCashBooking ? "Tiền hoàn vào ví" : "Tiền hoàn vào Ví Sporta"}
                                 </Text>
                               </View>
-                              <Text style={[styles.refundAmount, isCashBooking && { color: "#64748B" }]}>
-                                {isCashBooking ? "0 đ" : `+ ${formatVND(previewData.refundAmount)}`}
+                              <Text style={[styles.refundAmount, isCashBooking && styles.refundAmountCash]}>
+                                {isCashBooking ? "0 đ (Không áp dụng)" : `+ ${formatVND(previewData.refundAmount)}`}
                               </Text>
                             </View>
                           </View>
@@ -481,25 +489,29 @@ const styles = StyleSheet.create({
   briefRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   briefLabel: {
     ...TYPOGRAPHY.bodySm,
     color: COLORS.onSurfaceVariant,
     fontSize: 12,
+    flexShrink: 0,
   },
   briefCode: {
     ...TYPOGRAPHY.bodyMd,
     fontWeight: '800',
     color: COLORS.primary,
     fontSize: 13,
+    textAlign: 'right',
+    flex: 1,
   },
   briefVenueName: {
     ...TYPOGRAPHY.bodyMd,
     fontWeight: '700',
     color: COLORS.onSurface,
-    maxWidth: '65%',
     textAlign: 'right',
+    flex: 1,
     fontSize: 13,
   },
   briefTime: {
@@ -507,6 +519,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.onSurface,
     fontSize: 12,
+    textAlign: 'right',
+    flex: 1,
   },
   loadingBox: {
     flexDirection: 'row',
@@ -525,6 +539,10 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     gap: 8,
     borderWidth: 1,
+  },
+  policyBannerCash: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
   },
   policyBannerGrace: {
     backgroundColor: '#ECFDF5',
@@ -546,14 +564,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   rateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 3.5,
     borderRadius: BORDER_RADIUS.full,
+    flexShrink: 1,
+  },
+  rateBadgeCash: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
   rateBadgeGrace: {
     backgroundColor: '#D1FAE5',
@@ -572,6 +598,9 @@ const styles = StyleSheet.create({
   rateBadgeText: {
     fontSize: 11,
     fontWeight: '800',
+  },
+  rateBadgeTextCash: {
+    color: '#334155',
   },
   rateBadgeTextGrace: {
     color: '#047857',
@@ -633,26 +662,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
   financialLabel: {
     fontSize: 12,
     color: COLORS.onSurfaceVariant,
     fontWeight: '500',
+    flexShrink: 0,
   },
   financialValue: {
     fontSize: 13,
     fontWeight: '700',
     color: COLORS.onSurface,
+    textAlign: 'right',
+    flex: 1,
+  },
+  cashPaymentTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignSelf: 'flex-end',
+  },
+  cashPaymentTagText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
   },
   financialLabelFee: {
     fontSize: 12,
     color: '#B45309',
     fontWeight: '500',
+    flexShrink: 0,
   },
   financialValueFee: {
     fontSize: 13,
     fontWeight: '700',
     color: '#B45309',
+    textAlign: 'right',
+    flex: 1,
   },
   divider: {
     height: 1,
@@ -669,24 +722,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+  },
+  refundBoxCash: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
   },
   refundLabelGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexShrink: 1,
+    flex: 1,
   },
   refundLabel: {
     fontSize: 12,
     fontFamily: 'HankenGrotesk-Bold',
     fontWeight: '700',
     color: '#065F46',
+    flexShrink: 1,
+  },
+  refundLabelCash: {
+    color: '#64748B',
   },
   refundAmount: {
     fontSize: 13.5,
     fontFamily: 'HankenGrotesk-Bold',
     fontWeight: '800',
     color: '#047857',
+    flexShrink: 0,
+    textAlign: 'right',
+  },
+  refundAmountCash: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
   },
   reasonSection: {
     gap: 8,
