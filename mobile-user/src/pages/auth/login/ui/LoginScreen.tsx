@@ -142,13 +142,13 @@ export function LoginScreen() {
     }).start();
   }, [modalProgress]);
 
-  // Full-Modal Swipe Down PanResponder (Works anywhere on the modal)
+  // Dedicated Drag Handle Swipe Down PanResponder (Attached only to the top drag handle)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Trigger on downward vertical drag > 6px
-        return gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.1;
+        // Only capture on intentional downward vertical drag > 10px
+        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0 && !isCollapsedRef.current) {
@@ -186,9 +186,10 @@ export function LoginScreen() {
     outputRange: [0, SCREEN_HEIGHT * 0.84],
   });
 
+  // Zero-degree rotation when sheet is active/open to keep Android coordinate mapping stable
   const sheetRotate = modalProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '3.8deg'],
+    inputRange: [0, 0.2, 1],
+    outputRange: ['0deg', '0deg', '3.8deg'],
   });
 
   const sheetScale = modalProgress.interpolate({
@@ -229,6 +230,10 @@ export function LoginScreen() {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleCarouselScroll}
           decelerationRate="fast"
+          removeClippedSubviews={Platform.OS === 'android'}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
           style={StyleSheet.absoluteFill}
           renderItem={({ item }) => (
             <View style={styles.carouselSlideItem}>
@@ -358,10 +363,9 @@ export function LoginScreen() {
       </View>
 
       {/* ========================================================
-          ANIMATED FLOATING MODAL SHEET (With Full-Modal Swipe Down)
+          ANIMATED FLOATING MODAL SHEET (Stable Native Touch)
          ======================================================== */}
       <Animated.View
-        {...panResponder.panHandlers}
         style={[
           styles.modalSheetAnimatedWrapper,
           {
@@ -383,17 +387,23 @@ export function LoginScreen() {
             contentContainerStyle={styles.sheetScrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled={true}
+            overScrollMode="never"
             bounces={false}
           >
-            {/* Top Pull-down handle bar */}
-            <View style={styles.dragHandleContainer}>
+            {/* Top Pull-down handle bar with isolated PanResponder */}
+            <View
+              style={styles.dragHandleContainer}
+              {...panResponder.panHandlers}
+            >
               <View style={styles.dragHandleBar} />
               <TouchableOpacity
                 onPress={() => toggleModal(true)}
                 style={styles.collapseHintButton}
                 activeOpacity={0.7}
               >
-                <Text style={styles.collapseHintText}>Vuốt xuống bất kỳ đâu để khám phá</Text>
+                <Text style={styles.collapseHintText}>Vuốt thanh kéo xuống để ngắm ảnh</Text>
                 <Ionicons name="chevron-down" size={14} color="#8A929A" />
               </TouchableOpacity>
             </View>
@@ -435,6 +445,8 @@ export function LoginScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    autoComplete="email"
+                    textContentType="emailAddress"
                     placeholderTextColor="#9AA1A9"
                     onFocus={() => setIsFocusedEmail(true)}
                     onBlur={() => setIsFocusedEmail(false)}
@@ -472,6 +484,10 @@ export function LoginScreen() {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="password"
+                    textContentType="password"
                     placeholderTextColor="#9AA1A9"
                     onFocus={() => setIsFocusedPassword(true)}
                     onBlur={() => setIsFocusedPassword(false)}
@@ -807,8 +823,9 @@ const styles = StyleSheet.create({
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: 10,
+    marginBottom: 6,
+    width: '100%',
   },
   dragHandleBar: {
     width: 44,
@@ -821,8 +838,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
   },
   collapseHintText: {
     fontSize: 11.5,
@@ -889,11 +906,17 @@ const styles = StyleSheet.create({
   inputWrapperFocused: {
     backgroundColor: '#FFFFFF',
     borderColor: '#064E3B',
-    shadowColor: '#064E3B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#064E3B',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+      },
+      android: {
+        // Keep elevation static on Android to avoid relayout
+      },
+    }),
   },
   inputIcon: {
     marginRight: 10,
