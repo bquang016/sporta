@@ -95,7 +95,7 @@ public class DataSeeder implements CommandLineRunner {
         String base = r2PublicUrl != null && !r2PublicUrl.isBlank()
                 ? r2PublicUrl.trim().replaceAll("/$", "")
                 : "https://pub-f01e478a7a2e40b691b90599157e79fd.r2.dev";
-        return base + "/sporta/seed/images";
+        return base + "/seed/images";
     }
 
     @Override
