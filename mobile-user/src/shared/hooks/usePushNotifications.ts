@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { NotificationApi } from '../api/notifications';
@@ -9,15 +10,25 @@ import { usersApi } from '../api/users';
 import { NOTIFICATION_KEYS } from '../../features/notifications/model/useNotifications';
 import { useIsLoggedIn } from './useIsLoggedIn';
 
-// Cấu hình cách hiển thị thông báo khi ứng dụng đang ở foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Cấu hình cách hiển thị thông báo khi ứng dụng đang ở foreground (chỉ khi không bị chặn bởi Expo Go Android)
+if (!isExpoGo || Platform.OS === 'ios') {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (e) {
+    // Ignore in Expo Go
+  }
+}
 
 const cleanText = (str?: string) => {
   if (!str) return '';
@@ -28,15 +39,17 @@ const cleanText = (str?: string) => {
 
 export async function showLocalNotification(title: string, body: string, data?: any) {
   try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: cleanText(title),
-        body: cleanText(body),
-        data: data || {},
-        sound: true,
-      },
-      trigger: null, // Phát thông báo nổ banner lập tức!
-    });
+    if (!isExpoGo || Platform.OS === 'ios') {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: cleanText(title),
+          body: cleanText(body),
+          data: data || {},
+          sound: true,
+        },
+        trigger: null, // Phát thông báo nổ banner lập tức!
+      });
+    }
   } catch (err) {
     console.warn('Failed to display local notification banner:', err);
   }
@@ -54,23 +67,29 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // Đăng ký nhận push token & thiết lập Android notification channel
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        tokenRef.current = token;
+    if (!isExpoGo || Platform.OS === 'ios') {
+      // Đăng ký nhận push token & thiết lập Android notification channel
+      registerForPushNotificationsAsync().then((token) => {
+        if (token) {
+          tokenRef.current = token;
+        }
+      });
+
+      try {
+        // Lắng nghe khi thông báo gửi tới lúc app đang chạy (Foreground)
+        notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+          queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.all });
+        });
+
+        // Lắng nghe khi người dùng nhấn (tap) vào thông báo
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = response.notification.request.content.data;
+          handleNotificationNavigation(data);
+        });
+      } catch (err) {
+        // Safe catch for Expo Go
       }
-    });
-
-    // Lắng nghe khi thông báo gửi tới lúc app đang chạy (Foreground)
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.all });
-    });
-
-    // Lắng nghe khi người dùng nhấn (tap) vào thông báo
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      handleNotificationNavigation(data);
-    });
+    }
 
     // Tự động kiểm tra thông báo mới để nổ Banner ngay cả khi chạy npx expo start -c trên Expo Go
     const pollInterval = setInterval(async () => {
@@ -114,10 +133,14 @@ export function usePushNotifications() {
     return () => {
       clearInterval(pollInterval);
       if (notificationListener.current) {
-        notificationListener.current.remove();
+        try {
+          notificationListener.current.remove();
+        } catch {}
       }
       if (responseListener.current) {
-        responseListener.current.remove();
+        try {
+          responseListener.current.remove();
+        } catch {}
       }
     };
   }, [isLoggedIn, queryClient]);
@@ -151,63 +174,70 @@ export function usePushNotifications() {
 }
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (isExpoGo && Platform.OS === 'android') {
+    return null;
+  }
   let token: string | null = null;
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Sporta Notifications',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#1890FF',
-    });
-  }
-
-  if (Device.isDevice || Platform.OS === 'android') {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Sporta Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#1890FF',
+      });
     }
 
-    if (finalStatus !== 'granted') {
-      console.log('Permission not granted for push notifications!');
-      return null;
-    }
+    if (Device.isDevice || Platform.OS === 'android') {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-    try {
-      if (Platform.OS === 'android') {
-        const tokenResponse = await Notifications.getDevicePushTokenAsync();
-        token = tokenResponse.data;
-      } else {
-        const expoToken = await Notifications.getExpoPushTokenAsync();
-        token = expoToken.data;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
       }
-    } catch (e) {
+
+      if (finalStatus !== 'granted') {
+        console.log('Permission not granted for push notifications!');
+        return null;
+      }
+
       try {
-        const fallbackToken = await Notifications.getDevicePushTokenAsync();
-        token = fallbackToken.data;
-      } catch (err) {
+        if (Platform.OS === 'android') {
+          const tokenResponse = await Notifications.getDevicePushTokenAsync();
+          token = tokenResponse.data;
+        } else {
+          const expoToken = await Notifications.getExpoPushTokenAsync();
+          token = expoToken.data;
+        }
+      } catch (e) {
         try {
-          const expoFallback = await Notifications.getExpoPushTokenAsync();
-          token = expoFallback.data;
-        } catch (finalErr) {
-          console.warn('Could not retrieve push token:', finalErr);
+          const fallbackToken = await Notifications.getDevicePushTokenAsync();
+          token = fallbackToken.data;
+        } catch (err) {
+          try {
+            const expoFallback = await Notifications.getExpoPushTokenAsync();
+            token = expoFallback.data;
+          } catch (finalErr) {
+            console.warn('Could not retrieve push token:', finalErr);
+          }
         }
       }
-    }
 
-    if (token) {
-      try {
-        const deviceType = Platform.OS.toUpperCase();
-        await NotificationApi.registerDeviceToken(token, deviceType);
-      } catch (err) {
-        console.error('Error registering device token with backend:', err);
+      if (token) {
+        try {
+          const deviceType = Platform.OS.toUpperCase();
+          await NotificationApi.registerDeviceToken(token, deviceType);
+        } catch (err) {
+          console.error('Error registering device token with backend:', err);
+        }
       }
+    } else {
+      console.log('Push notifications require a physical device for remote notifications');
     }
-  } else {
-    console.log('Push notifications require a physical device for remote notifications');
+  } catch (err) {
+    console.warn('Push notification registration skipped:', err);
   }
 
   return token;
