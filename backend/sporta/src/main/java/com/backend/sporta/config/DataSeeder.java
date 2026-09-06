@@ -679,6 +679,7 @@ public class DataSeeder implements CommandLineRunner {
                     .activityLevel("Hoạt động hàng tuần")
                     .description("Câu lạc bộ thể thao phong trào giao lưu, ghép trận và nâng cao kỹ năng.")
                     .avatarImage(r2Base + "/clubs/avatar/" + CLUB_AVATARS[i % CLUB_AVATARS.length])
+                    .coverImage(r2Base + "/clubs/background/" + CLUB_BACKGROUNDS[i % CLUB_BACKGROUNDS.length])
                     .maxMembers(50)
                     .build());
 
