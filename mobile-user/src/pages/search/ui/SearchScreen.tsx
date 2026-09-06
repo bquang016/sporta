@@ -426,21 +426,18 @@ export function SearchScreen() {
         <View style={StyleSheet.absoluteFill}>
           {!loading && !error && (
             <MapViewComponent
+              mapRef={mapRef}
               facilities={filteredFacilities}
               userLocation={location?.coords}
               onMarkerPress={(facility) => {
                 lastMarkerPressTime.current = Date.now();
                 setSelectedFacilityId(facility.id);
                 if (facility.latitude && facility.longitude) {
-                  mapRef.current?.animateToRegion(
-                    {
-                      latitude: facility.latitude,
-                      longitude: facility.longitude,
-                      latitudeDelta: 0.02,
-                      longitudeDelta: 0.02,
-                    },
-                    500
-                  );
+                  mapRef.current?.flyTo({
+                    latitude: facility.latitude,
+                    longitude: facility.longitude,
+                    zoom: 15,
+                  });
                 }
               }}
               onMapPress={() => {
@@ -468,7 +465,6 @@ export function SearchScreen() {
                   : {}
               }
               isFullScreen={true}
-              mapRef={mapRef}
               selectedFacilityId={selectedFacilityId}
             />
           )}

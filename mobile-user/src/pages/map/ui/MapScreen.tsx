@@ -9,7 +9,6 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
-import MapView, { Region, UrlTile } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,36 +21,32 @@ import {
 } from '../../../entities/facility/model/useMapFacilities';
 import {
   useFacilitySearch,
-  VenueMarker,
-  ClusterMarkerView,
   MapFacilityCard,
   MapSearchBar,
   useMapSearchAutocomplete,
   SearchResultItem,
   getGoongPlaceDetail,
+  GoongMapView,
+  GoongMapViewRef,
 } from '../../../features/map-search';
 import { getSportIcon } from '../../../features/map-search/ui/FacilityMarker';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const DEFAULT_REGION: Region = {
+const DEFAULT_CENTER = {
   latitude: HANOI_COORDINATE.latitude,
   longitude: HANOI_COORDINATE.longitude,
-  latitudeDelta: 0.05,
-  longitudeDelta: 0.05,
+  zoom: 13,
 };
-
-const USER_ZOOM_DELTA = 0.02;
 
 // ---------------------------------------------------------------------------
 // MapScreen Component
 // ---------------------------------------------------------------------------
 export function MapScreen() {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<GoongMapViewRef>(null);
 
   // State
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -63,13 +58,11 @@ export function MapScreen() {
 
   const {
     availableSports,
-    mapItems,
     selectedSport,
     selectedVenue,
     filteredVenues,
     handleSelectSport,
     handleSelectVenue,
-    handleRegionChange,
   } = useFacilitySearch(venues);
 
   // Search logic
@@ -102,14 +95,11 @@ export function MapScreen() {
         setUserLocation(userCoord);
 
         // Center bản đồ về vị trí user
-        mapRef.current?.animateToRegion(
-          {
-            ...userCoord,
-            latitudeDelta: USER_ZOOM_DELTA,
-            longitudeDelta: USER_ZOOM_DELTA,
-          },
-          800
-        );
+        mapRef.current?.flyTo({
+          latitude: userCoord.latitude,
+          longitude: userCoord.longitude,
+          zoom: 15,
+        });
       } else {
         // GPS bị từ chối → fallback về Hà Nội
         setLocationGranted(false);
@@ -122,24 +112,13 @@ export function MapScreen() {
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
-  const handleRegionChangeComplete = useCallback(
-    (newRegion: Region) => {
-      setRegion(newRegion);
-      handleRegionChange(newRegion.latitudeDelta);
-    },
-    [handleRegionChange]
-  );
-
   const handleMyLocation = useCallback(async () => {
     if (userLocation) {
-      mapRef.current?.animateToRegion(
-        {
-          ...userLocation,
-          latitudeDelta: USER_ZOOM_DELTA,
-          longitudeDelta: USER_ZOOM_DELTA,
-        },
-        600
-      );
+      mapRef.current?.flyTo({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        zoom: 15,
+      });
     } else {
       // Thử xin quyền lại
       await requestLocationPermission();
@@ -147,22 +126,12 @@ export function MapScreen() {
   }, [userLocation]);
 
   const handleZoomIn = useCallback(() => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta * 0.5,
-      longitudeDelta: region.longitudeDelta * 0.5,
-    };
-    mapRef.current?.animateToRegion(newRegion, 300);
-  }, [region]);
+    mapRef.current?.zoomIn();
+  }, []);
 
   const handleZoomOut = useCallback(() => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta * 2,
-      longitudeDelta: region.longitudeDelta * 2,
-    };
-    mapRef.current?.animateToRegion(newRegion, 300);
-  }, [region]);
+    mapRef.current?.zoomOut();
+  }, []);
 
   const lastMarkerPressTime = useRef<number>(0);
 
@@ -205,23 +174,21 @@ export function MapScreen() {
   const handleSelectSearchResult = useCallback(async (item: SearchResultItem) => {
     if (item.type === 'venue') {
       const venue = item.data;
-      mapRef.current?.animateToRegion({
+      mapRef.current?.flyTo({
         latitude: venue.latitude,
         longitude: venue.longitude,
-        latitudeDelta: USER_ZOOM_DELTA,
-        longitudeDelta: USER_ZOOM_DELTA,
-      }, 800);
+        zoom: 15,
+      });
       handleSelectVenue(venue.id);
     } else {
       // It's a place. Fetch details
       const placeDetails = await getGoongPlaceDetail(item.data.place_id);
       if (placeDetails) {
-        mapRef.current?.animateToRegion({
+        mapRef.current?.flyTo({
           latitude: placeDetails.latitude,
           longitude: placeDetails.longitude,
-          latitudeDelta: 0.03, // Suitable zoom for a neighborhood/street
-          longitudeDelta: 0.03,
-        }, 800);
+          zoom: 14,
+        });
         handleSelectVenue(null); // Close any open venue card
       }
     }
@@ -316,62 +283,17 @@ export function MapScreen() {
         </View>
       </SafeAreaView>
 
-      {/* ---- Map ---- */}
+      {/* ---- Goong Map ---- */}
       <View style={styles.mapWrapper}>
-        <MapView
+        <GoongMapView
           ref={mapRef}
-          style={styles.map}
-          initialRegion={DEFAULT_REGION}
-          mapType={Platform.OS === 'android' ? 'none' : 'standard'}
-          onRegionChangeComplete={handleRegionChangeComplete}
-          showsUserLocation={locationGranted === true}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          toolbarEnabled={false}
-          mapPadding={{ top: 0, right: 0, bottom: selectedVenue ? 180 : 0, left: 0 }}
-          onPress={handleClosePopup}
-        >
-          {/* Base OpenStreetMap / Carto Raster Tile Layer */}
-          <UrlTile
-            urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-            maximumZ={19}
-            flipY={false}
-            zIndex={-1}
-          />
-
-          {/* --- Render markers --- */}
-          {mapItems.map((item) => {
-            if (item.type === 'venue') {
-              return (
-                <VenueMarker
-                  key={item.data.id}
-                  venue={item.data}
-                  isActive={selectedVenue?.id === item.data.id}
-                  onPress={handleVenuePress}
-                />
-              );
-            } else {
-              return (
-                <ClusterMarkerView
-                  key={item.data.id}
-                  cluster={item.data}
-                  onPress={(cluster) => {
-                    // Zoom in vào cluster khi tap
-                    mapRef.current?.animateToRegion(
-                      {
-                        latitude: cluster.latitude,
-                        longitude: cluster.longitude,
-                        latitudeDelta: region.latitudeDelta * 0.4,
-                        longitudeDelta: region.longitudeDelta * 0.4,
-                      },
-                      500
-                    );
-                  }}
-                />
-              );
-            }
-          })}
-        </MapView>
+          venues={filteredVenues}
+          userLocation={userLocation}
+          selectedVenueId={selectedVenue?.id}
+          onVenuePress={handleVenuePress}
+          onMapPress={handleClosePopup}
+          initialCenter={DEFAULT_CENTER}
+        />
 
         {/* ---- Removed FloatingSportFilter ---- */}
 
