@@ -101,7 +101,124 @@ function FacebookLogo({ size = 18 }: { size?: number }) {
   );
 }
 
+// Memoized Background Carousel Component to prevent re-renders on keystrokes
+const AuthBackgroundCarousel = React.memo(
+  ({
+    carouselRef,
+    activeSlide,
+    onScroll,
+    onSelectDot,
+    onGoHome,
+    isCollapsed,
+    onToggleCollapse,
+  }: {
+    carouselRef: React.RefObject<FlatList>;
+    activeSlide: number;
+    onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    onSelectDot: (index: number) => void;
+    onGoHome: () => void;
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
+  }) => {
+    const currentBg = BACKGROUND_CAROUSEL[activeSlide] || BACKGROUND_CAROUSEL[0];
+
+    return (
+      <View style={StyleSheet.absoluteFill}>
+        <FlatList
+          ref={carouselRef}
+          data={BACKGROUND_CAROUSEL}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onScroll}
+          decelerationRate="fast"
+          style={StyleSheet.absoluteFill}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          windowSize={3}
+          renderItem={({ item }) => (
+            <View style={styles.carouselSlideItem}>
+              <ImageBackground
+                source={item.image}
+                style={styles.fullBgImage}
+                resizeMode="cover"
+              >
+                <LinearGradient
+                  colors={['rgba(0, 33, 23, 0.3)', 'rgba(0, 33, 23, 0.6)', 'rgba(6, 78, 59, 0.95)']}
+                  style={styles.fullBgGradient}
+                />
+              </ImageBackground>
+            </View>
+          )}
+        />
+
+        {/* Global Floating Top Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={onGoHome}
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+            <Text style={styles.backButtonText}>Trang chủ</Text>
+          </TouchableOpacity>
+
+          {/* Toggle Explore/Collapse Button */}
+          <TouchableOpacity
+            onPress={onToggleCollapse}
+            style={styles.explorePillBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={isCollapsed ? 'create-outline' : 'images-outline'}
+              size={14}
+              color="#FFFFFF"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.explorePillText}>
+              {isCollapsed ? 'Mở đăng ký' : 'Thu gọn'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Inspiring Hero Story Text */}
+        <View style={styles.carouselStoryBox} pointerEvents="box-none">
+          <View style={styles.sportBadge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.sportBadgeText}>{currentBg.tag}</Text>
+          </View>
+          <Text style={styles.heroHeadline}>{currentBg.headline}</Text>
+          <Text style={styles.heroSubtext}>{currentBg.subtext}</Text>
+
+          {/* Carousel Indicator Dots */}
+          <View style={styles.carouselDotsRow}>
+            {BACKGROUND_CAROUSEL.map((item, idx) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => onSelectDot(idx)}
+                activeOpacity={0.8}
+                style={[
+                  styles.dot,
+                  activeSlide === idx ? styles.dotActive : styles.dotInactive,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  }
+);
+
+AuthBackgroundCarousel.displayName = 'AuthBackgroundCarousel';
+
+import { useLocalSearchParams } from 'expo-router';
+
 export function RegisterScreen() {
+  const { collapsed } = useLocalSearchParams<{ collapsed?: string }>();
+  const initialCollapsed = collapsed === 'false' ? false : true;
+
   const {
     email,
     setEmail,
@@ -133,9 +250,9 @@ export function RegisterScreen() {
   const carouselRef = useRef<FlatList>(null);
 
   // Modal Expand/Collapse Animated Progress (0 = Fully Open, 1 = Collapsed)
-  const modalProgress = useRef(new Animated.Value(0)).current;
-  const isCollapsedRef = useRef(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const modalProgress = useRef(new Animated.Value(initialCollapsed ? 1 : 0)).current;
+  const isCollapsedRef = useRef(initialCollapsed);
+  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
 
   // Direct 60 FPS Spring Animation Toggle
   const toggleModal = useCallback((collapse: boolean) => {
@@ -143,28 +260,28 @@ export function RegisterScreen() {
     setIsCollapsed(collapse);
     Animated.spring(modalProgress, {
       toValue: collapse ? 1 : 0,
-      damping: 18,
-      stiffness: 170,
+      damping: 20,
+      stiffness: 180,
       mass: 0.8,
       useNativeDriver: true,
     }).start();
   }, [modalProgress]);
 
-  // Full-Modal Swipe Down PanResponder (Works anywhere on the modal)
+  // Handle Drag-Down PanResponder (Attached ONLY to the drag handle bar to avoid stealing input/scroll touches)
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.1;
+        return Math.abs(gestureState.dy) > 4;
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0 && !isCollapsedRef.current) {
-          const progress = Math.min(Math.max(gestureState.dy / (SCREEN_HEIGHT * 0.7), 0), 1);
+          const progress = Math.min(Math.max(gestureState.dy / (SCREEN_HEIGHT * 0.5), 0), 1);
           modalProgress.setValue(progress);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 70 || gestureState.vy > 0.4) {
+        if (gestureState.dy > 50 || gestureState.vy > 0.3) {
           toggleModal(true);
         } else {
           toggleModal(false);
@@ -182,10 +299,22 @@ export function RegisterScreen() {
     }
   }, []);
 
-  const scrollToSlide = (index: number) => {
+  const scrollToSlide = useCallback((index: number) => {
     setActiveSlide(index);
     carouselRef.current?.scrollToIndex({ index, animated: true });
-  };
+  }, []);
+
+  const handleGoHome = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  }, [router]);
+
+  const handleToggleCollapse = useCallback(() => {
+    toggleModal(!isCollapsedRef.current);
+  }, [toggleModal]);
 
   // Interpolations for 60 FPS Native Transforms
   const sheetTranslateY = modalProgress.interpolate({
@@ -219,9 +348,7 @@ export function RegisterScreen() {
     outputRange: [0, 0.15, 1],
   });
 
-  const currentBg = BACKGROUND_CAROUSEL[activeSlide] || BACKGROUND_CAROUSEL[0];
-
-  const getPasswordStrength = () => {
+  const strength = React.useMemo(() => {
     if (!password) return { label: '', color: '#E8ECF0', width: '0%' };
     if (password.length < 6) return { label: 'Tối thiểu 6 ký tự', color: '#BA1A1A', width: '25%' };
     const hasLetters = /[a-zA-Z]/.test(password);
@@ -235,159 +362,85 @@ export function RegisterScreen() {
       return { label: 'Mức độ khá', color: '#B45309', width: '65%' };
     }
     return { label: 'Mức độ cơ bản', color: '#BA1A1A', width: '40%' };
-  };
+  }, [password]);
 
-  const strength = getPasswordStrength();
   const isMatching = confirmPassword.length > 0 && password === confirmPassword;
 
   return (
     <View style={styles.screenContainer}>
       {/* ========================================================
-          HORIZONTAL SLIDING BACKGROUND CAROUSEL
+          HORIZONTAL SLIDING BACKGROUND CAROUSEL (Memoized)
          ======================================================== */}
-      <View style={StyleSheet.absoluteFill}>
-        <FlatList
-          ref={carouselRef}
-          data={BACKGROUND_CAROUSEL}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleCarouselScroll}
-          decelerationRate="fast"
-          style={StyleSheet.absoluteFill}
-          renderItem={({ item }) => (
-            <View style={styles.carouselSlideItem}>
-              <ImageBackground
-                source={item.image}
-                style={styles.fullBgImage}
-                resizeMode="cover"
-              >
-                <LinearGradient
-                  colors={['rgba(0, 33, 23, 0.3)', 'rgba(0, 33, 23, 0.6)', 'rgba(6, 78, 59, 0.95)']}
-                  style={styles.fullBgGradient}
-                />
-              </ImageBackground>
-            </View>
-          )}
-        />
-
-        {/* Global Floating Top Bar */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-            style={styles.backButton}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
-            <Text style={styles.backButtonText}>Trang chủ</Text>
-          </TouchableOpacity>
-
-          {/* Toggle Explore/Collapse Button */}
-          <TouchableOpacity
-            onPress={() => toggleModal(!isCollapsed)}
-            style={styles.explorePillBtn}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={isCollapsed ? 'create-outline' : 'images-outline'}
-              size={14}
-              color="#FFFFFF"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.explorePillText}>
-              {isCollapsed ? 'Mở đăng ký' : 'Ngắm ảnh'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Inspiring Hero Story Text */}
-        <View style={styles.carouselStoryBox} pointerEvents="box-none">
-          <View style={styles.sportBadge}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.sportBadgeText}>{currentBg.tag}</Text>
-          </View>
-          <Text style={styles.heroHeadline}>{currentBg.headline}</Text>
-          <Text style={styles.heroSubtext}>{currentBg.subtext}</Text>
-
-          {/* Carousel Indicator Dots */}
-          <View style={styles.carouselDotsRow}>
-            {BACKGROUND_CAROUSEL.map((item, idx) => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => scrollToSlide(idx)}
-                activeOpacity={0.8}
-                style={[
-                  styles.dot,
-                  activeSlide === idx ? styles.dotActive : styles.dotInactive,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* ========================================================
-            NEAT QUICK ACTION DOCK (Appears when sheet is collapsed)
-           ======================================================== */}
-        <Animated.View
-          pointerEvents={isCollapsed ? 'auto' : 'none'}
-          style={[
-            styles.quickActionDock,
-            {
-              transform: [{ translateY: dockTranslateY }],
-              opacity: dockOpacity,
-            },
-          ]}
-        >
-          {/* Row 1: Primary Auth Actions (Đăng ký & Đăng nhập) */}
-          <View style={styles.dockRowPrimary}>
-            <TouchableOpacity
-              style={styles.dockPrimaryButton}
-              onPress={() => toggleModal(false)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="person-add-outline" size={16} color="#064E3B" />
-              <Text style={styles.dockPrimaryText}>Đăng ký ngay</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dockSecondaryButton}
-              onPress={() => router.push('/(auth)/login')}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="email-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.dockSecondaryText}>Đăng nhập</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Row 2: Compact Social Logins (Google & Facebook) */}
-          <View style={styles.dockRowSocial}>
-            <TouchableOpacity
-              style={styles.dockSocialPill}
-              onPress={handleGoogleRegister}
-              activeOpacity={0.85}
-            >
-              <GoogleLogo size={18} />
-              <Text style={styles.dockSocialText}>Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dockSocialPill}
-              onPress={handleGoogleRegister}
-              activeOpacity={0.85}
-            >
-              <FacebookLogo size={18} />
-              <Text style={styles.dockSocialText}>Facebook</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </View>
+      <AuthBackgroundCarousel
+        carouselRef={carouselRef}
+        activeSlide={activeSlide}
+        onScroll={handleCarouselScroll}
+        onSelectDot={scrollToSlide}
+        onGoHome={handleGoHome}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+      />
 
       {/* ========================================================
-          ANIMATED FLOATING MODAL SHEET (With Full-Modal Swipe Down)
+          NEAT QUICK ACTION DOCK (Appears when sheet is collapsed)
          ======================================================== */}
       <Animated.View
-        {...panResponder.panHandlers}
+        pointerEvents={isCollapsed ? 'auto' : 'none'}
+        style={[
+          styles.quickActionDock,
+          {
+            transform: [{ translateY: dockTranslateY }],
+            opacity: dockOpacity,
+          },
+        ]}
+      >
+        {/* Row 1: Primary Auth Actions (Đăng ký & Đăng nhập) */}
+        <View style={styles.dockRowPrimary}>
+          <TouchableOpacity
+            style={styles.dockPrimaryButton}
+            onPress={() => toggleModal(false)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="person-add-outline" size={16} color="#064E3B" />
+            <Text style={styles.dockPrimaryText}>Đăng ký ngay</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dockSecondaryButton}
+            onPress={() => router.push('/(auth)/login')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="email-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.dockSecondaryText}>Đăng nhập</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Row 2: Compact Social Logins (Google & Facebook) */}
+        <View style={styles.dockRowSocial}>
+          <TouchableOpacity
+            style={styles.dockSocialPill}
+            onPress={handleGoogleRegister}
+            activeOpacity={0.85}
+          >
+            <GoogleLogo size={18} />
+            <Text style={styles.dockSocialText}>Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dockSocialPill}
+            onPress={handleGoogleRegister}
+            activeOpacity={0.85}
+          >
+            <FacebookLogo size={18} />
+            <Text style={styles.dockSocialText}>Facebook</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* ========================================================
+          ANIMATED FLOATING MODAL SHEET
+         ======================================================== */}
+      <Animated.View
         style={[
           styles.modalSheetAnimatedWrapper,
           {
@@ -409,17 +462,18 @@ export function RegisterScreen() {
             contentContainerStyle={styles.sheetScrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             bounces={false}
           >
-            {/* Top Pull-down handle bar */}
-            <View style={styles.dragHandleContainer}>
+            {/* Top Pull-down handle bar with PanResponder */}
+            <View style={styles.dragHandleContainer} {...panResponder.panHandlers}>
               <View style={styles.dragHandleBar} />
               <TouchableOpacity
                 onPress={() => toggleModal(true)}
                 style={styles.collapseHintButton}
                 activeOpacity={0.7}
               >
-                <Text style={styles.collapseHintText}>Vuốt xuống bất kỳ đâu để khám phá</Text>
+                <Text style={styles.collapseHintText}>Vuốt xuống thanh này để khám phá</Text>
                 <Ionicons name="chevron-down" size={14} color="#8A929A" />
               </TouchableOpacity>
             </View>
@@ -947,11 +1001,7 @@ const styles = StyleSheet.create({
   inputWrapperFocused: {
     backgroundColor: '#FFFFFF',
     borderColor: '#064E3B',
-    shadowColor: '#064E3B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
+    borderWidth: 2,
   },
   inputIcon: {
     marginRight: 10,

@@ -16,6 +16,8 @@ import { queryClient } from '../src/shared/api/queryClient';
 import { AlertProvider } from '../src/shared/contexts/AlertContext';
 import { ChatbotFAB } from '../src/features/chatbot/ui/ChatbotFAB';
 import { ChatbotBottomSheet } from '../src/features/chatbot/ui/ChatbotBottomSheet';
+import { AuthRequiredModal } from '../src/shared/ui/AuthRequiredModal';
+import { loadNativeUserSessionAsync } from '../src/shared/lib/userSession';
 
 // Complete auth session if returning from web browser popup
 WebBrowser.maybeCompleteAuthSession();
@@ -40,6 +42,16 @@ export default function RootLayout() {
   });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+
+  const handleOpenChat = async () => {
+    const session = await loadNativeUserSessionAsync();
+    if (!session.isAuthenticated) {
+      setAuthModalVisible(true);
+      return;
+    }
+    setIsChatOpen(true);
+  };
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -81,8 +93,15 @@ export default function RootLayout() {
           <Stack.Screen name="nearby-venues/index" options={{ headerShown: false }} />
           <Stack.Screen name="recommended-venues/index" options={{ headerShown: false }} />
         </Stack>
-        <ChatbotFAB onPress={() => setIsChatOpen(true)} />
+        <ChatbotFAB onPress={handleOpenChat} />
         <ChatbotBottomSheet visible={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        <AuthRequiredModal
+          visible={authModalVisible}
+          onClose={() => setAuthModalVisible(false)}
+          actionTitle="Đăng nhập để chat cùng AI"
+          actionDescription="Trợ lý ảo Sporta AI hỗ trợ tìm sân, ghép kèo và giải đáp mọi thắc mắc dành riêng cho bạn."
+          actionIcon="chatbubble-ellipses-outline"
+        />
       </AlertProvider>
     </QueryClientProvider>
   );

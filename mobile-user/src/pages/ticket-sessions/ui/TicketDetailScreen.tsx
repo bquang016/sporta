@@ -20,6 +20,8 @@ import { DevXeVeTestPanel } from '../../../features/ticket-sessions';
 import { usersApi, UserProfileDto } from '../../../shared/api/users';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { getSportLevelMeta } from '../../../shared/lib/utils/elo';
+import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
+import { loadNativeUserSessionAsync } from '../../../shared/lib/userSession';
 
 export function TicketDetailScreen() {
   const router = useRouter();
@@ -32,6 +34,7 @@ export function TicketDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
 
   useEffect(() => {
     usersApi.getProfile().then(setCurrentUser).catch(() => {});
@@ -438,12 +441,17 @@ export function TicketDetailScreen() {
 
         <TouchableOpacity
           style={[styles.checkoutBtn, isFull && styles.checkoutBtnDisabled]}
-          onPress={() =>
+          onPress={async () => {
+            const sessionAuth = await loadNativeUserSessionAsync();
+            if (!sessionAuth.isAuthenticated) {
+              setAuthModalVisible(true);
+              return;
+            }
             router.push({
               pathname: '/ticket-payment/[id]',
               params: { id: session.id, quantity: String(quantity) },
-            } as any)
-          }
+            } as any);
+          }}
           disabled={isFull}
           activeOpacity={0.85}
         >
@@ -453,6 +461,15 @@ export function TicketDetailScreen() {
           {!isFull && <Ionicons name="arrow-forward" size={18} color={COLORS.onSecondary} />}
         </TouchableOpacity>
       </View>
+
+      {/* Auth Required Guard */}
+      <AuthRequiredModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        actionTitle="Đăng nhập để mua vé xé"
+        actionDescription="Vui lòng đăng nhập tài khoản Sporta để tiếp tục mua vé tham gia ca xé vé này."
+        actionIcon="confirmation-number"
+      />
     </SafeAreaView>
   );
 }

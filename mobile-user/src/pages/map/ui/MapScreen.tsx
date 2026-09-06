@@ -9,7 +9,6 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
-import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,24 +21,25 @@ import {
 } from '../../../entities/facility/model/useMapFacilities';
 import {
   useFacilitySearch,
-  VenueMarker,
-  ClusterMarkerView,
   MapFacilityCard,
   MapSearchBar,
   useMapSearchAutocomplete,
   SearchResultItem,
   getGoongPlaceDetail,
+  GoongMapView,
+  GoongMapViewRef,
+  GoongMapRegion,
 } from '../../../features/map-search';
-import { getSportIcon } from '../../../features/map-search/ui/FacilityMarker';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const DEFAULT_REGION: Region = {
+const DEFAULT_REGION: GoongMapRegion = {
   latitude: HANOI_COORDINATE.latitude,
   longitude: HANOI_COORDINATE.longitude,
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
+  zoom: 13,
 };
 
 const USER_ZOOM_DELTA = 0.02;
@@ -48,10 +48,10 @@ const USER_ZOOM_DELTA = 0.02;
 // MapScreen Component
 // ---------------------------------------------------------------------------
 export function MapScreen() {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<GoongMapViewRef>(null);
 
   // State
-  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
+  const [region, setRegion] = useState<GoongMapRegion>(DEFAULT_REGION);
   const [locationGranted, setLocationGranted] = useState<boolean | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -123,23 +123,22 @@ export function MapScreen() {
   // Handlers
   // ---------------------------------------------------------------------------
   const handleRegionChangeComplete = useCallback(
-    (newRegion: Region) => {
+    (newRegion: GoongMapRegion) => {
       setRegion(newRegion);
-      handleRegionChange(newRegion.latitudeDelta);
+      if (newRegion.latitudeDelta) {
+        handleRegionChange(newRegion.latitudeDelta);
+      }
     },
     [handleRegionChange]
   );
 
   const handleMyLocation = useCallback(async () => {
     if (userLocation) {
-      mapRef.current?.animateToRegion(
-        {
-          ...userLocation,
-          latitudeDelta: USER_ZOOM_DELTA,
-          longitudeDelta: USER_ZOOM_DELTA,
-        },
-        600
-      );
+      mapRef.current?.flyTo({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        zoom: 15,
+      });
     } else {
       // Thử xin quyền lại
       await requestLocationPermission();
@@ -147,22 +146,12 @@ export function MapScreen() {
   }, [userLocation]);
 
   const handleZoomIn = useCallback(() => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta * 0.5,
-      longitudeDelta: region.longitudeDelta * 0.5,
-    };
-    mapRef.current?.animateToRegion(newRegion, 300);
-  }, [region]);
+    mapRef.current?.zoomIn();
+  }, []);
 
   const handleZoomOut = useCallback(() => {
-    const newRegion = {
-      ...region,
-      latitudeDelta: region.latitudeDelta * 2,
-      longitudeDelta: region.longitudeDelta * 2,
-    };
-    mapRef.current?.animateToRegion(newRegion, 300);
-  }, [region]);
+    mapRef.current?.zoomOut();
+  }, []);
 
   const lastMarkerPressTime = useRef<number>(0);
 
@@ -205,23 +194,21 @@ export function MapScreen() {
   const handleSelectSearchResult = useCallback(async (item: SearchResultItem) => {
     if (item.type === 'venue') {
       const venue = item.data;
-      mapRef.current?.animateToRegion({
-        latitude: venue.latitude,
-        longitude: venue.longitude,
-        latitudeDelta: USER_ZOOM_DELTA,
-        longitudeDelta: USER_ZOOM_DELTA,
-      }, 800);
+      mapRef.current?.flyTo({
+        latitude: Number(venue.latitude),
+        longitude: Number(venue.longitude),
+        zoom: 15.5,
+      });
       handleSelectVenue(venue.id);
     } else {
       // It's a place. Fetch details
       const placeDetails = await getGoongPlaceDetail(item.data.place_id);
       if (placeDetails) {
-        mapRef.current?.animateToRegion({
-          latitude: placeDetails.latitude,
-          longitude: placeDetails.longitude,
-          latitudeDelta: 0.03, // Suitable zoom for a neighborhood/street
-          longitudeDelta: 0.03,
-        }, 800);
+        mapRef.current?.flyTo({
+          latitude: Number(placeDetails.latitude),
+          longitude: Number(placeDetails.longitude),
+          zoom: 14.5,
+        });
         handleSelectVenue(null); // Close any open venue card
       }
     }
@@ -318,52 +305,25 @@ export function MapScreen() {
 
       {/* ---- Map ---- */}
       <View style={styles.mapWrapper}>
-        <MapView
+        <GoongMapView
           ref={mapRef}
           style={styles.map}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          items={mapItems}
+          selectedVenueId={selectedVenue?.id}
+          userLocation={userLocation}
           initialRegion={DEFAULT_REGION}
+          onVenuePress={handleVenuePress}
+          onClusterPress={(cluster) => {
+            mapRef.current?.animateToRegion({
+              latitude: cluster.latitude,
+              longitude: cluster.longitude,
+              latitudeDelta: (region.latitudeDelta || 0.05) * 0.4,
+              longitudeDelta: (region.longitudeDelta || 0.05) * 0.4,
+            }, 500);
+          }}
+          onMapPress={handleClosePopup}
           onRegionChangeComplete={handleRegionChangeComplete}
-          showsUserLocation={locationGranted === true}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          toolbarEnabled={false}
-          mapPadding={{ top: 0, right: 0, bottom: selectedVenue ? 180 : 0, left: 0 }}
-          onPress={handleClosePopup}
-        >
-          {/* --- Render markers --- */}
-          {mapItems.map((item) => {
-            if (item.type === 'venue') {
-              return (
-                <VenueMarker
-                  key={item.data.id}
-                  venue={item.data}
-                  isActive={selectedVenue?.id === item.data.id}
-                  onPress={handleVenuePress}
-                />
-              );
-            } else {
-              return (
-                <ClusterMarkerView
-                  key={item.data.id}
-                  cluster={item.data}
-                  onPress={(cluster) => {
-                    // Zoom in vào cluster khi tap
-                    mapRef.current?.animateToRegion(
-                      {
-                        latitude: cluster.latitude,
-                        longitude: cluster.longitude,
-                        latitudeDelta: region.latitudeDelta * 0.4,
-                        longitudeDelta: region.longitudeDelta * 0.4,
-                      },
-                      500
-                    );
-                  }}
-                />
-              );
-            }
-          })}
-        </MapView>
+        />
 
         {/* ---- Removed FloatingSportFilter ---- */}
 

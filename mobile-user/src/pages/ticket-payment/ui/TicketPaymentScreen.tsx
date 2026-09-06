@@ -26,10 +26,6 @@ import { getWalletBalance, checkPaymentStatus } from '../../../features/wallet/a
 import { VoucherBottomSheet } from '../../../features/voucher/ui/VoucherBottomSheet';
 import { UserVoucher, DiscountType, VoucherScope } from '../../../features/voucher/types';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 export function TicketPaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();

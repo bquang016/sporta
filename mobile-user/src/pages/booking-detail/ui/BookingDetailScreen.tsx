@@ -11,6 +11,8 @@ import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../../../shared/conf
 import { Button } from '../../../shared/ui/Button';
 import { Card } from '../../../shared/ui/Card';
 import { CalendarPicker } from '../../../shared/ui/CalendarPicker';
+import { AuthRequiredModal } from '../../../shared/ui/AuthRequiredModal';
+import { loadNativeUserSessionAsync } from '../../../shared/lib/userSession';
 import { useVenueDetail } from '../../../entities/facility/model/useVenueDetail';
 import type { SlotInfo } from '../../../entities/facility/model/facility.types';
 import { BookingMatrix } from '../../../features/booking-matrix';
@@ -25,6 +27,7 @@ export function BookingDetailScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [selectedSlotKeys, setSelectedSlotKeys] = useState<Set<string>>(new Set());
+  const [authModalVisible, setAuthModalVisible] = useState(false);
   const [ticketSessionModal, setTicketSessionModal] = useState<{
     visible: boolean;
     courtName: string;
@@ -96,8 +99,14 @@ export function BookingDetailScreen() {
   );
 
   // ── Navigate to Payment
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!venue || selectedSlotList.length === 0) return;
+
+    const session = await loadNativeUserSessionAsync();
+    if (!session.isAuthenticated) {
+      setAuthModalVisible(true);
+      return;
+    }
 
     const slotsParam = encodeURIComponent(JSON.stringify(selectedSlotList));
     router.push({
@@ -306,6 +315,15 @@ export function BookingDetailScreen() {
           />
         </BlurView>
       </View>
+
+      {/* Auth Required Guard */}
+      <AuthRequiredModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        actionTitle="Đăng nhập để đặt sân"
+        actionDescription="Vui lòng đăng nhập tài khoản Sporta để tiếp tục đặt lịch sân và hoàn tất đặt chỗ."
+        actionIcon="sports-tennis"
+      />
     </View>
   );
 }

@@ -16,12 +16,15 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../../../shared/c
 import { useMatchmakingList, useMyMatches } from '../../../../features/matchmaking/model/useMatchmaking';
 import { MatchCard } from '../../../../features/matchmaking/ui/MatchCard';
 import { MatchmakingSortOption } from '../../../../entities/match/model/match.types';
+import { AuthRequiredModal } from '../../../../shared/ui/AuthRequiredModal';
+import { loadNativeUserSessionAsync } from '../../../../shared/lib/userSession';
 
 export function MatchmakingListScreen() {
   const router = useRouter();
 
   // Tab State: 'ALL_ROOMS' (Sàn Chợ tìm đối thủ) | 'MY_MATCHES' (Trận đấu của tôi)
   const [activeTab, setActiveTab] = useState<'ALL_ROOMS' | 'MY_MATCHES'>('ALL_ROOMS');
+  const [authModalVisible, setAuthModalVisible] = useState(false);
 
   // Sub-filter for "Trận đấu của tôi"
   const [myMatchFilter, setMyMatchFilter] = useState<'ALL' | 'ACTION_REQUIRED' | 'UPCOMING' | 'SEEKING' | 'FINISHED'>('ALL');
@@ -189,7 +192,12 @@ export function MatchmakingListScreen() {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => {
+            onPress={async () => {
+              const session = await loadNativeUserSessionAsync();
+              if (!session.isAuthenticated) {
+                setAuthModalVisible(true);
+                return;
+              }
               setActiveTab('MY_MATCHES');
               refetchMyMatches();
             }}
@@ -388,7 +396,14 @@ export function MatchmakingListScreen() {
 
             <TouchableOpacity
               activeOpacity={0.88}
-              onPress={() => router.push('/matchmaking/create' as any)}
+              onPress={async () => {
+                const session = await loadNativeUserSessionAsync();
+                if (!session.isAuthenticated) {
+                  setAuthModalVisible(true);
+                  return;
+                }
+                router.push('/matchmaking/create' as any);
+              }}
               style={styles.emptyCta}
             >
               <Ionicons name="add-circle" size={20} color="#FFFFFF" />
@@ -417,12 +432,28 @@ export function MatchmakingListScreen() {
       {/* ── 5. Floating Action Button (FAB) ── */}
       <TouchableOpacity
         activeOpacity={0.88}
-        onPress={() => router.push('/matchmaking/create' as any)}
+        onPress={async () => {
+          const session = await loadNativeUserSessionAsync();
+          if (!session.isAuthenticated) {
+            setAuthModalVisible(true);
+            return;
+          }
+          router.push('/matchmaking/create' as any);
+        }}
         style={styles.fab}
       >
         <Ionicons name="add" size={22} color="#FFFFFF" />
         <Text style={styles.fabText}>Tạo bài mới</Text>
       </TouchableOpacity>
+
+      {/* Auth Required Guard */}
+      <AuthRequiredModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        actionTitle="Đăng nhập để ghép kèo thi đấu"
+        actionDescription="Vui lòng đăng nhập tài khoản Sporta để tạo bài tìm đối thủ, xem trận đấu của bạn hoặc gửi yêu cầu ghép trận."
+        actionIcon="trophy"
+      />
     </SafeAreaView>
   );
 }

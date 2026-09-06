@@ -26,6 +26,8 @@ import { MatchmakingService } from '../../../../shared/api/matchmaking';
 import { createPostApi } from '../../../../shared/api/posts';
 import { usersApi, UserProfileDto } from '../../../../shared/api/users';
 import { CustomConfirmModal } from '../../../../shared/ui/CustomConfirmModal';
+import { AuthRequiredModal } from '../../../../shared/ui/AuthRequiredModal';
+import { loadNativeUserSessionAsync } from '../../../../shared/lib/userSession';
 import { DevMatchTestPanel } from '../../../../features/matchmaking/ui/DevMatchTestPanel';
 import { LineupPicker } from '../../../../features/matchmaking/ui/LineupPicker';
 import { EditLineupModal } from '../../../../features/matchmaking/ui/EditLineupModal';
@@ -186,6 +188,7 @@ export function MatchDetailScreen() {
 
   // Club selector modal states for Side B
   const [isJoinModalVisible, setIsJoinModalVisible] = useState<boolean>(false);
+  const [authModalVisible, setAuthModalVisible] = useState<boolean>(false);
   const [myClubs, setMyClubs] = useState<any[]>([]);
   const [selectedClubId, setSelectedClubId] = useState<string | number | null>(null);
   const [selectedLineup, setSelectedLineup] = useState<any | null>(null);
@@ -308,6 +311,11 @@ export function MatchDetailScreen() {
   const isRejectedRequest = room.myRequest && room.myRequest.status === 'REJECTED' && !hasSentPendingRequest;
 
   const openJoinModal = async () => {
+    const session = await loadNativeUserSessionAsync();
+    if (!session.isAuthenticated) {
+      setAuthModalVisible(true);
+      return;
+    }
     setLoadingClubs(true);
     try {
       let clubs: any[] = [];
@@ -1280,6 +1288,15 @@ export function MatchDetailScreen() {
         onClose={() => setIsLineupDetailModalVisible(false)}
         isLeaderOrSubLeader={viewingLineupIsEditable}
         mode="MATCHMAKING"
+      />
+
+      {/* Auth Required Guard */}
+      <AuthRequiredModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        actionTitle="Đăng nhập để gửi yêu cầu ghép"
+        actionDescription="Vui lòng đăng nhập tài khoản Sporta để gửi yêu cầu thách đấu hoặc tham gia quản lý trận đấu này."
+        actionIcon="paper-plane"
       />
     </SafeAreaView>
   );

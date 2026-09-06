@@ -598,7 +598,18 @@ export function CommunityFeed({
           }
           setCommentPostId(item.id);
         }}
-      onSharePress={() => setSharePost(item)}
+        onSharePress={() => {
+          if (!isLoggedIn) {
+            setAuthModal({
+              visible: true,
+              actionTitle: 'Đăng nhập để chia sẻ',
+              actionDescription: 'Bạn cần đăng nhập để có thể chia sẻ bài viết này lên trang cá nhân hoặc các nhóm thể thao.',
+              actionIcon: 'share-social-outline',
+            });
+            return;
+          }
+          setSharePost(item);
+        }}
       onUserPress={(userId) => setSelectedUserId(userId)}
       onClubPress={(clubInfo) => setSelectedClubInfo(clubInfo)}
       onVenuePress={(venueId, venueName) => {
