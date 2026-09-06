@@ -19,7 +19,7 @@ export function PartnerIntroScreen() {
       {/* Hero Section */}
       <View style={[styles.heroContainer, !showMore && { minHeight: Dimensions.get('window').height }]}>
         <ImageBackground 
-          source={require('../../../../../assets/auth/sport_auth_hero.jpg')} 
+          source={require('../../../../assets/auth/sport_auth_hero.jpg')} 
           style={styles.heroBackground}
           imageStyle={{ opacity: 0.15 }}
         />

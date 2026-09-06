@@ -55,7 +55,7 @@ export function NearbyVenuesScreen() {
         {/* ── Image & Badges ── */}
         <View style={styles.imageContainer}>
           <Image
-            source={item.imageUrl ? { uri: item.imageUrl } : require('../../../../../assets/auth/sport_auth_hero.jpg')}
+            source={item.imageUrl ? { uri: item.imageUrl } : require('../../../../assets/auth/sport_auth_hero.jpg')}
             style={styles.image}
             resizeMode="cover"
           />
