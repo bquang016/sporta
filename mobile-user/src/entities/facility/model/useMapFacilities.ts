@@ -44,31 +44,40 @@ export const useMapFacilities = () => {
           let lng = venue.longitude;
 
           // Fallback: Nếu không có tọa độ, gọi API Geocoding
-          if (lat == null || lng == null) {
+          if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) {
             if (venue.location) {
-              const geo = await geocodeAddress(venue.location);
-              if (geo) {
-                lat = geo.latitude;
-                lng = geo.longitude;
+              try {
+                const geo = await geocodeAddress(venue.location);
+                if (geo) {
+                  lat = geo.latitude;
+                  lng = geo.longitude;
+                }
+              } catch {
+                // Ignore geocoding errors for single venue
               }
             }
           }
 
-          // Vẫn không có tọa độ -> Bỏ qua
-          if (lat == null || lng == null) continue;
+          const numLat = Number(lat);
+          const numLng = Number(lng);
+
+          // Vẫn không có tọa độ hợp lệ -> Bỏ qua để tránh crash MapView
+          if (!isFinite(numLat) || !isFinite(numLng) || numLat < -90 || numLat > 90 || numLng < -180 || numLng > 180) {
+            continue;
+          }
 
           mappedVenues.push({
             id: venue.id,
-            name: venue.name,
-            latitude: lat,
-            longitude: lng,
+            name: venue.name || 'Sân thể thao',
+            latitude: numLat,
+            longitude: numLng,
             sportName: venue.sportName || 'Thể thao',
             price:
               venue.minPrice != null
                 ? `${Number(venue.minPrice).toLocaleString('vi-VN')} VND/h`
                 : '0 VND/h',
             rating: venue.averageRating != null && venue.averageRating > 0 ? Math.round(venue.averageRating * 10) / 10 : 0,
-            location: venue.location,
+            location: venue.location || '',
             coverImage: venue.coverImage || null,
             status: venue.status,
             minPrice: venue.minPrice ?? 0,
