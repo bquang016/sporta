@@ -490,16 +490,21 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         String avatar = (member.getUser() != null && member.getUser().getAvatarUrl() != null && !member.getUser().getAvatarUrl().trim().isEmpty())
                 ? member.getUser().getAvatarUrl()
                 : null;
+        String fullName = (member.getUser() != null && member.getUser().getFullName() != null)
+                ? member.getUser().getFullName()
+                : "";
 
         return ClubMemberResponse.builder()
                 .id(member.getId())
                 .userId(member.getUser() != null ? member.getUser().getId() : null)
-                .name(member.getUser() != null ? member.getUser().getFullName() : "")
+                .name(fullName)
+                .fullName(fullName)
                 .role(roleText)
                 .elo(userElo)
                 .eloStatus(eloStatus)
                 .levelLabel(levelLabel)
                 .avatar(avatar)
+                .avatarUrl(avatar)
                 .status(member.getStatus() != null ? member.getStatus().name() : ClubMemberStatus.APPROVED.name())
                 .joinedAt(member.getJoinedAt() != null ? member.getJoinedAt().format(DATE_FORMATTER) : null)
                 .build();

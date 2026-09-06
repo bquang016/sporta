@@ -96,7 +96,7 @@ export function ClubDetailExploreScreen() {
           name: m.fullName || m.name || 'Thành viên',
           role: m.role === 'ADMIN' ? 'Trưởng câu lạc bộ' : (m.role === 'SUB_LEADER' ? 'Phó câu lạc bộ' : 'Thành viên'),
           elo: m.elo || 1200,
-          avatar: m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+          avatar: m.avatar || m.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
           status: m.status || 'APPROVED',
         }));
         setMembers(mapped);
