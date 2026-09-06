@@ -4,6 +4,7 @@ import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.*;
 import com.backend.sporta.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,7 +16,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -44,14 +44,69 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JdbcTemplate jdbcTemplate;
 
+    @Value("${r2.public-url:https://pub-f01e478a7a2e40b691b90599157e79fd.r2.dev}")
+    private String r2PublicUrl;
+
+    // ── R2 Assets Dictionaries (Uploaded directly to Cloudflare R2 Bucket) ──
+    private static final String[] CLUB_AVATARS = {
+            "club1.png", "club2.webp", "club3.png", "club4.webp", "club5.jpg",
+            "club6.jpg", "club7.jpg", "club8.jpg", "club9.jpg", "club10.avif"
+    };
+
+    private static final String[] CLUB_BACKGROUNDS = {
+            "back1.jpg", "back2.jpg", "back3.jpg", "back4.jpg", "back5.jpg"
+    };
+
+    private static final String[] PROMOTION_BANNERS = {
+            "p1.jpg", "p2.jpg", "p3.jpg", "p4.jpg", "p5.jpg", "p6.jpg"
+    };
+
+    private static final String[] MALE_AVATARS = {
+            "male1.webp", "male2.jpg", "male3.jpg", "male4.jpg", "male5.jpg",
+            "male6.webp", "male7.webp", "male8.jpg", "male9.jpg", "male10.jpg"
+    };
+
+    private static final String[] FEMALE_AVATARS = {
+            "female1.png", "female2.jpg", "female3.jpg", "female4.jpg", "female5.webp",
+            "female6.webp", "female7.jpg", "female8.jpg", "female9.jpg", "female10.webp"
+    };
+
+    private static final String[] FOOTBALL_IMAGES = {
+            "f1.jpg", "f2.jpg", "f3.jpg", "f4.jpg", "f5.jpg",
+            "f6.jpg", "f7.jpg", "f8.jpg", "f9.jpg", "f10.jpg"
+    };
+
+    private static final String[] BADMINTON_IMAGES = {
+            "ba1.jpg", "ba2.jpg", "ba3.jpg", "ba4.jpg", "ba5.jpg",
+            "ba6.jpg", "ba7.jpg", "ba8.jpg", "ba9.jpg", "ba10.jpg"
+    };
+
+    private static final String[] PICKLEBALL_IMAGES = {
+            "p1.jpg", "p2.jpg", "p3.jpg", "p4.jpg", "p5.jpg",
+            "p6.jpg", "p7.jpg", "p8.jpg", "p9.jpg", "p10.jpg"
+    };
+
+    private static final String[] BASKETBALL_IMAGES = {
+            "b1.jpg", "b2.jpg", "b3.jpg", "b4.jpg", "b5.jpg",
+            "b6.jpg", "b7.jpg", "b8.jpg", "b9.jpg", "b10.jpg"
+    };
+
+    private String getR2Base() {
+        String base = r2PublicUrl != null && !r2PublicUrl.isBlank()
+                ? r2PublicUrl.trim().replaceAll("/$", "")
+                : "https://pub-f01e478a7a2e40b691b90599157e79fd.r2.dev";
+        return base + "/sporta/seed/images";
+    }
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
         System.out.println("==================================================================");
-        System.out.println("🚀 BẮT ĐẦU QUÁ TRÌNH KHỞI TẠO SIÊU DỮ LIỆU MẪU (DATA SEEDER)...");
+        System.out.println("🚀 BẮT ĐẦU QUÁ TRÌNH KHỞI TẠO SIÊU DỮ LIỆU MẪU (R2 BUCKET SEEDER)...");
+        System.out.println("📡 R2 Assets Endpoint: " + getR2Base());
         System.out.println("==================================================================");
 
-        // 1. Dọn dẹp các constraint cũ nếu có
+        // 1. Dọn dẹp constraint cũ
         cleanSchemaConstraints();
 
         // 2. Seed Master Data (Sports, Lock Reasons)
@@ -63,26 +118,26 @@ public class DataSeeder implements CommandLineRunner {
         String adminHashedPassword = passwordEncoder.encode("admin123");
         seedCoreAccounts(adminHashedPassword, defaultHashedPassword, sports);
 
-        // 4. Seed Pool 70+ Users (Persona + ELO + Wallets)
+        // 4. Seed Pool 70+ Users (Persona + ELO + Wallets + R2 Avatars)
         List<User> playerUsers = seedPlayerUsers(defaultHashedPassword, sports);
 
         // 5. Seed 15+ Owners (CCCD + Contracts + Bank Accounts + Wallets + Registrations)
         List<Owner> owners = seedOwnersAndRegistrations(playerUsers);
 
-        // 6. Seed 24 Cụm sân (Venues + VenuePolicy + Courts + Images + Reviews)
+        // 6. Seed 24 Cụm sân (Venues + Unique R2 CoverImages + VenuePolicy + Courts + Reviews)
         List<Venue> venues = seedVenuesCourtsAndReviews(owners, playerUsers, sports);
 
-        // 7. Seed 20+ Câu Lạc Bộ (Clubs + Admins + SubLeaders + Members + CRP/ELO)
+        // 7. Seed 20+ Câu Lạc Bộ (Clubs + R2 Avatars + Members + CRP/ELO)
         seedClubsAndMembers(playerUsers, sports);
 
-        // 8. Seed Vouchers (Toàn hệ thống + Từng cụm sân + Gán ví người dùng)
+        // 8. Seed Vouchers (R2 Promotion Banners + Toàn hệ thống + Cụm sân + Gán ví)
         seedVouchers(venues, owners, playerUsers);
 
         // 9. Seed Ticket Sessions (Sân xé vé phân bổ theo ngày & giờ)
         seedTicketSessions(venues);
 
         System.out.println("==================================================================");
-        System.out.println("🎉 HOÀN TẤT KHỞI TẠO TOÀN BỘ DỮ LIỆU MẪU THÀNH CÔNG RỰC RỠ!");
+        System.out.println("🎉 HOÀN TẤT KHỞI TẠO TOÀN BỘ DỮ LIỆU MẪU CLOUDFLARE R2 THÀNH CÔNG!");
         System.out.println("==================================================================");
     }
 
@@ -109,8 +164,7 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS desired_levels VARCHAR(255)");
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50)");
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS join_deadline TIMESTAMP");
-        } catch (Exception e) {
-            // Ignore constraint cleanup errors
+        } catch (Exception ignored) {
         }
     }
 
@@ -145,11 +199,14 @@ public class DataSeeder implements CommandLineRunner {
     // 3. CORE SYSTEM ACCOUNTS
     // =========================================================================
     private void seedCoreAccounts(String adminPass, String defaultPass, Map<String, Sport> sports) {
+        String r2Base = getR2Base();
+
         // Super Admin
         if (userRepository.findByEmail("superadmin@sporta.vn").isEmpty()) {
             userRepository.save(User.builder()
                     .email("superadmin@sporta.vn").password(adminPass).fullName("Super Admin")
                     .role(Role.SUPER_ADMIN).status(UserStatus.ACTIVE).gender(Gender.MALE)
+                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[0])
                     .phoneNumber("0900000001").build());
         }
 
@@ -158,6 +215,7 @@ public class DataSeeder implements CommandLineRunner {
             userRepository.save(User.builder()
                     .email("admin@sporta.vn").password(adminPass).fullName("Hệ Thống Admin")
                     .role(Role.ADMIN).status(UserStatus.ACTIVE).gender(Gender.MALE)
+                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[1])
                     .phoneNumber("0900000002").build());
         }
 
@@ -167,7 +225,7 @@ public class DataSeeder implements CommandLineRunner {
                     .email("dev@sporta.vn").password(defaultPass).fullName("DEV Kỹ Thuật Viên")
                     .phoneNumber("0999999999").gender(Gender.MALE).dateOfBirth(LocalDate.of(1996, 6, 18))
                     .height(178).weight(72.5).role(Role.PLAYER).status(UserStatus.ACTIVE).isDevTester(true)
-                    .avatarUrl("https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80")
+                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[2])
                     .build();
             return userRepository.save(u);
         });
@@ -180,7 +238,7 @@ public class DataSeeder implements CommandLineRunner {
                     .email("player@sporta.vn").password(defaultPass).fullName("Nguyễn Văn Player")
                     .phoneNumber("0912345678").gender(Gender.MALE).dateOfBirth(LocalDate.of(1998, 4, 12))
                     .height(175).weight(68.0).role(Role.PLAYER).status(UserStatus.ACTIVE).isDevTester(false)
-                    .avatarUrl("https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80")
+                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[3])
                     .build();
             return userRepository.save(u);
         });
@@ -193,7 +251,7 @@ public class DataSeeder implements CommandLineRunner {
                     .email("owner@sporta.vn").password(defaultPass).fullName("Phạm Đức Chủ Sân")
                     .phoneNumber("0987654321").gender(Gender.MALE).dateOfBirth(LocalDate.of(1988, 10, 20))
                     .role(Role.OWNER).status(UserStatus.ACTIVE).isDevTester(false)
-                    .avatarUrl("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80")
+                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[4])
                     .build();
             return userRepository.save(u);
         });
@@ -213,7 +271,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     // =========================================================================
-    // 4. GENERATE 70+ PLAYER USERS
+    // 4. GENERATE 70+ PLAYER USERS WITH R2 AVATARS
     // =========================================================================
     private List<User> seedPlayerUsers(String defaultPass, Map<String, Sport> sports) {
         List<User> existingUsers = userRepository.findAll();
@@ -221,26 +279,13 @@ public class DataSeeder implements CommandLineRunner {
             return existingUsers;
         }
 
+        String r2Base = getR2Base();
         String[] firstNames = {"Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý"};
         String[] middleMale = {"Văn", "Đức", "Thành", "Quang", "Minh", "Tuấn", "Hoàng", "Tiến", "Huy", "Nam", "Duy", "Mạnh"};
         String[] lastMale = {"Hùng", "Cường", "Dũng", "Thắng", "Long", "Bảo", "Kiên", "Hiếu", "Tùng", "Sơn", "Khánh", "Việt", "Phong", "An", "Phúc"};
 
         String[] middleFemale = {"Thị", "Thu", "Ngọc", "Mai", "Phương", "Thanh", "Mỹ", "Quỳnh", "Hải", "Hồng"};
         String[] lastFemale = {"Trang", "Linh", "Hoa", "Lan", "Hương", "Anh", "Nhi", "Vy", "Hà", "Yến", "Thảo", "Huyền", "Châu", "Ngân"};
-
-        String[] maleAvatars = {
-                "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=250&auto=format&fit=crop&q=80"
-        };
-        String[] femaleAvatars = {
-                "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=250&auto=format&fit=crop&q=80"
-        };
 
         Random rand = new Random(2026);
         List<User> newUsers = new ArrayList<>();
@@ -249,7 +294,7 @@ public class DataSeeder implements CommandLineRunner {
             String email = "player" + i + "@sporta.vn";
             if (userRepository.findByEmail(email).isPresent()) continue;
 
-            boolean isMale = (i % 4 != 0); // 75% male, 25% female for sports app
+            boolean isMale = (i % 4 != 0); // 75% male, 25% female
             String fullName;
             String avatar;
 
@@ -257,12 +302,12 @@ public class DataSeeder implements CommandLineRunner {
                 fullName = firstNames[rand.nextInt(firstNames.length)] + " " +
                         middleMale[rand.nextInt(middleMale.length)] + " " +
                         lastMale[rand.nextInt(lastMale.length)];
-                avatar = maleAvatars[rand.nextInt(maleAvatars.length)];
+                avatar = r2Base + "/user/male/" + MALE_AVATARS[i % MALE_AVATARS.length];
             } else {
                 fullName = firstNames[rand.nextInt(firstNames.length)] + " " +
                         middleFemale[rand.nextInt(middleFemale.length)] + " " +
                         lastFemale[rand.nextInt(lastFemale.length)];
-                avatar = femaleAvatars[rand.nextInt(femaleAvatars.length)];
+                avatar = r2Base + "/user/female/" + FEMALE_AVATARS[i % FEMALE_AVATARS.length];
             }
 
             int birthYear = 1990 + rand.nextInt(14); // 1990 - 2003
@@ -301,7 +346,7 @@ public class DataSeeder implements CommandLineRunner {
             ensureUserSports(user, sports, level, elo);
         }
 
-        System.out.println("Data Seeder: Đã khởi tạo thành công " + newUsers.size() + " người chơi (Users & ELO Profiles).");
+        System.out.println("Data Seeder: Đã khởi tạo thành công " + newUsers.size() + " người chơi (Users & ELO Profiles với R2 Avatars).");
         return userRepository.findAll();
     }
 
@@ -350,7 +395,6 @@ public class DataSeeder implements CommandLineRunner {
         Random rand = new Random(2026);
         List<Owner> createdOwners = new ArrayList<>(existingOwners);
 
-        // Pick 15 users to become Owners
         int ownerCount = Math.min(users.size(), 16);
         for (int i = 0; i < ownerCount; i++) {
             User u = users.get(i);
@@ -423,7 +467,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     // =========================================================================
-    // 6. GENERATE 24 VENUES + COURTS + POLICIES + REVIEWS
+    // 6. GENERATE 24 VENUES WITH UNIQUE R2 COVER IMAGES + POLICIES + REVIEWS
     // =========================================================================
     private List<Venue> seedVenuesCourtsAndReviews(List<Owner> owners, List<User> players, Map<String, Sport> sports) {
         List<Venue> existingVenues = venueRepository.findAll();
@@ -431,29 +475,43 @@ public class DataSeeder implements CommandLineRunner {
             return existingVenues;
         }
 
-        // Venue Data Blueprint (24 High-Quality Real Venues across Hanoi)
+        String r2Base = getR2Base();
+
+        // 24 Real Venues blueprint (8 Football, 6 Badminton, 6 Pickleball, 4 Basketball)
+        // Each venue will have a UNIQUE cover image from R2!
         Object[][] venueData = {
-                // Name, Sport, District, Lat, Lng, CoverImage, Address
-                {"Sân Bóng Đá Green Field Duy Tân", "Bóng đá", "Cầu Giấy", 21.0315, 105.7832, "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&auto=format&fit=crop&q=80", "12 Duy Tân, Dịch Vọng Hậu"},
-                {"CLB Cầu Lông Hoop Heaven Park", "Cầu lông", "Thanh Xuân", 21.0042, 105.8051, "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80", "34 Lê Văn Lương, Nhân Chính"},
-                {"Tổ Hợp Pickleball CMC Complex", "Pickleball", "Cầu Giấy", 21.0368, 105.7821, "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80", "Khu Đô Thị CMC, Dịch Vọng Hậu"},
-                {"Sân Bóng Rổ & Bóng Đá Tây Hồ Arena", "Bóng rổ", "Tây Hồ", 21.0601, 105.8190, "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80", "28 Xuân Diệu, Quảng An"},
-                {"Trung Tâm Thể Thao Mỹ Đình Star", "Bóng đá", "Nam Từ Liêm", 21.0205, 105.7650, "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=80", "Đường Lê Đức Thọ, Mỹ Đình 1"},
-                {"Sân Cầu Lông Victor Pro Đống Đa", "Cầu lông", "Đống Đa", 21.0185, 105.8270, "https://images.unsplash.com/photo-1613918108466-292b78a8ef95?w=800&auto=format&fit=crop&q=80", "180 Nguyễn Lương Bằng, Quang Trung"},
-                {"Pickleball & Tennis Ba Đình Court", "Pickleball", "Ba Đình", 21.0340, 105.8200, "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80", "55 Đốc Ngữ, Liễu Giai"},
-                {"Sân Bóng Đá Cỏ Nhân Tạo Hà Đông", "Bóng đá", "Hà Đông", 20.9720, 105.7750, "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&auto=format&fit=crop&q=80", "Khu Đấu Giá Vạn Phúc, Vạn Phúc"},
-                {"CLB Cầu Lông Cầu Giấy Smashers", "Cầu lông", "Cầu Giấy", 21.0380, 105.7920, "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?w=800&auto=format&fit=crop&q=80", "35 Trần Thái Tông, Dịch Vọng"},
-                {"Sân Bóng Rổ Dunkers Arena Hai Bà Trưng", "Bóng rổ", "Hai Bà Trưng", 21.0080, 105.8500, "https://images.unsplash.com/photo-1519861531473-9200262188bf?w=800&auto=format&fit=crop&q=80", "42 Võ Thị Sáu, Thanh Nhàn"},
-                {"Tổ Hợp Thể Thao Hoàng Mai MultiSport", "Bóng đá", "Hoàng Mai", 20.9800, 105.8450, "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&auto=format&fit=crop&q=80", "Linh Đàm, Hoàng Liệt"},
-                {"Sân Pickleball Royal City", "Pickleball", "Thanh Xuân", 21.0020, 105.8150, "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?w=800&auto=format&fit=crop&q=80", "72A Nguyễn Trãi, Thượng Đình"},
-                {"CLB Cầu Lông Bắc Từ Liêm Shuttle", "Cầu lông", "Bắc Từ Liêm", 21.0500, 105.7550, "https://images.unsplash.com/photo-1544698310-74ea9d1c8258?w=800&auto=format&fit=crop&q=80", "Đường Phú Diễn, Phú Diễn"},
-                {"Sân Bóng Đá PVV Sông Đà", "Bóng đá", "Nam Từ Liêm", 21.0150, 105.7800, "https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800&auto=format&fit=crop&q=80", "Phạm Hùng, Mễ Trì"},
-                {"Sân Pickleball Flamingo Tây Hồ", "Pickleball", "Tây Hồ", 21.0650, 105.8250, "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80", "Đường Lạc Long Quân, Nhật Tân"},
-                {"Sân Bóng Rổ Bách Khoa Arena", "Bóng rổ", "Hai Bà Trưng", 21.0050, 105.8420, "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&auto=format&fit=crop&q=80", "Tạ Quang Bửu, Bách Khoa"},
-                {"CLB Cầu Lông Yonex Hào Nam", "Cầu lông", "Đống Đa", 21.0250, 105.8250, "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80", "86 Hào Nam, Ô Chợ Dừa"},
-                {"Sân Bóng Đá Chu Văn An", "Bóng đá", "Tây Hồ", 21.0420, 105.8300, "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&auto=format&fit=crop&q=80", "Thụy Khuê, Thụy Khuê"},
-                {"Tổ Hợp Thể Thao Long Biên Center", "Pickleball", "Hoàng Mai", 20.9900, 105.8600, "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80", "Tam Trinh, Mai Động"},
-                {"Sân Bóng Đá Trung Kính Sport", "Bóng đá", "Cầu Giấy", 21.0220, 105.7900, "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&auto=format&fit=crop&q=80", "Trung Kính, Yên Hòa"}
+                // Name, Sport, District, Lat, Lng, R2Subfolder, R2FileName, Address
+                // Football Venues (f1 to f8 - 100% Unique Cover Images)
+                {"Sân Bóng Đá Green Field Duy Tân", "Bóng đá", "Cầu Giấy", 21.0315, 105.7832, "/venue/football/", FOOTBALL_IMAGES[0], "12 Duy Tân, Dịch Vọng Hậu"},
+                {"Trung Tâm Thể Thao Mỹ Đình Star", "Bóng đá", "Nam Từ Liêm", 21.0205, 105.7650, "/venue/football/", FOOTBALL_IMAGES[1], "Đường Lê Đức Thọ, Mỹ Đình 1"},
+                {"Sân Bóng Đá Cỏ Nhân Tạo Hà Đông", "Bóng đá", "Hà Đông", 20.9720, 105.7750, "/venue/football/", FOOTBALL_IMAGES[2], "Khu Đấu Giá Vạn Phúc, Vạn Phúc"},
+                {"Tổ Hợp Thể Thao Hoàng Mai MultiSport", "Bóng đá", "Hoàng Mai", 20.9800, 105.8450, "/venue/football/", FOOTBALL_IMAGES[3], "Linh Đàm, Hoàng Liệt"},
+                {"Sân Bóng Đá PVV Sông Đà", "Bóng đá", "Nam Từ Liêm", 21.0150, 105.7800, "/venue/football/", FOOTBALL_IMAGES[4], "Phạm Hùng, Mễ Trì"},
+                {"Sân Bóng Đá Chu Văn An", "Bóng đá", "Tây Hồ", 21.0420, 105.8300, "/venue/football/", FOOTBALL_IMAGES[5], "Thụy Khuê, Thụy Khuê"},
+                {"Sân Bóng Đá Trung Kính Sport", "Bóng đá", "Cầu Giấy", 21.0220, 105.7900, "/venue/football/", FOOTBALL_IMAGES[6], "Trung Kính, Yên Hòa"},
+                {"Sân Bóng Đá Bách Khoa Sân 7", "Bóng đá", "Hai Bà Trưng", 21.0040, 105.8430, "/venue/football/", FOOTBALL_IMAGES[7], "Tạ Quang Bửu, Bách Khoa"},
+
+                // Badminton Venues (ba1 to ba6 - 100% Unique Cover Images)
+                {"CLB Cầu Lông Hoop Heaven Park", "Cầu lông", "Thanh Xuân", 21.0042, 105.8051, "/venue/badminton/", BADMINTON_IMAGES[0], "34 Lê Văn Lương, Nhân Chính"},
+                {"Sân Cầu Lông Victor Pro Đống Đa", "Cầu lông", "Đống Đa", 21.0185, 105.8270, "/venue/badminton/", BADMINTON_IMAGES[1], "180 Nguyễn Lương Bằng, Quang Trung"},
+                {"CLB Cầu Lông Cầu Giấy Smashers", "Cầu lông", "Cầu Giấy", 21.0380, 105.7920, "/venue/badminton/", BADMINTON_IMAGES[2], "35 Trần Thái Tông, Dịch Vọng"},
+                {"CLB Cầu Lông Bắc Từ Liêm Shuttle", "Cầu lông", "Bắc Từ Liêm", 21.0500, 105.7550, "/venue/badminton/", BADMINTON_IMAGES[3], "Đường Phú Diễn, Phú Diễn"},
+                {"CLB Cầu Lông Yonex Hào Nam", "Cầu lông", "Đống Đa", 21.0250, 105.8250, "/venue/badminton/", BADMINTON_IMAGES[4], "86 Hào Nam, Ô Chợ Dừa"},
+                {"Sân Cầu Lông Thăng Long Badminton", "Cầu lông", "Tây Hồ", 21.0550, 105.8200, "/venue/badminton/", BADMINTON_IMAGES[5], "Võ Chí Công, Xuân La"},
+
+                // Pickleball Venues (p1 to p6 - 100% Unique Cover Images)
+                {"Tổ Hợp Pickleball CMC Complex", "Pickleball", "Cầu Giấy", 21.0368, 105.7821, "/venue/pickleball/", PICKLEBALL_IMAGES[0], "Khu Đô Thị CMC, Dịch Vọng Hậu"},
+                {"Pickleball & Tennis Ba Đình Court", "Pickleball", "Ba Đình", 21.0340, 105.8200, "/venue/pickleball/", PICKLEBALL_IMAGES[1], "55 Đốc Ngữ, Liễu Giai"},
+                {"Sân Pickleball Royal City", "Pickleball", "Thanh Xuân", 21.0020, 105.8150, "/venue/pickleball/", PICKLEBALL_IMAGES[2], "72A Nguyễn Trãi, Thượng Đình"},
+                {"Sân Pickleball Flamingo Tây Hồ", "Pickleball", "Tây Hồ", 21.0650, 105.8250, "/venue/pickleball/", PICKLEBALL_IMAGES[3], "Đường Lạc Long Quân, Nhật Tân"},
+                {"Tổ Hợp Thể Thao Long Biên Center", "Pickleball", "Hoàng Mai", 20.9900, 105.8600, "/venue/pickleball/", PICKLEBALL_IMAGES[4], "Tam Trinh, Mai Động"},
+                {"CLB Pickleball Vạn Phúc Hà Đông", "Pickleball", "Hà Đông", 20.9780, 105.7720, "/venue/pickleball/", PICKLEBALL_IMAGES[5], "Tố Hữu, Vạn Phúc"},
+
+                // Basketball Venues (b1 to b4 - 100% Unique Cover Images)
+                {"Sân Bóng Rổ & Bóng Đá Tây Hồ Arena", "Bóng rổ", "Tây Hồ", 21.0601, 105.8190, "/venue/basketball/", BASKETBALL_IMAGES[0], "28 Xuân Diệu, Quảng An"},
+                {"Sân Bóng Rổ Dunkers Arena Hai Bà Trưng", "Bóng rổ", "Hai Bà Trưng", 21.0080, 105.8500, "/venue/basketball/", BASKETBALL_IMAGES[1], "42 Võ Thị Sáu, Thanh Nhàn"},
+                {"Sân Bóng Rổ Bách Khoa Arena", "Bóng rổ", "Hai Bà Trưng", 21.0050, 105.8420, "/venue/basketball/", BASKETBALL_IMAGES[2], "Tạ Quang Bửu, Bách Khoa"},
+                {"CLB Bóng Rổ Cầu Giấy Hoopers", "Bóng rổ", "Cầu Giấy", 21.0330, 105.7880, "/venue/basketball/", BASKETBALL_IMAGES[3], "Phạm Văn Đồng, Mai Dịch"}
         };
 
         String[] sampleReviews = {
@@ -474,8 +532,9 @@ public class DataSeeder implements CommandLineRunner {
             String district = (String) venueData[i][2];
             double lat = (Double) venueData[i][3];
             double lng = (Double) venueData[i][4];
-            String cover = (String) venueData[i][5];
-            String address = (String) venueData[i][6];
+            String folder = (String) venueData[i][5];
+            String file = (String) venueData[i][6];
+            String address = (String) venueData[i][7];
 
             if (venueRepository.findAll().stream().anyMatch(v -> v.getName().equals(name))) {
                 continue;
@@ -487,6 +546,8 @@ public class DataSeeder implements CommandLineRunner {
             int subCourts = 3 + rand.nextInt(4); // 3 - 6 sub-courts
             double minP = 120000.0 + rand.nextInt(10) * 10000.0;
             double maxP = minP + 150000.0 + rand.nextInt(10) * 10000.0;
+
+            String coverImageUrl = r2Base + folder + file;
 
             Venue venue = Venue.builder()
                     .owner(owner)
@@ -504,7 +565,7 @@ public class DataSeeder implements CommandLineRunner {
                     .openingTime(LocalTime.of(6, 0))
                     .closingTime(LocalTime.of(23, 0))
                     .shiftDurationMinutes(30)
-                    .coverImage(cover)
+                    .coverImage(coverImageUrl)
                     .description("Tổ hợp thể thao tiêu chuẩn chất lượng cao, phục vụ cộng đồng đam mê " + sportName + " với đầy đủ tiện ích hiện đại.")
                     .hasSurcharge(rand.nextBoolean())
                     .surchargeAmount(50000.0)
@@ -538,7 +599,19 @@ public class DataSeeder implements CommandLineRunner {
                         .build());
             }
 
-            // 3. Venue Review Records (Chỉ có nhận xét của User, KHÔNG có ownerReply)
+            // 3. Venue Gallery Images (Thêm 2 ảnh phụ từ cùng môn)
+            String[] pool = sportName.equals("Bóng đá") ? FOOTBALL_IMAGES :
+                    sportName.equals("Cầu lông") ? BADMINTON_IMAGES :
+                            sportName.equals("Pickleball") ? PICKLEBALL_IMAGES : BASKETBALL_IMAGES;
+            for (int g = 1; g <= 2; g++) {
+                String galleryFile = pool[(i + g) % pool.length];
+                venueImageRepository.save(VenueImage.builder()
+                        .venue(venue)
+                        .imageUrl(r2Base + folder + galleryFile)
+                        .build());
+            }
+
+            // 4. Venue Reviews (Chỉ có nhận xét của User, KHÔNG có ownerReply)
             int reviewCount = 3 + rand.nextInt(4); // 3 - 6 reviews per venue
             for (int r = 0; r < reviewCount; r++) {
                 User reviewer = players.get((i * 3 + r) % players.size());
@@ -553,7 +626,7 @@ public class DataSeeder implements CommandLineRunner {
                 }
             }
 
-            // 4. Owner Contract for this venue
+            // 5. Owner Contract for this venue
             if (!ownerContractRepository.existsByVenueId(venue.getId())) {
                 ownerContractRepository.save(OwnerContract.builder()
                         .owner(owner)
@@ -567,28 +640,22 @@ public class DataSeeder implements CommandLineRunner {
             }
         }
 
-        System.out.println("Data Seeder: Đã khởi tạo " + createdVenues.size() + " Cụm sân (Venues, Courts, Policies, Reviews & Hợp đồng).");
+        System.out.println("Data Seeder: Đã khởi tạo " + createdVenues.size() + " Cụm sân (Venues với 100% Unique R2 CoverImages, Courts, Policies, Reviews & Hợp đồng).");
         return createdVenues;
     }
 
     // =========================================================================
-    // 7. GENERATE 20 CLUBS WITH MEMBERS & CRP/ELO
+    // 7. GENERATE 20 CLUBS WITH R2 AVATARS & MEMBERS
     // =========================================================================
     private void seedClubsAndMembers(List<User> players, Map<String, Sport> sports) {
         if (clubRepository.count() >= 15) return;
 
+        String r2Base = getR2Base();
         String[] clubNames = {
                 "FC Sporta Cầu Giấy", "CLB Cầu Lông Smash Champions", "Pickleball Master Hà Nội", "Hà Nội Dunkers Basketball",
                 "FC Bách Khoa Warriors", "CLB Cầu Lông Thanh Xuân Pro", "Pickleball Royal Club", "Tây Hồ Basketball Club",
                 "FC Thăng Long Brothers", "CLB Cầu Lông Dịch Vọng Hậu", "Pickleball Ba Đình Star", "Hai Bà Trưng Hoop Club",
                 "FC Tuổi Trẻ Hà Đông", "CLB Cầu Lông Mỹ Đình", "Pickleball Flamingo", "Hoàng Mai AllStars FC"
-        };
-
-        String[] clubAvatars = {
-                "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=300&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=300&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=300&auto=format&fit=crop&q=80",
-                "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=300&auto=format&fit=crop&q=80"
         };
 
         String[] areas = {"Cầu Giấy, Hà Nội", "Thanh Xuân, Hà Nội", "Tây Hồ, Hà Nội", "Nam Từ Liêm, Hà Nội", "Đống Đa, Hà Nội", "Hà Đông, Hà Nội"};
@@ -611,7 +678,7 @@ public class DataSeeder implements CommandLineRunner {
                     .area(areas[i % areas.length])
                     .activityLevel("Hoạt động hàng tuần")
                     .description("Câu lạc bộ thể thao phong trào giao lưu, ghép trận và nâng cao kỹ năng.")
-                    .avatarImage(clubAvatars[i % clubAvatars.length])
+                    .avatarImage(r2Base + "/clubs/avatar/" + CLUB_AVATARS[i % CLUB_AVATARS.length])
                     .maxMembers(50)
                     .build());
 
@@ -637,26 +704,27 @@ public class DataSeeder implements CommandLineRunner {
             }
         }
 
-        System.out.println("Data Seeder: Đã khởi tạo các Câu Lạc Bộ (Clubs, Admins, SubLeaders & Danh sách thành viên).");
+        System.out.println("Data Seeder: Đã khởi tạo các Câu Lạc Bộ (Clubs với R2 Avatars, Admins, SubLeaders & Thành viên).");
     }
 
     // =========================================================================
-    // 8. GENERATE VOUCHERS (SYSTEM + VENUE-SPECIFIC + USER WALLET)
+    // 8. GENERATE VOUCHERS WITH R2 PROMOTION BANNERS
     // =========================================================================
     private void seedVouchers(List<Venue> venues, List<Owner> owners, List<User> users) {
         if (voucherRepository.count() >= 10) return;
 
+        String r2Base = getR2Base();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime endOfYear = LocalDateTime.of(2026, 12, 31, 23, 59, 59);
 
-        // A. SYSTEM VOUCHERS
+        // A. SYSTEM VOUCHERS (Linked to R2 Promotion Banners)
         Object[][] systemVouchers = {
-                {"SPORTA50K", "Giảm 50K Toàn Sàn", DiscountType.FIXED_AMOUNT, 50000.0, null, 200000.0, 500},
-                {"CHAOMUNG2026", "Chào Mừng Thành Viên Mới - Giảm 20%", DiscountType.PERCENTAGE, 20.0, 100000.0, 0.0, 1000},
-                {"WEEKENDVIBES", "Cuối Tuần Năng Động - Giảm 30K", DiscountType.FIXED_AMOUNT, 30000.0, null, 150000.0, 300},
-                {"PICKLEMASTER", "Đam Mê Pickleball - Giảm 15%", DiscountType.PERCENTAGE, 15.0, 80000.0, 100000.0, 400},
-                {"NIGHTOWL", "Cú Đêm Thể Thao - Giảm 40K", DiscountType.FIXED_AMOUNT, 40000.0, null, 180000.0, 200},
-                {"SPORTAPAY", "Ưu Đãi Ví Sporta - Giảm 10%", DiscountType.PERCENTAGE, 10.0, 50000.0, 50000.0, 500}
+                {"SPORTA50K", "Giảm 50K Toàn Sàn", DiscountType.FIXED_AMOUNT, 50000.0, null, 200000.0, 500, PROMOTION_BANNERS[0]},
+                {"CHAOMUNG2026", "Chào Mừng Thành Viên Mới - Giảm 20%", DiscountType.PERCENTAGE, 20.0, 100000.0, 0.0, 1000, PROMOTION_BANNERS[1]},
+                {"WEEKENDVIBES", "Cuối Tuần Năng Động - Giảm 30K", DiscountType.FIXED_AMOUNT, 30000.0, null, 150000.0, 300, PROMOTION_BANNERS[2]},
+                {"PICKLEMASTER", "Đam Mê Pickleball - Giảm 15%", DiscountType.PERCENTAGE, 15.0, 80000.0, 100000.0, 400, PROMOTION_BANNERS[3]},
+                {"NIGHTOWL", "Cú Đêm Thể Thao - Giảm 40K", DiscountType.FIXED_AMOUNT, 40000.0, null, 180000.0, 200, PROMOTION_BANNERS[4]},
+                {"SPORTAPAY", "Ưu Đãi Ví Sporta - Giảm 10%", DiscountType.PERCENTAGE, 10.0, 50000.0, 50000.0, 500, PROMOTION_BANNERS[5]}
         };
 
         List<Voucher> createdVouchers = new ArrayList<>();
@@ -679,7 +747,7 @@ public class DataSeeder implements CommandLineRunner {
                     .status(VoucherStatus.ACTIVE)
                     .startDate(now.minusDays(5))
                     .endDate(endOfYear)
-                    .bannerImageUrl("https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&auto=format&fit=crop&q=80")
+                    .bannerImageUrl(r2Base + "/promotion/" + sv[7])
                     .build());
             createdVouchers.add(v);
         }
@@ -726,7 +794,7 @@ public class DataSeeder implements CommandLineRunner {
             }
         }
 
-        System.out.println("Data Seeder: Đã khởi tạo danh sách Voucher toàn sàn, Voucher cụm sân và gán vào Ví người dùng.");
+        System.out.println("Data Seeder: Đã khởi tạo danh sách Voucher (R2 Banners, Voucher cụm sân và gán vào Ví người dùng).");
     }
 
     // =========================================================================

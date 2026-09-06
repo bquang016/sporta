@@ -42,3 +42,4 @@ build/
 **/GoogleService-Info.plist
 
 HOSTING_DEPLOYMENT_SUMMARY.md
+seed/
