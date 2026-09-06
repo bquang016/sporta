@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -14,8 +13,21 @@ const isExpoGo =
   Constants.appOwnership === 'expo' ||
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-// Cấu hình cách hiển thị thông báo khi ứng dụng đang ở foreground (chỉ khi không bị chặn bởi Expo Go Android)
-if (!isExpoGo || Platform.OS === 'ios') {
+// Helper to get expo-notifications safely without throwing in Expo Go on Android (SDK 53+)
+function getNotificationsModule() {
+  if (isExpoGo && Platform.OS === 'android') {
+    return null;
+  }
+  try {
+    return require('expo-notifications');
+  } catch (err) {
+    return null;
+  }
+}
+
+// Cấu hình cách hiển thị thông báo khi ứng dụng đang ở foreground (nếu có hỗ trợ)
+const Notifications = getNotificationsModule();
+if (Notifications) {
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -38,18 +50,19 @@ const cleanText = (str?: string) => {
 };
 
 export async function showLocalNotification(title: string, body: string, data?: any) {
+  const notif = getNotificationsModule();
+  if (!notif) return;
+
   try {
-    if (!isExpoGo || Platform.OS === 'ios') {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: cleanText(title),
-          body: cleanText(body),
-          data: data || {},
-          sound: true,
-        },
-        trigger: null, // Phát thông báo nổ banner lập tức!
-      });
-    }
+    await notif.scheduleNotificationAsync({
+      content: {
+        title: cleanText(title),
+        body: cleanText(body),
+        data: data || {},
+        sound: true,
+      },
+      trigger: null, // Phát thông báo nổ banner lập tức!
+    });
   } catch (err) {
     console.warn('Failed to display local notification banner:', err);
   }
@@ -59,15 +72,17 @@ export function usePushNotifications() {
   const { isLoggedIn } = useIsLoggedIn();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
   const tokenRef = useRef<string | null>(null);
   const lastNotificationIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    if (!isExpoGo || Platform.OS === 'ios') {
+    const notif = getNotificationsModule();
+
+    if (notif) {
       // Đăng ký nhận push token & thiết lập Android notification channel
       registerForPushNotificationsAsync().then((token) => {
         if (token) {
@@ -77,13 +92,13 @@ export function usePushNotifications() {
 
       try {
         // Lắng nghe khi thông báo gửi tới lúc app đang chạy (Foreground)
-        notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+        notificationListener.current = notif.addNotificationReceivedListener((notification: any) => {
           queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.all });
         });
 
         // Lắng nghe khi người dùng nhấn (tap) vào thông báo
-        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-          const data = response.notification.request.content.data;
+        responseListener.current = notif.addNotificationResponseReceivedListener((response: any) => {
+          const data = response?.notification?.request?.content?.data;
           handleNotificationNavigation(data);
         });
       } catch (err) {
@@ -174,27 +189,28 @@ export function usePushNotifications() {
 }
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (isExpoGo && Platform.OS === 'android') {
+  const notif = getNotificationsModule();
+  if (!notif) {
     return null;
   }
   let token: string | null = null;
 
   try {
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
+      await notif.setNotificationChannelAsync('default', {
         name: 'Sporta Notifications',
-        importance: Notifications.AndroidImportance.MAX,
+        importance: notif.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1890FF',
       });
     }
 
     if (Device.isDevice || Platform.OS === 'android') {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } = await notif.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await notif.requestPermissionsAsync();
         finalStatus = status;
       }
 
@@ -205,19 +221,19 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
       try {
         if (Platform.OS === 'android') {
-          const tokenResponse = await Notifications.getDevicePushTokenAsync();
+          const tokenResponse = await notif.getDevicePushTokenAsync();
           token = tokenResponse.data;
         } else {
-          const expoToken = await Notifications.getExpoPushTokenAsync();
+          const expoToken = await notif.getExpoPushTokenAsync();
           token = expoToken.data;
         }
       } catch (e) {
         try {
-          const fallbackToken = await Notifications.getDevicePushTokenAsync();
+          const fallbackToken = await notif.getDevicePushTokenAsync();
           token = fallbackToken.data;
         } catch (err) {
           try {
-            const expoFallback = await Notifications.getExpoPushTokenAsync();
+            const expoFallback = await notif.getExpoPushTokenAsync();
             token = expoFallback.data;
           } catch (finalErr) {
             console.warn('Could not retrieve push token:', finalErr);

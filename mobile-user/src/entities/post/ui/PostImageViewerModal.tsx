@@ -22,7 +22,7 @@ import { Post } from '../model/post.types';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { ReactionSelector, ReactionSelectorRef } from '../../../features/like-post/ui/ReactionSelector';
 import { REACTION_MAP } from '../model/post.constants';
-import { CommentSectionSheet } from '../../../features/comment-post';
+import { CommentSectionSheet } from '../../../features/comment-post/ui/CommentSectionModal';
 import { UserProfileModal } from '../../../features/user-profile';
 import { PostOptionsMenuModal } from './PostOptionsMenuModal';
 import { SharePostModal, SharePostSheet } from './SharePostModal';
