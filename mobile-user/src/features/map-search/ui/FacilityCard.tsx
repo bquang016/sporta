@@ -99,11 +99,11 @@ export const MapFacilityCard = memo(
         {/* Card Header & Image */}
         <View style={styles.cardHeader}>
           <Image
-            source={{
-              uri:
-                venue.coverImage ||
-                '',
-            }}
+            source={
+              venue.coverImage && venue.coverImage.trim()
+                ? { uri: venue.coverImage.trim() }
+                : require('../../../../assets/auth/football_stadium_hero.jpg')
+            }
             style={styles.coverImage}
             resizeMode="cover"
           />

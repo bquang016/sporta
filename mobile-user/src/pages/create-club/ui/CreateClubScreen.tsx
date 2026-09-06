@@ -252,7 +252,10 @@ export function CreateClubScreen() {
               activeOpacity={0.88}
               onPress={() => pickImage('cover')}
             >
-              <Image source={{ uri: effectiveCover }} style={styles.coverImg} />
+              <Image 
+                source={typeof effectiveCover === 'string' ? { uri: effectiveCover } : effectiveCover} 
+                style={styles.coverImg} 
+              />
               <View style={styles.coverBadgeAction}>
                 <MaterialIcons name="photo-camera" size={15} color={COLORS.white} />
                 <Text style={styles.coverBadgeActionText}>

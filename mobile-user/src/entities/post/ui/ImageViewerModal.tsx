@@ -329,7 +329,13 @@ export function ImageViewerModal({
             <View style={styles.bottomOverlayCard}>
               {author && (
                 <View style={styles.authorRow}>
-                  <Image source={{ uri: author.avatar }} style={styles.authorAvatar} />
+                  {author.avatar && author.avatar.trim() ? (
+                    <Image source={{ uri: author.avatar.trim() }} style={styles.authorAvatar} />
+                  ) : (
+                    <View style={[styles.authorAvatar, { backgroundColor: '#059669', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{(author.name || 'U').charAt(0)}</Text>
+                    </View>
+                  )}
                   <View style={styles.authorTextCol}>
                     <View style={styles.authorNameRow}>
                       <Text style={styles.authorName}>{author.name}</Text>

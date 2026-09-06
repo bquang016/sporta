@@ -292,7 +292,11 @@ export function SocialSearchModal({
                 style={[styles.subTabChip, selectedClubId === club.id && styles.subTabChipActive]}
                 onPress={() => setSelectedClubId(selectedClubId === club.id ? null : club.id)}
               >
-                <Image source={{ uri: club.avatarUrl }} style={styles.microClubAvatar} />
+                {club.avatarUrl && club.avatarUrl.trim() ? (
+                  <Image source={{ uri: club.avatarUrl.trim() }} style={styles.microClubAvatar} />
+                ) : (
+                  <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
+                )}
                 <Text
                   style={[styles.subTabText, selectedClubId === club.id && styles.subTabTextActive]}
                   numberOfLines={1}
@@ -336,7 +340,13 @@ export function SocialSearchModal({
                         onClose();
                       }}
                     >
-                      <Image source={{ uri: club.avatarUrl }} style={styles.userAvatar} />
+                      {club.avatarUrl && club.avatarUrl.trim() ? (
+                        <Image source={{ uri: club.avatarUrl.trim() }} style={styles.userAvatar} />
+                      ) : (
+                        <View style={[styles.userAvatar, { backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' }]}>
+                          <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
+                        </View>
+                      )}
                       <View style={styles.userTextGroup}>
                         <Text style={styles.userName}>{club.name}</Text>
                         <Text style={styles.userHandle}>@club_{club.id} • Bấm để xem chi tiết CLB</Text>
@@ -361,7 +371,13 @@ export function SocialSearchModal({
                         onClose();
                       }}
                     >
-                      <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
+                      {user.avatar && user.avatar.trim() ? (
+                        <Image source={{ uri: user.avatar.trim() }} style={styles.userAvatar} />
+                      ) : (
+                        <View style={[styles.userAvatar, { backgroundColor: '#059669', justifyContent: 'center', alignItems: 'center' }]}>
+                          <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{(user.name || 'U').charAt(0)}</Text>
+                        </View>
+                      )}
                       <View style={styles.userTextGroup}>
                         <Text style={styles.userName}>{user.name}</Text>
                         <Text style={styles.userHandle}>{user.handle}</Text>
@@ -400,7 +416,13 @@ export function SocialSearchModal({
                   {filteredPosts.map((post) => (
                     <View key={post.id} style={styles.postResultCard}>
                       <View style={styles.postAuthorHeader}>
-                        <Image source={{ uri: post.author.avatar }} style={styles.miniAvatar} />
+                        {post.author.avatar && post.author.avatar.trim() ? (
+                          <Image source={{ uri: post.author.avatar.trim() }} style={styles.miniAvatar} />
+                        ) : (
+                          <View style={[styles.miniAvatar, { backgroundColor: '#059669', justifyContent: 'center', alignItems: 'center' }]}>
+                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>{(post.author.name || 'U').charAt(0)}</Text>
+                          </View>
+                        )}
                         <View>
                           <Text style={styles.authorName}>{post.author.name}</Text>
                           <Text style={styles.postTime}>{post.createdAt}</Text>

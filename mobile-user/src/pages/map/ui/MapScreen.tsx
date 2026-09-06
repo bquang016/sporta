@@ -9,7 +9,7 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
-import MapView, { Region } from 'react-native-maps';
+import MapView, { Region, UrlTile } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -322,6 +322,7 @@ export function MapScreen() {
           ref={mapRef}
           style={styles.map}
           initialRegion={DEFAULT_REGION}
+          mapType={Platform.OS === 'android' ? 'none' : 'standard'}
           onRegionChangeComplete={handleRegionChangeComplete}
           showsUserLocation={locationGranted === true}
           showsMyLocationButton={false}
@@ -330,6 +331,14 @@ export function MapScreen() {
           mapPadding={{ top: 0, right: 0, bottom: selectedVenue ? 180 : 0, left: 0 }}
           onPress={handleClosePopup}
         >
+          {/* Base OpenStreetMap / Carto Raster Tile Layer */}
+          <UrlTile
+            urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+            maximumZ={19}
+            flipY={false}
+            zIndex={-1}
+          />
+
           {/* --- Render markers --- */}
           {mapItems.map((item) => {
             if (item.type === 'venue') {

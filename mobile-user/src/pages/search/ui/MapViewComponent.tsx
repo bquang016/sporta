@@ -1,6 +1,6 @@
 import React, { useEffect, useState, memo } from 'react';
-import { View, StyleSheet, Text, Keyboard } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { View, StyleSheet, Text, Keyboard, Platform } from 'react-native';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { Facility } from '../../../entities/facility';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -193,6 +193,7 @@ export function MapViewComponent({
         ref={mapRef}
         style={styles.map}
         initialRegion={initialRegion}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         showsUserLocation={!!userLocation}
         showsCompass={false}
         showsMyLocationButton={false}
@@ -202,6 +203,13 @@ export function MapViewComponent({
           if (onMapPress) onMapPress();
         }}
       >
+        {/* Base OpenStreetMap / Carto Raster Tile Layer */}
+        <UrlTile
+          urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+          maximumZ={19}
+          flipY={false}
+          zIndex={-1}
+        />
         {facilities.map((facility) => {
           if (!facility.latitude || !facility.longitude) return null;
 

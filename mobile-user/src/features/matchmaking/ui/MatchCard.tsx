@@ -224,9 +224,9 @@ export function MatchCard({ room, onPress, isMyMatchView = false }: MatchCardPro
         {/* Left: Host Club */}
         <View style={styles.teamCol}>
           <View style={styles.teamAvatarWrap}>
-            {hostAvatar && !hostImgError ? (
+            {typeof hostAvatar === 'string' && hostAvatar.trim().length > 0 && !hostImgError ? (
               <Image
-                source={{ uri: hostAvatar }}
+                source={{ uri: hostAvatar.trim() }}
                 style={styles.teamAvatar}
                 resizeMode="cover"
                 onError={() => setHostImgError(true)}
@@ -299,9 +299,9 @@ export function MatchCard({ room, onPress, isMyMatchView = false }: MatchCardPro
           {guest ? (
             <>
               <View style={styles.teamAvatarWrap}>
-                {guestAvatar && !guestImgError ? (
+                {typeof guestAvatar === 'string' && guestAvatar.trim().length > 0 && !guestImgError ? (
                   <Image
-                    source={{ uri: guestAvatar }}
+                    source={{ uri: guestAvatar.trim() }}
                     style={styles.teamAvatar}
                     resizeMode="cover"
                     onError={() => setGuestImgError(true)}

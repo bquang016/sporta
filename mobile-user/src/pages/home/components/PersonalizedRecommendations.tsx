@@ -156,9 +156,10 @@ export function PersonalizedRecommendations({
       >
         {venues.map((venue) => {
           const reasonConfig = getReasonConfig(venue.reasonType);
-          const coverUrl =
-            venue.coverImage ||
-            '';
+          const hasCover = Boolean(venue.coverImage && venue.coverImage.trim());
+          const coverSource = hasCover
+            ? { uri: venue.coverImage!.trim() }
+            : require('../../../../assets/auth/football_stadium_hero.jpg');
 
           return (
             <TouchableOpacity
@@ -169,7 +170,7 @@ export function PersonalizedRecommendations({
             >
               {/* ── Image Container ── */}
               <View style={styles.imageContainer}>
-                <Image source={{ uri: coverUrl }} style={styles.image} resizeMode="cover" />
+                <Image source={coverSource} style={styles.image} resizeMode="cover" />
 
                 {/* Subtle Image Bottom Shadow */}
                 <LinearGradient

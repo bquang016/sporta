@@ -69,8 +69,8 @@ export function SearchHistoryDropdown({
                 activeOpacity={0.7}
                 onPress={() => onSelectSuggestion && onSelectSuggestion(item)}
               >
-                {item.imageUrl ? (
-                  <Image source={{ uri: item.imageUrl }} style={styles.venueThumb} />
+                {item.imageUrl && item.imageUrl.trim() ? (
+                  <Image source={{ uri: item.imageUrl.trim() }} style={styles.venueThumb} />
                 ) : (
                   <View style={styles.iconCircle}>
                     <Ionicons name="search-outline" size={16} color={COLORS.primary} />
@@ -148,22 +148,26 @@ export function SearchHistoryDropdown({
                   </View>
                 </View>
 
-                {featuredVenues.slice(0, 4).map((venue) => (
-                  <TouchableOpacity
-                    key={venue.id}
-                    style={styles.featuredVenueRow}
-                    activeOpacity={0.75}
-                    onPress={() => onSelectSuggestion && onSelectSuggestion(venue)}
-                  >
-                    <Image
-                      source={{
-                        uri:
-                          venue.imageUrl ||
-                          '',
-                      }}
-                      style={styles.featuredThumb}
-                    />
-                    <View style={styles.featuredContent}>
+                {featuredVenues.slice(0, 4).map((venue) => {
+                  const hasImage = Boolean(venue.imageUrl && venue.imageUrl.trim());
+                  return (
+                    <TouchableOpacity
+                      key={venue.id}
+                      style={styles.featuredVenueRow}
+                      activeOpacity={0.75}
+                      onPress={() => onSelectSuggestion && onSelectSuggestion(venue)}
+                    >
+                      {hasImage ? (
+                        <Image
+                          source={{ uri: venue.imageUrl!.trim() }}
+                          style={styles.featuredThumb}
+                        />
+                      ) : (
+                        <View style={[styles.featuredThumb, { justifyContent: 'center', alignItems: 'center' }]}>
+                          <Ionicons name="sparkles" size={18} color={COLORS.primary} />
+                        </View>
+                      )}
+                      <View style={styles.featuredContent}>
                       <Text style={styles.featuredName} numberOfLines={1}>
                         {venue.name}
                       </Text>
@@ -181,9 +185,9 @@ export function SearchHistoryDropdown({
                       </View>
                       <Text style={styles.featuredPrice}>{venue.price}/h</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={14} color={COLORS.outline} />
                   </TouchableOpacity>
-                ))}
+                );
+              })}
               </View>
             ) : null}
           </ScrollView>

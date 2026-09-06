@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ClubInfoData } from '../model/post.types';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY } from '../../../shared/config/theme';
 import { getClubByIdApi, getClubMembersApi, joinClubApi } from '../../../shared/api/clubs';
+import { getSafeCoverSource, getSafeAvatarSource } from '../../club/model/clubDefaults';
 import { useRouter } from 'expo-router';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -309,7 +310,7 @@ function ClubInfoModalContent({
           >
             {/* ── 1. Top Cover (Bleeds to top edge) ── */}
             <View style={styles.heroCoverWrapper}>
-              <Image source={{ uri: displayCover }} style={styles.heroCoverImage} />
+              <Image source={getSafeCoverSource(displaySport, displayCover)} style={styles.heroCoverImage} />
 
               <LinearGradient
                 colors={['rgba(15,23,42,0.4)', 'transparent', 'rgba(15,23,42,0.85)']}
@@ -322,7 +323,7 @@ function ClubInfoModalContent({
               {/* Prominent Club Avatar Overlapping Up into Cover */}
               <View style={styles.avatarOverlapContainer}>
                 <View style={styles.avatarGlowRing}>
-                  <Image source={{ uri: displayAvatar }} style={styles.mainAvatarImage} />
+                  <Image source={getSafeAvatarSource(displaySport, displayAvatar)} style={styles.mainAvatarImage} />
                 </View>
                 <View style={styles.sportBadgeOnAvatar}>
                   <Text style={styles.sportEmojiText}>

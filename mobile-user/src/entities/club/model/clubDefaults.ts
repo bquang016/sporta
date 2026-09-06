@@ -3,12 +3,12 @@ import { Platform } from 'react-native';
 export const DEFAULT_CLUB_AVATAR = require('../../../../assets/logo/club/699x699__1_-removebg-preview.png');
 export const DEFAULT_USER_AVATAR = require('../../../../assets/player/player_699x699.png');
 
-export const DEFAULT_SPORT_COVERS: Record<string, string> = {
-  'Bóng đá': '',
-  'Cầu lông': '',
-  'Pickleball': '',
-  'Bóng rổ': '',
-  'Tennis': '',
+export const DEFAULT_SPORT_COVERS: Record<string, any> = {
+  'Bóng đá': require('../../../../assets/auth/football_stadium_hero.jpg'),
+  'Cầu lông': require('../../../../assets/auth/badminton_court_hero.jpg'),
+  'Pickleball': require('../../../../assets/auth/pickleball_court_hero.jpg'),
+  'Bóng rổ': require('../../../../assets/auth/sport_auth_hero.jpg'),
+  'Tennis': require('../../../../assets/auth/tennis_court_cart.jpg'),
 };
 
 export const isSafeImageUri = (uri?: string | null): boolean => {
@@ -17,7 +17,7 @@ export const isSafeImageUri = (uri?: string | null): boolean => {
   return true;
 };
 
-export const getDefaultCover = (sport?: string, currentCover?: string | null): string => {
+export const getDefaultCover = (sport?: string, currentCover?: string | null): any => {
   if (isSafeImageUri(currentCover)) {
     return currentCover as string;
   }
@@ -32,8 +32,11 @@ export const getDefaultAvatar = (sport?: string, currentAvatar?: string | null):
 };
 
 export const getSafeCoverSource = (sport?: string, currentCover?: string | null): any => {
-  const url = getDefaultCover(sport, currentCover);
-  return { uri: url };
+  const cover = getDefaultCover(sport, currentCover);
+  if (typeof cover === 'string') {
+    return { uri: cover };
+  }
+  return cover;
 };
 
 export const getSafeAvatarSource = (sport?: string, currentAvatar?: string | null): any => {
@@ -43,3 +46,4 @@ export const getSafeAvatarSource = (sport?: string, currentAvatar?: string | nul
   }
   return avatar;
 };
+

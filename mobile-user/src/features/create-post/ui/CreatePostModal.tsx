@@ -526,7 +526,11 @@ function CreatePostModalContent({
                         setShowAudienceMenu(false);
                       }}
                     >
-                      <Image source={{ uri: club.avatarUrl }} style={styles.miniClubAvatar} />
+                      {club.avatarUrl && club.avatarUrl.trim() ? (
+                        <Image source={{ uri: club.avatarUrl.trim() }} style={styles.miniClubAvatar} />
+                      ) : (
+                        <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
+                      )}
                       <Text style={styles.audienceRowTitle} numberOfLines={1}>{club.name}</Text>
                       {isSelected && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
                     </TouchableOpacity>

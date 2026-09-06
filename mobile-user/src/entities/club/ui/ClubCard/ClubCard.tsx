@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, StyleProp, ViewStyle, Image, TouchableOpacity }
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Badge } from '../../../../shared/ui';
 import { Club } from '../../model/clubStore';
-import { getDefaultAvatar } from '../../model/clubDefaults';
+import { getSafeAvatarSource } from '../../model/clubDefaults';
 import { getEloLevelLabel } from '../../../../shared/lib/utils/elo';
 
 export interface ClubCardProps {
@@ -31,7 +31,7 @@ const getSportIconName = (sportName?: string) => {
 
 export const ClubCard = React.memo(({ club, onPress, style }: ClubCardProps) => {
   const memberRatio = Math.min(1, (club.members || 1) / (club.maxMembers || 30));
-  const avatarUrl = getDefaultAvatar(club.sport, club.avatarImage);
+  const avatarSource = getSafeAvatarSource(club.sport, club.avatarImage);
   const remainingSlots = Math.max(0, (club.maxMembers || 30) - (club.members || 0));
   const elo = club.averageElo || club.elo || 1350;
   const levelLabel = club.levelLabel || getEloLevelLabel(elo);
@@ -46,7 +46,7 @@ export const ClubCard = React.memo(({ club, onPress, style }: ClubCardProps) => 
         {/* Left: Avatar */}
         <View style={styles.avatarWrapper}>
           <Image 
-            source={typeof avatarUrl === 'string' ? { uri: avatarUrl } : avatarUrl} 
+            source={avatarSource} 
             style={styles.avatarImg} 
           />
           <View style={styles.sportBadgeSmall}>

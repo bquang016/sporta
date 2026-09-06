@@ -19,7 +19,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from '../../../shared/ui';
-import { useClubs, ClubCard, getDefaultCover, getDefaultAvatar, Club } from '../../../entities/club';
+import { useClubs, ClubCard, getDefaultCover, getDefaultAvatar, getSafeCoverSource, Club } from '../../../entities/club';
 import { useDebounce } from '../../../shared/lib/useDebounce';
 import { getEloLevelLabel } from '../../../shared/lib/utils/elo';
 import { getLeaderboardApi, LeaderboardItem } from '../../../shared/api/leaderboard';
@@ -700,7 +700,7 @@ export function ClubsScreen() {
             >
               {featuredClubs.map((club, index) => {
                 const isJoined = joinedIds.includes(club.id);
-                const cover = getDefaultCover(club.sport, club.coverImage);
+                const coverSource = getSafeCoverSource(club.sport, club.coverImage);
                 const elo = club.averageElo || club.elo || 1350;
                 const highlight = getHighlightReason(club, index);
 
@@ -725,7 +725,7 @@ export function ClubsScreen() {
                   >
                     {/* Cover Banner */}
                     <View style={styles.featuredCoverBox}>
-                      <Image source={{ uri: cover }} style={styles.featuredCoverImg} />
+                      <Image source={coverSource} style={styles.featuredCoverImg} />
                       <LinearGradient
                         colors={['transparent', 'rgba(15, 23, 42, 0.75)']}
                         style={styles.featuredCoverGradient}
