@@ -43,8 +43,20 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
-    @PutMapping("/profile")
-    public ResponseEntity<UserProfileDto> updateProfile(
+    @PutMapping(value = "/profile", consumes = "application/json")
+    public ResponseEntity<UserProfileDto> updateProfileJson(
+            @RequestBody UpdateUserProfileRequest request) {
+        
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
+        
+        UserProfileDto updatedProfile = userService.updateUserProfile(user.getId(), request, null);
+        return ResponseEntity.ok(updatedProfile);
+    }
+
+    @PutMapping(value = "/profile", consumes = "multipart/form-data")
+    public ResponseEntity<UserProfileDto> updateProfileMultipart(
             @RequestPart(value = "data", required = false) String dataStr,
             @RequestPart(value = "avatar", required = false) MultipartFile avatar) {
         
@@ -58,7 +70,6 @@ public class UserController {
                 request = objectMapper.readValue(dataStr, UpdateUserProfileRequest.class);
             } catch (Exception e) {
                 System.err.println("Error parsing UpdateUserProfileRequest: " + e.getMessage());
-                // Ignore parsing errors and just proceed with empty request
             }
         }
         

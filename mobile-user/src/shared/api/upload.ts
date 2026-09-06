@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getBaseUrl } from './config';
 import * as ImageManipulator from 'expo-image-manipulator';
 
@@ -20,68 +21,95 @@ export const uploadImageApi = async (
 ): Promise<string> => {
   const token = await getToken();
 
-  // 1. Convert to WebP (No crop/resize, just compress to save 80% size)
-  let localUriToUpload = uri;
-  try {
-    const manipResult = await ImageManipulator.manipulateAsync(
-      uri,
-      [],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.WEBP }
-    );
-    localUriToUpload = manipResult.uri;
-  } catch (error) {
-    console.log('WebP conversion failed, fallback to original:', error);
-  }
-
   const authHeaders: Record<string, string> = {};
   if (token) {
     authHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  // 2. PRIMARY STRATEGY: Direct Multipart Upload via Backend Server
-  // This bypasses client-side Cloudflare R2 CORS restrictions and React Native PUT Blob issues
+  // 1. Optimize image (WebP on Android, JPEG on iOS/Web)
+  let localUriToUpload = uri;
+  let mimeType = 'image/jpeg';
   try {
-    const formData = new FormData();
-    const filename = `upload_${Date.now()}.webp`;
+    const isAndroid = Platform.OS === 'android';
+    const targetFormat = isAndroid
+      ? ImageManipulator.SaveFormat.WEBP
+      : ImageManipulator.SaveFormat.JPEG;
 
-    if (Platform.OS === 'web') {
-      const response = await fetch(localUriToUpload);
-      const blob = await response.blob();
-      formData.append('file', blob, filename);
-    } else {
-      // React Native Native Form Attachment
-      formData.append('file', {
-        uri: localUriToUpload,
-        name: filename,
-        type: 'image/webp',
-      } as any);
-    }
-
-    const uploadRes = await fetch(`${getBaseUrl()}/upload/image?type=${type}`, {
-      method: 'POST',
-      headers: {
-        ...authHeaders,
-        // Do NOT set Content-Type header manually for FormData so boundary is auto-generated
-      },
-      body: formData,
-    });
-
-    if (uploadRes.ok) {
-      const data = await uploadRes.json();
-      if (data?.imageUrl) {
-        return data.imageUrl;
-      }
-    } else {
-      console.warn('Backend multipart upload failed with status:', uploadRes.status);
-    }
-  } catch (multipartError) {
-    console.warn('Backend multipart upload exception, trying Presigned URL fallback:', multipartError);
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { compress: 0.8, format: targetFormat }
+    );
+    localUriToUpload = manipResult.uri;
+    mimeType = isAndroid ? 'image/webp' : 'image/jpeg';
+  } catch (error) {
+    console.log('Image compression failed, using original uri:', error);
   }
 
-  // 3. FALLBACK STRATEGY: Presigned URL Direct S3 PUT
+  const uploadEndpoint = `${getBaseUrl()}/upload/image?type=${type}`;
+
+  // 2. PRIMARY STRATEGY: Native FileSystem Multipart Upload for Mobile (Android & iOS)
+  if (Platform.OS !== 'web') {
+    try {
+      const uploadResult = await FileSystem.uploadAsync(
+        uploadEndpoint,
+        localUriToUpload,
+        {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          fieldName: 'file',
+          mimeType,
+          headers: {
+            ...authHeaders,
+          },
+        }
+      );
+
+      if (uploadResult.status >= 200 && uploadResult.status < 300) {
+        const data = JSON.parse(uploadResult.body);
+        if (data?.imageUrl) {
+          return data.imageUrl;
+        }
+      } else {
+        console.warn('FileSystem uploadAsync returned status:', uploadResult.status, uploadResult.body);
+      }
+    } catch (fsErr) {
+      console.warn('Native FileSystem uploadAsync failed, trying fallback:', fsErr);
+    }
+  }
+
+  // 3. WEB STRATEGY: Fetch with FormData
+  if (Platform.OS === 'web') {
+    try {
+      const response = await fetch(localUriToUpload);
+      const blob = await response.blob();
+      const formData = new FormData();
+      formData.append('file', blob, `upload_${Date.now()}.jpg`);
+
+      const uploadRes = await fetch(uploadEndpoint, {
+        method: 'POST',
+        headers: {
+          ...authHeaders,
+        },
+        body: formData,
+      });
+
+      if (uploadRes.ok) {
+        const data = await uploadRes.json();
+        if (data?.imageUrl) {
+          return data.imageUrl;
+        }
+      }
+    } catch (webErr) {
+      console.warn('Web FormData upload failed, trying Presigned URL:', webErr);
+    }
+  }
+
+  // 4. FALLBACK STRATEGY: Presigned URL Direct S3 PUT
   try {
+    const presignExt = mimeType === 'image/webp' ? '.webp' : '.jpg';
     const presignResponse = await fetch(
-      `${getBaseUrl()}/upload/presigned-url?type=${type}&extension=.webp&contentType=image/webp`,
+      `${getBaseUrl()}/upload/presigned-url?type=${type}&extension=${presignExt}&contentType=${mimeType}`,
       {
         method: 'GET',
         headers: authHeaders,
@@ -95,22 +123,40 @@ export const uploadImageApi = async (
 
     const { presignedUrl, publicUrl } = await presignResponse.json();
 
-    const fileResp = await fetch(localUriToUpload);
-    const fileBlob = await fileResp.blob();
+    if (Platform.OS !== 'web') {
+      const putResult = await FileSystem.uploadAsync(
+        presignedUrl,
+        localUriToUpload,
+        {
+          httpMethod: 'PUT',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            'Content-Type': mimeType,
+          },
+        }
+      );
 
-    const uploadResponse = await fetch(presignedUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'image/webp',
-      },
-      body: fileBlob,
-    });
+      if (putResult.status >= 200 && putResult.status < 300) {
+        return publicUrl;
+      }
+    } else {
+      const fileResp = await fetch(localUriToUpload);
+      const fileBlob = await fileResp.blob();
 
-    if (!uploadResponse.ok) {
-      throw new Error(`Upload trực tiếp R2 thất bại (HTTP ${uploadResponse.status})`);
+      const uploadResponse = await fetch(presignedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': mimeType,
+        },
+        body: fileBlob,
+      });
+
+      if (uploadResponse.ok) {
+        return publicUrl;
+      }
     }
 
-    return publicUrl;
+    throw new Error('Tất cả phương thức tải ảnh đều thất bại');
   } catch (presignError: any) {
     console.error('All upload strategies failed:', presignError);
     throw new Error(presignError.message || 'Không thể tải ảnh lên hệ thống');

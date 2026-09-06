@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { BASE_URL, ApiError, apiFetch, clearCachedToken } from './apiClient';
+import { uploadImageApi } from './upload';
 
 export interface UserSportItem {
   id: number;
@@ -42,6 +43,7 @@ export interface UserProfileDto {
 export interface UpdateUserProfileRequest {
   fullName?: string;
   phoneNumber?: string;
+  avatarUrl?: string;
   gender?: string;
   dateOfBirth?: string;
   height?: number;
@@ -178,66 +180,29 @@ export const usersApi = {
     return apiFetch<RankedMatchHistoryItemDto[]>('/users/ranked-match-history', { method: 'GET' }, true);
   },
 
-  updateProfile: async (data: UpdateUserProfileRequest, avatarUri?: string): Promise<UserProfileDto> => {
-    const token = await getToken();
-    const formData = new FormData();
+  updateProfile: async (data: UpdateUserProfileRequest = {}, avatarUri?: string): Promise<UserProfileDto> => {
+    let payload = { ...data };
 
-    if (data) {
-      formData.append('data', JSON.stringify(data));
-    }
-
-    if (avatarUri) {
-      let filename = 'avatar.jpg';
-      let type = 'image/jpeg';
-      
-      if (avatarUri.startsWith('data:')) {
-        const mimeStr = avatarUri.split(',')[0].split(':')[1].split(';')[0];
-        if (mimeStr) type = mimeStr;
-        const ext = mimeStr.split('/')[1] || 'jpg';
-        filename = `avatar.${ext}`;
+    if (avatarUri && avatarUri.trim().length > 0) {
+      if (avatarUri.startsWith('http://') || avatarUri.startsWith('https://')) {
+        payload.avatarUrl = avatarUri;
       } else {
-        filename = avatarUri.split('/').pop() || 'avatar.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        if (match) type = `image/${match[1]}`;
-      }
-
-      if (Platform.OS === 'web') {
         try {
-          const res = await fetch(avatarUri);
-          const blob = await res.blob();
-          const file = new File([blob], filename, { type: type });
-          formData.append('avatar', file);
-        } catch (e) {
-          console.error("Error creating blob from uri", e);
+          const uploadedUrl = await uploadImageApi(avatarUri, 'avatar');
+          if (uploadedUrl) {
+            payload.avatarUrl = uploadedUrl;
+          }
+        } catch (err) {
+          console.error('Error uploading avatar image via uploadImageApi:', err);
+          throw err;
         }
-      } else {
-        // @ts-ignore - React Native FormData expects this format for files
-        formData.append('avatar', {
-          uri: avatarUri,
-          name: filename,
-          type,
-        });
       }
     }
 
-    const response = await fetch(`${BASE_URL}/users/profile`, {
+    return apiFetch<UserProfileDto>('/users/profile', {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 401) {
-        clearCachedToken();
-        const { globalEvent } = require('../lib/eventEmitter');
-        globalEvent.emit('auth:expired');
-      }
-      throw new ApiError(errorData.message || 'Lỗi khi cập nhật thông tin cá nhân', response.status);
-    }
-    return response.json();
+      body: JSON.stringify(payload),
+    }, true);
   },
 
   deleteAccount: async (): Promise<void> => {

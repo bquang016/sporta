@@ -17,6 +17,7 @@ public class UpdateUserProfileRequest {
     private Gender gender;
     
     private String dateOfBirth;
+    private String avatarUrl;
 
     private Integer height;
     private Double weight;

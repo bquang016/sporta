@@ -287,9 +287,12 @@ public class UserServiceImpl implements UserService {
             user.setPrivateMode(request.getPrivateMode());
         }
         // -----------------------------
+        if (request.getAvatarUrl() != null && !request.getAvatarUrl().trim().isEmpty()) {
+            user.setAvatarUrl(request.getAvatarUrl().trim());
+        }
 
         if (avatar != null && !avatar.isEmpty()) {
-            String avatarUrl = fileStorageService.uploadFile(avatar, "avatar");
+            String avatarUrl = fileStorageService.uploadFile(avatar, "avatars");
             user.setAvatarUrl(avatarUrl);
         }
 
