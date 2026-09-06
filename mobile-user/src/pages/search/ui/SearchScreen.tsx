@@ -433,11 +433,15 @@ export function SearchScreen() {
                 lastMarkerPressTime.current = Date.now();
                 setSelectedFacilityId(facility.id);
                 if (facility.latitude && facility.longitude) {
-                  mapRef.current?.flyTo({
-                    latitude: facility.latitude,
-                    longitude: facility.longitude,
-                    zoom: 15,
-                  });
+                  mapRef.current?.animateToRegion(
+                    {
+                      latitude: facility.latitude,
+                      longitude: facility.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    },
+                    300
+                  );
                 }
               }}
               onMapPress={() => {

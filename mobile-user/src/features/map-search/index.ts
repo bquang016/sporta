@@ -9,6 +9,4 @@ export { VenueMarker, ClusterMarkerView } from './ui/FacilityMarker';
 export { MapFacilityCard } from './ui/FacilityCard';
 export { FloatingSportFilter } from './ui/SearchFilterSheet';
 export { MapSearchBar } from './ui/MapSearchBar';
-export { GoongMapView } from './ui/GoongMapView';
-export type { GoongMapViewRef } from './ui/GoongMapView';
 
