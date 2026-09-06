@@ -57,15 +57,16 @@ export const VenueMarker = memo(
       return () => clearTimeout(timer);
     }, [isActive]);
 
-    if (!isFinite(venue.latitude) || !isFinite(venue.longitude)) {
-      return null;
-    }
-
     return (
       <Marker
         key={venue.id}
         coordinate={{ latitude: venue.latitude, longitude: venue.longitude }}
-        onPress={() => onPress(venue.id)}
+        onPress={(e) => {
+          if (e && e.stopPropagation) {
+            e.stopPropagation();
+          }
+          onPress(venue.id);
+        }}
         tracksViewChanges={tracksViewChanges}
         anchor={{ x: 0.5, y: 1 }}
         zIndex={isActive ? 99 : 1}
@@ -117,23 +118,31 @@ export const ClusterMarkerView = memo(
   ({ cluster, onPress }: ClusterMarkerViewProps) => {
     const size = cluster.count >= 50 ? 56 : cluster.count >= 20 ? 48 : 42;
 
-    if (!isFinite(cluster.latitude) || !isFinite(cluster.longitude)) {
-      return null;
-    }
-
     return (
       <Marker
         key={cluster.id}
         coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
-        onPress={() => onPress(cluster)}
+        onPress={(e) => {
+          if (e && e.stopPropagation) {
+            e.stopPropagation();
+          }
+          onPress(cluster);
+        }}
         tracksViewChanges={false}
         anchor={{ x: 0.5, y: 0.5 }}
       >
-        <View
+        <TouchableOpacity
+          activeOpacity={0.8}
           style={[
             styles.clusterBubble,
             { width: size, height: size, borderRadius: size / 2 },
           ]}
+          onPress={(e) => {
+            if (e && e.stopPropagation) {
+              e.stopPropagation();
+            }
+            onPress(cluster);
+          }}
         >
           <View
             style={[
@@ -143,7 +152,7 @@ export const ClusterMarkerView = memo(
           />
           <Text style={styles.clusterCount}>{cluster.count}</Text>
           <Text style={styles.clusterLabel}>sân</Text>
-        </View>
+        </TouchableOpacity>
       </Marker>
     );
   }
