@@ -65,7 +65,7 @@ public class AdminDisputeController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng admin", 404));
-        if (user.getRole() != Role.ADMIN) {
+        if (user.getRole() != Role.ADMIN && user.getRole() != Role.SUPER_ADMIN) {
             throw new CustomException("Quyền hạn Admin là bắt buộc", 403);
         }
         return user;
