@@ -23,8 +23,11 @@ export function useMatchmakingList(
     try {
       const data = await MatchmakingApiRepository.listRooms(filters, sortOption);
       setRooms(data || []);
-    } catch (e) {
-      console.error('Error fetching real matchmaking rooms:', e);
+    } catch (e: any) {
+      // Don't spam console if guest / unauthenticated
+      if (e?.status !== 401 && e?.status !== 404 && !e?.message?.includes('Không tìm thấy người dùng')) {
+        console.warn('Lỗi khi tải phòng ghép trận:', e?.message || e);
+      }
       setRooms([]);
     } finally {
       setLoading(false);
@@ -58,8 +61,10 @@ export function useMyMatches() {
     try {
       const data = await MatchmakingApiRepository.listMyMatches();
       setRooms(data || []);
-    } catch (e) {
-      console.error('Error fetching my matches:', e);
+    } catch (e: any) {
+      if (e?.status !== 401 && e?.status !== 404 && !e?.message?.includes('Không tìm thấy người dùng')) {
+        console.warn('Lỗi khi tải trận đấu của tôi:', e?.message || e);
+      }
       setRooms([]);
     } finally {
       setLoading(false);

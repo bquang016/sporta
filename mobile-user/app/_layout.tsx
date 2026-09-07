@@ -9,7 +9,7 @@ import {
   HankenGrotesk_800ExtraBold 
 } from '@expo-google-fonts/hanken-grotesk';
 
-import { Platform } from 'react-native';
+import { Platform, LogBox } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../src/shared/api/queryClient';
@@ -18,6 +18,17 @@ import { ChatbotFAB } from '../src/features/chatbot/ui/ChatbotFAB';
 import { ChatbotBottomSheet } from '../src/features/chatbot/ui/ChatbotBottomSheet';
 import { AuthRequiredModal } from '../src/shared/ui/AuthRequiredModal';
 import { loadNativeUserSessionAsync } from '../src/shared/lib/userSession';
+import { SportaSplashScreen } from '../src/shared/ui/SportaSplashScreen';
+
+// Ignore non-fatal development noise / warnings
+LogBox.ignoreLogs([
+  'source.uri should not be an empty string',
+  'expo-notifications: Android Push notifications',
+  '`expo-notifications` functionality is not fully supported in Expo Go',
+  'Không tìm thấy người dùng',
+  'Error fetching real matchmaking rooms',
+  'Error fetching my matches',
+]);
 
 // Complete auth session if returning from web browser popup
 WebBrowser.maybeCompleteAuthSession();
@@ -43,6 +54,7 @@ export default function RootLayout() {
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [isSplashFinished, setIsSplashFinished] = useState(false);
 
   const handleOpenChat = async () => {
     const session = await loadNativeUserSessionAsync();
@@ -72,10 +84,6 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
-  if (!loaded && !error) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <AlertProvider>
@@ -102,6 +110,9 @@ export default function RootLayout() {
           actionDescription="Trợ lý ảo Sporta AI hỗ trợ tìm sân, ghép kèo và giải đáp mọi thắc mắc dành riêng cho bạn."
           actionIcon="chatbubble-ellipses-outline"
         />
+        {!isSplashFinished && (
+          <SportaSplashScreen onAnimationFinish={() => setIsSplashFinished(true)} />
+        )}
       </AlertProvider>
     </QueryClientProvider>
   );
