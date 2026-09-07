@@ -46,15 +46,18 @@ export const LoginPage = () => {
 
       const base64Url = data.accessToken.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(window.atob(base64));
+      const payload = JSON.parse(decodeURIComponent(escape(window.atob(base64))));
 
-      if (payload.role !== 'ADMIN' && payload.role !== 'SUPER_ADMIN') {
+      const rawRole = (payload.role || '').toUpperCase();
+      const role = rawRole.startsWith('ROLE_') ? rawRole.substring(5) : rawRole;
+
+      if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
         throw new Error('Tài khoản không có quyền truy cập trang quản trị viên.');
       }
 
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('permissions', JSON.stringify(data.permissions || []));
-      localStorage.setItem('role', payload.role);
+      localStorage.setItem('role', role);
 
       navigate('/', { replace: true });
     } catch (err: any) {

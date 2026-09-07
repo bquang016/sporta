@@ -202,22 +202,42 @@ public class DataSeeder implements CommandLineRunner {
         String r2Base = getR2Base();
 
         // Super Admin
-        if (userRepository.findByEmail("superadmin@sporta.vn").isEmpty()) {
-            userRepository.save(User.builder()
-                    .email("superadmin@sporta.vn").password(adminPass).fullName("Super Admin")
-                    .role(Role.SUPER_ADMIN).status(UserStatus.ACTIVE).gender(Gender.MALE)
-                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[0])
-                    .phoneNumber("0900000001").build());
-        }
+        userRepository.findByEmail("superadmin@sporta.vn").ifPresentOrElse(
+            u -> {
+                u.setRole(Role.SUPER_ADMIN);
+                u.setStatus(UserStatus.ACTIVE);
+                u.setPassword(adminPass);
+                u.setFullName("Super Admin");
+                u.setAvatarUrl(r2Base + "/user/male/" + MALE_AVATARS[0]);
+                userRepository.save(u);
+            },
+            () -> {
+                userRepository.save(User.builder()
+                        .email("superadmin@sporta.vn").password(adminPass).fullName("Super Admin")
+                        .role(Role.SUPER_ADMIN).status(UserStatus.ACTIVE).gender(Gender.MALE)
+                        .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[0])
+                        .phoneNumber("0900000001").build());
+            }
+        );
 
         // Admin
-        if (userRepository.findByEmail("admin@sporta.vn").isEmpty()) {
-            userRepository.save(User.builder()
-                    .email("admin@sporta.vn").password(adminPass).fullName("Hệ Thống Admin")
-                    .role(Role.ADMIN).status(UserStatus.ACTIVE).gender(Gender.MALE)
-                    .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[1])
-                    .phoneNumber("0900000002").build());
-        }
+        userRepository.findByEmail("admin@sporta.vn").ifPresentOrElse(
+            u -> {
+                u.setRole(Role.ADMIN);
+                u.setStatus(UserStatus.ACTIVE);
+                u.setPassword(adminPass);
+                u.setFullName("Hệ Thống Admin");
+                u.setAvatarUrl(r2Base + "/user/male/" + MALE_AVATARS[1]);
+                userRepository.save(u);
+            },
+            () -> {
+                userRepository.save(User.builder()
+                        .email("admin@sporta.vn").password(adminPass).fullName("Hệ Thống Admin")
+                        .role(Role.ADMIN).status(UserStatus.ACTIVE).gender(Gender.MALE)
+                        .avatarUrl(r2Base + "/user/male/" + MALE_AVATARS[1])
+                        .phoneNumber("0900000002").build());
+            }
+        );
 
         // Dev Tester User
         User devUser = userRepository.findByEmail("dev@sporta.vn").orElseGet(() -> {
