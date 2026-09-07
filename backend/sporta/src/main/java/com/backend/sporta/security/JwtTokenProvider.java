@@ -2,6 +2,7 @@ package com.backend.sporta.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -110,8 +112,7 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
-            System.err.println("JWT Validation Error for token: " + token);
-            e.printStackTrace();
+            log.debug("JWT Validation failed for token {}: {}", token, e.getMessage());
             return false;
         }
     }
