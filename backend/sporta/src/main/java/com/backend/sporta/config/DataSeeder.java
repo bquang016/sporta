@@ -164,6 +164,8 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS desired_levels VARCHAR(255)");
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50)");
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS join_deadline TIMESTAMP");
+            jdbcTemplate.execute("UPDATE users SET role = 'SUPER_ADMIN' WHERE email = 'superadmin@sporta.vn'");
+            jdbcTemplate.execute("UPDATE users SET role = 'ADMIN' WHERE email = 'admin@sporta.vn'");
         } catch (Exception ignored) {
         }
     }
@@ -294,11 +296,6 @@ public class DataSeeder implements CommandLineRunner {
     // 4. GENERATE 70+ PLAYER USERS WITH R2 AVATARS
     // =========================================================================
     private List<User> seedPlayerUsers(String defaultPass, Map<String, Sport> sports) {
-        List<User> existingUsers = userRepository.findAll();
-        if (existingUsers.size() >= 50) {
-            return existingUsers;
-        }
-
         String r2Base = getR2Base();
         String[] firstNames = {"Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý"};
         String[] middleMale = {"Văn", "Đức", "Thành", "Quang", "Minh", "Tuấn", "Hoàng", "Tiến", "Huy", "Nam", "Duy", "Mạnh"};
@@ -308,11 +305,15 @@ public class DataSeeder implements CommandLineRunner {
         String[] lastFemale = {"Trang", "Linh", "Hoa", "Lan", "Hương", "Anh", "Nhi", "Vy", "Hà", "Yến", "Thảo", "Huyền", "Châu", "Ngân"};
 
         Random rand = new Random(2026);
-        List<User> newUsers = new ArrayList<>();
+        List<User> playerUsers = new ArrayList<>();
 
         for (int i = 1; i <= 65; i++) {
             String email = "player" + i + "@sporta.vn";
-            if (userRepository.findByEmail(email).isPresent()) continue;
+            Optional<User> existingUser = userRepository.findByEmail(email);
+            if (existingUser.isPresent()) {
+                playerUsers.add(existingUser.get());
+                continue;
+            }
 
             boolean isMale = (i % 4 != 0); // 75% male, 25% female
             String fullName;
@@ -353,7 +354,7 @@ public class DataSeeder implements CommandLineRunner {
                     .build();
 
             user = userRepository.save(user);
-            newUsers.add(user);
+            playerUsers.add(user);
 
             // User Wallet
             long initialBalance = (100 + rand.nextInt(4000)) * 1000L; // 100k - 4.1tr
@@ -366,8 +367,8 @@ public class DataSeeder implements CommandLineRunner {
             ensureUserSports(user, sports, level, elo);
         }
 
-        System.out.println("Data Seeder: Đã khởi tạo thành công " + newUsers.size() + " người chơi (Users & ELO Profiles với R2 Avatars).");
-        return userRepository.findAll();
+        System.out.println("Data Seeder: Đã khởi tạo thành công " + playerUsers.size() + " người chơi (Users & ELO Profiles với R2 Avatars).");
+        return playerUsers;
     }
 
     private void ensureUserWallet(User user, long balance) {
@@ -395,7 +396,7 @@ public class DataSeeder implements CommandLineRunner {
     // =========================================================================
     // 5. GENERATE 15+ OWNERS & REGISTRATIONS
     // =========================================================================
-    private List<Owner> seedOwnersAndRegistrations(List<User> users) {
+    private List<Owner> seedOwnersAndRegistrations(List<User> playerUsers) {
         List<Owner> existingOwners = ownerRepository.findAll();
         if (existingOwners.size() >= 12) {
             return existingOwners;
@@ -415,9 +416,14 @@ public class DataSeeder implements CommandLineRunner {
         Random rand = new Random(2026);
         List<Owner> createdOwners = new ArrayList<>(existingOwners);
 
-        int ownerCount = Math.min(users.size(), 16);
+        // Lọc danh sách chỉ lấy các tài khoản người chơi mẫu (player1, player2...), tuyệt đối không lấy superadmin/admin/dev
+        List<User> candidateUsers = playerUsers.stream()
+                .filter(u -> u.getEmail() != null && u.getEmail().matches("player[0-9]+@sporta\\.vn"))
+                .toList();
+
+        int ownerCount = Math.min(candidateUsers.size(), 16);
         for (int i = 0; i < ownerCount; i++) {
-            User u = users.get(i);
+            User u = candidateUsers.get(i);
             if (ownerRepository.findByUserId(u.getId()).isPresent()) continue;
 
             u.setRole(Role.OWNER);
