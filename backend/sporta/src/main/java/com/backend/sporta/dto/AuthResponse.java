@@ -15,5 +15,6 @@ public class AuthResponse {
     private String message;
     private boolean mustChangePassword;
     private String passwordSnoozeUntil; // ISO-8601 string, null if no active snooze
+    private String role;
     private List<String> permissions;
 }

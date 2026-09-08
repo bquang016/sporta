@@ -7,6 +7,7 @@ export interface UserSessionData {
   userEmail: string | null;
   userName: string | null;
   userAvatar: string | null;
+  userRole: string | null;
 }
 
 // In-memory cache for ultra-fast zero-flicker access across the entire app
@@ -16,6 +17,19 @@ let memorySession: UserSessionData = {
   userEmail: null,
   userName: null,
   userAvatar: null,
+  userRole: null,
+};
+
+type SessionListener = (session: UserSessionData) => void;
+const listeners: Set<SessionListener> = new Set();
+
+export const subscribeToSession = (listener: SessionListener) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+const notifyListeners = () => {
+  listeners.forEach((listener) => listener(memorySession));
 };
 
 // Initialize synchronous web storage immediately on module load
@@ -29,6 +43,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorag
         userEmail: localStorage.getItem('userEmail'),
         userName: localStorage.getItem('userName'),
         userAvatar: localStorage.getItem('userAvatar'),
+        userRole: localStorage.getItem('userRole'),
       };
     }
   } catch (e) {
@@ -46,6 +61,7 @@ export const getCachedUserSession = (): UserSessionData => {
         userEmail: localStorage.getItem('userEmail') || null,
         userName: localStorage.getItem('userName') || null,
         userAvatar: localStorage.getItem('userAvatar') || null,
+        userRole: localStorage.getItem('userRole') || null,
       };
     } catch {
       return memorySession;
@@ -64,6 +80,7 @@ export const loadNativeUserSessionAsync = async (): Promise<UserSessionData> => 
     const email = await SecureStore.getItemAsync('userEmail');
     const name = await SecureStore.getItemAsync('userName');
     const avatar = await SecureStore.getItemAsync('userAvatar');
+    const role = await SecureStore.getItemAsync('userRole');
 
     memorySession = {
       isAuthenticated: !!token,
@@ -71,7 +88,9 @@ export const loadNativeUserSessionAsync = async (): Promise<UserSessionData> => 
       userEmail: email || null,
       userName: name || null,
       userAvatar: avatar || null,
+      userRole: role || null,
     };
+    notifyListeners();
     return memorySession;
   } catch {
     return memorySession;
@@ -83,6 +102,7 @@ export const saveUserSession = async (data: {
   userEmail?: string | null;
   userName?: string | null;
   userAvatar?: string | null;
+  userRole?: string | null;
 }): Promise<void> => {
   const current = getCachedUserSession();
 
@@ -92,6 +112,7 @@ export const saveUserSession = async (data: {
     userEmail: data.userEmail !== undefined ? data.userEmail : current.userEmail,
     userName: data.userName !== undefined ? data.userName : current.userName,
     userAvatar: data.userAvatar !== undefined ? data.userAvatar : current.userAvatar,
+    userRole: data.userRole !== undefined ? data.userRole : current.userRole,
   };
 
   memorySession = updated;
@@ -109,6 +130,9 @@ export const saveUserSession = async (data: {
 
       if (updated.userAvatar) localStorage.setItem('userAvatar', updated.userAvatar);
       else localStorage.removeItem('userAvatar');
+
+      if (updated.userRole) localStorage.setItem('userRole', updated.userRole);
+      else localStorage.removeItem('userRole');
     } catch (e) {
       console.log('localStorage sync error:', e);
     }
@@ -125,10 +149,14 @@ export const saveUserSession = async (data: {
 
       if (updated.userAvatar) await SecureStore.setItemAsync('userAvatar', updated.userAvatar);
       else await SecureStore.deleteItemAsync('userAvatar');
+
+      if (updated.userRole) await SecureStore.setItemAsync('userRole', updated.userRole);
+      else await SecureStore.deleteItemAsync('userRole');
     } catch (e) {
       console.log('SecureStore sync error:', e);
     }
   }
+  notifyListeners();
 };
 
 export const clearUserSession = async (): Promise<void> => {
@@ -138,6 +166,7 @@ export const clearUserSession = async (): Promise<void> => {
     userEmail: null,
     userName: null,
     userAvatar: null,
+    userRole: null,
   };
 
   if (Platform.OS === 'web') {
@@ -146,6 +175,7 @@ export const clearUserSession = async (): Promise<void> => {
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userName');
       localStorage.removeItem('userAvatar');
+      localStorage.removeItem('userRole');
     } catch (e) {}
   } else {
     try {
@@ -153,6 +183,8 @@ export const clearUserSession = async (): Promise<void> => {
       await SecureStore.deleteItemAsync('userEmail');
       await SecureStore.deleteItemAsync('userName');
       await SecureStore.deleteItemAsync('userAvatar');
+      await SecureStore.deleteItemAsync('userRole');
     } catch (e) {}
   }
+  notifyListeners();
 };

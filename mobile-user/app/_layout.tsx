@@ -17,7 +17,8 @@ import { AlertProvider } from '../src/shared/contexts/AlertContext';
 import { ChatbotFAB } from '../src/features/chatbot/ui/ChatbotFAB';
 import { ChatbotBottomSheet } from '../src/features/chatbot/ui/ChatbotBottomSheet';
 import { AuthRequiredModal } from '../src/shared/ui/AuthRequiredModal';
-import { loadNativeUserSessionAsync } from '../src/shared/lib/userSession';
+import { loadNativeUserSessionAsync, getCachedUserSession, subscribeToSession } from '../src/shared/lib/userSession';
+import { OwnerWarningBanner } from '../src/shared/ui/OwnerWarningBanner';
 
 // Complete auth session if returning from web browser popup
 WebBrowser.maybeCompleteAuthSession();
@@ -43,6 +44,14 @@ export default function RootLayout() {
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [session, setSession] = useState(getCachedUserSession());
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSession((newSession) => {
+      setSession(newSession);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleOpenChat = async () => {
     const session = await loadNativeUserSessionAsync();
@@ -80,6 +89,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AlertProvider>
         <PushNotificationManager />
+        <OwnerWarningBanner userRole={session.userRole} />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
