@@ -156,6 +156,7 @@ public class AuthService {
                 .message("Đăng nhập thành công.")
                 .mustChangePassword(user.isMustChangePassword())
                 .passwordSnoozeUntil(snoozeUntilStr)
+                .role(user.getRole().name())
                 .permissions(permissions)
                 .build();
     }
@@ -870,6 +871,7 @@ public class AuthService {
                         .avatarUrl(user.getAvatarUrl())
                         .message("Đăng nhập Google thành công.")
                         .mustChangePassword(user.isMustChangePassword())
+                        .role(user.getRole().name())
                         .build();
             } else {
                 String registrationToken = jwtTokenProvider.generateRegistrationToken(email);

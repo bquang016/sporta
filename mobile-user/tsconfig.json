@@ -5,9 +5,13 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/src/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@/src/*": [
+        "./src/*"
+      ]
     },
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   }
 }

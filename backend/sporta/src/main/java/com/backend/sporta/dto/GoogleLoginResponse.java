@@ -20,4 +20,5 @@ public class GoogleLoginResponse {
     private String avatarUrl;
     private String message;
     private boolean mustChangePassword;
+    private String role;
 }

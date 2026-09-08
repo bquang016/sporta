@@ -3,6 +3,7 @@ package com.backend.sporta.service;
 import com.backend.sporta.dto.*;
 import com.backend.sporta.entity.*;
 import com.backend.sporta.enums.BookingStatus;
+import com.backend.sporta.enums.Role;
 import com.backend.sporta.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,10 @@ public class ReviewServiceImpl implements ReviewService {
     public VenueReviewResponse createReview(CreateReviewRequest request, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng: " + userEmail));
+
+        if (user.getRole() == Role.OWNER) {
+            throw new RuntimeException("Tài khoản chủ sân không được phép đánh giá sân.");
+        }
 
         Venue venue = venueRepository.findById(request.getVenueId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy cụm sân với ID: " + request.getVenueId()));
@@ -166,7 +171,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional(readOnly = true)
     public boolean canUserReview(UUID venueId, String userEmail) {
         User user = userRepository.findByEmail(userEmail).orElse(null);
-        if (user == null) return false;
+        if (user == null || user.getRole() == Role.OWNER) return false;
 
         return bookingRepository.existsByUserIdAndVenueIdAndStatus(
                 user.getId(), venueId, BookingStatus.COMPLETED);

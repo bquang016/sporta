@@ -69,6 +69,7 @@ export function useLogin() {
           userEmail: res.email,
           userName: realFullName,
           userAvatar: realAvatar,
+          userRole: res.role,
         });
 
         if (res.mustChangePassword) {
@@ -124,6 +125,7 @@ export function useLogin() {
         userEmail: trimmedEmail,
         userName: realFullName,
         userAvatar: realAvatar,
+        userRole: response.role,
       });
 
       router.replace('/(tabs)');

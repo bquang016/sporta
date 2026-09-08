@@ -253,7 +253,7 @@ export function TicketPaymentScreen() {
       refetchWallet();
       router.replace('/my-tickets' as any);
     } catch (error: any) {
-      console.error('Purchase ticket error:', error);
+      console.warn('Purchase ticket error:', error);
       if (
         error.status === 409 ||
         (error.message && (error.message.includes('vé cuối cùng') || error.message.includes('chỉ còn') || error.message.includes('trống')))

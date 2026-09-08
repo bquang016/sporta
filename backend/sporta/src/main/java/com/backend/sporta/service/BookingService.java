@@ -80,6 +80,10 @@ public class BookingService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", 404));
 
+        if (user.getRole() == Role.OWNER) {
+            throw new CustomException("Tài khoản chủ sân không được phép đặt sân trên ứng dụng", 403);
+        }
+
         if (request.getSlots() == null || request.getSlots().isEmpty()) {
             throw new CustomException("Danh sách khung giờ không được để trống", 400);
         }
