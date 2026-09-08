@@ -385,7 +385,7 @@ public class PostFeedServiceImpl implements PostFeedService {
         Voucher voucher = null;
 
         if ("VENUE_PROMO".equalsIgnoreCase(type)) {
-            if (author.getRole() != Role.OWNER && author.getRole() != Role.ADMIN) {
+            if (author.getRole() != Role.OWNER && author.getRole() != Role.ADMIN && author.getRole() != Role.SUPER_ADMIN) {
                 throw new CustomException("Chỉ chủ sân (Venue Owner) mới có quyền đăng bài khuyến mãi sân bãi", 403);
             }
 

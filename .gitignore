@@ -17,7 +17,16 @@ backend/*.war
 
 # Environment files
 .env
+.env.*
+.env.local
+.env.*.local
+*.env
+*.env.*
 **/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
 # Dependencies
 node_modules/
 **/node_modules/
