@@ -115,7 +115,7 @@ export const VenueImagesStep = ({
   };
 
   return (
-    <div className={`flex-grow overflow-y-auto px-8 py-6 space-y-6 select-none max-w-4xl mx-auto w-full font-sans animate-fadeIn ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`w-full max-w-4xl mx-auto space-y-6 select-none font-sans animate-fadeIn py-2 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="space-y-1">
         <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Bước 3: Hình ảnh truyền thông</h3>
         <p className="text-[10px] text-slate-400 font-semibold leading-normal">

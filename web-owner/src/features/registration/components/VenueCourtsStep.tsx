@@ -193,7 +193,7 @@ export const VenueCourtsStep = ({
   };
 
   return (
-    <div className="flex-grow overflow-y-auto px-8 py-6 space-y-8 select-none max-w-4xl mx-auto w-full font-sans animate-fadeIn">
+    <div className="w-full max-w-4xl mx-auto space-y-6 select-none font-sans animate-fadeIn py-2">
 
       {/* 1. Cấu hình vận hành cơ bản */}
       <div className={`space-y-4 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>

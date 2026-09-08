@@ -158,7 +158,7 @@ export const PersonalInfoStep = ({
   );
 
   return (
-    <div className="animate-fadeIn max-w-3xl mx-auto h-full flex flex-col justify-center py-4">
+    <div className="animate-fadeIn w-full max-w-3xl mx-auto flex flex-col py-2 lg:py-4">
       {/* Title */}
       <div className="mb-4">
         <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Thông tin cá nhân (Đối chiếu CCCD)</h3>

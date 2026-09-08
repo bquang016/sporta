@@ -78,7 +78,7 @@ export const SetupPage = () => {
       {/* ═══════════════════════════════════════════════════════════
        *  MAIN CONTENT — Centered form
        * ═══════════════════════════════════════════════════════════ */}
-      <main className="flex-1 overflow-hidden relative flex flex-col p-4 lg:p-8">
+      <main className="flex-1 overflow-hidden relative flex flex-col p-2.5 sm:p-4 lg:p-8 min-h-0">
         {/* Decorative blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
           <div className="absolute -top-[15%] -right-[15%] w-[55%] h-[55%] bg-brand-emerald/[0.02] rounded-full blur-[100px]" />
@@ -88,7 +88,7 @@ export const SetupPage = () => {
         <div className="mx-auto w-full max-w-5xl flex-1 flex flex-col min-h-0 transition-all duration-300">
           {/* Error banner */}
           {wizard.errorMsg && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] font-bold text-red-600 flex items-center gap-2 animate-fadeIn shrink-0">
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] font-bold text-red-600 flex items-center gap-2 animate-fadeIn shrink-0">
               <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -97,7 +97,7 @@ export const SetupPage = () => {
           )}
 
           {/* Form Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-lg overflow-hidden flex-1 flex flex-col md:flex-row min-h-0">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-lg overflow-hidden flex-1 flex flex-col md:flex-row min-h-0 relative">
             {/* Gradient accent bar (top edge of card) */}
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-brand-emerald via-brand-emerald to-brand-yellow z-10" />
 
@@ -112,9 +112,9 @@ export const SetupPage = () => {
             />
 
             {/* Right Form Area */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
               {/* Scrollable form content */}
-              <div className="flex-1 overflow-y-auto p-5 lg:p-8 matrix-scroll">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 matrix-scroll overscroll-contain">
                 {wizard.currentStep === 'personal' && (
                   <PersonalInfoStep
                     personalInfo={wizard.personalInfo}
