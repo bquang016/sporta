@@ -164,10 +164,15 @@ export const PostImageViewerModal = React.memo(({
   }, [showOverlay, overlayOpacity]);
 
   // Handle Like long-press gesture
-  const handleLikeButtonLayout = useCallback((event: any) => {
-    event.target.measure((_x: number, _y: number, _w: number, _h: number, _px: number, py: number) => {
-      selectorAnchorY.current = py;
-    });
+  const likeButtonContainerRef = useRef<View>(null);
+  const handleLikeButtonLayout = useCallback(() => {
+    try {
+      likeButtonContainerRef.current?.measure((_x: number, _y: number, _w: number, _h: number, _px: number, py: number) => {
+        if (py && !isNaN(py)) {
+          selectorAnchorY.current = py;
+        }
+      });
+    } catch {}
   }, []);
 
   const likePan = useRef(
@@ -435,7 +440,7 @@ export const PostImageViewerModal = React.memo(({
             {/* Left Actions: Like, Comment, Share */}
             <View style={styles.fbLeftActionsGroup}>
               {/* Like / Reaction Button */}
-              <View onLayout={handleLikeButtonLayout}>
+              <View ref={likeButtonContainerRef} onLayout={handleLikeButtonLayout}>
                 <Animated.View
                   {...likePan.panHandlers}
                   style={[styles.fbActionItem, { transform: [{ scale: likeButtonScaleRef }] }]}
