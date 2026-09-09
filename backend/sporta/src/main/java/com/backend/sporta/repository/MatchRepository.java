@@ -22,6 +22,10 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
         return findFirstByRoomIdOrderByCreatedAtDesc(roomId);
     }
 
+    List<Match> findByStatus(MatchStatus status);
+
+    List<Match> findByStatusIn(List<MatchStatus> statuses);
+
     List<Match> findByStatusNotIn(List<MatchStatus> statuses);
 
     @Query("SELECT COUNT(m) FROM Match m WHERE m.matchType = :matchType AND m.status = 'RESULT_FINAL' AND m.createdAt >= :since AND ((m.hostClub.id = :clubA AND m.guestClub.id = :clubB) OR (m.hostClub.id = :clubB AND m.guestClub.id = :clubA))")

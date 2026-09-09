@@ -1027,8 +1027,8 @@ export function MatchDetailScreen() {
             )
           )}
 
-          {/* Status MATCHED: Host enters score, Side B waits */}
-          {room.status === 'MATCHED' && (
+          {/* Status MATCHED / UPCOMING / SCORE_PENDING (No submission yet): Host enters score, Side B waits */}
+          {(room.status === 'MATCHED' || room.status === 'UPCOMING' || (room.status === 'SCORE_PENDING' && !room.scoreSubmission)) && (
             room.permissions?.canEnterScore ? (
               <TouchableOpacity
                 activeOpacity={0.88}
@@ -1042,14 +1042,14 @@ export function MatchDetailScreen() {
               <View style={styles.matchedWaitingBanner}>
                 <Ionicons name="time-outline" size={16} color="#0369A1" />
                 <Text style={styles.matchedWaitingText} numberOfLines={1}>
-                  Trận đã chốt • Chờ Chủ room ({room.hostClub.name}) nhập tỷ số
+                  Trận đã kết thúc • Chờ Chủ room ({room.hostClub?.name || 'Chủ nhà'}) nhập tỷ số
                 </Text>
               </View>
             )
           )}
 
-          {/* Status SCORE_CONFIRMING or SCORE_PENDING: Side B approves, Host waits */}
-          {(room.status === 'SCORE_CONFIRMING' || room.status === 'SCORE_PENDING') && (
+          {/* Status SCORE_CONFIRMING (Submission exists): Side B approves, Host waits */}
+          {(room.status === 'SCORE_CONFIRMING' || (Boolean(room.scoreSubmission) && room.status !== 'RESULT_FINAL' && room.status !== 'DISPUTED')) && (
             room.permissions?.canConfirmScore ? (
               <TouchableOpacity
                 activeOpacity={0.88}
@@ -1067,6 +1067,27 @@ export function MatchDetailScreen() {
                 </Text>
               </View>
             )
+          )}
+
+          {/* Status DISPUTED: Score Disagreement / Dispute in progress */}
+          {room.status === 'DISPUTED' && (
+            <View style={[styles.statusNoticeBanner, { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="alert-circle" size={22} color="#DC2626" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.statusNoticeTitle, { color: '#DC2626' }]}>Trận đấu đang tranh chấp tỷ số</Text>
+                <Text style={[styles.statusNoticeSub, { color: '#7F1D1D' }]}>
+                  Bên B đã báo sai tỷ số hoặc khiếu nại. Trận đấu đang ở trạng thái tranh chấp chờ xử lý.
+                </Text>
+                <TouchableOpacity
+                  style={{ marginTop: 6, alignSelf: 'flex-start' }}
+                  onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626', textDecorationLine: 'underline' }}>
+                    Xem chi tiết tỷ số & khiếu nại →
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
 
           {room.status === 'RESULT_FINAL' && (

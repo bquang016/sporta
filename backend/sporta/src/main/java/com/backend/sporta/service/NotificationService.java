@@ -59,6 +59,9 @@ public class NotificationService {
                type == NotificationType.MATCH_JOIN_REJECTED ||
                type == NotificationType.MATCH_REMINDER ||
                type == NotificationType.MATCH_CANCELLED ||
+               type == NotificationType.MATCH_SCORE_SUBMITTED ||
+               type == NotificationType.MATCH_DISPUTE_OPENED ||
+               type == NotificationType.MATCH_DISPUTE_RESOLVED ||
                type == NotificationType.CLUB_INVITE ||
                type == NotificationType.CLUB_JOIN_REQUEST ||
                type == NotificationType.CLUB_JOIN_ACCEPTED ||

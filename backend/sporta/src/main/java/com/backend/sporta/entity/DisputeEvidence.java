@@ -29,8 +29,11 @@ public class DisputeEvidence {
     @JoinColumn(name = "uploader_id", nullable = false)
     private User uploader;
 
-    @Column(name = "file_ref", nullable = false)
+    @Column(name = "file_ref")
     private String fileRef;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
 
     @Column(name = "evidence_type")
     private String evidenceType;

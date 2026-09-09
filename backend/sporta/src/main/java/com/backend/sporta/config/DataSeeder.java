@@ -164,6 +164,8 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS desired_levels VARCHAR(255)");
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50)");
             jdbcTemplate.execute("ALTER TABLE match_rooms ADD COLUMN IF NOT EXISTS join_deadline TIMESTAMP");
+            jdbcTemplate.execute("ALTER TABLE crp_ledger DROP CONSTRAINT IF EXISTS uk_crp_ledger_match_club");
+            jdbcTemplate.execute("DROP INDEX IF EXISTS uk_crp_ledger_match_club");
             jdbcTemplate.execute("UPDATE users SET role = 'SUPER_ADMIN' WHERE email = 'superadmin@sporta.vn'");
             jdbcTemplate.execute("UPDATE users SET role = 'ADMIN' WHERE email = 'admin@sporta.vn'");
         } catch (Exception ignored) {

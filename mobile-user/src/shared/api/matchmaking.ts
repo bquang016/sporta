@@ -8,6 +8,7 @@ import {
   MatchmakingSortOption,
   RankingCalculationPreview,
   MatchType,
+  DisputeDetailVM,
 } from '../../entities/match/model/match.types';
 
 function parseFlexibleDate(dateStr: string, timeStr: string): Date | null {
@@ -290,13 +291,47 @@ export class MatchmakingApiRepository {
   static async disagreeScore(
     roomId: string,
     reasonCode?: string,
-    description?: string
+    description?: string,
+    evidenceImageUrl?: string
   ): Promise<MatchRoomVM> {
     return apiFetch<MatchRoomVM>(
       `/matchmaking/matches/${roomId}/disagree-score`,
       {
         method: 'POST',
-        body: JSON.stringify({ reasonCode: reasonCode || 'DISAGREE_SCORE', description }),
+        body: JSON.stringify({
+          reasonCode: reasonCode || 'DISAGREE_SCORE',
+          description,
+          evidenceImageUrl,
+        }),
+      },
+      true
+    );
+  }
+
+  /**
+   * Lấy chi tiết thông tin tranh chấp & bằng chứng đối chất
+   */
+  static async getDisputeDetail(roomId: string): Promise<DisputeDetailVM> {
+    return apiFetch<DisputeDetailVM>(
+      `/matchmaking/matches/${roomId}/dispute`,
+      { method: 'GET' },
+      true
+    );
+  }
+
+  /**
+   * Gửi bằng chứng đối chất (Side A / Host)
+   */
+  static async submitDisputeEvidence(
+    roomId: string,
+    fileRef: string,
+    description?: string
+  ): Promise<DisputeDetailVM> {
+    return apiFetch<DisputeDetailVM>(
+      `/matchmaking/matches/${roomId}/dispute/evidence`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ fileRef, description }),
       },
       true
     );
@@ -365,7 +400,40 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * [DEV] Tự nhập tỉ số và kết thúc kèo đấu ngay lập tức
+   * [DEV] Kết thúc trận đấu nhưng không chốt kết quả ngay (chờ nhập tỉ số hoặc gửi tỉ số chờ Bên B duyệt/tranh chấp)
+   */
+  static async devEndMatch(
+    roomId: string,
+    params?: {
+      hostScore?: number | string;
+      guestScore?: number | string;
+      rawScoreDetails?: string;
+      hostLineupId?: number;
+      guestLineupId?: number;
+      hostPlayerUserIds?: number[];
+      guestPlayerUserIds?: number[];
+    }
+  ): Promise<MatchRoomVM> {
+    return apiFetch<MatchRoomVM>(
+      `/matchmaking/rooms/${roomId}/dev/end-match`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          hostScore: params?.hostScore !== undefined ? String(params.hostScore) : undefined,
+          guestScore: params?.guestScore !== undefined ? String(params.guestScore) : undefined,
+          rawScoreDetails: params?.rawScoreDetails,
+          hostLineupId: params?.hostLineupId,
+          guestLineupId: params?.guestLineupId,
+          hostPlayerUserIds: params?.hostPlayerUserIds,
+          guestPlayerUserIds: params?.guestPlayerUserIds,
+        }),
+      },
+      true
+    );
+  }
+
+  /**
+   * [DEV] Tự nhập tỉ số và kết thúc kèo đấu ngay lập tức (Chốt RESULT_FINAL)
    */
   static async devForceFinishMatch(
     roomId: string,

@@ -35,6 +35,42 @@ export interface SupportTicket {
   closedAt?: string;
 }
 
+export interface DisputeDetail {
+  disputeId: string;
+  matchId: string;
+  roomId?: string;
+  status: 'OPEN' | 'RESOLVED';
+  reasonCode: string;
+  description: string;
+  openedByClubId: number;
+  openedByClubName: string;
+  hostClubId: number;
+  hostClubName: string;
+  hostClubAvatar?: string;
+  guestClubId: number;
+  guestClubName: string;
+  guestClubAvatar?: string;
+  sportName?: string;
+  venueName?: string;
+  matchDate?: string;
+  matchTime?: string;
+  hostSubmittedScore?: string;
+  hostSubmittedRaw?: string;
+  guestEvidenceImageUrl?: string;
+  guestEvidenceDescription?: string;
+  guestEvidenceCreatedAt?: string;
+  hostEvidenceImageUrl?: string;
+  hostEvidenceDescription?: string;
+  hostEvidenceCreatedAt?: string;
+  hostHasSubmittedEvidence: boolean;
+  disputeCreatedAt?: string;
+  counterEvidenceDeadline?: string;
+  isDeadlineExpired: boolean;
+  resolutionNote?: string;
+  resolvedResultJson?: string;
+  resolvedAt?: string;
+}
+
 const STATUS_CONFIG: Record<SupportTicketStatusType, { label: string; bg: string; text: string; border: string; dot: string }> = {
   NEW: {
     label: 'Mới tiếp nhận',
@@ -80,6 +116,14 @@ const STATUS_CONFIG: Record<SupportTicketStatusType, { label: string; bg: string
   },
 };
 
+const DISPUTE_REASON_LABELS: Record<string, string> = {
+  WRONG_SCORE: 'Tỷ số thực tế không khớp',
+  HOST_FAKE_SCORE: 'Đội nhà tự ý khai gian lận điểm số',
+  NO_SHOW: 'Đối thủ không đến sân thi đấu',
+  RULE_VIOLATION: 'Vi phạm điều lệ giải đấu / thi đấu',
+  OTHER: 'Lý do khác',
+};
+
 export const SupportTicketManagement: React.FC = () => {
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -99,6 +143,12 @@ export const SupportTicketManagement: React.FC = () => {
   const [adminNoteInput, setAdminNoteInput] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
+  // Dispute Detail State
+  const [disputeDetail, setDisputeDetail] = useState<DisputeDetail | null>(null);
+  const [isDisputeLoading, setIsDisputeLoading] = useState<boolean>(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isRuling, setIsRuling] = useState<boolean>(false);
+
   // Calculated Metrics
   const metrics = useMemo(() => {
     const total = tickets.length;
@@ -108,14 +158,45 @@ export const SupportTicketManagement: React.FC = () => {
     return { total, newCount, inProgressCount, resolvedCount };
   }, [tickets]);
 
+  const isMatchDisputeTicket = (ticket: SupportTicket | null) => {
+    if (!ticket) return false;
+    return ticket.ticketType === 'MATCH_DISPUTE' || (ticket.adminNote && ticket.adminNote.includes('MatchId:'));
+  };
+
+  const fetchDisputeDetailForTicket = async (ticket: SupportTicket) => {
+    setIsDisputeLoading(true);
+    setDisputeDetail(null);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_BASE_URL}/admin/disputes/by-ticket/${ticket.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data: DisputeDetail = await response.json();
+        setDisputeDetail(data);
+      }
+    } catch (err) {
+      console.warn('Could not fetch dispute details:', err);
+    } finally {
+      setIsDisputeLoading(false);
+    }
+  };
+
   const handleOpenProcessModal = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);
     setTargetStatusInput(ticket.status || 'IN_PROGRESS');
     setAdminNoteInput(ticket.adminNote || '');
+
+    if (isMatchDisputeTicket(ticket)) {
+      fetchDisputeDetailForTicket(ticket);
+    } else {
+      setDisputeDetail(null);
+    }
   };
 
   const handleCloseModal = () => {
     setSelectedTicket(null);
+    setDisputeDetail(null);
     hasAutoOpenedRef.current = null;
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -254,6 +335,52 @@ export const SupportTicketManagement: React.FC = () => {
     }
   };
 
+  // 1-Click Ruling Handler for Match Disputes
+  const handleRuling = async (ruling: 'WIN_A' | 'WIN_B' | 'DRAW') => {
+    if (!disputeDetail) return;
+    setIsRuling(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const note = adminNoteInput.trim() || (
+        ruling === 'WIN_A'
+          ? 'Admin xử lý: Bên A (Host) thắng 3-0. Phạt bên B -10 CRP do khiếu nại sai.'
+          : ruling === 'WIN_B'
+          ? 'Admin xử lý: Bên B (Guest) thắng 0-3. Phạt bên A -10 CRP do khai báo sai tỷ số.'
+          : 'Admin xử lý: Kết quả hòa 0-0. Cập nhật điểm xếp hạng theo kết quả thi đấu.'
+      );
+
+      const response = await fetch(`${API_BASE_URL}/admin/disputes/${disputeDetail.disputeId}/resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ruling,
+          resolutionNote: note
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Xử lý tranh chấp thất bại.');
+      }
+
+      showToast(
+        'success',
+        ruling === 'DRAW'
+          ? 'Đã xử kết quả hòa (0 - 0) thành công! Điểm CRP và kết quả trận đã được chốt.'
+          : `Đã xử ${ruling === 'WIN_A' ? 'bên A (Host)' : 'bên B (Guest)'} thắng thành công! Điểm CRP và kết quả trận đã được chốt.`
+      );
+      handleCloseModal();
+      fetchTickets();
+    } catch (err: any) {
+      showToast('error', err.message || 'Có lỗi xảy ra khi xử lý tranh chấp.');
+    } finally {
+      setIsRuling(false);
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     try {
@@ -279,7 +406,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 1: Total */}
         <div className="bg-surface-container-lowest border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-brand-emerald/30 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tổng Yêu Cầu</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tổng yêu cầu</span>
             <p className="text-2xl font-black text-on-surface tracking-tight">{metrics.total}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-surface-container flex items-center justify-center text-primary">
@@ -292,7 +419,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 2: New Queue */}
         <div className="bg-surface-container-lowest border border-sky-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-sky-300 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Mới Tiếp Nhận</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Mới tiếp nhận</span>
             <p className="text-2xl font-black text-sky-900 tracking-tight">{metrics.newCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-sky-100/80 flex items-center justify-center text-sky-700">
@@ -305,7 +432,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 3: In Progress / Pending */}
         <div className="bg-surface-container-lowest border border-amber-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-amber-300 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Đang Xử Lý</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Đang xử lý</span>
             <p className="text-2xl font-black text-amber-950 tracking-tight">{metrics.inProgressCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-secondary-container/60 flex items-center justify-center text-secondary">
@@ -318,7 +445,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 4: Resolved */}
         <div className="bg-surface-container-lowest border border-emerald-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-emerald-300 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Đã Hoàn Tất</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Đã hoàn tất</span>
             <p className="text-2xl font-black text-emerald-950 tracking-tight">{metrics.resolvedCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-emerald-100/80 flex items-center justify-center text-brand-emerald">
@@ -423,18 +550,19 @@ export const SupportTicketManagement: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-surface-container-low/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
                 <tr>
-                  <th className="px-6 py-3.5">Mã Ticket</th>
-                  <th className="px-6 py-3.5">Người Gửi</th>
-                  <th className="px-6 py-3.5">Phân Loại & Đơn Đặt</th>
-                  <th className="px-6 py-3.5">Tiêu Đề / Mô Tả</th>
-                  <th className="px-6 py-3.5">Thời Gian Gửi</th>
-                  <th className="px-6 py-3.5">Trạng Thái</th>
-                  <th className="px-6 py-3.5 text-center">Thao Tác</th>
+                  <th className="px-6 py-3.5">Mã ticket</th>
+                  <th className="px-6 py-3.5">Người gửi</th>
+                  <th className="px-6 py-3.5">Phân loại & đơn đặt</th>
+                  <th className="px-6 py-3.5">Tiêu đề / mô tả</th>
+                  <th className="px-6 py-3.5">Thời gian gửi</th>
+                  <th className="px-6 py-3.5">Trạng thái</th>
+                  <th className="px-6 py-3.5 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700 font-normal">
                 {tickets.map((t) => {
                   const cfg = STATUS_CONFIG[t.status] || STATUS_CONFIG.NEW;
+                  const isDispute = t.ticketType === 'MATCH_DISPUTE';
 
                   return (
                     <tr key={t.id} className="hover:bg-surface-container-low/40 transition-colors group">
@@ -457,8 +585,12 @@ export const SupportTicketManagement: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1 items-start">
-                          <span className="inline-block bg-surface-container text-primary font-bold text-[10px] px-2 py-0.5 rounded-md border border-brand-emerald/15">
-                            {t.ticketType}
+                          <span className={`inline-block font-bold text-[10px] px-2.5 py-0.5 rounded-md border ${
+                            isDispute 
+                              ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                              : 'bg-surface-container text-primary border-brand-emerald/15'
+                          }`}>
+                            {isDispute ? 'Tranh chấp kèo' : t.ticketType}
                           </span>
                           {t.bookingCode && (
                             <span className="text-[11px] font-mono text-slate-500 font-semibold">
@@ -492,12 +624,16 @@ export const SupportTicketManagement: React.FC = () => {
                           size="sm"
                           onClick={() => handleOpenProcessModal(t)}
                           className={`text-xs font-bold rounded-xl transition-all shadow-xs ${
-                            t.status === 'NEW' || t.status === 'IN_PROGRESS'
+                            isDispute && t.status !== 'RESOLVED' && t.status !== 'CLOSED'
+                              ? 'bg-rose-600 hover:bg-rose-700 text-white font-black border-none'
+                              : t.status === 'NEW' || t.status === 'IN_PROGRESS'
                               ? 'bg-brand-yellow text-primary hover:bg-brand-yellow/90 font-black border-none'
                               : 'border-slate-200 hover:border-brand-emerald'
                           }`}
                         >
-                          {t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / Xử lý'}
+                          {isDispute 
+                            ? (t.status === 'RESOLVED' || t.status === 'CLOSED' ? 'Xem chi tiết' : 'Xử lý kèo') 
+                            : t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / xử lý'}
                         </Button>
                       </td>
                     </tr>
@@ -511,15 +647,30 @@ export const SupportTicketManagement: React.FC = () => {
         {/* 3. Process / Detail Ticket Modal (Sporty-Tech Refined) */}
         {selectedTicket && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className={`bg-white rounded-3xl shadow-2xl w-full overflow-hidden border border-slate-100 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 ${
+              isMatchDisputeTicket(selectedTicket) ? 'max-w-4xl' : 'max-w-lg'
+            }`}>
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-surface-container-low/40">
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-xs font-black bg-brand-emerald text-white px-3 py-1 rounded-lg shadow-xs">
                     {selectedTicket.ticketCode}
                   </span>
-                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">
-                    {selectedTicket.status === 'CLOSED' ? 'Chi Tiết Yêu Cầu (Đã Đóng)' : 'Chi Tiết Yêu Cầu Hỗ Trợ'}
+                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight flex items-center gap-2">
+                    {isMatchDisputeTicket(selectedTicket) ? (
+                      <>
+                        <span>Xử lý tranh chấp tỷ số trận đấu</span>
+                        {disputeDetail?.status === 'RESOLVED' ? (
+                          <span className="bg-emerald-100 text-emerald-800 text-[11px] px-2.5 py-0.5 rounded-full font-bold">Đã xử lý</span>
+                        ) : (
+                          <span className="bg-rose-100 text-rose-800 text-[11px] px-2.5 py-0.5 rounded-full font-bold animate-pulse">Chờ Admin xử lý</span>
+                        )}
+                      </>
+                    ) : selectedTicket.status === 'CLOSED' ? (
+                      'Chi tiết yêu cầu (đã đóng)'
+                    ) : (
+                      'Chi tiết yêu cầu hỗ trợ'
+                    )}
                   </h3>
                 </div>
                 <button
@@ -535,113 +686,496 @@ export const SupportTicketManagement: React.FC = () => {
 
               {/* Modal Body */}
               <div className="p-6 space-y-4 overflow-y-auto matrix-scroll flex-1 text-xs">
-                {/* User Info Box */}
-                <div className="p-4 bg-surface-container-low/60 rounded-2xl border border-slate-200/60 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary text-white font-black text-sm flex items-center justify-center shadow-xs">
-                      {getInitials(selectedTicket.userName)}
+                {/* 3A. SPECIAL UI: MATCH DISPUTE DETAIL */}
+                {isMatchDisputeTicket(selectedTicket) ? (
+                  isDisputeLoading ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-3">
+                      <LoadingSpinner size="lg" />
+                      <p className="text-slate-500 font-medium">Đang tải hồ sơ tranh chấp & bằng chứng hai đội...</p>
                     </div>
-                    <div>
-                      <p className="font-black text-on-surface text-sm">{selectedTicket.userName}</p>
-                      <p className="text-slate-500 font-medium">{selectedTicket.userEmail}</p>
-                      {selectedTicket.userPhone && <p className="text-slate-400 text-[11px]">{selectedTicket.userPhone}</p>}
+                  ) : disputeDetail ? (
+                    <div className="space-y-4">
+                      {/* Match & Club Context Card */}
+                      {(() => {
+                        const isResolved = disputeDetail.status === 'RESOLVED';
+                        const resolvedParts = disputeDetail.resolvedResultJson ? disputeDetail.resolvedResultJson.split('-') : null;
+                        const hostFinalScore = resolvedParts ? parseInt(resolvedParts[0]?.trim() || '0', 10) : null;
+                        const guestFinalScore = resolvedParts ? parseInt(resolvedParts[1]?.trim() || '0', 10) : null;
+                        const isHostWinner = isResolved && hostFinalScore !== null && guestFinalScore !== null && hostFinalScore > guestFinalScore;
+                        const isGuestWinner = isResolved && hostFinalScore !== null && guestFinalScore !== null && guestFinalScore > hostFinalScore;
+                        const isDrawMatch = isResolved && hostFinalScore !== null && guestFinalScore !== null && hostFinalScore === guestFinalScore;
+
+                        return (
+                          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-brand-emerald text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md uppercase">
+                                  {disputeDetail.sportName || 'Thể thao'}
+                                </span>
+                                <span className="text-slate-300 font-semibold text-xs">
+                                  {disputeDetail.venueName || 'Sân vận động Sporta'} • {disputeDetail.matchDate || ''} {disputeDetail.matchTime || ''}
+                                </span>
+                              </div>
+                              <span className="font-mono text-[11px] text-slate-400">
+                                Phòng kèo: #{disputeDetail.roomId ? String(disputeDetail.roomId).slice(0, 8) : 'N/A'}
+                              </span>
+                            </div>
+
+                            {/* Clubs Comparison & Final / Submitted Score */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 py-1">
+                              {/* Host Club (Side A) */}
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full bg-emerald-500/20 border text-emerald-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden ${
+                                  isHostWinner ? 'border-emerald-400 ring-2 ring-emerald-400/50' : 'border-emerald-400/40'
+                                }`}>
+                                  {disputeDetail.hostClubAvatar ? (
+                                    <img src={disputeDetail.hostClubAvatar} alt="Host" className="w-full h-full object-cover" />
+                                  ) : (
+                                    getInitials(disputeDetail.hostClubName)
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Đội nhà (Bên A)</span>
+                                    {isResolved && (
+                                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                                        isHostWinner ? 'bg-emerald-500 text-white' : isDrawMatch ? 'bg-slate-700 text-slate-300' : 'bg-rose-500/30 text-rose-300'
+                                      }`}>
+                                        {isHostWinner ? 'THẮNG' : isDrawMatch ? 'HÒA' : 'THUA'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="font-black text-sm text-white truncate">{disputeDetail.hostClubName}</p>
+                                </div>
+                              </div>
+
+                              {/* Center Score Badge */}
+                              <div className={`text-center rounded-xl py-2 px-3 border ${
+                                isResolved ? 'bg-emerald-950/60 border-emerald-500/40' : 'bg-white/10 border-white/10'
+                              }`}>
+                                <span className={`text-[10px] uppercase font-bold block mb-0.5 ${
+                                  isResolved ? 'text-emerald-400' : 'text-amber-300'
+                                }`}>
+                                  {isResolved ? 'Tỷ số chốt chung cuộc' : 'Tỷ số bên A khai báo'}
+                                </span>
+                                <p className="text-xl font-black tracking-widest text-white">
+                                  {isResolved ? (disputeDetail.resolvedResultJson || '0 - 0') : (disputeDetail.hostSubmittedScore || 'Chưa rõ')}
+                                </p>
+                                {isResolved && (
+                                  <span className="text-[10px] font-bold text-emerald-300 block mt-0.5">
+                                    {isHostWinner ? 'Bên A (Đội nhà) thắng' : isGuestWinner ? 'Bên B (Đội khách) thắng' : 'Kết quả hòa'}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Guest Club (Side B) */}
+                              <div className="flex items-center justify-end gap-3 text-right">
+                                <div className="min-w-0">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {isResolved && (
+                                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                                        isGuestWinner ? 'bg-emerald-500 text-white' : isDrawMatch ? 'bg-slate-700 text-slate-300' : 'bg-rose-500/30 text-rose-300'
+                                      }`}>
+                                        {isGuestWinner ? 'THẮNG' : isDrawMatch ? 'HÒA' : 'THUA'}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Đội khách (Bên B)</span>
+                                  </div>
+                                  <p className="font-black text-sm text-white truncate">{disputeDetail.guestClubName}</p>
+                                </div>
+                                <div className={`w-10 h-10 rounded-full bg-sky-500/20 border text-sky-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden ${
+                                  isGuestWinner ? 'border-sky-400 ring-2 ring-sky-400/50' : 'border-sky-400/40'
+                                }`}>
+                                  {disputeDetail.guestClubAvatar ? (
+                                    <img src={disputeDetail.guestClubAvatar} alt="Guest" className="w-full h-full object-cover" />
+                                  ) : (
+                                    getInitials(disputeDetail.guestClubName)
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Side-by-Side Evidence Comparison */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* LEFT COLUMN: GUEST (SIDE B) COMPLAINT */}
+                        <div className="bg-rose-50/50 border-2 border-rose-200/80 rounded-2xl p-4 space-y-3 flex flex-col justify-between">
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-xs text-rose-800 uppercase flex items-center gap-1.5">
+                                Khiếu nại từ bên B (Đội khách)
+                              </span>
+                              <span className="bg-rose-100 text-rose-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-rose-200">
+                                {DISPUTE_REASON_LABELS[disputeDetail.reasonCode] || disputeDetail.reasonCode || 'Khiếu nại'}
+                              </span>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-500 mb-1">Mô tả sự việc:</p>
+                              <div className="bg-white p-3 rounded-xl border border-rose-200 text-slate-800 leading-relaxed min-h-[60px]">
+                                {disputeDetail.guestEvidenceDescription || disputeDetail.description || 'Không có mô tả chi tiết.'}
+                              </div>
+                            </div>
+
+                            {/* Guest Evidence Image */}
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-500 mb-1">Ảnh bằng chứng đính kèm:</p>
+                              {disputeDetail.guestEvidenceImageUrl ? (
+                                <div 
+                                  className="relative group cursor-pointer overflow-hidden rounded-xl border border-rose-300 bg-black/5 aspect-video max-h-40 flex items-center justify-center"
+                                  onClick={() => setPreviewImage(disputeDetail.guestEvidenceImageUrl!)}
+                                >
+                                  <img 
+                                    src={disputeDetail.guestEvidenceImageUrl} 
+                                    alt="Guest Evidence" 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                    </svg>
+                                    Phóng to ảnh
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="p-3 bg-white/60 border border-slate-200 rounded-xl text-center text-slate-400 italic">
+                                  Bên B không tải lên ảnh chụp
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="pt-2 text-[10px] text-slate-400 border-t border-rose-100">
+                            Gửi lúc: {formatDate(disputeDetail.guestEvidenceCreatedAt || disputeDetail.disputeCreatedAt)}
+                          </div>
+                        </div>
+
+                        {/* RIGHT COLUMN: HOST (SIDE A) COUNTER-EVIDENCE */}
+                        <div className={`rounded-2xl p-4 space-y-3 flex flex-col justify-between border-2 ${
+                          disputeDetail.hostHasSubmittedEvidence 
+                            ? 'bg-emerald-50/50 border-emerald-200/80' 
+                            : 'bg-amber-50/50 border-amber-200/80'
+                        }`}>
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-xs text-slate-800 uppercase flex items-center gap-1.5">
+                                Đối chất từ bên A (Đội nhà)
+                              </span>
+                              <span className={`font-bold text-[10px] px-2 py-0.5 rounded-full border ${
+                                disputeDetail.hostHasSubmittedEvidence 
+                                   ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                                   : 'bg-amber-100 text-amber-800 border-amber-200'
+                              }`}>
+                                {disputeDetail.hostHasSubmittedEvidence ? 'Đã gửi bằng chứng' : 'Chưa gửi đối chất'}
+                              </span>
+                            </div>
+
+                            {disputeDetail.hostHasSubmittedEvidence ? (
+                              <>
+                                <div>
+                                  <p className="text-[11px] font-bold text-slate-500 mb-1">Ghi chú đối chất:</p>
+                                  <div className="bg-white p-3 rounded-xl border border-emerald-200 text-slate-800 leading-relaxed min-h-[60px]">
+                                    {disputeDetail.hostEvidenceDescription || 'Không có ghi chú thêm.'}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <p className="text-[11px] font-bold text-slate-500 mb-1">Ảnh bằng chứng đối chất:</p>
+                                  {disputeDetail.hostEvidenceImageUrl ? (
+                                    <div 
+                                      className="relative group cursor-pointer overflow-hidden rounded-xl border border-emerald-300 bg-black/5 aspect-video max-h-40 flex items-center justify-center"
+                                      onClick={() => setPreviewImage(disputeDetail.hostEvidenceImageUrl!)}
+                                    >
+                                      <img 
+                                        src={disputeDetail.hostEvidenceImageUrl} 
+                                        alt="Host Evidence" 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
+                                      />
+                                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs gap-1">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                        </svg>
+                                        Phóng to ảnh
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="p-3 bg-white/60 border border-slate-200 rounded-xl text-center text-slate-400 italic">
+                                      Bên A không tải lên ảnh chụp
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="bg-white p-4 rounded-xl border border-amber-200 space-y-2">
+                                <div className="flex items-center gap-2 text-amber-700 font-bold">
+                                  <span>Đội nhà chưa cung cấp bằng chứng đối chất.</span>
+                                </div>
+                                <p className="text-slate-600 text-[11px] leading-relaxed">
+                                  Hệ thống cho phép Đội nhà tối đa 24 giờ kể từ lúc có khiếu nại để bổ sung bằng chứng đối chất.
+                                </p>
+                                {disputeDetail.isDeadlineExpired ? (
+                                  <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 font-bold text-[11px] flex items-center gap-1.5">
+                                    Đã quá hạn 24 giờ (Tự động xử bên B thắng 0-3 theo quy định)
+                                  </div>
+                                ) : (
+                                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 font-medium text-[11px]">
+                                    Hạn chót gửi đối chất: <span className="font-bold">{formatDate(disputeDetail.counterEvidenceDeadline)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="pt-2 text-[10px] text-slate-400 border-t border-slate-100">
+                            {disputeDetail.hostHasSubmittedEvidence 
+                              ? `Gửi lúc: ${formatDate(disputeDetail.hostEvidenceCreatedAt)}` 
+                              : `Hạn 24h: ${formatDate(disputeDetail.counterEvidenceDeadline)}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ruling Actions or Resolution Banner */}
+                      {disputeDetail.status === 'RESOLVED' ? (
+                        <div className="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300/90 rounded-2xl space-y-3 shadow-xs">
+                          <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                                ✓
+                              </span>
+                              <span className="font-extrabold text-emerald-900 text-sm">
+                                Kết quả đã được Admin xử lý
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-emerald-700 font-bold bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-200">
+                              {formatDate(disputeDetail.resolvedAt)}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-emerald-200/80">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Tỷ số chốt kết quả</span>
+                              <p className="font-black text-lg text-emerald-700">{disputeDetail.resolvedResultJson || '3 - 0'}</p>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Trạng thái hồ sơ</span>
+                              <p className="font-bold text-xs text-slate-800">Đã chốt kết quả & cập nhật điểm CRP / ELO</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-emerald-900 block">Quyết định / Ghi chú của Admin:</span>
+                            <p className="text-slate-700 text-xs leading-relaxed bg-white/70 p-3 rounded-xl border border-emerald-100 italic">
+                              {disputeDetail.resolutionNote || 'Không có ghi chú thêm.'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="pt-2 space-y-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              Ghi chú xử lý của Admin (tùy chọn):
+                            </label>
+                            <input
+                              type="text"
+                              value={adminNoteInput}
+                              onChange={(e) => setAdminNoteInput(e.target.value)}
+                              placeholder="Nhập ghi chú hoặc lý do xử lý để thông báo cho cả hai đội..."
+                              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 shadow-2xs"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                            {/* Option 1: Rule for Side A */}
+                            <button
+                              type="button"
+                              onClick={() => handleRuling('WIN_A')}
+                              disabled={isRuling}
+                              className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
+                            >
+                              <div>
+                                <p className="font-black text-sm flex items-center gap-1.5">
+                                  Xử bên A thắng (3 - 0)
+                                </p>
+                                <p className="text-[11px] text-emerald-100 font-medium mt-0.5">
+                                  Phạt bên B -10 CRP do khiếu nại sai
+                                </p>
+                              </div>
+                              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 ml-2">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            </button>
+
+                            {/* Option 2: Rule for Side B */}
+                            <button
+                              type="button"
+                              onClick={() => handleRuling('WIN_B')}
+                              disabled={isRuling}
+                              className="p-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
+                            >
+                              <div>
+                                <p className="font-black text-sm flex items-center gap-1.5">
+                                  Xử bên B thắng (0 - 3)
+                                </p>
+                                <p className="text-[11px] text-rose-100 font-medium mt-0.5">
+                                  Phạt bên A -10 CRP do khai gian tỷ số
+                                </p>
+                              </div>
+                              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 ml-2">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            </button>
+
+                            {/* Option 3: Rule for Draw */}
+                            <button
+                              type="button"
+                              onClick={() => handleRuling('DRAW')}
+                              disabled={isRuling}
+                              className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
+                            >
+                              <div>
+                                <p className="font-black text-sm flex items-center gap-1.5">
+                                  Xử kết quả hòa (0 - 0)
+                                </p>
+                                <p className="text-[11px] text-blue-100 font-medium mt-0.5">
+                                  Tính điểm hòa, không phạt CRP
+                                </p>
+                              </div>
+                              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 ml-2">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="inline-block bg-primary/10 text-primary text-[11px] font-bold px-2.5 py-1 rounded-lg border border-primary/20">
-                      {selectedTicket.ticketType}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">{formatDate(selectedTicket.createdAt)}</p>
-                  </div>
-                </div>
+                  ) : (
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900">
+                      Không tìm thấy chi tiết hồ sơ tranh chấp trận đấu liên kết.
+                    </div>
+                  )
+                ) : (
+                  /* 3B. STANDARD SUPPORT TICKET UI */
+                  <>
+                    {/* User Info Box */}
+                    <div className="p-4 bg-surface-container-low/60 rounded-2xl border border-slate-200/60 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary text-white font-black text-sm flex items-center justify-center shadow-xs">
+                          {getInitials(selectedTicket.userName)}
+                        </div>
+                        <div>
+                          <p className="font-black text-on-surface text-sm">{selectedTicket.userName}</p>
+                          <p className="text-slate-500 font-medium">{selectedTicket.userEmail}</p>
+                          {selectedTicket.userPhone && <p className="text-slate-400 text-[11px]">{selectedTicket.userPhone}</p>}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-block bg-primary/10 text-primary text-[11px] font-bold px-2.5 py-1 rounded-lg border border-primary/20">
+                          {selectedTicket.ticketType}
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-1 font-medium">{formatDate(selectedTicket.createdAt)}</p>
+                      </div>
+                    </div>
 
-                {/* Booking Code Reference */}
-                {selectedTicket.bookingCode && (
-                  <div className="p-3 bg-brand-emerald/5 rounded-2xl border border-brand-emerald/15 flex items-center justify-between">
-                    <span className="text-slate-600 font-semibold">Mã đơn đặt sân liên quan:</span>
-                    <span className="font-mono font-black text-brand-emerald text-xs bg-white px-2.5 py-1 rounded-md border border-brand-emerald/20 shadow-2xs">
-                      {selectedTicket.bookingCode}
-                    </span>
-                  </div>
-                )}
+                    {/* Booking Code Reference */}
+                    {selectedTicket.bookingCode && (
+                      <div className="p-3 bg-brand-emerald/5 rounded-2xl border border-brand-emerald/15 flex items-center justify-between">
+                        <span className="text-slate-600 font-semibold">Mã đơn đặt sân liên quan:</span>
+                        <span className="font-mono font-black text-brand-emerald text-xs bg-white px-2.5 py-1 rounded-md border border-brand-emerald/20 shadow-2xs">
+                          {selectedTicket.bookingCode}
+                        </span>
+                      </div>
+                    )}
 
-                {/* Title & Description */}
-                <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Tiêu đề yêu cầu
-                  </label>
-                  <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 font-bold text-slate-800">
-                    {selectedTicket.title}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Mô tả chi tiết sự cố
-                  </label>
-                  <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/70 text-slate-700 whitespace-pre-wrap leading-relaxed min-h-[70px]">
-                    {selectedTicket.description}
-                  </div>
-                </div>
-
-                {/* Attached Image Proof */}
-                {selectedTicket.imageUrl && (
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                      Ảnh bằng chứng đính kèm
-                    </label>
-                    <a href={selectedTicket.imageUrl} target="_blank" rel="noopener noreferrer" className="block group">
-                      <img 
-                        src={selectedTicket.imageUrl} 
-                        alt="Ảnh sự cố" 
-                        className="max-h-48 rounded-2xl object-contain border border-slate-200 group-hover:border-brand-emerald group-hover:opacity-95 transition-all bg-black/5"
-                      />
-                    </a>
-                  </div>
-                )}
-
-                {/* Processing Section */}
-                {selectedTicket.status !== 'CLOSED' && (
-                  <div className="pt-4 border-t border-slate-200/80 space-y-3.5">
+                    {/* Title & Description */}
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                        Cập Nhật Trạng Thái Ticket:
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                        Tiêu đề yêu cầu
                       </label>
-                      <select
-                        value={targetStatusInput}
-                        onChange={(e) => setTargetStatusInput(e.target.value as SupportTicketStatusType)}
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 shadow-2xs"
-                      >
-                        <option value="NEW">1. Mới tiếp nhận (Hàng đợi)</option>
-                        <option value="IN_PROGRESS">2. Đang xử lý</option>
-                        <option value="PENDING_CUSTOMER">3. Chờ phản hồi từ khách hàng</option>
-                        <option value="RESOLVED">4. Đã giải quyết</option>
-                        <option value="CLOSED">5. Đóng Ticket</option>
-                        <option value="REJECTED">6. Từ chối / Hủy</option>
-                      </select>
+                      <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 font-bold text-slate-800">
+                        {selectedTicket.title}
+                      </div>
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                        Ghi Chú Phản Hồi / Lý Do Xử Lý:
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                        Mô tả chi tiết sự cố
                       </label>
-                      <textarea
-                        rows={3}
-                        value={adminNoteInput}
-                        onChange={(e) => setAdminNoteInput(e.target.value)}
-                        placeholder="Nhập ghi chú phản hồi hoặc hướng dẫn xử lý cho người dùng..."
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 placeholder:text-slate-400 resize-none shadow-2xs"
-                      />
+                      <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/70 text-slate-700 whitespace-pre-wrap leading-relaxed min-h-[70px]">
+                        {selectedTicket.description}
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Closed Admin Note */}
-                {selectedTicket.status === 'CLOSED' && selectedTicket.adminNote && (
-                  <div className="p-3.5 bg-surface-container-low rounded-2xl border border-slate-200">
-                    <p className="text-[11px] font-bold text-slate-600 uppercase mb-1">Ghi chú xử lý trước đó:</p>
-                    <p className="text-slate-700 italic">{selectedTicket.adminNote}</p>
-                  </div>
+                    {/* Attached Image Proof */}
+                    {selectedTicket.imageUrl && (
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                          Ảnh bằng chứng đính kèm
+                        </label>
+                        <div 
+                          onClick={() => setPreviewImage(selectedTicket.imageUrl!)}
+                          className="cursor-pointer inline-block group"
+                        >
+                          <img 
+                            src={selectedTicket.imageUrl} 
+                            alt="Ảnh sự cố" 
+                            className="max-h-48 rounded-2xl object-contain border border-slate-200 group-hover:border-brand-emerald group-hover:opacity-95 transition-all bg-black/5"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Processing Section */}
+                    {selectedTicket.status !== 'CLOSED' && (
+                      <div className="pt-4 border-t border-slate-200/80 space-y-3.5">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                            Cập nhật trạng thái ticket:
+                          </label>
+                          <select
+                            value={targetStatusInput}
+                            onChange={(e) => setTargetStatusInput(e.target.value as SupportTicketStatusType)}
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 shadow-2xs"
+                          >
+                            <option value="NEW">1. Mới tiếp nhận (Hàng đợi)</option>
+                            <option value="IN_PROGRESS">2. Đang xử lý</option>
+                            <option value="PENDING_CUSTOMER">3. Chờ phản hồi từ khách hàng</option>
+                            <option value="RESOLVED">4. Đã giải quyết</option>
+                            <option value="CLOSED">5. Đóng ticket</option>
+                            <option value="REJECTED">6. Từ chối / Hủy</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                            Ghi chú phản hồi / lý do xử lý:
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={adminNoteInput}
+                            onChange={(e) => setAdminNoteInput(e.target.value)}
+                            placeholder="Nhập ghi chú phản hồi hoặc hướng dẫn xử lý cho người dùng..."
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 placeholder:text-slate-400 resize-none shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Closed Admin Note */}
+                    {selectedTicket.status === 'CLOSED' && selectedTicket.adminNote && (
+                      <div className="p-3.5 bg-surface-container-low rounded-2xl border border-slate-200">
+                        <p className="text-[11px] font-bold text-slate-600 uppercase mb-1">Ghi chú xử lý trước đó:</p>
+                        <p className="text-slate-700 italic">{selectedTicket.adminNote}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -655,7 +1189,7 @@ export const SupportTicketManagement: React.FC = () => {
                 >
                   Đóng
                 </Button>
-                {selectedTicket.status !== 'CLOSED' && (
+                {!isMatchDisputeTicket(selectedTicket) && selectedTicket.status !== 'CLOSED' && (
                   <Button
                     variant="primary"
                     size="sm"
@@ -663,10 +1197,36 @@ export const SupportTicketManagement: React.FC = () => {
                     disabled={isProcessing}
                     className="bg-brand-emerald hover:bg-brand-emerald/90 text-white font-bold rounded-xl px-5 py-2 shadow-sm transition-all cursor-pointer"
                   >
-                    {isProcessing ? 'Đang lưu...' : 'Cập Nhật Trạng Thái'}
+                    {isProcessing ? 'Đang lưu...' : 'Cập nhật trạng thái'}
                   </Button>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. Lightbox Image Zoom Modal */}
+        {previewImage && (
+          <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-200"
+            onClick={() => setPreviewImage(null)}
+          >
+            <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-black shadow-2xl flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-3 right-3 bg-black/60 hover:bg-black text-white p-2 rounded-full transition-all z-10 cursor-pointer"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <img 
+                src={previewImage} 
+                alt="Evidence Full Preview" 
+                className="max-h-[85vh] w-auto object-contain rounded-2xl" 
+                onClick={(e) => e.stopPropagation()}
+              />
             </div>
           </div>
         )}

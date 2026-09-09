@@ -9,4 +9,6 @@ public class OpenDisputeRequest {
     private String reasonCode;
 
     private String description;
+
+    private String evidenceImageUrl;
 }

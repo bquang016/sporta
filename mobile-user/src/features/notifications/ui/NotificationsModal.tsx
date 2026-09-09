@@ -199,7 +199,11 @@ function NotificationsModalContent({
         }
       } else if (item.type.startsWith('MATCH_')) {
         if (item.referenceId) {
-          router.push(`/matchmaking/${item.referenceId}` as any);
+          if (item.type === 'MATCH_DISPUTE_OPENED' || item.type === 'MATCH_DISPUTE_RESOLVED') {
+            router.push(`/matchmaking/${item.referenceId}/dispute` as any);
+          } else {
+            router.push(`/matchmaking/${item.referenceId}` as any);
+          }
         } else {
           router.push('/matchmaking' as any);
         }
