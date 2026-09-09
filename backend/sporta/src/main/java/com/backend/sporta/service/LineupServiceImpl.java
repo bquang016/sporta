@@ -142,6 +142,10 @@ public class LineupServiceImpl implements LineupService {
             throw new CustomException("Chỉ Trưởng hoặc Phó nhóm mới có quyền thêm thành viên", 403);
         }
 
+        if (lineup.getMatchRoom() != null && lineup.getMatchRoom().getStatus() != MatchStatus.OPEN) {
+            throw new CustomException("Trận đấu đã được ghép (đã chốt kèo), không thể chỉnh sửa đội hình ra sân", 400);
+        }
+
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng cần thêm", 404));
 
@@ -179,6 +183,10 @@ public class LineupServiceImpl implements LineupService {
             throw new CustomException("Bạn không có quyền xoá thành viên này khỏi đội hình", 403);
         }
 
+        if (lineup.getMatchRoom() != null && lineup.getMatchRoom().getStatus() != MatchStatus.OPEN) {
+            throw new CustomException("Trận đấu đã được ghép (đã chốt kèo), không thể chỉnh sửa đội hình ra sân", 400);
+        }
+
         lineupMemberRepository.deleteByLineupIdAndUserId(lineupId, targetUserId);
         recalculateEloAvg(lineup);
 
@@ -196,6 +204,13 @@ public class LineupServiceImpl implements LineupService {
 
         if (!isClubAdmin(sourceLineup.getClub().getId(), currentUser.getId())) {
             throw new CustomException("Chỉ Trưởng hoặc Phó nhóm mới có quyền điều chỉnh đội hình", 403);
+        }
+
+        if (sourceLineup.getMatchRoom() != null && sourceLineup.getMatchRoom().getStatus() != MatchStatus.OPEN) {
+            throw new CustomException("Trận đấu đã được ghép (đã chốt kèo), không thể chỉnh sửa đội hình ra sân", 400);
+        }
+        if (targetLineup.getMatchRoom() != null && targetLineup.getMatchRoom().getStatus() != MatchStatus.OPEN) {
+            throw new CustomException("Trận đấu đã được ghép (đã chốt kèo), không thể chỉnh sửa đội hình ra sân", 400);
         }
 
         LineupMember memA = lineupMemberRepository.findByLineupIdAndUserId(sourceLineup.getId(), request.getUserIdA())
@@ -225,8 +240,8 @@ public class LineupServiceImpl implements LineupService {
             throw new CustomException("Bạn không có quyền giải tán đội hình này", 403);
         }
 
-        if (lineup.getStatus() == LineupStatus.IN_MATCH) {
-            throw new CustomException("Đội hình đang thi đấu trận ghép, không thể giải tán", 400);
+        if (lineup.getStatus() == LineupStatus.IN_MATCH || (lineup.getMatchRoom() != null && lineup.getMatchRoom().getStatus() != MatchStatus.OPEN)) {
+            throw new CustomException("Đội hình đang thi đấu trận ghép đã chốt kèo, không thể giải tán", 400);
         }
 
         lineup.setStatus(LineupStatus.DISBANDED);

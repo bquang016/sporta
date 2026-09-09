@@ -21,6 +21,9 @@ import { loadNativeUserSessionAsync, getCachedUserSession, subscribeToSession } 
 import { OwnerWarningBanner } from '../src/shared/ui/OwnerWarningBanner';
 import { SportaSplashScreen } from '../src/shared/ui/SportaSplashScreen';
 
+import { VenueDetailModal } from '../src/features/venue-detail';
+import { useRouter } from 'expo-router';
+
 // Ignore non-fatal development noise / warnings
 LogBox.ignoreLogs([
   'source.uri should not be an empty string',
@@ -45,6 +48,7 @@ function PushNotificationManager() {
 }
 
 export default function RootLayout() {
+  const router = useRouter();
   const [loaded, error] = useFonts({
     'HankenGrotesk-Regular': HankenGrotesk_400Regular,
     'HankenGrotesk-Medium': HankenGrotesk_500Medium,
@@ -54,6 +58,7 @@ export default function RootLayout() {
   });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedVenueDetailId, setSelectedVenueDetailId] = useState<string | null>(null);
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [session, setSession] = useState(getCachedUserSession());
   const [isSplashFinished, setIsSplashFinished] = useState(false);
@@ -112,7 +117,20 @@ export default function RootLayout() {
           <Stack.Screen name="recommended-venues/index" options={{ headerShown: false }} />
         </Stack>
         <ChatbotFAB onPress={handleOpenChat} />
-        <ChatbotBottomSheet visible={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        <ChatbotBottomSheet 
+          visible={isChatOpen} 
+          onClose={() => setIsChatOpen(false)} 
+          onOpenVenueDetail={(venueId) => setSelectedVenueDetailId(venueId)}
+        />
+        <VenueDetailModal
+          visible={!!selectedVenueDetailId}
+          venueId={selectedVenueDetailId}
+          onClose={() => setSelectedVenueDetailId(null)}
+          onBookNow={(venueId) => {
+            setSelectedVenueDetailId(null);
+            router.push(`/booking/${venueId}` as any);
+          }}
+        />
         <AuthRequiredModal
           visible={authModalVisible}
           onClose={() => setAuthModalVisible(false)}
