@@ -631,7 +631,9 @@ export const SupportTicketManagement: React.FC = () => {
                               : 'border-slate-200 hover:border-brand-emerald'
                           }`}
                         >
-                          {isDispute ? 'Xử lý kèo' : t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / xử lý'}
+                          {isDispute 
+                            ? (t.status === 'RESOLVED' || t.status === 'CLOSED' ? 'Xem chi tiết' : 'Xử lý kèo') 
+                            : t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / xử lý'}
                         </Button>
                       </td>
                     </tr>
@@ -694,60 +696,107 @@ export const SupportTicketManagement: React.FC = () => {
                   ) : disputeDetail ? (
                     <div className="space-y-4">
                       {/* Match & Club Context Card */}
-                      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-brand-emerald text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md uppercase">
-                              {disputeDetail.sportName || 'Thể thao'}
-                            </span>
-                            <span className="text-slate-300 font-semibold text-xs">
-                              {disputeDetail.venueName || 'Sân vận động Sporta'} • {disputeDetail.matchDate || ''} {disputeDetail.matchTime || ''}
-                            </span>
-                          </div>
-                          <span className="font-mono text-[11px] text-slate-400">
-                            Phòng kèo: #{disputeDetail.roomId ? String(disputeDetail.roomId).slice(0, 8) : 'N/A'}
-                          </span>
-                        </div>
+                      {(() => {
+                        const isResolved = disputeDetail.status === 'RESOLVED';
+                        const resolvedParts = disputeDetail.resolvedResultJson ? disputeDetail.resolvedResultJson.split('-') : null;
+                        const hostFinalScore = resolvedParts ? parseInt(resolvedParts[0]?.trim() || '0', 10) : null;
+                        const guestFinalScore = resolvedParts ? parseInt(resolvedParts[1]?.trim() || '0', 10) : null;
+                        const isHostWinner = isResolved && hostFinalScore !== null && guestFinalScore !== null && hostFinalScore > guestFinalScore;
+                        const isGuestWinner = isResolved && hostFinalScore !== null && guestFinalScore !== null && guestFinalScore > hostFinalScore;
+                        const isDrawMatch = isResolved && hostFinalScore !== null && guestFinalScore !== null && hostFinalScore === guestFinalScore;
 
-                        {/* Clubs Comparison & Host Submitted Score */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 py-1">
-                          {/* Host Club (Side A) */}
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden">
-                              {disputeDetail.hostClubAvatar ? (
-                                <img src={disputeDetail.hostClubAvatar} alt="Host" className="w-full h-full object-cover" />
-                              ) : (
-                                getInitials(disputeDetail.hostClubName)
-                              )}
+                        return (
+                          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-brand-emerald text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-md uppercase">
+                                  {disputeDetail.sportName || 'Thể thao'}
+                                </span>
+                                <span className="text-slate-300 font-semibold text-xs">
+                                  {disputeDetail.venueName || 'Sân vận động Sporta'} • {disputeDetail.matchDate || ''} {disputeDetail.matchTime || ''}
+                                </span>
+                              </div>
+                              <span className="font-mono text-[11px] text-slate-400">
+                                Phòng kèo: #{disputeDetail.roomId ? String(disputeDetail.roomId).slice(0, 8) : 'N/A'}
+                              </span>
                             </div>
-                            <div className="min-w-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Đội nhà (Bên A)</span>
-                              <p className="font-black text-sm text-white truncate">{disputeDetail.hostClubName}</p>
-                            </div>
-                          </div>
 
-                          {/* Submitted Score Badge */}
-                          <div className="text-center bg-white/10 rounded-xl py-2 px-3 border border-white/10">
-                            <span className="text-[10px] uppercase font-bold text-amber-300 block mb-0.5">Tỷ số bên A khai báo</span>
-                            <p className="text-lg font-black tracking-widest text-white">{disputeDetail.hostSubmittedScore || 'Chưa rõ'}</p>
-                          </div>
+                            {/* Clubs Comparison & Final / Submitted Score */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 py-1">
+                              {/* Host Club (Side A) */}
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full bg-emerald-500/20 border text-emerald-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden ${
+                                  isHostWinner ? 'border-emerald-400 ring-2 ring-emerald-400/50' : 'border-emerald-400/40'
+                                }`}>
+                                  {disputeDetail.hostClubAvatar ? (
+                                    <img src={disputeDetail.hostClubAvatar} alt="Host" className="w-full h-full object-cover" />
+                                  ) : (
+                                    getInitials(disputeDetail.hostClubName)
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Đội nhà (Bên A)</span>
+                                    {isResolved && (
+                                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                                        isHostWinner ? 'bg-emerald-500 text-white' : isDrawMatch ? 'bg-slate-700 text-slate-300' : 'bg-rose-500/30 text-rose-300'
+                                      }`}>
+                                        {isHostWinner ? 'THẮNG' : isDrawMatch ? 'HÒA' : 'THUA'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="font-black text-sm text-white truncate">{disputeDetail.hostClubName}</p>
+                                </div>
+                              </div>
 
-                          {/* Guest Club (Side B) */}
-                          <div className="flex items-center justify-end gap-3 text-right">
-                            <div className="min-w-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Đội khách (Bên B)</span>
-                              <p className="font-black text-sm text-white truncate">{disputeDetail.guestClubName}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-400/40 text-sky-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden">
-                              {disputeDetail.guestClubAvatar ? (
-                                <img src={disputeDetail.guestClubAvatar} alt="Guest" className="w-full h-full object-cover" />
-                              ) : (
-                                getInitials(disputeDetail.guestClubName)
-                              )}
+                              {/* Center Score Badge */}
+                              <div className={`text-center rounded-xl py-2 px-3 border ${
+                                isResolved ? 'bg-emerald-950/60 border-emerald-500/40' : 'bg-white/10 border-white/10'
+                              }`}>
+                                <span className={`text-[10px] uppercase font-bold block mb-0.5 ${
+                                  isResolved ? 'text-emerald-400' : 'text-amber-300'
+                                }`}>
+                                  {isResolved ? 'Tỷ số chốt chung cuộc' : 'Tỷ số bên A khai báo'}
+                                </span>
+                                <p className="text-xl font-black tracking-widest text-white">
+                                  {isResolved ? (disputeDetail.resolvedResultJson || '0 - 0') : (disputeDetail.hostSubmittedScore || 'Chưa rõ')}
+                                </p>
+                                {isResolved && (
+                                  <span className="text-[10px] font-bold text-emerald-300 block mt-0.5">
+                                    {isHostWinner ? 'Bên A (Đội nhà) thắng' : isGuestWinner ? 'Bên B (Đội khách) thắng' : 'Kết quả hòa'}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Guest Club (Side B) */}
+                              <div className="flex items-center justify-end gap-3 text-right">
+                                <div className="min-w-0">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {isResolved && (
+                                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                                        isGuestWinner ? 'bg-emerald-500 text-white' : isDrawMatch ? 'bg-slate-700 text-slate-300' : 'bg-rose-500/30 text-rose-300'
+                                      }`}>
+                                        {isGuestWinner ? 'THẮNG' : isDrawMatch ? 'HÒA' : 'THUA'}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Đội khách (Bên B)</span>
+                                  </div>
+                                  <p className="font-black text-sm text-white truncate">{disputeDetail.guestClubName}</p>
+                                </div>
+                                <div className={`w-10 h-10 rounded-full bg-sky-500/20 border text-sky-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden ${
+                                  isGuestWinner ? 'border-sky-400 ring-2 ring-sky-400/50' : 'border-sky-400/40'
+                                }`}>
+                                  {disputeDetail.guestClubAvatar ? (
+                                    <img src={disputeDetail.guestClubAvatar} alt="Guest" className="w-full h-full object-cover" />
+                                  ) : (
+                                    getInitials(disputeDetail.guestClubName)
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Side-by-Side Evidence Comparison */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -889,14 +938,38 @@ export const SupportTicketManagement: React.FC = () => {
 
                       {/* Ruling Actions or Resolution Banner */}
                       {disputeDetail.status === 'RESOLVED' ? (
-                        <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-black text-emerald-800 text-xs flex items-center gap-1.5">
-                              Kết quả đã được Admin xử lý
+                        <div className="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300/90 rounded-2xl space-y-3 shadow-xs">
+                          <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                                ✓
+                              </span>
+                              <span className="font-extrabold text-emerald-900 text-sm">
+                                Kết quả đã được Admin xử lý
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-emerald-700 font-bold bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-200">
+                              {formatDate(disputeDetail.resolvedAt)}
                             </span>
-                            <span className="text-[11px] text-emerald-700 font-medium">{formatDate(disputeDetail.resolvedAt)}</span>
                           </div>
-                          <p className="text-slate-800 font-bold text-xs">{disputeDetail.resolutionNote || disputeDetail.resolvedResultJson}</p>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-emerald-200/80">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Tỷ số chốt kết quả</span>
+                              <p className="font-black text-lg text-emerald-700">{disputeDetail.resolvedResultJson || '3 - 0'}</p>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Trạng thái hồ sơ</span>
+                              <p className="font-bold text-xs text-slate-800">Đã chốt kết quả & cập nhật điểm CRP / ELO</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-emerald-900 block">Quyết định / Ghi chú của Admin:</span>
+                            <p className="text-slate-700 text-xs leading-relaxed bg-white/70 p-3 rounded-xl border border-emerald-100 italic">
+                              {disputeDetail.resolutionNote || 'Không có ghi chú thêm.'}
+                            </p>
+                          </div>
                         </div>
                       ) : (
                         <div className="pt-2 space-y-3">

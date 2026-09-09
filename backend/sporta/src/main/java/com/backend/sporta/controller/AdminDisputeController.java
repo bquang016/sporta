@@ -115,12 +115,28 @@ public class AdminDisputeController {
         SupportTicket ticket = supportTicketRepository.findById(ticketId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy yêu cầu hỗ trợ", 404));
 
-        String adminNote = ticket.getAdminNote();
         UUID matchId = null;
-        if (adminNote != null && adminNote.contains("MatchId:")) {
+        String searchStr = (ticket.getAdminNote() != null ? ticket.getAdminNote() : "") + " " + (ticket.getDescription() != null ? ticket.getDescription() : "");
+        if (searchStr.contains("MatchId:")) {
             try {
-                String matchIdPart = adminNote.split("MatchId:")[1].trim().split(" ")[0].trim();
+                String matchIdPart = searchStr.split("MatchId:")[1].trim().split("[\\s|\\n\\)\\.\"]+")[0].trim();
                 matchId = UUID.fromString(matchIdPart.replaceAll("[^a-zA-Z0-9-]", ""));
+            } catch (Exception ignored) {}
+        }
+        if (matchId == null && searchStr.contains("Mã trận:")) {
+            try {
+                String matchIdPart = searchStr.split("Mã trận:")[1].trim().split("[\\s|\\n\\)\\.\"]+")[0].trim();
+                matchId = UUID.fromString(matchIdPart.replaceAll("[^a-zA-Z0-9-]", ""));
+            } catch (Exception ignored) {}
+        }
+        if (matchId == null && searchStr.contains("DisputeId:")) {
+            try {
+                String disputeIdPart = searchStr.split("DisputeId:")[1].trim().split("[\\s|\\n\\)\\.\"]+")[0].trim();
+                UUID dispId = UUID.fromString(disputeIdPart.replaceAll("[^a-zA-Z0-9-]", ""));
+                Dispute d = disputeRepository.findById(dispId).orElse(null);
+                if (d != null && d.getMatch() != null) {
+                    matchId = d.getMatch().getId();
+                }
             } catch (Exception ignored) {}
         }
 
@@ -224,6 +240,20 @@ public class AdminDisputeController {
                 .build();
 
         matchResultRepository.save(result);
+
+        // Save official resolved ScoreSubmission so all room views and summaries reflect final scores
+        ScoreSubmission lastSub = scoreSubmissionRepository.findFirstByMatchIdOrderByVersionDesc(match.getId()).orElse(null);
+        ScoreSubmission resolvedSubmission = ScoreSubmission.builder()
+                .match(match)
+                .submittedByClub(hostClub)
+                .hostScore(effectiveHostScore)
+                .guestScore(effectiveGuestScore)
+                .rawScoreDetails(effectiveRaw)
+                .outcome(outcome)
+                .version((lastSub != null && lastSub.getVersion() != null ? lastSub.getVersion() : 0) + 1)
+                .submittedAt(LocalDateTime.now())
+                .build();
+        scoreSubmissionRepository.save(resolvedSubmission);
 
         // Record standard CRP & apply CRP penalty (-10 CRP) to the losing/violating club (if WIN_A or WIN_B)
         int penaltyCrp = 10;
@@ -330,9 +360,10 @@ public class AdminDisputeController {
         try {
             List<SupportTicket> tickets = supportTicketRepository.findByTicketType("MATCH_DISPUTE");
             for (SupportTicket t : tickets) {
-                if (t.getAdminNote() != null && (t.getAdminNote().contains(match.getId().toString()) || t.getAdminNote().contains(dispute.getId().toString()))) {
+                String searchStr = (t.getAdminNote() != null ? t.getAdminNote() : "") + " " + (t.getDescription() != null ? t.getDescription() : "");
+                if (searchStr.contains(match.getId().toString()) || searchStr.contains(dispute.getId().toString())) {
                     t.setStatus(SupportTicketStatus.RESOLVED);
-                    t.setAdminNote(note);
+                    t.setAdminNote(note + "\n(MatchId: " + match.getId() + " | DisputeId: " + dispute.getId() + ")");
                     t.setResolvedAt(LocalDateTime.now());
                     t.setProcessedBy(admin.getFullName() != null ? admin.getFullName() : admin.getEmail());
                     supportTicketRepository.save(t);

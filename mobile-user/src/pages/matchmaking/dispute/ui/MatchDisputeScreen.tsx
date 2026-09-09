@@ -260,6 +260,10 @@ export function MatchDisputeScreen() {
   const guestAvatarUri = guest?.avatarUrl || guest?.logoUrl || (guest as any)?.avatarImage;
 
   const isDisputed = room.status === 'DISPUTED' || Boolean(disputeDetail);
+  const isResolved = disputeDetail?.status === 'RESOLVED';
+  const resolvedParts = disputeDetail?.resolvedResultJson ? disputeDetail.resolvedResultJson.split('-') : null;
+  const hostScoreDisplay = isResolved && resolvedParts ? resolvedParts[0].trim() : (submission?.hostScore ?? 0);
+  const guestScoreDisplay = isResolved && resolvedParts ? resolvedParts[1].trim() : (submission?.guestScore ?? 0);
   const isHost = Boolean(room.permissions.isHostAdmin && !room.permissions.isGuestAdmin);
   const isGuest = Boolean(room.permissions.isGuestAdmin && !room.permissions.isHostAdmin);
   const canSubmitHost = isHost && disputeDetail?.status === 'OPEN' && !disputeDetail?.hostHasSubmittedEvidence;
@@ -305,9 +309,15 @@ export function MatchDisputeScreen() {
                 <View style={styles.sportBadge}>
                   <Text style={styles.sportBadgeText}>{room.booking.sportName} • {room.booking.format}</Text>
                 </View>
-                <View style={[styles.statusBadge, isDisputed ? styles.statusDisputed : styles.statusConfirming]}>
-                  <Text style={[styles.statusBadgeText, isDisputed ? styles.statusDisputedText : styles.statusConfirmingText]}>
-                    {isDisputed ? 'Đang xử lý tranh chấp' : 'Chờ xác nhận'}
+                <View style={[
+                  styles.statusBadge, 
+                  isResolved ? styles.statusResolved : isDisputed ? styles.statusDisputed : styles.statusConfirming
+                ]}>
+                  <Text style={[
+                    styles.statusBadgeText, 
+                    isResolved ? styles.statusResolvedText : isDisputed ? styles.statusDisputedText : styles.statusConfirmingText
+                  ]}>
+                    {isResolved ? 'Đã giải quyết' : isDisputed ? 'Đang xử lý tranh chấp' : 'Chờ xác nhận'}
                   </Text>
                 </View>
               </View>
@@ -322,11 +332,11 @@ export function MatchDisputeScreen() {
                 <View style={styles.teamMini}>
                   <UserAvatar uri={hostAvatarUri} name={host.name} size={24} />
                   <Text style={styles.teamNameMini} numberOfLines={1}>{host.name}</Text>
-                  <Text style={styles.scoreDigitMini}>{submission?.hostScore ?? 0}</Text>
+                  <Text style={styles.scoreDigitMini}>{hostScoreDisplay}</Text>
                 </View>
                 <Text style={styles.vsDash}>-</Text>
                 <View style={[styles.teamMini, { justifyContent: 'flex-end' }]}>
-                  <Text style={styles.scoreDigitMini}>{submission?.guestScore ?? 0}</Text>
+                  <Text style={styles.scoreDigitMini}>{guestScoreDisplay}</Text>
                   <Text style={[styles.teamNameMini, { textAlign: 'right' }]} numberOfLines={1}>
                     {guest?.name || 'Đội bạn'}
                   </Text>
@@ -739,6 +749,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#DC2626',
+  },
+  statusResolved: {
+    backgroundColor: '#ECFDF5',
+  },
+  statusResolvedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
   },
   venueName: {
     fontSize: 14,
