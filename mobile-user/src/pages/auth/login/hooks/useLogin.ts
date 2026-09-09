@@ -3,11 +3,11 @@ import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
-import * as Facebook from 'expo-auth-session/providers/facebook';
 import * as WebBrowser from 'expo-web-browser';
 import { loginApi, googleLoginApi, facebookLoginApi } from '../../../../shared/api/auth';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 import { saveUserSession } from '../../../../shared/lib/userSession';
+import { promptFacebookAuth } from '../../../../shared/lib/facebookAuth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,12 +28,6 @@ export function useLogin() {
     webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
   });
 
-  // Facebook Sign-In setup
-  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_FACEBOOK_APP_ID || '1075505325452400',
-    scopes: ['public_profile', 'email', 'user_birthday', 'user_gender', 'user_photos'],
-  });
-
   useEffect(() => {
     if (response?.type === 'success') {
       const idToken = response.params?.id_token || (response as any).authentication?.idToken;
@@ -45,18 +39,6 @@ export function useLogin() {
       showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);
-
-  useEffect(() => {
-    if (fbResponse?.type === 'success') {
-      const accessToken = fbResponse.params?.access_token || (fbResponse as any).authentication?.accessToken;
-      if (accessToken) {
-        handleBackendFacebookLogin(accessToken);
-      }
-    } else if (fbResponse?.type === 'error') {
-      const errorMsg = (fbResponse?.error as any)?.message || 'Không thể đăng nhập Facebook.';
-      showAlert('Lỗi đăng nhập Facebook', errorMsg);
-    }
-  }, [fbResponse]);
 
   const handleBackendFacebookLogin = async (accessToken: string) => {
     setLoading(true);
@@ -162,8 +144,18 @@ export function useLogin() {
     promptAsync();
   };
 
-  const handleFacebookLogin = () => {
-    fbPromptAsync();
+  const handleFacebookLogin = async () => {
+    try {
+      const accessToken = await promptFacebookAuth();
+      if (accessToken) {
+        await handleBackendFacebookLogin(accessToken);
+      }
+    } catch (err: any) {
+      if (err.message && !err.message.includes('hủy')) {
+        console.error('[Facebook Auth] Error:', err);
+        showAlert('Lỗi Facebook', err.message || 'Không thể đăng nhập Facebook.');
+      }
+    }
   };
 
   const handleLogin = async () => {

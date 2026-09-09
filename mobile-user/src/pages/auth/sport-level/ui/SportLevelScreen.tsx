@@ -407,7 +407,7 @@ export function SportLevelScreen() {
         >
           <Ionicons name="arrow-back" size={22} color="#003527" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Hồ sơ Persona</Text>
+        <Text style={styles.headerTitle}>Thiết lập cá nhân hoá</Text>
         <View style={{ width: 38 }} />
       </View>
 
