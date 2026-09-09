@@ -52,28 +52,21 @@ export const RegistrationDetailModal: React.FC<RegistrationDetailModalProps> = (
     }
   };
 
-  const getSportNames = (sportTypesJson: string) => {
-    const SPORT_NAMES_VI: Record<string, string> = {
-      'football': 'Bóng đá',
-      'badminton': 'Cầu lông',
-      'tennis': 'Quần vợt',
-      'basketball': 'Bóng rổ',
-      'volleyball': 'Bóng chuyền',
-      'table_tennis': 'Bóng bàn',
-      'billiards': 'Bida',
-      'pickleball': 'Pickleball',
-      'swimming': 'Bơi lội'
-    };
+  const SPORT_NAME_MAP: Record<string | number, string> = {
+    1: 'Bóng đá',
+    2: 'Cầu lông',
+    3: 'Pickleball',
+    4: 'Bóng rổ',
+    5: 'Quần vợt (Tennis)',
+    6: 'Bóng chuyền',
+    7: 'Bóng bàn',
+    8: 'Bơi lội',
+    9: 'Bida'
+  };
 
-    try {
-      const parsed = JSON.parse(sportTypesJson);
-      if (Array.isArray(parsed)) {
-        return parsed.map(sport => SPORT_NAMES_VI[sport.toLowerCase()] || sport).join(', ');
-      }
-      return SPORT_NAMES_VI[sportTypesJson.toLowerCase()] || sportTypesJson;
-    } catch {
-      return SPORT_NAMES_VI[sportTypesJson.toLowerCase()] || sportTypesJson;
-    }
+  const getSportName = (sportId?: number | string | null): string => {
+    if (!sportId) return 'Chưa cập nhật';
+    return SPORT_NAME_MAP[sportId] || `Môn thể thao #${sportId}`;
   };
 
   const getCourtsInfo = (courtsJson: string) => {
@@ -233,7 +226,7 @@ export const RegistrationDetailModal: React.FC<RegistrationDetailModalProps> = (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-slate-500 font-medium text-xs uppercase mb-1">Loại Hình Thể Thao</div>
-                  <div className="font-bold text-slate-800">{data.sportTypes ? getSportNames(data.sportTypes) : 'N/A'}</div>
+                  <div className="font-bold text-slate-800">{getSportName(data.sportId)}</div>
                 </div>
                 <div>
                   <div className="text-slate-500 font-medium text-xs uppercase mb-1">Tổng Số Sân Con</div>
