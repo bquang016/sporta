@@ -25,8 +25,11 @@ const listeners: Set<SessionListener> = new Set();
 
 export const subscribeToSession = (listener: SessionListener) => {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener); // Returns void now
+  };
 };
+
 
 const notifyListeners = () => {
   listeners.forEach((listener) => listener(memorySession));
@@ -176,7 +179,7 @@ export const clearUserSession = async (): Promise<void> => {
       localStorage.removeItem('userName');
       localStorage.removeItem('userAvatar');
       localStorage.removeItem('userRole');
-    } catch (e) {}
+    } catch (e) { }
   } else {
     try {
       await SecureStore.deleteItemAsync('accessToken');
@@ -184,7 +187,7 @@ export const clearUserSession = async (): Promise<void> => {
       await SecureStore.deleteItemAsync('userName');
       await SecureStore.deleteItemAsync('userAvatar');
       await SecureStore.deleteItemAsync('userRole');
-    } catch (e) {}
+    } catch (e) { }
   }
   notifyListeners();
 };
