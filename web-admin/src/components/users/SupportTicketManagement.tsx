@@ -415,6 +415,48 @@ export const SupportTicketManagement: React.FC = () => {
     }
   };
 
+  // Direct Ticket Close / Resolve Handler
+  const handleDirectCloseTicket = async (status: SupportTicketStatusType = 'CLOSED', customNote?: string) => {
+    if (!selectedTicket) return;
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const note = customNote || adminNoteInput.trim() || (
+        status === 'CLOSED'
+          ? 'Admin đã đóng yêu cầu hỗ trợ này.'
+          : status === 'RESOLVED'
+          ? 'Admin đã xử lý hoàn tất yêu cầu hỗ trợ.'
+          : `Cập nhật trạng thái sang ${STATUS_CONFIG[status]?.label || status}.`
+      );
+
+      const response = await fetch(`${API_BASE_URL}/admin/support-tickets/${selectedTicket.id}/process`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status,
+          adminNote: note
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Cập nhật trạng thái ticket thất bại.');
+      }
+
+      const statusLabel = STATUS_CONFIG[status]?.label || status;
+      showToast('success', `Đã chuyển ticket ${selectedTicket.ticketCode} sang "${statusLabel}" thành công!`);
+      handleCloseModal();
+      fetchTickets();
+    } catch (err: any) {
+      showToast('error', err.message || 'Có lỗi xảy ra khi cập nhật ticket.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     try {
@@ -1004,6 +1046,45 @@ export const SupportTicketManagement: React.FC = () => {
                               {disputeDetail.resolutionNote || 'Không có ghi chú thêm.'}
                             </p>
                           </div>
+
+                          {/* Quick Actions to update ticket status */}
+                          <div className="pt-3 border-t border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-500 font-medium">Trạng thái ticket hiện tại:</span>
+                              <span className={`inline-flex items-center gap-1.5 ${STATUS_CONFIG[selectedTicket.status]?.bg || 'bg-slate-100'} ${STATUS_CONFIG[selectedTicket.status]?.text || 'text-slate-700'} border ${STATUS_CONFIG[selectedTicket.status]?.border || 'border-slate-200'} px-2.5 py-0.5 rounded-full text-[10px] font-bold`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[selectedTicket.status]?.dot || 'bg-slate-400'}`} />
+                                {STATUS_CONFIG[selectedTicket.status]?.label || selectedTicket.status}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {selectedTicket.status !== 'RESOLVED' && selectedTicket.status !== 'CLOSED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDirectCloseTicket('RESOLVED', 'Admin xác nhận tranh chấp đã giải quyết xong.')}
+                                  disabled={isProcessing}
+                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all disabled:opacity-50"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Đánh dấu Đã giải quyết
+                                </button>
+                              )}
+                              {selectedTicket.status !== 'CLOSED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDirectCloseTicket('CLOSED', 'Admin đã đóng ticket hỗ trợ sau khi phân xử tranh chấp.')}
+                                  disabled={isProcessing}
+                                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all disabled:opacity-50"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Đóng Ticket này
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="pt-2 space-y-3">
@@ -1025,7 +1106,7 @@ export const SupportTicketManagement: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleRuling('WIN_A')}
-                              disabled={isRuling}
+                              disabled={isRuling || isProcessing}
                               className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
                             >
                               <div>
@@ -1047,7 +1128,7 @@ export const SupportTicketManagement: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleRuling('WIN_B')}
-                              disabled={isRuling}
+                              disabled={isRuling || isProcessing}
                               className="p-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
                             >
                               <div>
@@ -1069,7 +1150,7 @@ export const SupportTicketManagement: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleRuling('DRAW')}
-                              disabled={isRuling}
+                              disabled={isRuling || isProcessing}
                               className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
                             >
                               <div>
@@ -1088,26 +1169,59 @@ export const SupportTicketManagement: React.FC = () => {
                             </button>
                           </div>
 
-                          {/* Option 4: Close / Dismiss Duplicate Dispute */}
-                          <div className="pt-1.5 border-t border-slate-200/70">
+                          {/* Option 4: Close / Dismiss Duplicate Dispute or Close Ticket */}
+                          <div className="pt-2 border-t border-slate-200/70 flex flex-col sm:flex-row gap-2">
                             <button
                               type="button"
                               onClick={handleCloseDispute}
-                              disabled={isRuling}
-                              className="w-full p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                              disabled={isRuling || isProcessing}
+                              className="flex-1 p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                             >
                               <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
                               <span>Đóng khiếu nại (Trùng lặp / Đã xử lý xong)</span>
                             </button>
+                            {selectedTicket.status !== 'CLOSED' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDirectCloseTicket('CLOSED')}
+                                disabled={isRuling || isProcessing}
+                                className="p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                <span>Đóng Ticket</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900">
-                      Không tìm thấy chi tiết hồ sơ tranh chấp trận đấu liên kết.
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 space-y-3">
+                      <p className="font-semibold text-xs">Không tìm thấy chi tiết hồ sơ tranh chấp trận đấu liên kết (hoặc trận đấu đã được xử lý trước đó).</p>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDirectCloseTicket('RESOLVED', 'Admin đánh dấu đã giải quyết (Hồ sơ tranh chấp đã hoàn tất).')}
+                          disabled={isProcessing}
+                          className="rounded-xl text-xs font-bold border-amber-300 hover:bg-amber-100"
+                        >
+                          Đánh dấu Đã giải quyết
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleDirectCloseTicket('CLOSED', 'Admin đóng ticket do hồ sơ đã hoàn tất.')}
+                          disabled={isProcessing}
+                          className="bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Đóng Ticket
+                        </Button>
+                      </div>
                     </div>
                   )
                 ) : (
@@ -1229,26 +1343,51 @@ export const SupportTicketManagement: React.FC = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 bg-surface-container-low/40 flex items-center justify-end gap-2.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCloseModal}
-                  className="rounded-xl px-4 text-xs font-bold border-slate-200"
-                >
-                  Đóng
-                </Button>
-                {!isMatchDisputeTicket(selectedTicket) && selectedTicket.status !== 'CLOSED' && (
+              <div className="px-6 py-4 border-t border-slate-100 bg-surface-container-low/40 flex items-center justify-between gap-2.5">
+                {/* Left: Current Ticket Status */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium">Trạng thái:</span>
+                  <span className={`inline-flex items-center gap-1.5 ${STATUS_CONFIG[selectedTicket.status]?.bg || 'bg-slate-100'} ${STATUS_CONFIG[selectedTicket.status]?.text || 'text-slate-700'} border ${STATUS_CONFIG[selectedTicket.status]?.border || 'border-slate-200'} px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-2xs`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[selectedTicket.status]?.dot || 'bg-slate-400'}`} />
+                    {STATUS_CONFIG[selectedTicket.status]?.label || selectedTicket.status}
+                  </span>
+                </div>
+
+                {/* Right: Modal Actions */}
+                <div className="flex items-center gap-2">
                   <Button
-                    variant="primary"
+                    variant="outline"
                     size="sm"
-                    onClick={handleProcess}
-                    disabled={isProcessing}
-                    className="bg-brand-emerald hover:bg-brand-emerald/90 text-white font-bold rounded-xl px-5 py-2 shadow-sm transition-all cursor-pointer"
+                    onClick={handleCloseModal}
+                    className="rounded-xl px-4 text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-100"
                   >
-                    {isProcessing ? 'Đang lưu...' : 'Cập nhật trạng thái'}
+                    Thoát cửa sổ
                   </Button>
-                )}
+
+                  {selectedTicket.status !== 'CLOSED' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDirectCloseTicket('CLOSED')}
+                      disabled={isProcessing || isRuling}
+                      className="rounded-xl px-4 text-xs font-bold text-rose-700 border-rose-200 hover:bg-rose-50 hover:border-rose-300"
+                    >
+                      🔒 Đóng Ticket
+                    </Button>
+                  )}
+
+                  {!isMatchDisputeTicket(selectedTicket) && selectedTicket.status !== 'CLOSED' && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleProcess}
+                      disabled={isProcessing}
+                      className="bg-brand-emerald hover:bg-brand-emerald/90 text-white font-bold rounded-xl px-5 py-2 shadow-sm transition-all cursor-pointer"
+                    >
+                      {isProcessing ? 'Đang lưu...' : 'Cập nhật trạng thái'}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
