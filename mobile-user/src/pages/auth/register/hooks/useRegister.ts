@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
+import Constants from 'expo-constants';
 import { sendOtp, googleLoginApi } from '../../../../shared/api/auth';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 
@@ -26,6 +28,10 @@ export function useRegister() {
     clientId: '347757325647-tfevg4mv3u9uvua3qofhbpav4sakuv3c.apps.googleusercontent.com',
     webClientId: '347757325647-tfevg4mv3u9uvua3qofhbpav4sakuv3c.apps.googleusercontent.com',
     androidClientId: '347757325647-480ihgvt2vmgvd73dehdqna15alcfv91.apps.googleusercontent.com',
+    redirectUri: AuthSession.makeRedirectUri({
+      scheme: 'sporta',
+      useProxy: Constants.appOwnership === 'expo',
+    }),
   });
 
   useEffect(() => {
