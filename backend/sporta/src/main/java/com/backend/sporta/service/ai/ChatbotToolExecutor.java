@@ -72,8 +72,30 @@ public class ChatbotToolExecutor {
                 String venueSportTypes = v.getSportTypes() != null ? v.getSportTypes() : "";
                 String venueName = v.getName() != null ? v.getName() : "";
                 
-                String combinedSportText = removeAccents(venueSport + " " + venueSportTypes + " " + venueName);
-                matchSport = combinedSportText.contains(normalizedSport);
+                String sNorm = removeAccents(venueSport);
+                String tNorm = removeAccents(venueSportTypes);
+                String nNorm = removeAccents(venueName);
+
+                matchSport = sNorm.contains(normalizedSport) || tNorm.contains(normalizedSport) || nNorm.contains(normalizedSport);
+
+                // Exclude mismatched sports
+                if (normalizedSport.contains("bong da") || normalizedSport.contains("da bong") || normalizedSport.contains("football")) {
+                    if (nNorm.contains("cau long") || nNorm.contains("pickleball") || nNorm.contains("bong ro") || nNorm.contains("tennis")) {
+                        matchSport = false;
+                    }
+                } else if (normalizedSport.contains("cau long") || normalizedSport.contains("badminton")) {
+                    if (nNorm.contains("bong da") || nNorm.contains("pickleball") || nNorm.contains("bong ro")) {
+                        matchSport = false;
+                    }
+                } else if (normalizedSport.contains("pickleball")) {
+                    if (nNorm.contains("bong da") || nNorm.contains("cau long") || nNorm.contains("bong ro")) {
+                        matchSport = false;
+                    }
+                } else if (normalizedSport.contains("bong ro") || normalizedSport.contains("basketball")) {
+                    if (nNorm.contains("bong da") || nNorm.contains("cau long") || nNorm.contains("pickleball")) {
+                        matchSport = false;
+                    }
+                }
             }
 
             boolean matchArea = true;
@@ -129,9 +151,18 @@ public class ChatbotToolExecutor {
             }
         }
 
-        // Limit to max 5 venues to prevent token bloat
-        List<Map<String, Object>> limitedList = resultList.stream().limit(5).collect(Collectors.toList());
-        return Map.of("venues", limitedList, "total_found", resultList.size());
+        // Sort by rating descending so top venues appear first
+        resultList.sort((a, b) -> {
+            Double rA = (Double) a.get("rating");
+            Double rB = (Double) b.get("rating");
+            double valA = rA != null ? rA : 0.0;
+            double valB = rB != null ? rB : 0.0;
+            return Double.compare(valB, valA);
+        });
+
+        // Limit to max 3 venues to keep recommendations concise
+        List<Map<String, Object>> limitedList = resultList.stream().limit(3).collect(Collectors.toList());
+        return Map.of("venues", limitedList, "total_found", limitedList.size());
     }
 
     private Map<String, Object> checkSlotAvailability(Map<String, Object> args) {
@@ -268,9 +299,9 @@ public class ChatbotToolExecutor {
             log.error("Error finding clubs in tool executor", e);
         }
 
-        // Limit results to 5
-        List<Map<String, Object>> limitedList = resultList.stream().limit(5).collect(Collectors.toList());
-        return Map.of("partners", limitedList, "total_found", resultList.size());
+        // Limit results to 3
+        List<Map<String, Object>> limitedList = resultList.stream().limit(3).collect(Collectors.toList());
+        return Map.of("partners", limitedList, "total_found", limitedList.size());
     }
 
     private String removeAccents(String text) {

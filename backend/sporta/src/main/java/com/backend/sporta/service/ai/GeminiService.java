@@ -106,7 +106,7 @@ public class GeminiService {
                     log.info("[GEMINI REQUEST BODY]: {}", jsonReq);
                 }
 
-                GeminiDto.Response response = restTemplate.postForObject(apiUrl, request, GeminiDto.Response.class);
+                GeminiDto.Response response = executeWithRetry(request);
                 
                 if (response == null) {
                     log.error("[GEMINI ERROR]: Response is null");
@@ -193,6 +193,12 @@ public class GeminiService {
 
         List<CardDto> finalCards = new ArrayList<>(currentTurnCardsMap.values());
 
+        // If tools executed and cards were extracted but subsequent model turn had high demand or failed, provide pleasant fallback
+        if (!finalCards.isEmpty() && (!success || finalReplyText.startsWith("Xin lỗi, mình đang gặp sự cố"))) {
+            finalReplyText = "Dưới đây là các sân phù hợp tại khu vực bạn yêu cầu:";
+            success = true;
+        }
+
         if (success) {
             log.info("=== [GEMINI CHAT SUCCESS] Saving session history. Reply: '{}', Cards count: {} ===", 
                      finalReplyText, finalCards.size());
@@ -206,6 +212,41 @@ public class GeminiService {
                 .cards(finalCards)
                 .quickReplies(List.of("Tìm sân gần đây", "Ghép kèo tối nay", "Sân giá rẻ dưới 200k"))
                 .build();
+    }
+
+    private GeminiDto.Response executeWithRetry(GeminiDto.Request request) {
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return restTemplate.postForObject(apiUrl, request, GeminiDto.Response.class);
+            } catch (HttpStatusCodeException httpEx) {
+                int statusCode = httpEx.getStatusCode().value();
+                log.warn("[GEMINI HTTP {} (Attempt {}/{}): {}", statusCode, attempt, maxRetries, httpEx.getResponseBodyAsString());
+                if ((statusCode == 503 || statusCode == 429 || statusCode >= 500) && attempt < maxRetries) {
+                    try {
+                        Thread.sleep(1000L * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw httpEx;
+                    }
+                    continue;
+                }
+                throw httpEx;
+            } catch (org.springframework.web.client.ResourceAccessException rae) {
+                log.warn("[GEMINI NETWORK TIMEOUT] (Attempt {}/{}): {}", attempt, maxRetries, rae.getMessage());
+                if (attempt < maxRetries) {
+                    try {
+                        Thread.sleep(1000L * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw rae;
+                    }
+                    continue;
+                }
+                throw rae;
+            }
+        }
+        return null;
     }
 
     private String sanitizeReplyText(String text) {
