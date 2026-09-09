@@ -43,4 +43,9 @@ public interface TicketSessionRepository extends JpaRepository<TicketSession, UU
            "ORDER BY ts.playDate ASC, ts.startTime ASC")
     List<TicketSession> findAvailableSessions(@Param("today") LocalDate today, 
                                               @Param("sportLevel") com.backend.sporta.enums.SportLevel sportLevel);
+
+    @Query("SELECT COALESCE(SUM(ts.totalSlots - ts.bookedSlots), 0) FROM TicketSession ts WHERE ts.playDate = :date AND ts.status = 'OPEN'")
+    long countAvailableSlotsByPlayDate(@Param("date") LocalDate date);
+
+    long countByPlayDate(LocalDate playDate);
 }

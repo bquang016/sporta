@@ -35,7 +35,9 @@ import com.backend.sporta.dto.CourtPriceRuleRequest;
 import com.backend.sporta.dto.VenueDraftRequest;
 import com.backend.sporta.dto.CourtDraftDto;
 import com.backend.sporta.entity.Court;
-import com.backend.sporta.entity.CourtPriceRule;
+import com.backend.sporta.dto.PlatformStatsResponse;
+import com.backend.sporta.enums.MatchStatus;
+import com.backend.sporta.repository.MatchRoomRepository;
 import com.backend.sporta.entity.VenuePolicy;
 import com.backend.sporta.entity.OwnerContract;
 import com.backend.sporta.repository.CourtPriceRuleRepository;
@@ -94,6 +96,9 @@ public class VenueService {
 
     @Autowired
     private TicketSessionRepository ticketSessionRepository;
+
+    @Autowired
+    private MatchRoomRepository matchRoomRepository;
 
     @Autowired
     private VenuePolicyRepository venuePolicyRepository;
@@ -1369,5 +1374,42 @@ public class VenueService {
             }
         }
         return false;
+    }
+
+    @Transactional(readOnly = true)
+    public PlatformStatsResponse getPlatformStats() {
+        long verifiedVenues = venueRepository.countByStatusAndApprovalStatus(VenueStatus.ACTIVE, ApprovalStatus.APPROVED);
+        if (verifiedVenues == 0) {
+            verifiedVenues = venueRepository.count();
+        }
+
+        long openMatchRooms = matchRoomRepository.countByStatus(MatchStatus.OPEN);
+
+        LocalDate today = LocalDate.now();
+        long availableTickets = ticketSessionRepository.countAvailableSlotsByPlayDate(today);
+        if (availableTickets == 0) {
+            availableTickets = ticketSessionRepository.countByPlayDate(today);
+        }
+
+        return PlatformStatsResponse.builder()
+                .verifiedVenues(verifiedVenues)
+                .openMatchRooms(openMatchRooms)
+                .todayTickets(availableTickets)
+                .verifiedVenuesDisplay(formatStatNumber(verifiedVenues))
+                .openMatchRoomsDisplay(formatStatNumber(openMatchRooms))
+                .todayTicketsDisplay(formatStatNumber(availableTickets))
+                .build();
+    }
+
+    private String formatStatNumber(long count) {
+        if (count >= 1000) {
+            return String.format("%,d+", (count / 100) * 100).replace(',', '.');
+        } else if (count >= 100) {
+            return String.format("%d+", (count / 10) * 10);
+        } else if (count >= 10) {
+            return String.format("%d+", count);
+        } else {
+            return String.valueOf(count);
+        }
     }
 }

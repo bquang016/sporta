@@ -29,6 +29,8 @@ public interface MatchRoomRepository extends JpaRepository<MatchRoom, UUID> {
 
     List<MatchRoom> findByStatusAndJoinDeadlineBefore(MatchStatus status, LocalDateTime deadline);
 
+    long countByStatus(MatchStatus status);
+
     @Query("SELECT r FROM MatchRoom r WHERE (:sportId IS NULL OR r.hostClub.sport.id = :sportId) AND (:status IS NULL OR r.status = :status) ORDER BY r.createdAt DESC")
     List<MatchRoom> findAllByFilters(@Param("sportId") Long sportId, @Param("status") MatchStatus status);
 

@@ -237,9 +237,9 @@ public class MatchmakingCleanupScheduler {
                             guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
                         }
                         clubRepository.save(guestClub);
-
-                        matchmakingService.updatePlayerElos(match, sub.getOutcome());
                     }
+
+                    matchmakingService.updatePlayerElos(match, sub.getOutcome());
 
                     match.setStatus(MatchStatus.RESULT_FINAL);
                     matchRepository.save(match);
@@ -385,9 +385,9 @@ public class MatchmakingCleanupScheduler {
                             guestClub.setFinalMatches((guestClub.getFinalMatches() != null ? guestClub.getFinalMatches() : 0) + 1);
                             guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
                             clubRepository.save(guestClub);
-
-                            matchmakingService.updatePlayerElos(match, outcome);
                         }
+
+                        matchmakingService.updatePlayerElos(match, outcome);
 
                         match.setStatus(MatchStatus.RESULT_FINAL);
                         matchRepository.save(match);

@@ -1117,9 +1117,9 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             guestClub.setCrp(Math.max(0, currentGuestCrp + crpRes.getGuestCrpDelta()));
             guestClub.setFinalMatches((guestClub.getFinalMatches() != null ? guestClub.getFinalMatches() : 0) + 1);
             clubRepository.save(guestClub);
-
-            updatePlayerElos(match, NormalizedOutcome.DRAW);
         }
+
+        updatePlayerElos(match, NormalizedOutcome.DRAW);
 
         match.setStatus(MatchStatus.RESULT_FINAL);
         matchRepository.save(match);
@@ -1628,7 +1628,6 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
     public void updatePlayerElos(Match match, NormalizedOutcome outcome) {
         if (match == null || match.getHostClub() == null || match.getGuestClub() == null) return;
-        if (match.getMatchType() != MatchType.RANKED) return;
 
         Club hostClub = match.getHostClub();
         Club guestClub = match.getGuestClub();

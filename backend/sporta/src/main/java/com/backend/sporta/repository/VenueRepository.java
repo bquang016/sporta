@@ -17,6 +17,7 @@ public interface VenueRepository extends JpaRepository<Venue, UUID>, JpaSpecific
     List<Venue> findByOwnerUserEmail(String email);
     List<Venue> findByOwnerId(UUID ownerId);
     List<Venue> findByStatusAndApprovalStatus(VenueStatus status, ApprovalStatus approvalStatus);
+    long countByStatusAndApprovalStatus(VenueStatus status, ApprovalStatus approvalStatus);
     List<Venue> findByStatusAndApprovalStatusAndSportId(VenueStatus status, ApprovalStatus approvalStatus, Long sportId);
 
     @Query("SELECT v FROM Venue v WHERE v.status = :status AND v.approvalStatus = :approvalStatus " +

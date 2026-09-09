@@ -39,6 +39,15 @@ public class PublicVenueController {
     }
 
     /**
+     * GET /api/v1/public/venues/stats & /api/v1/public/venues/platform-stats
+     * Thống kê thật toàn hệ thống (Sân xác thực, Kèo chờ ghép, Vé hôm nay)
+     */
+    @GetMapping({"/stats", "/platform-stats"})
+    public ResponseEntity<com.backend.sporta.dto.PlatformStatsResponse> getPlatformStats() {
+        return ResponseEntity.ok(venueService.getPlatformStats());
+    }
+
+    /**
      * GET /api/v1/public/venues/recommendations — Hệ thống gợi ý sân cá nhân hóa (Hybrid AI)
      */
     @GetMapping("/recommendations")
