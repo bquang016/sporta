@@ -381,6 +381,40 @@ export const SupportTicketManagement: React.FC = () => {
     }
   };
 
+  // Handler to close / dismiss duplicate or invalid dispute ticket
+  const handleCloseDispute = async () => {
+    if (!disputeDetail) return;
+    setIsRuling(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const note = adminNoteInput.trim() || 'Admin đã đóng khiếu nại này (Khiếu nại trùng lặp hoặc đã được xử lý trước đó).';
+
+      const response = await fetch(`${API_BASE_URL}/admin/disputes/${disputeDetail.disputeId}/close`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          resolutionNote: note
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Đóng khiếu nại thất bại.');
+      }
+
+      showToast('success', 'Đã đóng hồ sơ khiếu nại thành công!');
+      handleCloseModal();
+      fetchTickets();
+    } catch (err: any) {
+      showToast('error', err.message || 'Có lỗi xảy ra khi đóng khiếu nại.');
+    } finally {
+      setIsRuling(false);
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
     try {
@@ -1051,6 +1085,21 @@ export const SupportTicketManagement: React.FC = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
                               </div>
+                            </button>
+                          </div>
+
+                          {/* Option 4: Close / Dismiss Duplicate Dispute */}
+                          <div className="pt-1.5 border-t border-slate-200/70">
+                            <button
+                              type="button"
+                              onClick={handleCloseDispute}
+                              disabled={isRuling}
+                              className="w-full p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Đóng khiếu nại (Trùng lặp / Đã xử lý xong)</span>
                             </button>
                           </div>
                         </div>

@@ -242,7 +242,7 @@ export function MatchDisputeScreen() {
     }
   };
 
-  if (roomLoading || !room) {
+  if (roomLoading || !room || loadingDispute) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
@@ -259,14 +259,15 @@ export function MatchDisputeScreen() {
   const hostAvatarUri = host?.avatarUrl || host?.logoUrl || (host as any)?.avatarImage;
   const guestAvatarUri = guest?.avatarUrl || guest?.logoUrl || (guest as any)?.avatarImage;
 
-  const isDisputed = room.status === 'DISPUTED' || Boolean(disputeDetail);
-  const isResolved = disputeDetail?.status === 'RESOLVED';
+  const isResolved = disputeDetail?.status === 'RESOLVED' || room.status === 'RESULT_FINAL';
+  const isDisputed = disputeDetail?.status === 'OPEN' || room.status === 'DISPUTED';
+  const hasDispute = Boolean(disputeDetail);
   const resolvedParts = disputeDetail?.resolvedResultJson ? disputeDetail.resolvedResultJson.split('-') : null;
   const hostScoreDisplay = isResolved && resolvedParts ? resolvedParts[0].trim() : (submission?.hostScore ?? 0);
   const guestScoreDisplay = isResolved && resolvedParts ? resolvedParts[1].trim() : (submission?.guestScore ?? 0);
-  const isHost = Boolean(room.permissions.isHostAdmin && !room.permissions.isGuestAdmin);
-  const isGuest = Boolean(room.permissions.isGuestAdmin && !room.permissions.isHostAdmin);
-  const canSubmitHost = isHost && disputeDetail?.status === 'OPEN' && !disputeDetail?.hostHasSubmittedEvidence;
+  const isHost = Boolean(room.permissions?.isHostAdmin && !room.permissions?.isGuestAdmin);
+  const isGuest = Boolean(room.permissions?.isGuestAdmin && !room.permissions?.isHostAdmin);
+  const canFileDispute = !isHost && (room.status === 'SCORE_CONFIRMING' || room.status === 'RESULT_OVERDUE') && !hasDispute && !isResolved && !isDisputed;
 
   // Compute Remaining Hours for Deadline
   const getRemainingHours = () => {
@@ -307,7 +308,7 @@ export function MatchDisputeScreen() {
             <View style={styles.matchSummaryCard}>
               <View style={styles.summaryTopRow}>
                 <View style={styles.sportBadge}>
-                  <Text style={styles.sportBadgeText}>{room.booking.sportName} • {room.booking.format}</Text>
+                  <Text style={styles.sportBadgeText}>{room.booking?.sportName || 'Thể thao'} • {room.booking?.format || 'Ghép trận'}</Text>
                 </View>
                 <View style={[
                   styles.statusBadge, 
@@ -322,9 +323,9 @@ export function MatchDisputeScreen() {
                 </View>
               </View>
 
-              <Text style={styles.venueName} numberOfLines={1}>{room.booking.facilityName}</Text>
+              <Text style={styles.venueName} numberOfLines={1}>{room.booking?.facilityName || 'Sân thi đấu'}</Text>
               <Text style={styles.venueTime}>
-                {room.booking.date} • {room.booking.startTime} - {room.booking.endTime}
+                {room.booking?.date} • {room.booking?.startTime} - {room.booking?.endTime}
               </Text>
 
               {/* Submitted Score Summary Box */}
@@ -345,25 +346,115 @@ export function MatchDisputeScreen() {
               </View>
             </View>
 
-            {/* FREEZE WARNING BANNER */}
-            <View style={styles.freezeNotice}>
-              <Ionicons name="shield-outline" size={20} color="#0369A1" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.freezeNoticeTitle}>Đóng băng điểm số an toàn</Text>
-                <Text style={styles.freezeNoticeSub}>
-                  Khi trận đấu có khiếu nại, điểm ELO và CRP được đóng băng cho đến khi Ban Quản Trị kiểm tra và ra quyết định chính thức.
-                </Text>
-              </View>
-            </View>
+            {/* CASE 1: MATCH DISPUTE HAS BEEN RESOLVED */}
+            {isResolved ? (
+              <View style={styles.card}>
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="checkmark-circle" size={22} color="#059669" />
+                  <Text style={styles.sectionTitle}>Hồ sơ phân xử tranh chấp</Text>
+                  <View style={[styles.disputeStatusTag, { backgroundColor: '#ECFDF5' }]}>
+                    <Text style={[styles.disputeStatusTagText, { color: '#059669' }]}>Đã giải quyết</Text>
+                  </View>
+                </View>
 
-            {/* CASE 1: MATCH ALREADY DISPUTED (Viewing existing dispute / Host Counter Evidence) */}
-            {isDisputed && disputeDetail ? (
+                {/* Admin Resolution Box */}
+                <View style={styles.resolvedBox}>
+                  <Ionicons name="ribbon" size={26} color="#059669" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.resolvedTitle}>Kết quả phân xử từ Ban Quản Trị</Text>
+                    <Text style={styles.resolvedScore}>{disputeDetail?.resolvedResultJson || `${hostScoreDisplay} - ${guestScoreDisplay}`}</Text>
+                    <Text style={styles.resolvedNote}>
+                      {disputeDetail?.resolutionNote || 'Trận đấu đã hoàn tất xử lý và chốt kết quả xếp hạng chính thức.'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Dispute Details if available */}
+                {disputeDetail ? (
+                  <View style={styles.disputeInfoBox}>
+                    <Text style={styles.infoLabel}>Bên gửi khiếu nại ban đầu:</Text>
+                    <Text style={styles.infoValue}>CLB {disputeDetail.openedByClubName || guest?.name || 'Bên B'}</Text>
+
+                    <Text style={[styles.infoLabel, { marginTop: 8 }]}>Lý do khiếu nại:</Text>
+                    <Text style={styles.infoValueHighlight}>
+                      {DISPUTE_REASONS.find((r) => r.code === disputeDetail.reasonCode)?.label || disputeDetail.reasonCode}
+                    </Text>
+
+                    {disputeDetail.description ? (
+                      <>
+                        <Text style={[styles.infoLabel, { marginTop: 8 }]}>Nội dung khiếu nại:</Text>
+                        <Text style={styles.infoValue}>{disputeDetail.description}</Text>
+                      </>
+                    ) : null}
+
+                    {disputeDetail.guestEvidenceImageUrl ? (
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={styles.infoLabel}>Ảnh minh chứng từ Bên B:</Text>
+                        <Image source={{ uri: disputeDetail.guestEvidenceImageUrl }} style={styles.evidenceImagePreview} resizeMode="cover" />
+                      </View>
+                    ) : null}
+
+                    {/* Host counter evidence if submitted */}
+                    {disputeDetail.hostHasSubmittedEvidence ? (
+                      <View style={[styles.submittedEvidenceBox, { marginTop: 12 }]}>
+                        <View style={styles.submittedEvidenceHeader}>
+                          <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                          <Text style={styles.submittedEvidenceTitle}>Bằng chứng đối chất của Chủ nhà (Bên A)</Text>
+                        </View>
+                        {disputeDetail.hostEvidenceDescription ? (
+                          <View style={{ marginTop: 4 }}>
+                            <Text style={styles.infoLabel}>Giải trình của Chủ nhà:</Text>
+                            <Text style={styles.infoValue}>{disputeDetail.hostEvidenceDescription}</Text>
+                          </View>
+                        ) : null}
+                        {disputeDetail.hostEvidenceImageUrl ? (
+                          <Image source={{ uri: disputeDetail.hostEvidenceImageUrl }} style={styles.evidenceImagePreview} resizeMode="cover" />
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {/* Action Buttons for Resolved State */}
+                <View style={{ gap: 8, marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={styles.viewResultBtn}
+                    onPress={() => router.push(`/matchmaking/${room.id}/result` as any)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="trophy-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.viewResultBtnText}>Xem Kết Quả & Điểm CRP Trận Đấu</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.secondaryActionBtn}
+                    onPress={() => router.push(`/matchmaking/${room.id}` as any)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.secondaryActionBtnText}>Về chi tiết kèo đấu</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+            ) : isDisputed && disputeDetail ? (
+              /* CASE 2: MATCH UNDER ACTIVE DISPUTE */
               <View style={styles.card}>
                 <View style={styles.sectionHeaderRow}>
                   <Ionicons name="alert-circle" size={20} color="#DC2626" />
                   <Text style={styles.sectionTitle}>Hồ sơ khiếu nại trận đấu</Text>
                   <View style={styles.disputeStatusTag}>
-                    <Text style={styles.disputeStatusTagText}>{disputeDetail.status === 'RESOLVED' ? 'Đã giải quyết' : 'Đang xử lý'}</Text>
+                    <Text style={styles.disputeStatusTagText}>Đang xử lý</Text>
+                  </View>
+                </View>
+
+                {/* FREEZE NOTICE */}
+                <View style={styles.freezeNotice}>
+                  <Ionicons name="shield-outline" size={20} color="#0369A1" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.freezeNoticeTitle}>Đóng băng điểm số an toàn</Text>
+                    <Text style={styles.freezeNoticeSub}>
+                      Khi trận đấu có khiếu nại, điểm ELO và CRP được đóng băng cho đến khi Ban Quản Trị kiểm tra và ra quyết định chính thức.
+                    </Text>
                   </View>
                 </View>
 
@@ -393,137 +484,124 @@ export function MatchDisputeScreen() {
                 </View>
 
                 {/* 24-HOUR COUNTDOWN & HOST COUNTER-EVIDENCE SECTION */}
-                {disputeDetail.status === 'OPEN' && (
-                  <View style={styles.counterSection}>
-                    <View style={styles.deadlineBox}>
-                      <Ionicons name="timer-outline" size={20} color="#B45309" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.deadlineTitle}>Thời hạn gửi bằng chứng đối chất:</Text>
-                        <Text style={styles.deadlineTimer}>{getRemainingHours()}</Text>
-                        <Text style={styles.deadlineSub}>
-                          Nếu quá 24h Chủ nhà không gửi bằng chứng đối chất, bên B sẽ được mặc định xử thắng 3-0 và bên A bị trừ 10 CRP.
-                        </Text>
-                      </View>
+                <View style={styles.counterSection}>
+                  <View style={styles.deadlineBox}>
+                    <Ionicons name="timer-outline" size={20} color="#B45309" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.deadlineTitle}>Thời hạn gửi bằng chứng đối chất:</Text>
+                      <Text style={styles.deadlineTimer}>{getRemainingHours()}</Text>
+                      <Text style={styles.deadlineSub}>
+                        Nếu quá 24h Chủ nhà không gửi bằng chứng đối chất, bên B sẽ được mặc định xử thắng 3-0 và bên A bị trừ 10 CRP.
+                      </Text>
                     </View>
+                  </View>
 
-                    {/* If Host already submitted evidence */}
-                    {disputeDetail.hostHasSubmittedEvidence ? (
-                      <View style={styles.submittedEvidenceBox}>
-                        <View style={styles.submittedEvidenceHeader}>
-                          <Ionicons name="checkmark-circle" size={18} color="#059669" />
-                          <Text style={styles.submittedEvidenceTitle}>Chủ nhà đã gửi bằng chứng đối chất</Text>
-                        </View>
-                        {disputeDetail.hostEvidenceDescription ? (
-                          <View style={{ marginTop: 6, marginBottom: 8 }}>
-                            <Text style={styles.infoLabel}>Giải trình của Chủ nhà:</Text>
-                            <Text style={styles.infoValue}>{disputeDetail.hostEvidenceDescription}</Text>
-                          </View>
-                        ) : null}
-                        {disputeDetail.hostEvidenceImageUrl ? (
-                          <Image source={{ uri: disputeDetail.hostEvidenceImageUrl }} style={styles.evidenceImagePreview} resizeMode="cover" />
-                        ) : null}
-                        <Text style={styles.submittedEvidenceSub}>
-                          Cả hai bên đã cung cấp đầy đủ thông tin. Ban Quản Trị đang tiến hành đối chiếu xử lý tại hệ thống Admin.
-                        </Text>
+                  {/* If Host already submitted evidence */}
+                  {disputeDetail.hostHasSubmittedEvidence ? (
+                    <View style={styles.submittedEvidenceBox}>
+                      <View style={styles.submittedEvidenceHeader}>
+                        <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                        <Text style={styles.submittedEvidenceTitle}>Chủ nhà đã gửi bằng chứng đối chất</Text>
                       </View>
-                    ) : isHost ? (
-                      /* Host Counter Evidence Form (STRICTLY ONLY FOR HOST A) */
-                      <View style={styles.counterFormBox}>
-                        <Text style={styles.formHeading}>Gửi bằng chứng đối chất (dành cho chủ nhà A)</Text>
-                        <Text style={styles.formSubText}>
-                          Nhập giải trình và đính kèm ảnh minh chứng để bảo vệ kết quả của bạn:
-                        </Text>
+                      {disputeDetail.hostEvidenceDescription ? (
+                        <View style={{ marginTop: 6, marginBottom: 8 }}>
+                          <Text style={styles.infoLabel}>Giải trình của Chủ nhà:</Text>
+                          <Text style={styles.infoValue}>{disputeDetail.hostEvidenceDescription}</Text>
+                        </View>
+                      ) : null}
+                      {disputeDetail.hostEvidenceImageUrl ? (
+                        <Image source={{ uri: disputeDetail.hostEvidenceImageUrl }} style={styles.evidenceImagePreview} resizeMode="cover" />
+                      ) : null}
+                      <Text style={styles.submittedEvidenceSub}>
+                        Cả hai bên đã cung cấp đầy đủ thông tin. Ban Quản Trị đang tiến hành đối chiếu xử lý tại hệ thống Admin.
+                      </Text>
+                    </View>
+                  ) : isHost ? (
+                    /* Host Counter Evidence Form (STRICTLY ONLY FOR HOST A) */
+                    <View style={styles.counterFormBox}>
+                      <Text style={styles.formHeading}>Gửi bằng chứng đối chất (dành cho chủ nhà A)</Text>
+                      <Text style={styles.formSubText}>
+                        Nhập giải trình và đính kèm ảnh minh chứng để bảo vệ kết quả của bạn:
+                      </Text>
 
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="Nhập giải trình hoặc ghi chú phản bác của bạn..."
-                          placeholderTextColor="#94A3B8"
-                          value={counterNote}
-                          onChangeText={setCounterNote}
-                          multiline
-                          numberOfLines={3}
-                        />
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Nhập giải trình hoặc ghi chú phản bác của bạn..."
+                        placeholderTextColor="#94A3B8"
+                        value={counterNote}
+                        onChangeText={setCounterNote}
+                        multiline
+                        numberOfLines={3}
+                      />
 
-                        {counterEvidenceUri ? (
-                          <View style={styles.imagePreviewContainer}>
-                            <Image source={{ uri: counterEvidenceUri }} style={styles.pickedImagePreview} />
-                            <TouchableOpacity
-                              style={styles.removeImageBtn}
-                              onPress={() => setCounterEvidenceUri(null)}
-                            >
-                              <Ionicons name="close-circle" size={22} color="#DC2626" />
-                              <Text style={styles.removeImageText}>Xóa ảnh</Text>
-                            </TouchableOpacity>
+                      {counterEvidenceUri ? (
+                        <View style={styles.imagePreviewContainer}>
+                          <Image source={{ uri: counterEvidenceUri }} style={styles.pickedImagePreview} />
+                          <TouchableOpacity
+                            style={styles.removeImageBtn}
+                            onPress={() => setCounterEvidenceUri(null)}
+                          >
+                            <Ionicons name="close-circle" size={22} color="#DC2626" />
+                            <Text style={styles.removeImageText}>Xóa ảnh</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View style={styles.pickImageRow}>
+                          <TouchableOpacity
+                            style={styles.pickBtn}
+                            onPress={() => handlePickImage(true)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="images-outline" size={18} color="#0284C7" />
+                            <Text style={styles.pickBtnText}>Chọn từ thư viện</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.pickBtn}
+                            onPress={() => handleTakePhoto(true)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="camera-outline" size={18} color="#0284C7" />
+                            <Text style={styles.pickBtnText}>Chụp ảnh mới</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        disabled={submittingCounter || uploadingImage}
+                        onPress={handleSubmitCounterEvidence}
+                        style={styles.submitBtn}
+                        activeOpacity={0.85}
+                      >
+                        {submittingCounter || uploadingImage ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <ActivityIndicator color="#FFFFFF" size="small" />
+                            <Text style={styles.submitBtnText}>
+                              {uploadingImage ? 'Đang tải ảnh lên...' : 'Đang gửi đối chất...'}
+                            </Text>
                           </View>
                         ) : (
-                          <View style={styles.pickImageRow}>
-                            <TouchableOpacity
-                              style={styles.pickBtn}
-                              onPress={() => handlePickImage(true)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="images-outline" size={18} color="#0284C7" />
-                              <Text style={styles.pickBtnText}>Chọn từ thư viện</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.pickBtn}
-                              onPress={() => handleTakePhoto(true)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="camera-outline" size={18} color="#0284C7" />
-                              <Text style={styles.pickBtnText}>Chụp ảnh mới</Text>
-                            </TouchableOpacity>
-                          </View>
+                          <Text style={styles.submitBtnText}>Gửi bằng chứng đối chất</Text>
                         )}
-
-                        <TouchableOpacity
-                          disabled={submittingCounter || uploadingImage}
-                          onPress={handleSubmitCounterEvidence}
-                          style={styles.submitBtn}
-                          activeOpacity={0.85}
-                        >
-                          {submittingCounter || uploadingImage ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <ActivityIndicator color="#FFFFFF" size="small" />
-                              <Text style={styles.submitBtnText}>
-                                {uploadingImage ? 'Đang tải ảnh lên...' : 'Đang gửi đối chất...'}
-                              </Text>
-                            </View>
-                          ) : (
-                            <Text style={styles.submitBtnText}>Gửi bằng chứng đối chất</Text>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      /* GUEST B & NON-HOST VIEW: Informational waiting badge */
-                      <View style={styles.waitingForHostBadge}>
-                        <Ionicons name="hourglass-outline" size={20} color="#D97706" />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.waitingForHostTitle}>Đang chờ chủ nhà (Bên A) phản hồi</Text>
-                          <Text style={styles.waitingForHostSub}>
-                            Chủ nhà (Bên A) có tối đa 24 giờ để gửi bằng chứng đối chất. Nếu bên A không phản hồi, hệ thống sẽ tự động xử bên B thắng 3-0 và trừ 10 điểm CRP của bên A.
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* If Dispute is RESOLVED */}
-                {disputeDetail.status === 'RESOLVED' && (
-                  <View style={styles.resolvedBox}>
-                    <Ionicons name="ribbon" size={24} color="#059669" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.resolvedTitle}>Đã có kết quả xử lý từ Admin</Text>
-                      <Text style={styles.resolvedScore}>{disputeDetail.resolvedResultJson || '3 - 0'}</Text>
-                      <Text style={styles.resolvedNote}>{disputeDetail.resolutionNote || 'Trận đấu đã hoàn tất xử lý.'}</Text>
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                )}
+                  ) : (
+                    /* GUEST B & NON-HOST VIEW: Informational waiting badge */
+                    <View style={styles.waitingForHostBadge}>
+                      <Ionicons name="hourglass-outline" size={20} color="#D97706" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.waitingForHostTitle}>Đang chờ chủ nhà (Bên A) phản hồi</Text>
+                        <Text style={styles.waitingForHostSub}>
+                          Chủ nhà (Bên A) có tối đa 24 giờ để gửi bằng chứng đối chất. Nếu bên A không phản hồi, hệ thống sẽ tự động xử bên B thắng 3-0 và trừ 10 điểm CRP của bên A.
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
               </View>
-            ) : isHost ? (
-              /* CASE 2A: HOST A TRIES TO OPEN DISPUTE FORM BEFORE DISPUTE */
+
+            ) : isHost && (room.status === 'SCORE_CONFIRMING' || room.status === 'RESULT_OVERDUE') ? (
+              /* CASE 3A: HOST A TRIES TO OPEN DISPUTE FORM BEFORE DISPUTE */
               <View style={styles.card}>
                 <View style={styles.infoOnlyBox}>
                   <Ionicons name="checkmark-done-circle-outline" size={32} color="#059669" />
@@ -536,8 +614,9 @@ export function MatchDisputeScreen() {
                   </Text>
                 </View>
               </View>
-            ) : (
-              /* CASE 2B: FILING A NEW DISPUTE (Guest B) */
+
+            ) : canFileDispute ? (
+              /* CASE 3B: FILING A NEW DISPUTE (Guest B during score confirmation) */
               <View style={styles.card}>
                 <Text style={styles.cardHeading}>Báo sai tỷ số & khiếu nại trận đấu</Text>
                 <Text style={styles.cardSubtitle}>
@@ -645,6 +724,24 @@ export function MatchDisputeScreen() {
                     <Text style={styles.submitBtnText}>Gửi khiếu nại lên Admin</Text>
                   )}
                 </TouchableOpacity>
+              </View>
+
+            ) : (
+              /* CASE 4: OTHER MATCH STATUSES */
+              <View style={styles.card}>
+                <View style={styles.infoOnlyBox}>
+                  <Ionicons name="information-circle-outline" size={32} color="#0284C7" />
+                  <Text style={[styles.infoOnlyTitle, { color: '#0284C7' }]}>Không có khiếu nại</Text>
+                  <Text style={styles.infoOnlySub}>
+                    Trận đấu hiện tại không ở trạng thái tranh chấp tỷ số.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.secondaryActionBtn, { marginTop: 12 }]}
+                    onPress={() => router.push(`/matchmaking/${room.id}` as any)}
+                  >
+                    <Text style={styles.secondaryActionBtnText}>Về chi tiết kèo đấu</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -1152,5 +1249,35 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     marginTop: 4,
+  },
+  viewResultBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  viewResultBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  secondaryActionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  secondaryActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
   },
 });

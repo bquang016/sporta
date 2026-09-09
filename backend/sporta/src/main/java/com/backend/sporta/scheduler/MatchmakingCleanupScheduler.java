@@ -182,20 +182,21 @@ public class MatchmakingCleanupScheduler {
                         expJson = objectMapper.writeValueAsString(crpRes.getExplanation());
                     } catch (Exception ignored) {}
 
-                    com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                            .match(match)
-                            .outcome(sub.getOutcome())
-                            .finalScoreText(scoreText)
-                            .hostCrpBefore(crpRes.getHostCrpBefore())
-                            .hostCrpDelta(crpRes.getHostCrpDelta())
-                            .hostCrpAfter(crpRes.getHostCrpAfter())
-                            .guestCrpBefore(crpRes.getGuestCrpBefore())
-                            .guestCrpDelta(crpRes.getGuestCrpDelta())
-                            .guestCrpAfter(crpRes.getGuestCrpAfter())
-                            .isRankedEligible(crpRes.isRankedEligible())
-                            .explanationJson(expJson)
-                            .confirmedAt(LocalDateTime.now())
-                            .build();
+                    com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                            .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+                    result.setOutcome(sub.getOutcome());
+                    result.setFinalScoreText(scoreText);
+                    result.setHostCrpBefore(crpRes.getHostCrpBefore());
+                    result.setHostCrpDelta(crpRes.getHostCrpDelta());
+                    result.setHostCrpAfter(crpRes.getHostCrpAfter());
+                    result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+                    result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+                    result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+                    result.setIsRankedEligible(crpRes.isRankedEligible());
+                    result.setExplanationJson(expJson);
+                    result.setConfirmedAt(LocalDateTime.now());
+
                     matchResultRepository.save(result);
 
                     if (crpRes.isRankedEligible() && crpLedgerRepository.findByMatchIdAndClubId(match.getId(), hostClub.getId()).isEmpty()) {
@@ -318,20 +319,21 @@ public class MatchmakingCleanupScheduler {
 
                         String scoreText = adapter.getCanonicalScoreText(effectiveHostScore, effectiveGuestScore, effectiveRaw);
 
-                        com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                                .match(match)
-                                .outcome(outcome)
-                                .finalScoreText(scoreText)
-                                .hostCrpBefore(crpRes.getHostCrpBefore())
-                                .hostCrpDelta(crpRes.getHostCrpDelta())
-                                .hostCrpAfter(crpRes.getHostCrpAfter())
-                                .guestCrpBefore(crpRes.getGuestCrpBefore())
-                                .guestCrpDelta(crpRes.getGuestCrpDelta())
-                                .guestCrpAfter(crpRes.getGuestCrpAfter())
-                                .isRankedEligible(crpRes.isRankedEligible())
-                                .explanationJson("[]")
-                                .confirmedAt(LocalDateTime.now())
-                                .build();
+                        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+                        result.setOutcome(outcome);
+                        result.setFinalScoreText(scoreText);
+                        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+                        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+                        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+                        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+                        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+                        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+                        result.setIsRankedEligible(crpRes.isRankedEligible());
+                        result.setExplanationJson("[]");
+                        result.setConfirmedAt(LocalDateTime.now());
+
                         matchResultRepository.save(result);
 
                         int penaltyCrp = 10;

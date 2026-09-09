@@ -316,7 +316,13 @@ public class MatchmakingServiceImpl implements MatchmakingService {
     public MatchRoomResponse getRoomDetail(UUID roomId, String userEmail) {
         User user = getUserByEmail(userEmail);
         MatchRoom room = matchRoomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin bài đăng ghép trận", 404));
+                .orElseGet(() -> {
+                    Match match = matchRepository.findById(roomId).orElse(null);
+                    return match != null ? match.getRoom() : null;
+                });
+        if (room == null) {
+            throw new CustomException("Không tìm thấy thông tin bài đăng ghép trận", 404);
+        }
 
         Match match = findMatchByRoomIdOrMatchId(room.getId());
         return mapToRoomResponse(room, match, user);
@@ -833,20 +839,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             expJson = "[]";
         }
 
-        com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                .match(match)
-                .outcome(submission.getOutcome())
-                .finalScoreText(scoreText)
-                .hostCrpBefore(crpRes.getHostCrpBefore())
-                .hostCrpDelta(crpRes.getHostCrpDelta())
-                .hostCrpAfter(crpRes.getHostCrpAfter())
-                .guestCrpBefore(crpRes.getGuestCrpBefore())
-                .guestCrpDelta(crpRes.getGuestCrpDelta())
-                .guestCrpAfter(crpRes.getGuestCrpAfter())
-                .isRankedEligible(crpRes.isRankedEligible())
-                .explanationJson(expJson)
-                .confirmedAt(LocalDateTime.now())
-                .build();
+        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+        result.setOutcome(submission.getOutcome());
+        result.setFinalScoreText(scoreText);
+        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+        result.setIsRankedEligible(crpRes.isRankedEligible());
+        result.setExplanationJson(expJson);
+        result.setConfirmedAt(LocalDateTime.now());
 
         matchResultRepository.save(result);
 
@@ -919,6 +925,18 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 && user.getRole() != Role.ADMIN
                 && user.getRole() != Role.SUPER_ADMIN) {
             throw new CustomException("Chỉ chủ/quản lý CLB mới được từ chối tỷ số/khiếu nại", 403);
+        }
+
+        if (match.getStatus() == MatchStatus.RESULT_FINAL) {
+            throw new CustomException("Trận đấu đã kết thúc và có kết quả chính thức. Không thể gửi khiếu nại.", 400);
+        }
+
+        if (match.getStatus() == MatchStatus.DISPUTED || disputeRepository.findByMatchIdAndStatusIn(match.getId(), List.of(DisputeStatus.OPEN)).isPresent()) {
+            throw new CustomException("Trận đấu này đang có hồ sơ khiếu nại đang chờ Ban Quản Trị xử lý.", 400);
+        }
+
+        if (match.getStatus() != MatchStatus.SCORE_CONFIRMING && match.getStatus() != MatchStatus.RESULT_OVERDUE) {
+            throw new CustomException("Chỉ có thể gửi khiếu nại khi đối thủ đã nhập tỷ số hoặc quá hạn xác nhận.", 400);
         }
 
         Club openedClub = (match.getGuestClub() != null && isClubAdmin(match.getGuestClub().getId(), user.getId()))
@@ -1048,19 +1066,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             expJson = "[\"Kết quả Hòa theo đồng thuận\"]";
         }
 
-        com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                .match(match)
-                .outcome(NormalizedOutcome.DRAW)
-                .finalScoreText("Hòa (Đồng thuận)")
-                .hostCrpBefore(crpRes.getHostCrpBefore())
-                .hostCrpDelta(crpRes.getHostCrpDelta())
-                .hostCrpAfter(crpRes.getHostCrpAfter())
-                .guestCrpBefore(crpRes.getGuestCrpBefore())
-                .guestCrpDelta(crpRes.getGuestCrpDelta())
-                .guestCrpAfter(crpRes.getGuestCrpAfter())
-                .isRankedEligible(crpRes.isRankedEligible())
-                .explanationJson(expJson)
-                .build();
+        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+        result.setOutcome(NormalizedOutcome.DRAW);
+        result.setFinalScoreText("Hòa (Đồng thuận)");
+        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+        result.setIsRankedEligible(crpRes.isRankedEligible());
+        result.setExplanationJson(expJson);
+        result.setConfirmedAt(LocalDateTime.now());
 
         matchResultRepository.save(result);
 
@@ -1128,6 +1147,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         }
 
         Dispute dispute = disputeRepository.findByMatchIdAndStatusIn(match.getId(), List.of(DisputeStatus.OPEN, DisputeStatus.RESOLVED))
+                .or(() -> disputeRepository.findFirstByMatchIdOrderByCreatedAtDesc(match.getId()))
                 .orElseThrow(() -> new CustomException("Trận đấu này không có dữ liệu khiếu nại/tranh chấp", 404));
 
         List<DisputeEvidence> evidences = disputeEvidenceRepository.findByDisputeId(dispute.getId());
