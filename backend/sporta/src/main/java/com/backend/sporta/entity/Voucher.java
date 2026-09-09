@@ -105,6 +105,7 @@ public class Voucher {
 
     /** Danh sách cụm sân áp dụng (nếu owner chọn "cụm sân cụ thể") */
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Builder.Default
     private List<VoucherVenue> applicableVenues = new ArrayList<>();
 

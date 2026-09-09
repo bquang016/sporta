@@ -23,9 +23,11 @@ public class VoucherVenue {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "voucher_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Voucher voucher;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venue_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"images", "venuePolicy", "owner"})
     private Venue venue;
 }

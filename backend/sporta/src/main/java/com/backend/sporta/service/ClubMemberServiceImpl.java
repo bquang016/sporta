@@ -621,4 +621,145 @@ public class ClubMemberServiceImpl implements ClubMemberService {
         memberToDemote.setRole(ClubMemberRole.MEMBER);
         clubMemberRepository.save(memberToDemote);
     }
+
+    private boolean isDevOrAdmin(User user) {
+        if (user == null) return false;
+        if (Boolean.TRUE.equals(user.getIsDevTester())) return true;
+        return user.getRole() == com.backend.sporta.enums.Role.ADMIN 
+            || user.getRole() == com.backend.sporta.enums.Role.SUPER_ADMIN;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.backend.sporta.dto.DevClubCandidateResponse> getDevCandidateUsers(Long clubId, String userEmail) {
+        User caller = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        if (!isDevOrAdmin(caller)) {
+            throw new RuntimeException("Bạn không có quyền DEV/Admin để thực hiện thao tác này");
+        }
+
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy câu lạc bộ"));
+
+        // Lấy danh sách ID user đã có trong CLB
+        java.util.Set<Long> existingMemberUserIds = clubMemberRepository.findByClubId(clubId).stream()
+                .filter(cm -> cm.getUser() != null)
+                .map(cm -> cm.getUser().getId())
+                .collect(Collectors.toSet());
+
+        Long sportId = club.getSport() != null ? club.getSport().getId() : null;
+
+        List<User> allUsers = userRepository.findAll();
+        List<com.backend.sporta.dto.DevClubCandidateResponse> candidates = new ArrayList<>();
+
+        for (User u : allUsers) {
+            if (u.getIsDeleted()) continue;
+            if (existingMemberUserIds.contains(u.getId())) continue;
+
+            int elo = 1000;
+            if (sportId != null) {
+                Optional<UserSport> us = userSportRepository.findByUserIdAndSportId(u.getId(), sportId);
+                if (us.isPresent()) {
+                    elo = us.get().getEffectiveElo();
+                }
+            }
+
+            candidates.add(com.backend.sporta.dto.DevClubCandidateResponse.builder()
+                    .id(u.getId())
+                    .fullName(u.getFullName() != null ? u.getFullName() : (u.getEmail() != null ? u.getEmail().split("@")[0] : "User #" + u.getId()))
+                    .email(u.getEmail())
+                    .avatarUrl(u.getAvatarUrl() != null ? u.getAvatarUrl() : "")
+                    .role(u.getRole() != null ? u.getRole().name() : "PLAYER")
+                    .elo(elo)
+                    .isDevTester(Boolean.TRUE.equals(u.getIsDevTester()))
+                    .build());
+        }
+
+        return candidates;
+    }
+
+    @Override
+    @Transactional
+    public java.util.Map<String, Object> devAssignMembers(Long clubId, com.backend.sporta.dto.DevAssignClubMembersRequest request, String userEmail) {
+        User caller = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        if (!isDevOrAdmin(caller)) {
+            throw new RuntimeException("Bạn không có quyền DEV/Admin để thực hiện thao tác này");
+        }
+
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy câu lạc bộ"));
+
+        if (request == null || request.getUserIds() == null || request.getUserIds().isEmpty()) {
+            throw new RuntimeException("Vui lòng chọn ít nhất 1 người dùng để gán vào CLB");
+        }
+
+        // Lấy danh sách ID user đã có trong CLB
+        java.util.Set<Long> existingMemberUserIds = clubMemberRepository.findByClubId(clubId).stream()
+                .filter(cm -> cm.getUser() != null)
+                .map(cm -> cm.getUser().getId())
+                .collect(Collectors.toSet());
+
+        Long sportId = club.getSport() != null ? club.getSport().getId() : null;
+        List<String> addedUserNames = new ArrayList<>();
+
+        for (Long targetUserId : request.getUserIds()) {
+            if (targetUserId == null) continue;
+            if (existingMemberUserIds.contains(targetUserId)) continue;
+
+            User targetUser = userRepository.findById(targetUserId).orElse(null);
+            if (targetUser == null || targetUser.getIsDeleted()) continue;
+
+            // Tạo thành viên CLB APPROVED
+            ClubMember newMember = ClubMember.builder()
+                    .club(club)
+                    .user(targetUser)
+                    .role(ClubMemberRole.MEMBER)
+                    .status(ClubMemberStatus.APPROVED)
+                    .joinedAt(java.time.LocalDateTime.now())
+                    .build();
+            clubMemberRepository.save(newMember);
+            existingMemberUserIds.add(targetUserId);
+            addedUserNames.add(targetUser.getFullName() != null ? targetUser.getFullName() : targetUser.getEmail());
+
+            // Đảm bảo user có UserSport tương ứng với môn của CLB
+            if (sportId != null) {
+                Optional<UserSport> existingUs = userSportRepository.findByUserIdAndSportId(targetUserId, sportId);
+                if (existingUs.isEmpty()) {
+                    UserSport newUs = UserSport.builder()
+                            .user(targetUser)
+                            .sport(club.getSport())
+                            .level(com.backend.sporta.enums.SportLevel.AVERAGE)
+                            .eloRating(1350)
+                            .eloStatus(com.backend.sporta.enums.EloStatus.UNVERIFIED)
+                            .placementMatchesPlayed(0)
+                            .totalRankedMatches(0)
+                            .totalWins(0)
+                            .build();
+                    userSportRepository.save(newUs);
+                }
+            }
+
+            // Làm mới cache feed cho user
+            postFeedService.clearFeedCache(targetUserId);
+        }
+
+        // Cập nhật điểm ELO CLB
+        int newClubElo = clubEloService.getClubElo(club);
+        club.setElo(newClubElo);
+        clubRepository.save(club);
+
+        int totalMembers = (int) clubMemberRepository.countByClubIdAndStatus(clubId, ClubMemberStatus.APPROVED);
+
+        return java.util.Map.of(
+                "success", true,
+                "message", "Đã gán thành công " + addedUserNames.size() + " thành viên vào CLB",
+                "addedCount", addedUserNames.size(),
+                "addedNames", addedUserNames,
+                "totalMembers", totalMembers,
+                "clubElo", newClubElo
+        );
+    }
 }

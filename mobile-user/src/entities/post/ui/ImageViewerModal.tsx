@@ -329,7 +329,10 @@ export function ImageViewerModal({
             <View style={styles.bottomOverlayCard}>
               {author && (
                 <View style={styles.authorRow}>
-                  <Image source={{ uri: author.avatar }} style={styles.authorAvatar} />
+                  <Image 
+                    source={author.avatar ? { uri: author.avatar } : require('../../../../assets/player/player_699x699.png')} 
+                    style={styles.authorAvatar} 
+                  />
                   <View style={styles.authorTextCol}>
                     <View style={styles.authorNameRow}>
                       <Text style={styles.authorName}>{author.name}</Text>

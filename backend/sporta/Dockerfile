@@ -32,7 +32,8 @@ RUN chown -R sporta:sporta /app
 USER sporta
 EXPOSE 8387
 
+ENV TZ="Asia/Ho_Chi_Minh"
 # JVM memory flags optimized for VPS
-ENV JAVA_OPTS="-Xms512m -Xmx1536m -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
+ENV JAVA_OPTS="-Duser.timezone=Asia/Ho_Chi_Minh -Xms512m -Xmx1536m -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -22,11 +22,11 @@ export const CommentItem = React.memo(({
     <View style={styles.container}>
       <TouchableOpacity activeOpacity={0.8} onPress={() => onUserPress?.(comment.author.id)}>
         <Image
-          source={{
-            uri:
-              comment.author.avatar ||
-              '',
-          }}
+          source={
+            comment.author.avatar
+              ? { uri: comment.author.avatar }
+              : require('../../../../assets/player/player_699x699.png')
+          }
           style={styles.avatar}
         />
       </TouchableOpacity>

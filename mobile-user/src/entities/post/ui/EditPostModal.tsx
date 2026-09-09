@@ -138,11 +138,11 @@ export const EditPostModal = React.memo(({
             {/* Author Profile Row */}
             <View style={styles.authorRow}>
               <Image
-                source={{
-                  uri:
-                    post.author.avatar ||
-                    '',
-                }}
+                source={
+                  post.author.avatar
+                    ? { uri: post.author.avatar }
+                    : require('../../../../assets/player/player_699x699.png')
+                }
                 style={styles.authorAvatar}
               />
               <View style={styles.authorInfo}>

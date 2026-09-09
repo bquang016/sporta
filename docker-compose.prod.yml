@@ -9,9 +9,10 @@ services:
     container_name: sporta_postgres
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USERNAME:-sporta_dev}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-sporta_password}
-      POSTGRES_DB: ${DB_NAME:-sporta_database}
+      - TZ=Asia/Ho_Chi_Minh
+      - POSTGRES_USER=${DB_USERNAME:-sporta_dev}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-sporta_password}
+      - POSTGRES_DB=${DB_NAME:-sporta_database}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -37,6 +38,7 @@ services:
     env_file:
       - ./backend/sporta/.env
     environment:
+      - TZ=Asia/Ho_Chi_Minh
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/${DB_NAME:-sporta_database}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-sporta_dev}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-sporta_password}

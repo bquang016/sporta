@@ -25,6 +25,7 @@ public class LineupMember {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lineup_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private MatchLineup lineup;
 
     @ManyToOne(fetch = FetchType.LAZY)

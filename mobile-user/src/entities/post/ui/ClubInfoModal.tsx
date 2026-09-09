@@ -191,11 +191,11 @@ function ClubInfoModalContent({
     clubDetail?.avatarImage ||
     clubDetail?.avatarUrl ||
     clubInfo.avatarUrl ||
-    '';
+    'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=300';
 
   const displayCover =
     clubDetail?.coverImage ||
-    '';
+    'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800';
 
   const displayName = clubDetail?.name || clubInfo.name;
   const displayDescription =
