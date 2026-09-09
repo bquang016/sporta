@@ -20,8 +20,9 @@ export function useLogin() {
 
   // Google Sign-In setup
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
-    webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
+    clientId: '347757325647-tfevg4mv3u9uvua3qofhbpav4sakuv3c.apps.googleusercontent.com',
+    webClientId: '347757325647-tfevg4mv3u9uvua3qofhbpav4sakuv3c.apps.googleusercontent.com',
+    androidClientId: '347757325647-480ihgvt2vmgvd73dehdqna15alcfv91.apps.googleusercontent.com',
   });
 
   useEffect(() => {

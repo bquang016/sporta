@@ -71,8 +71,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a4caead3-7bc0-40b2-991c-c15a79705263"
+        "projectId": "2d137a0a-efe5-4714-8eed-93f5e94aafe3"
       }
-    }
+    },
+    "owner": "nkm14"
   }
 }
