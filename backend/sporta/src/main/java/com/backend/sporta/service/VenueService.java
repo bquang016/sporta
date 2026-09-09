@@ -15,6 +15,7 @@ import com.backend.sporta.entity.Booking;
 import com.backend.sporta.entity.Court;
 import com.backend.sporta.entity.CourtPriceRule;
 import com.backend.sporta.entity.Owner;
+import com.backend.sporta.entity.User;
 import com.backend.sporta.entity.Sport;
 import com.backend.sporta.entity.Venue;
 import com.backend.sporta.entity.VenueImage;
@@ -41,6 +42,7 @@ import com.backend.sporta.repository.CourtPriceRuleRepository;
 import com.backend.sporta.repository.OwnerContractRepository;
 import com.backend.sporta.dto.VenuePolicyResponse;
 import com.backend.sporta.repository.VenuePolicyRepository;
+import com.backend.sporta.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +61,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class VenueService {
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private VenueRepository venueRepository;
@@ -92,6 +97,22 @@ public class VenueService {
 
     @Autowired
     private VenuePolicyRepository venuePolicyRepository;
+
+    public Owner getOrCreateOwner(String email) {
+        return ownerRepository.findByUserEmail(email).orElseGet(() -> {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy thông tin tài khoản người dùng", 404));
+
+            Owner newOwner = Owner.builder()
+                    .user(user)
+                    .fullName(user.getFullName() != null && !user.getFullName().trim().isEmpty() ? user.getFullName() : "Chủ Sân")
+                    .phoneNumber(user.getPhoneNumber())
+                    .gender(user.getGender() != null ? user.getGender().name() : "Nam")
+                    .nationality("Việt Nam")
+                    .build();
+            return ownerRepository.save(newOwner);
+        });
+    }
 
     public List<VenueResponse> getVenuesByOwnerEmail(String email) {
         return venueRepository.findByOwnerUserEmail(email).stream()
@@ -355,8 +376,7 @@ public class VenueService {
 
     @Transactional
     public VenueResponse createVenue(VenueRequest request, String email) {
-        Owner owner = ownerRepository.findByUserEmail(email)
-                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin chủ sở hữu", 404));
+        Owner owner = getOrCreateOwner(email);
 
         Sport sport = null;
         if (request.getSportId() != null) {
@@ -582,8 +602,7 @@ public class VenueService {
 
     @Transactional
     public VenueResponse createVenueDraft(VenueDraftRequest request, String email) {
-        Owner owner = ownerRepository.findByUserEmail(email)
-                .orElseThrow(() -> new CustomException("Không tìm thấy thông tin chủ sở hữu", 404));
+        Owner owner = getOrCreateOwner(email);
 
         Sport sport = null;
         if (request.getSportId() != null) {

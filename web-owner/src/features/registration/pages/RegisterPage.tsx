@@ -18,7 +18,7 @@ export const RegisterPage = () => {
    *  RENDER
    * ================================================================ */
   return (
-    <div className="h-[100dvh] font-sans flex flex-col lg:flex-row select-none overflow-hidden">
+    <div className="min-h-[100dvh] lg:h-[100dvh] font-sans flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden bg-surface-container-low">
 
       {/* ═══════════════════════════════════════════════════════════
        *  LEFT — BRANDING PANEL
@@ -121,11 +121,11 @@ export const RegisterPage = () => {
       {/* ═══════════════════════════════════════════════════════════
        *  RIGHT — REGISTRATION FORM PANEL
        *  Desktop: flex-1 (55%)
-       *  Mobile: flex-1, center content
+       *  Mobile: flex-1, scrollable content
        * ═══════════════════════════════════════════════════════════ */}
       <div
-        className="flex-1 flex flex-col items-center justify-center bg-surface-container-low relative
-                   px-5 py-4 lg:px-16 lg:py-8 min-h-0 overflow-hidden"
+        className="flex-1 flex flex-col items-center justify-start lg:justify-center relative
+                   px-4 py-6 sm:px-6 lg:px-16 lg:py-8 min-h-0 overflow-y-auto"
       >
         {/* ── Decorative: subtle glow blobs ── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">

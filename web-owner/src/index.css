@@ -78,14 +78,11 @@
     @apply bg-background text-on-background font-sans antialiased;
     /* Loại bỏ flash xanh/vàng khi tap element trên mobile */
     -webkit-tap-highlight-color: transparent;
-    /* Tắt bounce scroll iOS — tránh confuse khi scroll đến đầu/cuối trang */
-    overscroll-behavior: none;
     /* Font rendering mượt nhất có thể */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Hỗ trợ chiều cao fallback cho mobile browsers */
     min-height: 100vh;
-    min-height: -webkit-fill-available;
   }
 
   /* ── Safe Area Utilities (iOS Dynamic Island / Notch / Home Indicator) ── */

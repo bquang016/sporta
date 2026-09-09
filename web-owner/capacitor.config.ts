@@ -6,16 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
 
   server: {
-    // androidScheme: 'https' bắt buộc cho Android API 31+ (tránh mixed-content blocking)
+    // androidScheme: 'https' bắt buộc cho Android API 31+
     androidScheme: 'https',
-
-    // ── DEV LIVE RELOAD ──────────────────────────────────────────────────────
-    // Bỏ comment 2 dòng dưới khi muốn test trên điện thoại thật (tương tự Expo Go).
-    // Thay YOUR_LOCAL_IP bằng IP máy tính (ipconfig → IPv4 Address).
-    // Sau khi xong, nhớ comment lại trước khi build production.
-    // url: 'http://YOUR_LOCAL_IP:5173',
-    // cleartext: true,
-    // ────────────────────────────────────────────────────────────────────────
+    // Trỏ thẳng về domain Web Owner trên VPS (Tự động cập nhật khi deploy VPS)
+    url: 'https://owner.sportaa.tech',
+    cleartext: false,
   },
 
   plugins: {

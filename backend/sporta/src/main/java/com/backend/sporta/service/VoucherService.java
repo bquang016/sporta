@@ -52,12 +52,27 @@ public class VoucherService {
 
     // --- OWNER VOUCHER API ---
 
+    private Owner getOrCreateOwner(String email) {
+        return ownerRepository.findByUserEmail(email).orElseGet(() -> {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy thông tin tài khoản người dùng", 404));
+
+            Owner newOwner = Owner.builder()
+                    .user(user)
+                    .fullName(user.getFullName() != null && !user.getFullName().trim().isEmpty() ? user.getFullName() : "Chủ Sân")
+                    .phoneNumber(user.getPhoneNumber())
+                    .gender(user.getGender() != null ? user.getGender().name() : "Nam")
+                    .nationality("Việt Nam")
+                    .build();
+            return ownerRepository.save(newOwner);
+        });
+    }
+
     @Transactional
     public VoucherResponse createOwnerVoucher(String ownerEmail, CreateVoucherRequest request) {
         validateVoucherRequest(request, false);
 
-        Owner owner = ownerRepository.findByUserEmail(ownerEmail)
-                .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
+        Owner owner = getOrCreateOwner(ownerEmail);
 
         Voucher voucher = buildVoucherFromRequest(request, VoucherScope.VENUE);
         voucher.setOwner(owner);
@@ -80,8 +95,7 @@ public class VoucherService {
     }
 
     public Page<VoucherResponse> getOwnerVouchers(String ownerEmail, VoucherStatus status, String keyword, Pageable pageable) {
-        Owner owner = ownerRepository.findByUserEmail(ownerEmail)
-                .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
+        Owner owner = getOrCreateOwner(ownerEmail);
         UUID ownerId = owner.getId();
         
         Page<Voucher> page;
@@ -107,8 +121,7 @@ public class VoucherService {
     }
 
     private Voucher getOwnerVoucher(String ownerEmail, UUID voucherId) {
-        Owner owner = ownerRepository.findByUserEmail(ownerEmail)
-                .orElseThrow(() -> new CustomException("Không tìm thấy chủ sân", 404));
+        Owner owner = getOrCreateOwner(ownerEmail);
                 
         Voucher voucher = voucherRepository.findById(voucherId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy mã khuyến mãi", 404));
