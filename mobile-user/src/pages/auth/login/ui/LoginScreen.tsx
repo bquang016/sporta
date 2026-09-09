@@ -231,6 +231,7 @@ export function LoginScreen() {
     isFocusedPassword,
     setIsFocusedPassword,
     handleGoogleLogin,
+    handleFacebookLogin,
     handleLogin,
     router,
   } = useLogin();
@@ -402,7 +403,7 @@ export function LoginScreen() {
 
           <TouchableOpacity
             style={styles.dockSocialPill}
-            onPress={handleGoogleLogin}
+            onPress={handleFacebookLogin}
             activeOpacity={0.85}
           >
             <FacebookLogo size={18} />
@@ -587,7 +588,7 @@ export function LoginScreen() {
 
               <TouchableOpacity
                 style={styles.socialPillButton}
-                onPress={handleGoogleLogin}
+                onPress={handleFacebookLogin}
                 activeOpacity={0.8}
               >
                 <FacebookLogo size={18} />

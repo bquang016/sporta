@@ -891,6 +891,96 @@ public class AuthService {
         }
     }
 
+    public FacebookLoginResponse facebookLogin(FacebookLoginRequest request) {
+        try {
+            String fbToken = request.getAccessToken();
+            if (fbToken == null || fbToken.isBlank()) {
+                throw new CustomException("Access token Facebook không hợp lệ.", 400);
+            }
+
+            // Gọi Facebook Graph API để lấy thông tin người dùng
+            String url = "https://graph.facebook.com/v19.0/me?fields=id,name,email,picture.type(large),gender,birthday&access_token="
+                    + java.net.URLEncoder.encode(fbToken, java.nio.charset.StandardCharsets.UTF_8);
+
+            java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+            java.net.http.HttpRequest httpRequest = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url))
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+
+            java.net.http.HttpResponse<String> httpResponse = client.send(httpRequest, java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (httpResponse.statusCode() != 200) {
+                throw new CustomException("Xác thực Facebook thất bại từ máy chủ Meta.", 400);
+            }
+
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode rootNode = mapper.readTree(httpResponse.body());
+
+            if (!rootNode.has("id")) {
+                throw new CustomException("Không lấy được thông tin tài khoản từ Facebook.", 400);
+            }
+
+            String fbId = rootNode.get("id").asText();
+            String fullName = rootNode.has("name") && !rootNode.get("name").isNull() ? rootNode.get("name").asText() : "Người dùng Facebook";
+            String email = rootNode.has("email") && !rootNode.get("email").isNull() && !rootNode.get("email").asText().isBlank()
+                    ? rootNode.get("email").asText()
+                    : (fbId + "@facebook.sportaa.tech");
+
+            String avatarUrl = null;
+            if (rootNode.has("picture") && rootNode.get("picture").has("data") && rootNode.get("picture").get("data").has("url")) {
+                avatarUrl = rootNode.get("picture").get("data").get("url").asText();
+            }
+
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                if (user.getStatus() != UserStatus.ACTIVE) {
+                    if (user.getStatus() == UserStatus.BANNED) {
+                        LockLog latestLog = lockLogRepository.findFirstByUserIdAndActionOrderByCreatedAtDesc(user.getId(), "LOCK")
+                                .orElse(null);
+                        String reason = latestLog != null
+                                ? latestLog.getReasonCategory() + " - " + latestLog.getReasonDetail()
+                                : "Không xác định";
+                        throw new CustomException("Tài khoản của bạn đã bị khóa. Lý do: " + reason + ". Vui lòng liên hệ hotline Sporta để được hỗ trợ.", 403);
+                    }
+                    throw new CustomException("Tài khoản của bạn không ở trạng thái hoạt động.", 403);
+                }
+
+                if (user.getAvatarUrl() == null && avatarUrl != null && !avatarUrl.isEmpty()) {
+                    user.setAvatarUrl(avatarUrl);
+                    userRepository.save(user);
+                }
+
+                String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getId(), user.getRole().name());
+                return FacebookLoginResponse.builder()
+                        .isNewUser(false)
+                        .accessToken(accessToken)
+                        .email(email)
+                        .fullName(user.getFullName())
+                        .avatarUrl(user.getAvatarUrl())
+                        .message("Đăng nhập Facebook thành công.")
+                        .mustChangePassword(user.isMustChangePassword())
+                        .role(user.getRole().name())
+                        .build();
+            } else {
+                String registrationToken = jwtTokenProvider.generateRegistrationToken(email);
+                return FacebookLoginResponse.builder()
+                        .isNewUser(true)
+                        .registrationToken(registrationToken)
+                        .email(email)
+                        .fullName(fullName)
+                        .avatarUrl(avatarUrl)
+                        .message("Tài khoản chưa tồn tại. Vui lòng hoàn tất thông tin.")
+                        .build();
+            }
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CustomException("Có lỗi xảy ra khi xác thực Facebook: " + e.getMessage(), 500);
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  LOGOUT
     // ═══════════════════════════════════════════════════════════════════════════

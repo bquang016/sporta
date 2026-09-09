@@ -87,6 +87,23 @@ export const googleLoginApi = async (idToken: string) => {
   return response.json();
 };
 
+export const facebookLoginApi = async (accessToken: string) => {
+  const response = await fetch(`${getBaseUrl()}/auth/facebook-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Xác thực Facebook thất bại');
+  }
+
+  return response.json();
+};
+
 const getToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {

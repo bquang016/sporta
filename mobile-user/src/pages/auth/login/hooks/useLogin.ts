@@ -3,9 +3,13 @@ import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Google from 'expo-auth-session/providers/google';
-import { loginApi, googleLoginApi } from '../../../../shared/api/auth';
+import * as Facebook from 'expo-auth-session/providers/facebook';
+import * as WebBrowser from 'expo-web-browser';
+import { loginApi, googleLoginApi, facebookLoginApi } from '../../../../shared/api/auth';
 import { useAlert } from '../../../../shared/contexts/AlertContext';
 import { saveUserSession } from '../../../../shared/lib/userSession';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function useLogin() {
   const [email, setEmail] = useState('');
@@ -24,6 +28,12 @@ export function useLogin() {
     webClientId: '109569873589-sqselp48lq4blv5f8g4icka0747tpbnt.apps.googleusercontent.com',
   });
 
+  // Facebook Sign-In setup
+  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_FACEBOOK_APP_ID || '1075505325452400',
+    scopes: ['public_profile', 'email', 'user_birthday', 'user_gender', 'user_photos'],
+  });
+
   useEffect(() => {
     if (response?.type === 'success') {
       const idToken = response.params?.id_token || (response as any).authentication?.idToken;
@@ -35,6 +45,68 @@ export function useLogin() {
       showAlert('Lỗi đăng nhập Google', errorMsg);
     }
   }, [response]);
+
+  useEffect(() => {
+    if (fbResponse?.type === 'success') {
+      const accessToken = fbResponse.params?.access_token || (fbResponse as any).authentication?.accessToken;
+      if (accessToken) {
+        handleBackendFacebookLogin(accessToken);
+      }
+    } else if (fbResponse?.type === 'error') {
+      const errorMsg = (fbResponse?.error as any)?.message || 'Không thể đăng nhập Facebook.';
+      showAlert('Lỗi đăng nhập Facebook', errorMsg);
+    }
+  }, [fbResponse]);
+
+  const handleBackendFacebookLogin = async (accessToken: string) => {
+    setLoading(true);
+    try {
+      const res = await facebookLoginApi(accessToken);
+      if (res.isNewUser) {
+        router.push({
+          pathname: '/(auth)/personal-info',
+          params: {
+            registrationToken: res.registrationToken,
+            email: res.email,
+            fullName: res.fullName,
+            avatarUrl: res.avatarUrl,
+          },
+        });
+      } else {
+        let realFullName = res.fullName;
+        let realAvatar: string | null = res.avatarUrl || null;
+        try {
+          const { usersApi } = require('../../../../shared/api/users');
+          const profile = await usersApi.getProfile();
+          if (profile && profile.fullName) {
+            realFullName = profile.fullName;
+            realAvatar = profile.avatarUrl || null;
+          }
+        } catch (profileErr) {
+          console.log('Profile sync on Facebook Login warning:', profileErr);
+        }
+
+        await saveUserSession({
+          accessToken: res.accessToken,
+          userEmail: res.email,
+          userName: realFullName,
+          userAvatar: realAvatar,
+          userRole: res.role,
+        });
+
+        if (res.mustChangePassword) {
+          router.replace('/(auth)/set-password');
+        } else {
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (error: any) {
+      console.error(error);
+      showAlert('Lỗi xác thực', error.message || 'Xác thực Facebook thất bại.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBackendGoogleLogin = async (idToken: string) => {
     setLoading(true);
@@ -88,6 +160,10 @@ export function useLogin() {
 
   const handleGoogleLogin = () => {
     promptAsync();
+  };
+
+  const handleFacebookLogin = () => {
+    fbPromptAsync();
   };
 
   const handleLogin = async () => {
@@ -149,6 +225,7 @@ export function useLogin() {
     isFocusedPassword,
     setIsFocusedPassword,
     handleGoogleLogin,
+    handleFacebookLogin,
     handleLogin,
     router,
   };
