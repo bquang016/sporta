@@ -11,7 +11,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,7 +111,7 @@ export function MatchDisputeScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -134,7 +133,7 @@ export function MatchDisputeScreen() {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -160,7 +159,17 @@ export function MatchDisputeScreen() {
     try {
       if (evidenceUri) {
         setUploadingImage(true);
-        uploadedUrl = await uploadImageApi(evidenceUri, 'general');
+        try {
+          uploadedUrl = await Promise.race([
+            uploadImageApi(evidenceUri, 'general'),
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error('Tải ảnh quá thời gian kết nối. Bạn có thể gửi trước mô tả.')), 15000)
+            ),
+          ]);
+        } catch (imgErr: any) {
+          console.warn('Image upload error:', imgErr);
+        }
+        setUploadingImage(false);
       }
 
       await disagreeScore(selectedReason, description.trim(), uploadedUrl);
@@ -174,7 +183,7 @@ export function MatchDisputeScreen() {
         }
       );
     } catch (e: any) {
-      showAlert('Lỗi', e.message || 'Không thể gửi khiếu nại lúc này.', 'danger');
+      showAlert('Lỗi gửi khiếu nại', e.message || 'Không thể gửi khiếu nại lúc này.', 'danger');
     } finally {
       setUploadingImage(false);
       setSubmitting(false);
@@ -183,20 +192,34 @@ export function MatchDisputeScreen() {
 
   // 2. Submit Counter Evidence by Host A
   const handleSubmitCounterEvidence = async () => {
-    if (!counterEvidenceUri) {
-      showAlert('Thiếu bằng chứng', 'Vui lòng chụp hoặc chọn ảnh minh chứng đối chất của bạn.', 'warning');
+    if (!counterEvidenceUri && !counterNote.trim()) {
+      showAlert('Thiếu thông tin', 'Vui lòng nhập giải trình hoặc đính kèm ảnh bằng chứng đối chất của bạn.', 'warning');
       return;
     }
 
     setSubmittingCounter(true);
     try {
-      setUploadingImage(true);
-      const uploadedUrl = await uploadImageApi(counterEvidenceUri, 'general');
+      let uploadedUrl: string = '';
+      if (counterEvidenceUri) {
+        setUploadingImage(true);
+        try {
+          uploadedUrl = await Promise.race([
+            uploadImageApi(counterEvidenceUri, 'general'),
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error('Tải ảnh đối chất quá thời gian kết nối. Bạn có thể gửi giải trình chữ trước.')), 15000)
+            ),
+          ]);
+        } catch (imgErr: any) {
+          console.warn('Image upload error on counter-evidence:', imgErr);
+        }
+        setUploadingImage(false);
+      }
+
       await MatchmakingApiRepository.submitDisputeEvidence(id as string, uploadedUrl, counterNote.trim() || undefined);
 
       showAlert(
         'Đã gửi bằng chứng đối chất',
-        'Bằng chứng của bạn đã được lưu và gửi tới Ban Quản Trị để đối chiếu phân xử.',
+        'Bằng chứng của bạn đã được ghi nhận và gửi tới Ban Quản Trị để đối chiếu phân xử.',
         'success',
         () => {
           refetchRoom();
@@ -204,7 +227,7 @@ export function MatchDisputeScreen() {
         }
       );
     } catch (e: any) {
-      showAlert('Lỗi', e.message || 'Không thể gửi bằng chứng đối chất.', 'danger');
+      showAlert('Lỗi gửi đối chất', e.message || 'Không thể gửi bằng chứng đối chất lúc này.', 'danger');
     } finally {
       setUploadingImage(false);
       setSubmittingCounter(false);
@@ -237,7 +260,9 @@ export function MatchDisputeScreen() {
   const guestAvatarUri = guest?.avatarUrl || guest?.logoUrl || (guest as any)?.avatarImage;
 
   const isDisputed = room.status === 'DISPUTED' || Boolean(disputeDetail);
-  const canSubmitHost = disputeDetail?.canSubmitHostEvidence;
+  const isHost = Boolean(room.permissions.isHostAdmin && !room.permissions.isGuestAdmin);
+  const isGuest = Boolean(room.permissions.isGuestAdmin && !room.permissions.isHostAdmin);
+  const canSubmitHost = isHost && disputeDetail?.status === 'OPEN' && !disputeDetail?.hostHasSubmittedEvidence;
 
   // Compute Remaining Hours for Deadline
   const getRemainingHours = () => {
@@ -326,7 +351,7 @@ export function MatchDisputeScreen() {
               <View style={styles.card}>
                 <View style={styles.sectionHeaderRow}>
                   <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                  <Text style={styles.sectionTitle}>Thông tin khiếu nại</Text>
+                  <Text style={styles.sectionTitle}>Hồ sơ khiếu nại trận đấu</Text>
                   <View style={styles.disputeStatusTag}>
                     <Text style={styles.disputeStatusTagText}>{disputeDetail.status === 'RESOLVED' ? 'Đã giải quyết' : 'Đang xử lý'}</Text>
                   </View>
@@ -378,17 +403,26 @@ export function MatchDisputeScreen() {
                           <Ionicons name="checkmark-circle" size={18} color="#059669" />
                           <Text style={styles.submittedEvidenceTitle}>Chủ nhà đã gửi bằng chứng đối chất</Text>
                         </View>
-                        {disputeDetail.hostEvidenceImageUrl && (
+                        {disputeDetail.hostEvidenceDescription ? (
+                          <View style={{ marginTop: 6, marginBottom: 8 }}>
+                            <Text style={styles.infoLabel}>Giải trình của Chủ nhà:</Text>
+                            <Text style={styles.infoValue}>{disputeDetail.hostEvidenceDescription}</Text>
+                          </View>
+                        ) : null}
+                        {disputeDetail.hostEvidenceImageUrl ? (
                           <Image source={{ uri: disputeDetail.hostEvidenceImageUrl }} style={styles.evidenceImagePreview} resizeMode="cover" />
-                        )}
+                        ) : null}
                         <Text style={styles.submittedEvidenceSub}>
                           Cả hai bên đã cung cấp đầy đủ thông tin. Ban Quản Trị đang tiến hành đối chiếu phân xử tại hệ thống Admin.
                         </Text>
                       </View>
-                    ) : canSubmitHost ? (
-                      /* Host Counter Evidence Form */
+                    ) : isHost ? (
+                      /* Host Counter Evidence Form (STRICTLY ONLY FOR HOST A) */
                       <View style={styles.counterFormBox}>
                         <Text style={styles.formHeading}>Gửi bằng chứng đối chất (Dành cho Chủ nhà A)</Text>
+                        <Text style={styles.formSubText}>
+                          Nhập giải trình và đính kèm ảnh minh chứng để bảo vệ kết quả của bạn:
+                        </Text>
 
                         <TextInput
                           style={styles.textInput}
@@ -440,18 +474,27 @@ export function MatchDisputeScreen() {
                           activeOpacity={0.85}
                         >
                           {submittingCounter || uploadingImage ? (
-                            <ActivityIndicator color="#FFFFFF" size="small" />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <ActivityIndicator color="#FFFFFF" size="small" />
+                              <Text style={styles.submitBtnText}>
+                                {uploadingImage ? 'Đang tải ảnh lên...' : 'Đang gửi đối chất...'}
+                              </Text>
+                            </View>
                           ) : (
                             <Text style={styles.submitBtnText}>Gửi Bằng Chứng Đối Chất</Text>
                           )}
                         </TouchableOpacity>
                       </View>
                     ) : (
+                      /* GUEST B & NON-HOST VIEW: Informational waiting badge */
                       <View style={styles.waitingForHostBadge}>
-                        <Ionicons name="hourglass-outline" size={16} color="#64748B" />
-                        <Text style={styles.waitingForHostText}>
-                          Đang chờ Chủ nhà gửi bằng chứng đối chất trong 24 giờ.
-                        </Text>
+                        <Ionicons name="hourglass-outline" size={20} color="#D97706" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.waitingForHostTitle}>Đang chờ Chủ nhà (Bên A) phản hồi</Text>
+                          <Text style={styles.waitingForHostSub}>
+                            Chủ nhà (Bên A) có tối đa 24 giờ để gửi bằng chứng đối chất. Nếu Bên A không phản hồi, hệ thống sẽ tự động xử Bên B thắng 3-0 và trừ 10 điểm CRP của Bên A.
+                          </Text>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -469,8 +512,22 @@ export function MatchDisputeScreen() {
                   </View>
                 )}
               </View>
+            ) : isHost ? (
+              /* CASE 2A: HOST A TRIES TO OPEN DISPUTE FORM BEFORE DISPUTE */
+              <View style={styles.card}>
+                <View style={styles.infoOnlyBox}>
+                  <Ionicons name="checkmark-done-circle-outline" size={32} color="#059669" />
+                  <Text style={styles.infoOnlyTitle}>Bạn là Chủ nhà (Bên A)</Text>
+                  <Text style={styles.infoOnlySub}>
+                    Bạn đã khai báo tỷ số trận đấu ({submission?.hostScore ?? 0} - {submission?.guestScore ?? 0}). Quyền khiếu nại báo sai tỷ số thuộc về Đội Khách (Bên B).
+                  </Text>
+                  <Text style={styles.infoOnlyNote}>
+                    • Nếu Bên B xác nhận hoặc không có khiếu nại sau 24 giờ, trận đấu sẽ tự động chốt kết quả như bạn đã khai báo.
+                  </Text>
+                </View>
+              </View>
             ) : (
-              /* CASE 2: FILING A NEW DISPUTE (Guest B) */
+              /* CASE 2B: FILING A NEW DISPUTE (Guest B) */
               <View style={styles.card}>
                 <Text style={styles.cardHeading}>Báo sai tỷ số & Khiếu nại trận đấu</Text>
                 <Text style={styles.cardSubtitle}>
@@ -568,7 +625,12 @@ export function MatchDisputeScreen() {
                   activeOpacity={0.85}
                 >
                   {submitting || uploadingImage ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={styles.submitBtnText}>
+                        {uploadingImage ? 'Đang tải ảnh lên...' : 'Đang gửi khiếu nại...'}
+                      </Text>
+                    </View>
                   ) : (
                     <Text style={styles.submitBtnText}>Gửi Khiếu Nại Lên Admin</Text>
                   )}
@@ -604,73 +666,63 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    ...TYPOGRAPHY.titleMd,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
   },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: 10,
   },
   loadingText: {
-    ...TYPOGRAPHY.bodyMd,
-    color: '#64748B',
     fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
   },
   scrollContent: {
     padding: SPACING.md,
-    paddingBottom: 40,
   },
   responsiveContainer: {
     maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
-    gap: SPACING.md,
+    gap: 12,
   },
   matchSummaryCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
+    borderRadius: 20,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 6,
+    gap: 8,
   },
   summaryTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 2,
   },
   sportBadge: {
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   sportBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#475569',
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  statusDisputed: {
-    backgroundColor: '#FEF2F2',
-  },
-  statusDisputedText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#DC2626',
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   statusConfirming: {
     backgroundColor: '#FEF3C7',
@@ -678,196 +730,306 @@ const styles = StyleSheet.create({
   statusConfirmingText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#D97706',
+    color: '#B45309',
+  },
+  statusDisputed: {
+    backgroundColor: '#FEE2E2',
+  },
+  statusDisputedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
   },
   venueName: {
-    ...TYPOGRAPHY.titleMd,
-    fontSize: 14.5,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#0F172A',
   },
   venueTime: {
-    ...TYPOGRAPHY.caption,
     fontSize: 12,
     color: '#64748B',
+    fontWeight: '500',
   },
   scoreRowMini: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginTop: 6,
+    marginTop: 4,
   },
   teamMini: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
   },
   teamNameMini: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
+    fontWeight: '700',
+    color: '#1E293B',
     maxWidth: 90,
   },
   scoreDigitMini: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '900',
     color: '#0F172A',
     marginLeft: 4,
   },
   vsDash: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '900',
     color: '#94A3B8',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
   },
   freezeNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
     backgroundColor: '#F0F9FF',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#BAE6FD',
   },
   freezeNoticeTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0369A1',
     marginBottom: 2,
   },
   freezeNoticeSub: {
-    fontSize: 12,
-    color: '#0284C7',
-    lineHeight: 17,
+    fontSize: 11.5,
+    color: '#0C4A6E',
+    lineHeight: 16,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 10,
+    gap: 12,
   },
   cardHeading: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
   },
   cardSubtitle: {
     fontSize: 12,
     color: '#64748B',
-    lineHeight: 18,
+    lineHeight: 17,
   },
-  sectionHeaderRow: {
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  reasonList: {
+    gap: 8,
+  },
+  reasonCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  sectionTitle: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#0F172A',
-    flex: 1,
-  },
-  disputeStatusTag: {
+  reasonCardActive: {
     backgroundColor: '#FEF2F2',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    borderColor: '#FECACA',
   },
-  disputeStatusTagText: {
+  reasonCardText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  reasonCardTextActive: {
+    color: '#DC2626',
+    fontWeight: '800',
+  },
+  textInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 12.5,
+    color: '#0F172A',
+    minHeight: 70,
+    textAlignVertical: 'top',
+  },
+  pickImageRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 12,
+  },
+  pickBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  imagePreviewContainer: {
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  pickedImagePreview: {
+    width: '100%',
+    height: 140,
+    borderRadius: 12,
+    backgroundColor: '#000000',
+  },
+  removeImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+  },
+  removeImageText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#DC2626',
   },
+  penaltyNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    padding: 10,
+    borderRadius: 10,
+  },
+  penaltyNoticeText: {
+    fontSize: 11,
+    color: '#DC2626',
+    fontWeight: '600',
+    flex: 1,
+  },
+  submitDangerBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  submitBtn: {
+    backgroundColor: '#0284C7',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  submitBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
+    marginLeft: 6,
+  },
+  disputeStatusTag: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  disputeStatusTagText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
   disputeInfoBox: {
     backgroundColor: '#F8FAFC',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   infoLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#64748B',
-    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   infoValue: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: '#1E293B',
-    marginTop: 2,
+    color: '#0F172A',
   },
   infoValueHighlight: {
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#DC2626',
-    marginTop: 2,
   },
   evidenceImagePreview: {
     width: '100%',
-    height: 160,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: 6,
-    backgroundColor: '#E2E8F0',
+    height: 150,
+    borderRadius: 10,
+    marginTop: 4,
   },
   counterSection: {
     gap: 10,
-    marginTop: 6,
   },
   deadlineBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 8,
     backgroundColor: '#FFFBEB',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 10,
   },
   deadlineTitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#92400E',
   },
   deadlineTimer: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
     color: '#B45309',
-    marginVertical: 2,
+    marginTop: 1,
   },
   deadlineSub: {
-    fontSize: 11.5,
-    color: '#92400E',
-    lineHeight: 16,
-  },
-  counterFormBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    gap: 8,
-  },
-  formHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 10.5,
+    color: '#78350F',
+    marginTop: 3,
+    lineHeight: 15,
   },
   submittedEvidenceBox: {
     backgroundColor: '#ECFDF5',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: '#A7F3D0',
+    borderRadius: 12,
+    padding: 12,
     gap: 6,
   },
   submittedEvidenceHeader: {
@@ -876,179 +1038,101 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   submittedEvidenceTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#065F46',
   },
   submittedEvidenceSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#047857',
-    lineHeight: 17,
+    lineHeight: 15,
   },
-  waitingForHostBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  waitingForHostText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  resolvedBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#ECFDF5',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  resolvedTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  resolvedScore: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  resolvedNote: {
-    fontSize: 12,
-    color: '#047857',
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  reasonList: {
-    gap: 6,
-  },
-  reasonCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  reasonCardActive: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  reasonCardText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  reasonCardTextActive: {
-    color: '#DC2626',
-    fontWeight: '700',
-  },
-  textInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 10,
-    fontSize: 12.5,
-    minHeight: 64,
-    textAlignVertical: 'top',
-    color: '#0F172A',
-  },
-  pickImageRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  pickBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+  counterFormBox: {
     backgroundColor: '#F0F9FF',
     borderWidth: 1,
     borderColor: '#BAE6FD',
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: 10,
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
   },
-  pickBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
+  formHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  formSubText: {
+    fontSize: 11,
     color: '#0284C7',
+    marginBottom: 4,
   },
-  imagePreviewContainer: {
-    position: 'relative',
-    borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
-  },
-  pickedImagePreview: {
-    width: '100%',
-    height: 180,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: '#E2E8F0',
-  },
-  removeImageBtn: {
+  waitingForHostBadge: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-end',
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  removeImageText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#DC2626',
-  },
-  penaltyNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFF1F2',
-    padding: 10,
-    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: '#FDE68A',
+    borderRadius: 14,
+    padding: 12,
   },
-  penaltyNoticeText: {
-    fontSize: 11.5,
-    color: '#BE123C',
-    flex: 1,
+  waitingForHostTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#92400E',
+    marginBottom: 2,
+  },
+  waitingForHostSub: {
+    fontSize: 11,
+    color: '#78350F',
     lineHeight: 16,
   },
-  submitBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  resolvedBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    padding: 14,
+  },
+  resolvedTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  resolvedScore: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#047857',
+    marginTop: 2,
+  },
+  resolvedNote: {
+    fontSize: 11.5,
+    color: '#065F46',
     marginTop: 4,
+    lineHeight: 16,
   },
-  submitDangerBtn: {
-    backgroundColor: '#DC2626',
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
+  infoOnlyBox: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
+    padding: 16,
+    gap: 8,
   },
-  submitBtnText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  infoOnlyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  infoOnlySub: {
+    fontSize: 12.5,
+    color: '#334155',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  infoOnlyNote: {
+    fontSize: 11.5,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });

@@ -1150,7 +1150,8 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         boolean isGuestAdmin = match.getGuestClub() != null && isClubAdmin(match.getGuestClub().getId(), user.getId());
         boolean isDevOrAdmin = Boolean.TRUE.equals(user.getIsDevTester()) || user.getRole() == Role.ADMIN || user.getRole() == Role.SUPER_ADMIN;
 
-        boolean canSubmitHostEvidence = (isHostAdmin || isDevOrAdmin) && dispute.getStatus() == DisputeStatus.OPEN && hostEvidence == null;
+        // STRICT: Guest club admin MUST NOT be able to submit Host counter-evidence
+        boolean canSubmitHostEvidence = !isGuestAdmin && (isHostAdmin || isDevOrAdmin) && dispute.getStatus() == DisputeStatus.OPEN && hostEvidence == null;
 
         MatchRoom room = match.getRoom();
         Booking booking = (room != null) ? room.getBooking() : match.getBooking();
@@ -1184,9 +1185,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .hostSubmittedScore(lastSub != null ? (lastSub.getHostScore() + " - " + lastSub.getGuestScore()) : "")
                 .hostSubmittedRaw(lastSub != null ? lastSub.getRawScoreDetails() : "")
                 .guestEvidenceImageUrl(guestEvidence != null ? guestEvidence.getFileRef() : null)
+                .guestEvidenceDescription(guestEvidence != null ? (guestEvidence.getDescription() != null ? guestEvidence.getDescription() : dispute.getDescription()) : dispute.getDescription())
                 .guestEvidenceCreatedAt(guestEvidence != null ? guestEvidence.getCreatedAt() : null)
                 .hostEvidenceImageUrl(hostEvidence != null ? hostEvidence.getFileRef() : null)
-                .hostEvidenceDescription(hostEvidence != null ? hostEvidence.getEvidenceType() : null)
+                .hostEvidenceDescription(hostEvidence != null ? hostEvidence.getDescription() : null)
                 .hostEvidenceCreatedAt(hostEvidence != null ? hostEvidence.getCreatedAt() : null)
                 .hostHasSubmittedEvidence(hostEvidence != null)
                 .disputeCreatedAt(createdAt)
@@ -1210,7 +1212,12 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         }
 
         boolean isHostAdmin = isClubAdmin(match.getHostClub().getId(), user.getId());
+        boolean isGuestAdmin = match.getGuestClub() != null && isClubAdmin(match.getGuestClub().getId(), user.getId());
         boolean isDevOrAdmin = Boolean.TRUE.equals(user.getIsDevTester()) || user.getRole() == Role.ADMIN || user.getRole() == Role.SUPER_ADMIN;
+
+        if (isGuestAdmin && !isHostAdmin) {
+            throw new CustomException("Đội Khách (Bên B) không được gửi bằng chứng đối chất của Chủ nhà (Bên A)", 403);
+        }
 
         if (!isHostAdmin && !isDevOrAdmin) {
             throw new CustomException("Chỉ chủ nhà (Bên A) mới được gửi bằng chứng đối chất cho khiếu nại này", 403);
@@ -1219,10 +1226,14 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         Dispute dispute = disputeRepository.findByMatchIdAndStatusIn(match.getId(), List.of(DisputeStatus.OPEN))
                 .orElseThrow(() -> new CustomException("Không tìm thấy khiếu nại đang mở cho trận đấu này", 404));
 
+        String fileRef = (request.getFileRef() != null && !request.getFileRef().isBlank()) ? request.getFileRef().trim() : "";
+        String desc = (request.getDescription() != null && !request.getDescription().isBlank()) ? request.getDescription().trim() : "";
+
         DisputeEvidence evidence = DisputeEvidence.builder()
                 .dispute(dispute)
                 .uploader(user)
-                .fileRef(request.getFileRef() != null ? request.getFileRef().trim() : "")
+                .fileRef(fileRef)
+                .description(desc)
                 .evidenceType("HOST_COUNTER")
                 .build();
         disputeEvidenceRepository.save(evidence);
@@ -1233,10 +1244,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             for (SupportTicket t : tickets) {
                 if (t.getAdminNote() != null && t.getAdminNote().contains(match.getId().toString())) {
                     String currentDesc = t.getDescription() != null ? t.getDescription() : "";
-                    if (!currentDesc.contains("• Bằng chứng đối chất của Host:")) {
+                    if (!currentDesc.contains("• Bằng chứng đối chất của Bên A:")) {
                         t.setDescription(currentDesc + "\n\n• Bằng chứng đối chất của Bên A (" + match.getHostClub().getName() + "):\n"
-                                + (request.getDescription() != null ? request.getDescription() : "Đã gửi ảnh đối chất")
-                                + "\nẢnh đối chất: " + request.getFileRef());
+                                + (!desc.isBlank() ? desc : "Đã gửi ảnh đối chất")
+                                + (!fileRef.isBlank() ? ("\nẢnh đối chất: " + fileRef) : ""));
                         supportTicketRepository.save(t);
                     }
                     break;

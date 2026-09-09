@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DisputeEvidenceRequest {
 
-    @NotBlank(message = "File reference or image URL is required")
     private String fileRef;
 
     private String description;
