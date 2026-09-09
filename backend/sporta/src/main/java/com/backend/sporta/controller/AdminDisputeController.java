@@ -332,9 +332,9 @@ public class AdminDisputeController {
                 guestClub.setRankedWins((guestClub.getRankedWins() != null ? guestClub.getRankedWins() : 0) + 1);
             }
             clubRepository.save(guestClub);
-
-            matchmakingService.updatePlayerElos(match, outcome);
         }
+
+        matchmakingService.updatePlayerElos(match, outcome);
 
         match.setStatus(MatchStatus.RESULT_FINAL);
         matchRepository.save(match);
