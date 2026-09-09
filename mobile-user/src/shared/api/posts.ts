@@ -91,7 +91,9 @@ export const fetchPostsApi = async (
               handle: '@user_1',
             },
         content: item.content,
-        mediaUrls: item.mediaUrls && item.mediaUrls.length > 0 ? item.mediaUrls : undefined,
+        mediaUrls: Array.isArray(item.mediaUrls) 
+          ? item.mediaUrls.filter((u: any) => u && typeof u === 'string' && u.trim().length > 0) 
+          : undefined,
         backgroundGradient: item.backgroundGradient
           ? (Array.isArray(item.backgroundGradient)
               ? item.backgroundGradient

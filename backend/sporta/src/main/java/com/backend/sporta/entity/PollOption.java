@@ -20,6 +20,7 @@ public class PollOption {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "poll_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private MatchPoll poll;
 
     @Column(nullable = false)

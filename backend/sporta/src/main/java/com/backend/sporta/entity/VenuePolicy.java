@@ -21,6 +21,7 @@ public class VenuePolicy {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venue_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Venue venue;
 
     @Column(name = "free_cancellation_hours")

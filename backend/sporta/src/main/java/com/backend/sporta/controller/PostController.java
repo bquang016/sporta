@@ -230,6 +230,7 @@ public class PostController {
         }
 
         postRepository.save(post);
+        postFeedService.clearFeedCache(null);
         return ResponseEntity.ok(Map.of("message", "Chỉnh sửa bài viết thành công", "id", post.getId()));
     }
 
@@ -266,6 +267,7 @@ public class PostController {
         }
 
         postRepository.save(post);
+        postFeedService.clearFeedCache(null);
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("message", "Cập nhật đối tượng xem thành công");
@@ -297,6 +299,7 @@ public class PostController {
             }
             post.setIsDeleted(true);
             postRepository.save(post);
+            postFeedService.clearFeedCache(null);
             return ResponseEntity.ok().build();
         }
         return ResponseEntity.notFound().build();

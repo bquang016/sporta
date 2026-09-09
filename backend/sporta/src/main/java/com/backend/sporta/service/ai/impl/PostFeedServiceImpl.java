@@ -580,7 +580,9 @@ public class PostFeedServiceImpl implements PostFeedService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return postRepository.save(newPost);
+        Post saved = postRepository.save(newPost);
+        clearFeedCache(null);
+        return saved;
     }
 
     /**
@@ -737,7 +739,22 @@ public class PostFeedServiceImpl implements PostFeedService {
         List<Map<String, Object>> responseList = posts.stream().map(post -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", post.getId());
-            map.put("author", post.getAuthor());
+            
+            // Map Author DTO safely
+            if (post.getAuthor() != null) {
+                User a = post.getAuthor();
+                Map<String, Object> authorMap = new HashMap<>();
+                authorMap.put("id", a.getId());
+                authorMap.put("fullName", a.getFullName() != null ? a.getFullName() : "Thành viên Sporta");
+                authorMap.put("name", a.getFullName() != null ? a.getFullName() : "Thành viên Sporta");
+                authorMap.put("avatarUrl", a.getAvatarUrl() != null ? a.getAvatarUrl() : "");
+                authorMap.put("avatar", a.getAvatarUrl() != null ? a.getAvatarUrl() : "");
+                authorMap.put("role", a.getRole() != null ? a.getRole().name() : null);
+                map.put("author", authorMap);
+            } else {
+                map.put("author", null);
+            }
+
             map.put("content", post.getContent());
             map.put("mediaUrls", post.getMediaUrls());
             if (post.getBackgroundGradient() != null && !post.getBackgroundGradient().isBlank()) {
@@ -794,7 +811,26 @@ public class PostFeedServiceImpl implements PostFeedService {
                         }
                     }
                 }
-                map.put("venue", postVenue);
+                
+                // Map Venue DTO safely
+                if (postVenue != null) {
+                    Map<String, Object> venueMap = new HashMap<>();
+                    venueMap.put("id", postVenue.getId() != null ? postVenue.getId().toString() : null);
+                    venueMap.put("name", postVenue.getName());
+                    venueMap.put("location", postVenue.getLocation());
+                    venueMap.put("addressDetail", postVenue.getAddressDetail());
+                    venueMap.put("latitude", postVenue.getLatitude());
+                    venueMap.put("longitude", postVenue.getLongitude());
+                    venueMap.put("coverImage", postVenue.getCoverImage());
+                    venueMap.put("minPrice", postVenue.getMinPrice());
+                    venueMap.put("maxPrice", postVenue.getMaxPrice());
+                    venueMap.put("averageRating", postVenue.getAverageRating());
+                    venueMap.put("totalReviews", postVenue.getTotalReviews());
+                    venueMap.put("status", postVenue.getStatus() != null ? postVenue.getStatus().name() : null);
+                    map.put("venue", venueMap);
+                } else {
+                    map.put("venue", null);
+                }
                 map.put("venueId", postVenueId);
             } catch (Exception e) {
                 map.put("venue", null);
@@ -839,7 +875,26 @@ public class PostFeedServiceImpl implements PostFeedService {
             map.put("promoTitle", post.getPromoTitle());
             map.put("promoCode", post.getPromoCode());
             map.put("discountText", post.getDiscountText());
-            map.put("voucher", post.getVoucher());
+            
+            // Map Voucher DTO safely
+            if (post.getVoucher() != null) {
+                Voucher v = post.getVoucher();
+                Map<String, Object> voucherMap = new HashMap<>();
+                voucherMap.put("id", v.getId() != null ? v.getId().toString() : null);
+                voucherMap.put("name", v.getName());
+                voucherMap.put("code", v.getCode());
+                voucherMap.put("discountType", v.getDiscountType() != null ? v.getDiscountType().name() : null);
+                voucherMap.put("discountValue", v.getDiscountValue());
+                voucherMap.put("maxDiscountAmount", v.getMaxDiscountAmount());
+                voucherMap.put("minOrderAmount", v.getMinOrderAmount());
+                voucherMap.put("startDate", v.getStartDate());
+                voucherMap.put("endDate", v.getEndDate());
+                voucherMap.put("status", v.getStatus() != null ? v.getStatus().name() : null);
+                map.put("voucher", voucherMap);
+            } else {
+                map.put("voucher", null);
+            }
+
             map.put("validUntil", post.getValidUntil());
             map.put("likeCount", post.getLikeCount() != null ? post.getLikeCount() : 0);
             map.put("commentCount", post.getCommentCount() != null ? post.getCommentCount() : 0);

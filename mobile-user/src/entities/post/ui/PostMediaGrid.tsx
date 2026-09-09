@@ -12,9 +12,13 @@ const GRID_GAP = 3;
 const GRID_BORDER_RADIUS = BORDER_RADIUS.md;
 
 export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaGridProps) => {
-  if (!mediaUrls || mediaUrls.length === 0) return null;
+  const validMediaUrls = React.useMemo(() => {
+    return (mediaUrls || []).filter((u) => u && typeof u === 'string' && u.trim().length > 0);
+  }, [mediaUrls]);
 
-  const count = mediaUrls.length;
+  if (!validMediaUrls || validMediaUrls.length === 0) return null;
+
+  const count = validMediaUrls.length;
 
   // ── Layout 1: Single Image ──
   if (count === 1) {
@@ -26,7 +30,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
           onPress={() => onPressImage(0)}
         >
           <Image
-            source={{ uri: mediaUrls[0] }}
+            source={{ uri: validMediaUrls[0] }}
             style={styles.singleImage}
             resizeMode="cover"
           />
@@ -45,7 +49,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
           onPress={() => onPressImage(0)}
         >
           <Image
-            source={{ uri: mediaUrls[0] }}
+            source={{ uri: validMediaUrls[0] }}
             style={styles.fillImage}
             resizeMode="cover"
           />
@@ -56,7 +60,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
           onPress={() => onPressImage(1)}
         >
           <Image
-            source={{ uri: mediaUrls[1] }}
+            source={{ uri: validMediaUrls[1] }}
             style={styles.fillImage}
             resizeMode="cover"
           />
@@ -75,7 +79,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
           onPress={() => onPressImage(0)}
         >
           <Image
-            source={{ uri: mediaUrls[0] }}
+            source={{ uri: validMediaUrls[0] }}
             style={styles.fillImage}
             resizeMode="cover"
           />
@@ -87,7 +91,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
             onPress={() => onPressImage(1)}
           >
             <Image
-              source={{ uri: mediaUrls[1] }}
+              source={{ uri: validMediaUrls[1] }}
               style={styles.fillImage}
               resizeMode="cover"
             />
@@ -98,7 +102,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
             onPress={() => onPressImage(2)}
           >
             <Image
-              source={{ uri: mediaUrls[2] }}
+              source={{ uri: validMediaUrls[2] }}
               style={styles.fillImage}
               resizeMode="cover"
             />
@@ -109,7 +113,7 @@ export const PostMediaGrid = React.memo(({ mediaUrls, onPressImage }: PostMediaG
   }
 
   // ── Layout 4+: Four or More Images (2x2 Grid with +N Badge) ──
-  const displayImages = mediaUrls.slice(0, 4);
+  const displayImages = validMediaUrls.slice(0, 4);
   const remainingCount = count - 4;
 
   return (

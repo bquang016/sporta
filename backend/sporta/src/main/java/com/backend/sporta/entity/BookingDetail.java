@@ -24,6 +24,7 @@ public class BookingDetail {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Booking booking;
 
     @ManyToOne(fetch = FetchType.LAZY)
