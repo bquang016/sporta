@@ -126,6 +126,18 @@ public class MatchmakingController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping({"/matches/{matchId}/dispute", "/rooms/{matchId}/dispute"})
+    public ResponseEntity<DisputeDetailResponse> getDisputeDetail(@PathVariable UUID matchId) {
+        return ResponseEntity.ok(matchmakingService.getDisputeDetail(matchId, getCurrentUserEmail()));
+    }
+
+    @PostMapping({"/matches/{matchId}/dispute/evidence", "/rooms/{matchId}/dispute/evidence"})
+    public ResponseEntity<DisputeDetailResponse> addDisputeEvidence(
+            @PathVariable UUID matchId,
+            @Valid @RequestBody DisputeEvidenceRequest request) {
+        return ResponseEntity.ok(matchmakingService.addDisputeEvidence(matchId, request, getCurrentUserEmail()));
+    }
+
     @GetMapping({"/matches/{matchId}/preview-ranking", "/rooms/{matchId}/preview-ranking"})
     public ResponseEntity<RankingPreviewResponse> previewRanking(
             @PathVariable UUID matchId,

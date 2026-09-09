@@ -220,3 +220,42 @@ export type MatchmakingSortOption =
   | 'NEAREST'
   | 'HIGHEST_CRP'
   | 'NEWEST';
+
+export interface DisputeDetailVM {
+  disputeId: string;
+  matchId: string;
+  roomId: string;
+  status: 'OPEN' | 'RESOLVED';
+  reasonCode: string;
+  description?: string;
+  openedByClubId?: number;
+  openedByClubName?: string;
+  hostClubId: number;
+  hostClubName: string;
+  hostClubAvatar?: string;
+  guestClubId?: number;
+  guestClubName?: string;
+  guestClubAvatar?: string;
+  sportName: string;
+  venueName: string;
+  matchDate: string;
+  matchTime: string;
+  hostSubmittedScore?: string;
+  hostSubmittedRaw?: string;
+  guestEvidenceImageUrl?: string;
+  guestEvidenceDescription?: string;
+  guestEvidenceCreatedAt?: string;
+  hostEvidenceImageUrl?: string;
+  hostEvidenceDescription?: string;
+  hostEvidenceCreatedAt?: string;
+  hostHasSubmittedEvidence: boolean;
+  disputeCreatedAt: string;
+  counterEvidenceDeadline?: string;
+  isDeadlineExpired: boolean;
+  resolutionNote?: string;
+  resolvedResultJson?: string;
+  resolvedAt?: string;
+  canSubmitHostEvidence: boolean;
+  isDisputeParty: boolean;
+}
+

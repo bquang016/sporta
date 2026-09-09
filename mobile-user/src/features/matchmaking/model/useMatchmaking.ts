@@ -134,11 +134,21 @@ export function useMatchDetail(roomId: string) {
     return updated;
   };
 
-  const disagreeScore = async (reasonCode?: string, description?: string) => {
+  const disagreeScore = async (reasonCode?: string, description?: string, evidenceImageUrl?: string) => {
     if (!roomId) return;
-    const updated = await MatchmakingApiRepository.disagreeScore(roomId, reasonCode, description);
+    const updated = await MatchmakingApiRepository.disagreeScore(roomId, reasonCode, description, evidenceImageUrl);
     setRoom(updated);
     return updated;
+  };
+
+  const getDisputeDetail = async () => {
+    if (!roomId) return;
+    return MatchmakingApiRepository.getDisputeDetail(roomId);
+  };
+
+  const submitDisputeEvidence = async (fileRef: string, description?: string) => {
+    if (!roomId) return;
+    return MatchmakingApiRepository.submitDisputeEvidence(roomId, fileRef, description);
   };
 
   const rejectRequest = async (requestId: string, reason?: string) => {
@@ -157,5 +167,7 @@ export function useMatchDetail(roomId: string) {
     submitScore,
     confirmScore,
     disagreeScore,
+    getDisputeDetail,
+    submitDisputeEvidence,
   };
 }

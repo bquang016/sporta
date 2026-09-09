@@ -42,6 +42,10 @@ public interface MatchmakingService {
 
     void openDispute(UUID matchId, OpenDisputeRequest request, String userEmail);
 
+    DisputeDetailResponse getDisputeDetail(UUID matchId, String userEmail);
+
+    DisputeDetailResponse addDisputeEvidence(UUID matchId, DisputeEvidenceRequest request, String userEmail);
+
     RankingPreviewResponse previewRanking(UUID matchId, String hostScore, String guestScore, String rawScoreDetails);
 
     void updatePlayerElos(com.backend.sporta.entity.Match match, com.backend.sporta.enums.NormalizedOutcome outcome);

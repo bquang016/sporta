@@ -65,12 +65,6 @@ export function ScoreInputScreen() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<UserProfileDto | null>(null);
 
-  // Dispute Modal state
-  const [isDisputeModalVisible, setIsDisputeModalVisible] = useState<boolean>(false);
-  const [disputeReasonCode, setDisputeReasonCode] = useState<string>('INCORRECT_SCORE');
-  const [disputeDescription, setDisputeDescription] = useState<string>('');
-  const [disputeLoading, setDisputeLoading] = useState<boolean>(false);
-
   useEffect(() => {
     usersApi.getProfile().then(setCurrentUser).catch(() => {});
   }, []);
@@ -304,9 +298,13 @@ export function ScoreInputScreen() {
           {/* STATE B: SCORE_CONFIRMING (Submission exists) */}
           {(room.status === 'SCORE_CONFIRMING' || submission) && room.status !== 'RESULT_FINAL' && room.status !== 'DISPUTED' && (
             <View style={styles.confirmCard}>
-              <Text style={styles.confirmHeading}>Xác nhận kết quả</Text>
+              <Text style={styles.confirmHeading}>
+                {room.permissions?.canConfirmScore ? 'Duyệt & Xác nhận kết quả' : 'Đã gửi kết quả trận đấu'}
+              </Text>
               <Text style={styles.confirmSubtitle}>
-                Chủ nhà ({room.hostClub.name}) đã gửi kết quả trận đấu:
+                {room.permissions?.canConfirmScore
+                  ? `Chủ nhà (${room.hostClub.name}) đã gửi kết quả trận đấu:`
+                  : `Tỷ số đã được gửi tới ${room.guestClub?.name || 'đối thủ'}. Đang chờ bên B xác nhận hoặc khiếu nại:`}
               </Text>
 
               {/* Clean Score Box */}
@@ -346,18 +344,18 @@ export function ScoreInputScreen() {
 
                   <TouchableOpacity
                     disabled={submitting}
-                    onPress={() => setIsDisputeModalVisible(true)}
+                    onPress={() => router.push(`/matchmaking/${room.id}/dispute` as any)}
                     style={styles.btnSecondary}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.btnSecondaryText}>Báo sai tỷ số</Text>
+                    <Text style={styles.btnSecondaryText}>Báo sai tỷ số / Khiếu nại</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={styles.waitingBadge}>
-                  <Ionicons name="time-outline" size={14} color="#64748B" />
+                  <Ionicons name="time-outline" size={15} color="#0369A1" />
                   <Text style={styles.waitingBadgeText}>
-                    Đang chờ {room.guestClub?.name || 'đối thủ'} xác nhận
+                    Đang chờ {room.guestClub?.name || 'Bên B'} duyệt • Tự động chốt sau 24h
                   </Text>
                 </View>
               )}
@@ -366,12 +364,18 @@ export function ScoreInputScreen() {
 
           {/* STATE C: DISPUTED */}
           {room.status === 'DISPUTED' && (
-            <View style={styles.cardInfo}>
-              <Ionicons name="alert-circle-outline" size={24} color="#DC2626" />
-              <Text style={[styles.cardInfoTitle, { color: '#DC2626' }]}>Trận đấu có khiếu nại</Text>
-              <Text style={styles.cardInfoSub}>
-                Kết quả trận đấu đang được hai bên phản hồi lại. Vui lòng liên hệ ban quản trị nếu cần hỗ trợ.
+            <View style={[styles.cardInfo, { borderColor: '#FECDD3', backgroundColor: '#FFF1F2' }]}>
+              <Ionicons name="alert-circle" size={28} color="#DC2626" />
+              <Text style={[styles.cardInfoTitle, { color: '#DC2626' }]}>Trận đấu đang phân xử khiếu nại</Text>
+              <Text style={[styles.cardInfoSub, { color: '#991B1B' }]}>
+                Bên B đã khiếu nại về tỷ số. Điểm số ELO và CRP đang được đóng băng an toàn. Nhấn nút bên dưới để xem chi tiết và gửi bằng chứng đối chất.
               </Text>
+              <TouchableOpacity
+                style={[styles.btnPrimaryCompact, { backgroundColor: '#DC2626' }]}
+                onPress={() => router.push(`/matchmaking/${room.id}/dispute` as any)}
+              >
+                <Text style={styles.btnPrimaryText}>Xem Khiếu Nại & Đối Chất</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -393,81 +397,6 @@ export function ScoreInputScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* Dispute Modal */}
-      <Modal
-        visible={isDisputeModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsDisputeModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setIsDisputeModalVisible(false)}
-          >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={styles.modalCard}>
-                <Text style={styles.modalTitle}>Báo sai tỷ số</Text>
-                <Text style={styles.modalSubtitle}>Chọn lý do tỷ số không chính xác:</Text>
-
-                <View style={styles.reasonOptionGroup}>
-                  {[
-                    { code: 'INCORRECT_SCORE', label: 'Tỷ số bị nhập sai' },
-                    { code: 'WRONG_LINEUP', label: 'Sai đội hình thi đấu' },
-                    { code: 'OTHER', label: 'Lý do khác' },
-                  ].map((r) => (
-                    <TouchableOpacity
-                      key={r.code}
-                      style={[styles.reasonOption, disputeReasonCode === r.code && styles.reasonOptionActive]}
-                      onPress={() => setDisputeReasonCode(r.code)}
-                    >
-                      <Text style={[styles.reasonOptionText, disputeReasonCode === r.code && styles.reasonOptionTextActive]}>
-                        {r.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Ghi chú chi tiết (không bắt buộc)..."
-                  placeholderTextColor="#94A3B8"
-                  value={disputeDescription}
-                  onChangeText={setDisputeDescription}
-                  multiline
-                  numberOfLines={2}
-                />
-
-                <View style={styles.modalActionRow}>
-                  <TouchableOpacity
-                    onPress={() => setIsDisputeModalVisible(false)}
-                    style={styles.modalCancelBtn}
-                  >
-                    <Text style={styles.modalCancelText}>Hủy</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    disabled={disputeLoading}
-                    onPress={handleSubmitDispute}
-                    style={styles.modalConfirmBtn}
-                  >
-                    {disputeLoading ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      <Text style={styles.modalConfirmText}>Gửi báo cáo</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </Modal>
 
       <CustomConfirmModal {...modalConfig} />
     </SafeAreaView>
