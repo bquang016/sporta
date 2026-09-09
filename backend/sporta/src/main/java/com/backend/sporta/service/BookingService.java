@@ -725,6 +725,10 @@ public class BookingService {
         Venue venue = booking.getVenue();
         Long sportId = (venue != null && venue.getSport() != null) ? venue.getSport().getId() : null;
         String sportName = (venue != null && venue.getSport() != null) ? venue.getSport().getName() : null;
+        String venueCover = (venue != null) ? venue.getCoverImage() : null;
+        if (venueCover == null && venue != null && venue.getImages() != null && !venue.getImages().isEmpty()) {
+            venueCover = venue.getImages().get(0).getImageUrl();
+        }
 
         List<BookingDetailResponse> detailResponses = booking.getDetails().stream()
                 .map(d -> BookingDetailResponse.builder()
@@ -743,6 +747,8 @@ public class BookingService {
                 .bookingCode(booking.getBookingCode())
                 .venueId(venue != null ? venue.getId() : null)
                 .venueName(venue != null ? venue.getName() : null)
+                .venueAvatar(venueCover)
+                .venueCoverImage(venueCover)
                 .venueLocation(venue != null ? venue.getLocation() : null)
                 .venuePhone(venue != null && venue.getOwner() != null ? venue.getOwner().getPhoneNumber() : null)
                 .sportId(sportId)

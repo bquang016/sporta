@@ -20,6 +20,8 @@ public class BookingResponse {
     private String courtName;
     private UUID venueId;
     private String venueName;
+    private String venueAvatar;
+    private String venueCoverImage;
     private String venueLocation;
     private String venuePhone;       // Số điện thoại chủ sân
     private Long sportId;

@@ -20,6 +20,7 @@ export function BookingHistoryCard({
   onPressCancel,
   onPressReview,
 }: BookingHistoryCardProps) {
+  const [imageError, setImageError] = React.useState(false);
   const detail = booking.details?.[0];
   const effectiveStatus = getEffectiveBookingStatus(booking);
   const isConfirmed = effectiveStatus === 'CONFIRMED' || effectiveStatus === 'PENDING';
@@ -28,6 +29,21 @@ export function BookingHistoryCard({
 
   const formatCurrency = (val: number) => {
     return val.toLocaleString('vi-VN') + ' đ';
+  };
+
+  const getSportIcon = (): keyof typeof MaterialIcons.glyphMap => {
+    const sportName = (booking.courtType || detail?.courtType || '').toLowerCase();
+    const venueName = (booking.venueName || '').toLowerCase();
+    if (sportName.includes('cầu lông') || venueName.includes('cầu lông') || venueName.includes('badminton')) {
+      return 'sports-tennis';
+    }
+    if (sportName.includes('pickleball') || venueName.includes('pickleball')) {
+      return 'sports-tennis';
+    }
+    if (sportName.includes('bóng rổ') || venueName.includes('bóng rổ') || venueName.includes('basketball') || venueName.includes('dunker') || venueName.includes('hoop')) {
+      return 'sports-basketball';
+    }
+    return 'sports-soccer';
   };
 
   return (
@@ -39,10 +55,18 @@ export function BookingHistoryCard({
       {/* Header Row: Venue & Status */}
       <View style={styles.cardHeader}>
         <View style={styles.venueRow}>
-          <Image 
-            source={{ uri: booking.venueAvatar || '' }} 
-            style={styles.venueAvatar} 
-          />
+          {booking.venueAvatar && !imageError ? (
+            <Image 
+              source={{ uri: booking.venueAvatar }} 
+              style={styles.venueAvatar} 
+              resizeMode="cover"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <View style={styles.venueAvatarFallback}>
+              <MaterialIcons name={getSportIcon()} size={20} color={COLORS.primary} />
+            </View>
+          )}
           <View style={styles.venueInfo}>
             <Text style={styles.venueName} numberOfLines={1}>{booking.venueName}</Text>
             <Text style={styles.bookingCode}>{booking.bookingCode}</Text>
@@ -220,9 +244,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   venueAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceContainerLow,
+  },
+  venueAvatarFallback: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.primaryOpacity10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.primaryOpacity20,
   },
   venueInfo: {
     flex: 1,
