@@ -77,7 +77,7 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
     const hr = parseInt(t.split(':')[0]);
     if (activeSession === 'morning') return hr >= 6 && hr < 12;
     if (activeSession === 'afternoon') return hr >= 12 && hr < 17;
-    return hr >= 17 && hr <= 22;
+    return hr >= 17 && hr <= 23;
   });
 
   return (
@@ -261,8 +261,8 @@ export const MobileBookingGrid: React.FC<MobileBookingGridProps> = ({ venueId, r
                                 <Ticket className="w-3 h-3" />
                                 Xé vé ({slot?.bookedSlots || 0}/{slot?.maxSlots || 10})
                               </span>
-                              <span className="text-[8px] text-indigo-100 font-bold mt-0.5">
-                                {formatPrice(slot?.price || 0)}
+                              <span className="text-[8px] text-indigo-100 font-black mt-0.5 bg-black/20 px-1 py-0.2 rounded">
+                                {formatPrice(slot?.pricePerTicket || 0)}/vé
                               </span>
                             </div>
                           ) : status === 'booked' ? (

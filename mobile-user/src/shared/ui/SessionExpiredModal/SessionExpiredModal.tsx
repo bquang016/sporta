@@ -24,6 +24,8 @@ export function SessionExpiredModal() {
     router.replace('/(auth)');
   };
 
+  if (!visible) return null;
+
   return (
     <Modal
       transparent

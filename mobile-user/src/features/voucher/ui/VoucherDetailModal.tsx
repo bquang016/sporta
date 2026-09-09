@@ -17,7 +17,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS } from '../../../shared/config/theme';
 import { Voucher, UserVoucher, VoucherScope, DiscountType } from '../types';
 import { voucherApi } from '../api';
-import { useAlert } from '../../../shared/contexts/AlertContext';
 
 interface VoucherDetailModalProps {
   visible: boolean;
@@ -38,9 +37,9 @@ export function VoucherDetailModal({
 }: VoucherDetailModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { showAlert } = useAlert();
   const [collecting, setCollecting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'warning' | 'error'; text: string } | null>(null);
 
   const isCollected = !!userVoucher || isAlreadyCollected;
   const [collected, setCollected] = useState(isCollected);
@@ -49,7 +48,13 @@ export function VoucherDetailModal({
     setCollected(!!userVoucher || isAlreadyCollected);
   }, [userVoucher, isAlreadyCollected]);
 
-  if (!voucher && !userVoucher) return null;
+  React.useEffect(() => {
+    if (!visible) {
+      setFeedback(null);
+    }
+  }, [visible]);
+
+  if (!visible || (!voucher && !userVoucher)) return null;
 
   const vName = userVoucher?.voucherName || voucher?.name || userVoucher?.voucher?.name || 'Mã giảm giá Sporta';
   const vCode = userVoucher?.voucherCode || voucher?.code || userVoucher?.voucher?.code || '';
@@ -115,6 +120,7 @@ export function VoucherDetailModal({
 
     try {
       setCollecting(true);
+      setFeedback(null);
       if (isValidUUID) {
         await voucherApi.collectVoucher(voucherId);
       } else if (vCode) {
@@ -129,18 +135,22 @@ export function VoucherDetailModal({
       const isUpcoming = vStartDate ? new Date(vStartDate).getTime() > Date.now() : false;
 
       if (isUpcoming) {
-        showAlert(
-          'Đã lưu mã',
-          `Đã lưu mã "${vCode}" vào ví voucher của bạn thành công. Lưu ý: Mã sẽ bắt đầu có hiệu lực từ ${formatDate(vStartDate!)}.`,
-          undefined,
-          { type: 'warning' }
-        );
+        setFeedback({
+          type: 'warning',
+          text: `Đã lưu mã "${vCode}" vào ví voucher. Lưu ý: Mã sẽ bắt đầu có hiệu lực từ ${formatDate(vStartDate!)}.`,
+        });
       } else {
-        showAlert('Thành công', `Đã lưu mã "${vCode}" vào ví voucher của bạn!`, undefined, { type: 'success' });
+        setFeedback({
+          type: 'success',
+          text: `Đã lưu mã "${vCode}" vào ví voucher của bạn thành công!`,
+        });
       }
     } catch (e: any) {
       console.log('Error collecting voucher:', e);
-      showAlert('Không thể lưu mã', e?.message || 'Không thể lưu voucher, vui lòng thử lại sau.', undefined, { type: 'error' });
+      setFeedback({
+        type: 'error',
+        text: e?.message || 'Không thể lưu voucher, vui lòng thử lại sau.',
+      });
     } finally {
       setCollecting(false);
     }
@@ -212,6 +222,62 @@ export function VoucherDetailModal({
                 </View>
               ) : null}
             </View>
+
+            {/* ── Inline Collect Feedback Banner ── */}
+            {feedback && (
+              <View
+                style={[
+                  styles.feedbackCard,
+                  feedback.type === 'success' && styles.feedbackCardSuccess,
+                  feedback.type === 'warning' && styles.feedbackCardWarning,
+                  feedback.type === 'error' && styles.feedbackCardError,
+                ]}
+              >
+                <Ionicons
+                  name={
+                    feedback.type === 'success'
+                      ? 'checkmark-circle'
+                      : feedback.type === 'warning'
+                      ? 'warning'
+                      : 'alert-circle'
+                  }
+                  size={20}
+                  color={
+                    feedback.type === 'success'
+                      ? '#059669'
+                      : feedback.type === 'warning'
+                      ? '#D97706'
+                      : '#DC2626'
+                  }
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.feedbackTitle,
+                      feedback.type === 'success' && { color: '#065F46' },
+                      feedback.type === 'warning' && { color: '#92400E' },
+                      feedback.type === 'error' && { color: '#991B1B' },
+                    ]}
+                  >
+                    {feedback.type === 'success'
+                      ? 'Đã lưu voucher thành công'
+                      : feedback.type === 'warning'
+                      ? 'Lưu ý thời hạn sử dụng'
+                      : 'Không thể lưu mã'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.feedbackSub,
+                      feedback.type === 'success' && { color: '#047857' },
+                      feedback.type === 'warning' && { color: '#B45309' },
+                      feedback.type === 'error' && { color: '#B91C1C' },
+                    ]}
+                  >
+                    {feedback.text}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* ── Sold Out Alert Notice ── */}
             {isSoldOut && (
@@ -813,5 +879,34 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 11,
     fontWeight: '800',
+  },
+  feedbackCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+  },
+  feedbackCardSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  feedbackCardWarning: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  feedbackCardError: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  feedbackTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  feedbackSub: {
+    fontSize: 11.5,
+    marginTop: 2,
+    lineHeight: 16,
   },
 });

@@ -218,8 +218,9 @@ export function ConfirmModal({
     </TouchableWithoutFeedback>
   );
 
+  if (!visible) return null;
+
   if (useViewOverlay) {
-    if (!visible) return null;
     return (
       <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
         {renderContent()}

@@ -9,6 +9,7 @@ export interface Facility {
   rating: number;
   location: string;
   distance: string;
+  rawDistanceKm?: number | null;
   price: string;
   status: string;
   statusType: 'success' | 'warning';
@@ -29,6 +30,8 @@ interface FacilityCardProps {
   onBookPress?: () => void;
 }
 
+const DEFAULT_VENUE_IMAGE = 'https://images.unsplash.com/photo-1529900241929-54a09565538d?auto=format&fit=crop&w=600&q=80';
+
 export function FacilityCard({ facility, style, onPress, onBookPress }: FacilityCardProps) {
   const isWarning = facility.statusType === 'warning' || facility.status === 'Đóng cửa';
   const hasRating = facility.rating != null && facility.rating > 0;
@@ -44,8 +47,9 @@ export function FacilityCard({ facility, style, onPress, onBookPress }: Facility
         <Image
           source={{
             uri:
-              facility.imageUrl ||
-              '',
+              facility.imageUrl && facility.imageUrl.trim()
+                ? facility.imageUrl
+                : DEFAULT_VENUE_IMAGE,
           }}
           style={styles.image}
           resizeMode="cover"

@@ -257,8 +257,11 @@ public class VenueService {
                 .collect(Collectors.toList());
 
         int shiftMinutes = venue.getShiftDurationMinutes() != null ? venue.getShiftDurationMinutes() : 30;
-        LocalTime open = venue.getOpeningTime();
+        LocalTime open = venue.getOpeningTime() != null ? venue.getOpeningTime() : LocalTime.of(6, 0);
         LocalTime close = venue.getClosingTime();
+        LocalTime effectiveClose = (close == null || close.equals(LocalTime.MIDNIGHT) || close.isBefore(open))
+                ? LocalTime.of(23, 59, 59)
+                : close;
         LocalTime now = LocalTime.now();
         boolean isToday = date.equals(LocalDate.now());
 
@@ -280,7 +283,7 @@ public class VenueService {
                             Arrays.asList(BookingStatus.CONFIRMED, BookingStatus.PENDING));
 
             LocalTime slotTime = open;
-            while (slotTime.isBefore(close)) {
+            while (slotTime.isBefore(effectiveClose)) {
                 final LocalTime currentSlot = slotTime;
                 String timeStr = String.format("%02d:%02d", currentSlot.getHour(), currentSlot.getMinute());
                 String status;
@@ -297,11 +300,15 @@ public class VenueService {
                 // Kiểm tra xem slot có thuộc ca xé vé không
                 TicketSession matchedSession = null;
                 for (TicketSession ts : ticketSessions) {
-                    if (ts.getCourt().getId().equals(court.getId())
-                            && !currentSlot.isBefore(ts.getStartTime())
-                            && currentSlot.isBefore(ts.getEndTime())) {
-                        matchedSession = ts;
-                        break;
+                    if (ts.getCourt().getId().equals(court.getId())) {
+                        LocalTime tsStart = ts.getStartTime();
+                        LocalTime tsEnd = ts.getEndTime();
+                        boolean isEndMidnight = tsEnd.equals(LocalTime.MIDNIGHT) || tsEnd.isBefore(tsStart);
+
+                        if (!currentSlot.isBefore(tsStart) && (isEndMidnight || currentSlot.isBefore(tsEnd))) {
+                            matchedSession = ts;
+                            break;
+                        }
                     }
                 }
 
@@ -314,7 +321,7 @@ public class VenueService {
                     bookedSlotsCount = matchedSession.getBookedSlots();
                     maxSlotsCount = matchedSession.getMaxSlots();
                     sportLevel = matchedSession.getSportLevel().name();
-                    pricePerTicket = matchedSession.getPricePerTicket().doubleValue();
+                    pricePerTicket = matchedSession.getPricePerTicket() != null ? matchedSession.getPricePerTicket().doubleValue() : null;
                     customerName = "Ca xé vé";
                 } else if (isBooked) {
                     status = "booked";
@@ -367,7 +374,11 @@ public class VenueService {
                         .customerPhone(customerPhone)
                         .build());
 
-                slotTime = slotTime.plusMinutes(shiftMinutes);
+                LocalTime nextSlot = slotTime.plusMinutes(shiftMinutes);
+                if (nextSlot.isBefore(slotTime) || nextSlot.equals(LocalTime.MIDNIGHT)) {
+                    break;
+                }
+                slotTime = nextSlot;
             }
         }
 

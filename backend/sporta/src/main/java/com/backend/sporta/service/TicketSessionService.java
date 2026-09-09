@@ -93,8 +93,9 @@ public class TicketSessionService {
         List<BookingDetail> details = new ArrayList<>();
         LocalTime current = request.getStartTime();
         LocalTime end = request.getEndTime();
+        boolean isEndMidnight = end.equals(LocalTime.MIDNIGHT) || end.isBefore(current);
 
-        while (current.isBefore(end)) {
+        while (isEndMidnight || current.isBefore(end)) {
             LocalTime next = current.plusMinutes(shiftMinutes);
             
             // Kiểm tra xung đột với đặt sân hiện có
@@ -113,6 +114,10 @@ public class TicketSessionService {
                     .price(0.0)
                     .build();
             details.add(detail);
+
+            if (next.equals(LocalTime.MIDNIGHT) || next.isBefore(current)) {
+                break;
+            }
             current = next;
         }
 

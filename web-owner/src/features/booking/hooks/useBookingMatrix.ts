@@ -43,7 +43,7 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
   // Tạo khung giờ động dựa trên chính sách chia ca và giờ hoạt động của cụm sân
   const generateDynamicTimes = (duration: number, opening?: string, closing?: string): string[] => {
     let startMin = 6 * 60; // Mặc định 06:00
-    let endMin = 22 * 60;  // Mặc định 22:00
+    let endMin = 23 * 60;  // Mặc định 23:00
 
     if (opening) {
       const parts = opening.split(':');
@@ -55,7 +55,12 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     if (closing) {
       const parts = closing.split(':');
       if (parts.length >= 2) {
-        endMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        const cMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        if (cMin === 0 || cMin <= startMin) {
+          endMin = 24 * 60; // 00:00 midnight
+        } else {
+          endMin = cMin;
+        }
       }
     }
 
@@ -547,10 +552,10 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
 
     const duration = currentVenue.shiftDurationMinutes || 30;
     const opening = currentVenue.openingTime || '06:00';
-    const closing = currentVenue.closingTime || '22:00';
+    const closing = currentVenue.closingTime || '23:00';
 
     let startMin = 6 * 60;
-    let endMin = 22 * 60;
+    let endMin = 23 * 60;
 
     const parseTimeToMinutesLocal = (t: string): number => {
       if (!t) return 0;
@@ -559,7 +564,14 @@ export const useBookingMatrix = (venueId: string | null, refreshCounter = 0) => 
     };
 
     if (opening) startMin = parseTimeToMinutesLocal(opening);
-    if (closing) endMin = parseTimeToMinutesLocal(closing);
+    if (closing) {
+      const cMin = parseTimeToMinutesLocal(closing);
+      if (cMin === 0 || cMin <= startMin) {
+        endMin = 24 * 60;
+      } else {
+        endMin = cMin;
+      }
+    }
 
     const options = [];
     let currentMin = startMin;

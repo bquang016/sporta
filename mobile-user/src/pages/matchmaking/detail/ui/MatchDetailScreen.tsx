@@ -1248,7 +1248,7 @@ export function MatchDetailScreen() {
                         onSelectLineup={setSelectedLineup}
                         onNavigateToClub={() => {
                           setIsJoinModalVisible(false);
-                          router.push(`/club/${selectedClubId}` as any);
+                          router.push(`/club-detail-joined/${selectedClubId}` as any);
                         }}
                         stepNumber={2}
                       />
