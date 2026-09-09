@@ -239,11 +239,11 @@ export function VenueDetailModal({
     }
     const targetId = venueId || (initialFacility?.id ? String(initialFacility.id) : null);
     if (!targetId) return;
-    handleClose();
+    onClose();
     if (onBookNow) {
       onBookNow(targetId);
     } else {
-      router.push(`/booking/${targetId}`);
+      router.push(`/booking/${targetId}` as any);
     }
   };
 

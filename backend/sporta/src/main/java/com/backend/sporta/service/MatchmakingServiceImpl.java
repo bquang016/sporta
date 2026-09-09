@@ -1565,6 +1565,9 @@ public class MatchmakingServiceImpl implements MatchmakingService {
 
         MatchStatus status = room.getStatus();
 
+        LocalDateTime startDateTime = getBookingStartTime(room.getBooking());
+        boolean matchStarted = startDateTime == null || !LocalDateTime.now().isBefore(startDateTime);
+
         return MatchPermissionsResponse.builder()
                 .canCreateRoom(true)
                 .canSuggest(true)
@@ -1573,7 +1576,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .canManageApplicants(isHostAdmin && status == MatchStatus.OPEN)
                 .canEditRoom(isHostAdmin && status == MatchStatus.OPEN)
                 .canCancelRoom(isHostAdmin && status == MatchStatus.OPEN)
-                .canEnterScore((isHostAdmin || isDevOrAdmin) && (status == MatchStatus.MATCHED || status == MatchStatus.UPCOMING
+                .canEnterScore((isHostAdmin || isDevOrAdmin) && (matchStarted || isDevOrAdmin) && (status == MatchStatus.MATCHED || status == MatchStatus.UPCOMING
                         || status == MatchStatus.SCORE_PENDING || status == MatchStatus.RESULT_OVERDUE))
                 .canConfirmScore(!isHostAdmin && (isGuestAdmin || isDevOrAdmin)
                         && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))

@@ -33,6 +33,39 @@ import { LineupPicker } from '../../../../features/matchmaking/ui/LineupPicker';
 import { EditLineupModal } from '../../../../features/matchmaking/ui/EditLineupModal';
 import { UserAvatar } from '../../../../shared/ui/UserAvatar';
 
+function isMatchTimeStarted(dateStr?: string, startTimeStr?: string): boolean {
+  if (!dateStr || !startTimeStr) return true;
+  try {
+    const timeParts = startTimeStr.split(':');
+    const hours = parseInt(timeParts[0], 10) || 0;
+    const minutes = parseInt(timeParts[1], 10) || 0;
+
+    const cleanDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const numbers = cleanDate.match(/\d+/g);
+    if (!numbers || numbers.length < 3) return true;
+
+    let year = 0;
+    let month = 0;
+    let day = 0;
+    if (numbers[0].length === 4) {
+      year = parseInt(numbers[0], 10);
+      month = parseInt(numbers[1], 10) - 1;
+      day = parseInt(numbers[2], 10);
+    } else if (numbers[2].length === 4) {
+      day = parseInt(numbers[0], 10);
+      month = parseInt(numbers[1], 10) - 1;
+      year = parseInt(numbers[2], 10);
+    } else {
+      return true;
+    }
+
+    const matchStart = new Date(year, month, day, hours, minutes);
+    return new Date().getTime() >= matchStart.getTime();
+  } catch {
+    return true;
+  }
+}
+
 interface ApplicantItemRowProps {
   req: any;
   canManage: boolean;
@@ -208,7 +241,7 @@ export function MatchDetailScreen() {
 
   const handleOpenLineupDetail = (lineup: any, isEditable = false) => {
     setViewingLineup(lineup);
-    setViewingLineupIsEditable(isEditable);
+    setViewingLineupIsEditable(isEditable && room?.status === 'OPEN');
     setIsLineupDetailModalVisible(true);
   };
 
@@ -774,7 +807,7 @@ export function MatchDetailScreen() {
                 {/* Host Lineup */}
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => room.hostLineup && handleOpenLineupDetail(room.hostLineup, isHost)}
+                  onPress={() => room.hostLineup && handleOpenLineupDetail(room.hostLineup, isHost && room.status === 'OPEN')}
                   style={[styles.lineupTeamCol, { borderTopColor: '#059669' }]}
                 >
                   <View style={styles.lineupTeamTop}>
@@ -808,7 +841,7 @@ export function MatchDetailScreen() {
 
                   <View style={styles.lineupActionPill}>
                     <Text style={styles.lineupActionPillText}>
-                      {isHost ? 'Chi tiết / Đổi người' : 'Xem chi tiết'}
+                      {isHost && room.status === 'OPEN' ? 'Chi tiết / Đổi người' : 'Xem chi tiết'}
                     </Text>
                     <Ionicons name="chevron-forward" size={11} color="#059669" />
                   </View>
@@ -1029,23 +1062,58 @@ export function MatchDetailScreen() {
 
           {/* Status MATCHED / UPCOMING / SCORE_PENDING (No submission yet): Host enters score, Side B waits */}
           {(room.status === 'MATCHED' || room.status === 'UPCOMING' || (room.status === 'SCORE_PENDING' && !room.scoreSubmission)) && (
-            room.permissions?.canEnterScore ? (
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
-                style={styles.scoreBtn}
-              >
-                <Ionicons name="trophy" size={16} color="#FFFFFF" />
-                <Text style={styles.actionBtnText}>Nhập tỷ số trận đấu (Chủ room)</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.matchedWaitingBanner}>
-                <Ionicons name="time-outline" size={16} color="#0369A1" />
-                <Text style={styles.matchedWaitingText} numberOfLines={1}>
-                  Trận đã kết thúc • Chờ Chủ room ({room.hostClub?.name || 'Chủ nhà'}) nhập tỷ số
-                </Text>
-              </View>
-            )
+            (() => {
+              const matchStarted = isMatchTimeStarted(booking?.date, booking?.startTime);
+              const isDev = isDevUser(currentUser);
+
+              if (!matchStarted && !isDev) {
+                return (
+                  <View style={styles.upcomingMatchBanner}>
+                    <Ionicons name="time-outline" size={18} color="#0284C7" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.upcomingMatchTitle}>Chưa đến ngày/giờ thi đấu</Text>
+                      <Text style={styles.upcomingMatchSub}>
+                        Trận đấu diễn ra lúc {booking?.startTime} - {booking?.endTime} ({booking?.date}). Nút nhập tỷ số sẽ tự động mở khi trận đấu bắt đầu.
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
+
+              if (room.permissions?.canEnterScore || (isHost && isDev)) {
+                return (
+                  <View style={{ gap: 6 }}>
+                    {!matchStarted && isDev && (
+                      <View style={styles.devBypassBanner}>
+                        <Ionicons name="construct" size={13} color="#D97706" />
+                        <Text style={styles.devBypassText}>
+                          [Tài khoản Dev/Tester: Cho phép nhập tỷ số trước giờ thi đấu]
+                        </Text>
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      activeOpacity={0.88}
+                      onPress={() => router.push(`/matchmaking/${room.id}/score` as any)}
+                      style={styles.scoreBtn}
+                    >
+                      <Ionicons name="trophy" size={16} color="#FFFFFF" />
+                      <Text style={styles.actionBtnText}>Nhập tỷ số trận đấu (Chủ room)</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+
+              return (
+                <View style={styles.matchedWaitingBanner}>
+                  <Ionicons name="time-outline" size={16} color="#0369A1" />
+                  <Text style={styles.matchedWaitingText} numberOfLines={1}>
+                    {matchStarted
+                      ? `Trận đã diễn ra • Chờ Chủ room (${room.hostClub?.name || 'Chủ nhà'}) nhập tỷ số`
+                      : `Trận đấu diễn ra lúc ${booking?.startTime} (${booking?.date})`}
+                  </Text>
+                </View>
+              );
+            })()
           )}
 
           {/* Status SCORE_CONFIRMING (Submission exists): Side B approves, Host waits */}
@@ -2535,5 +2603,46 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontWeight: '700',
     fontSize: 11,
+  },
+  upcomingMatchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  upcomingMatchTitle: {
+    ...TYPOGRAPHY.labelMd,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0369A1',
+    marginBottom: 2,
+  },
+  upcomingMatchSub: {
+    ...TYPOGRAPHY.bodySm,
+    fontSize: 11.5,
+    color: '#0284C7',
+    lineHeight: 16,
+  },
+  devBypassBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    alignSelf: 'center',
+  },
+  devBypassText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
   },
 });

@@ -21,7 +21,6 @@ import { ChatMessageBubble } from './ChatMessageBubble';
 import { VenueCardMessage } from './VenueCardMessage';
 import { QuickPromptChips } from './QuickPromptChips';
 import { TypingIndicator } from './TypingIndicator';
-import { VenueDetailModal } from '../../../features/venue-detail';
 import { COLORS, BORDER_RADIUS, TYPOGRAPHY, SPACING } from '../../../shared/config/theme';
 
 import * as SecureStore from 'expo-secure-store';
@@ -40,10 +39,12 @@ interface Message {
 export interface ChatbotBottomSheetProps {
   visible: boolean;
   onClose: () => void;
+  onOpenVenueDetail?: (venueId: string) => void;
 }
 
-export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible, onClose }) => {
+export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible, onClose, onOpenVenueDetail }) => {
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(visible);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
@@ -67,8 +68,6 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [quickReplies, setQuickReplies] = useState<string[]>(DEFAULT_QUICK_REPLIES);
-  const [selectedVenueIdForModal, setSelectedVenueIdForModal] = useState<string | null>(null);
-  const [isVenueModalVisible, setIsVenueModalVisible] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const sessionIdRef = useRef('session-' + Date.now());
@@ -80,7 +79,6 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
     sessionIdRef.current = 'session-' + Date.now();
   }, []);
 
-  // Check and reset conversation when switching user account
   useEffect(() => {
     if (visible) {
       const checkUserSession = async () => {
@@ -92,7 +90,6 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
         }
 
         if (lastTokenRef.current !== null && lastTokenRef.current !== token) {
-          // Token changed (User logged in with a different account or logged out)
           console.log('[Chatbot] Account changed detected, resetting chat session...');
           handleResetChat();
         }
@@ -102,7 +99,6 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
     }
   }, [visible, handleResetChat]);
 
-  // Smooth synchronized keyboard tracking with exact easing
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -143,9 +139,9 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
     };
   }, [keyboardHeightAnim]);
 
-  // Entrance and Exit Animations matching VenueDetailModal
   useEffect(() => {
     if (visible) {
+      setIsMounted(true);
       translateY.setValue(SCREEN_HEIGHT);
       backdropOpacity.setValue(0);
 
@@ -162,28 +158,29 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
           useNativeDriver: true,
         }),
       ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: SCREEN_HEIGHT,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setIsMounted(false);
+      });
     }
   }, [visible, translateY, backdropOpacity]);
 
   const handleClose = useCallback(() => {
     Keyboard.dismiss();
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: SCREEN_HEIGHT,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-    });
-  }, [backdropOpacity, translateY, onClose]);
+    onClose();
+  }, [onClose]);
 
-  // Swipe-down pan responder for top handle
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -214,33 +211,28 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
   const handleActionPress = (id: string, cardType?: string, action: 'detail' | 'book' = 'detail') => {
     console.log('[Chatbot] Action pressed for card ID:', id, 'Type:', cardType, 'Action:', action);
     Keyboard.dismiss();
+    onClose();
 
     if (cardType === 'match_room' || cardType === 'partner') {
-      handleClose();
       if (id && id !== 'all' && !id.startsWith('u')) {
         router.push(`/matchmaking/${id}` as any);
       } else {
         router.push('/matchmaking' as any);
       }
     } else if (cardType === 'club') {
-      handleClose();
       if (id) {
         router.push(`/club-detail-explore/${id}` as any);
       } else {
         router.push('/matchmaking' as any);
       }
     } else {
-      // Default: Venue
       if (action === 'book') {
-        handleClose();
         if (id) {
           router.push(`/booking/${id}` as any);
         }
       } else {
-        // Open rich VenueDetailModal for overview (images, facilities, location, rules, reviews)
-        if (id) {
-          setSelectedVenueIdForModal(id);
-          setIsVenueModalVisible(true);
+        if (onOpenVenueDetail && id) {
+          onOpenVenueDetail(id);
         }
       }
     }
@@ -344,154 +336,135 @@ export const ChatbotBottomSheet: React.FC<ChatbotBottomSheetProps> = ({ visible,
     );
   };
 
-  return (
-    <>
-      <Modal
-        visible={visible}
-        transparent
-        animationType="none"
-        onRequestClose={handleClose}
-        statusBarTranslucent
-      >
-        <View style={styles.modalRoot}>
-          {/* Backdrop */}
-          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={handleClose}
-            />
-          </Animated.View>
+  if (!isMounted && !visible) {
+    return null;
+  }
 
-          {/* Sliding Sheet Container */}
-          <Animated.View
-            style={[
-              styles.sheetContainer,
-              {
-                transform: [{ translateY }],
-              },
-            ]}
-          >
-            {/* Header with Drag Gesture Handler */}
-            <View style={styles.header} {...panResponder.panHandlers}>
-              <View style={styles.handleIndicator} />
-              <View style={styles.headerRow}>
-                <View style={styles.brandRow}>
-                  <View style={styles.avatarBadge}>
-                    <Ionicons name="sparkles" size={16} color={COLORS.secondary} />
-                  </View>
-                  <View>
-                    <View style={styles.titleWithStatus}>
-                      <Text style={styles.headerTitle}>Sporta AI Assistant</Text>
-                      <View style={styles.statusPill}>
-                        <View style={styles.statusDot} />
-                        <Text style={styles.statusText}>Sẵn sàng</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.headerSubtitle}>Trợ lý tìm sân & ghép kèo thông minh</Text>
+  return (
+    <View style={styles.modalRoot} pointerEvents={visible ? 'auto' : 'none'}>
+      {/* Backdrop */}
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
+      </Animated.View>
+
+      {/* Sliding Sheet Container */}
+      <Animated.View
+        style={[
+          styles.sheetContainer,
+          {
+            transform: [{ translateY }],
+          },
+        ]}
+      >
+        {/* Header with Drag Gesture Handler */}
+        <View style={styles.header} {...panResponder.panHandlers}>
+          <View style={styles.handleIndicator} />
+          <View style={styles.headerRow}>
+            <View style={styles.brandRow}>
+              <View style={styles.avatarBadge}>
+                <Ionicons name="sparkles" size={16} color={COLORS.secondary} />
+              </View>
+              <View>
+                <View style={styles.titleWithStatus}>
+                  <Text style={styles.headerTitle}>Sporta AI Assistant</Text>
+                  <View style={styles.statusPill}>
+                    <View style={styles.statusDot} />
+                    <Text style={styles.statusText}>Sẵn sàng</Text>
                   </View>
                 </View>
-                <View style={styles.headerRightActions}>
-                  <TouchableOpacity 
-                    onPress={handleResetChat} 
-                    style={styles.headerIconBtn} 
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Làm mới đoạn chat"
-                  >
-                    <Ionicons name="refresh" size={17} color={COLORS.outline} />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    onPress={handleClose} 
-                    style={styles.headerIconBtn} 
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Đóng"
-                  >
-                    <Ionicons name="close" size={20} color={COLORS.outline} />
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.headerSubtitle}>Trợ lý tìm sân & ghép kèo thông minh</Text>
               </View>
             </View>
-
-            {/* Smooth Keyboard-Adjusted Content */}
-            <Animated.View style={[styles.sheetContent, { paddingBottom: keyboardHeightAnim }]}>
-              {/* Chat message list */}
-              <FlatList
-                ref={flatListRef}
-                data={messages}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.messageList}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-              />
-
-              {isLoading && <TypingIndicator />}
-
-              {!isLoading && <QuickPromptChips prompts={quickReplies} onSelect={handleSend} />}
-
-              {/* Input Footer */}
-              <View style={styles.inputBar}>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Tìm sân trống, ghép kèo đối thủ, CLB..."
-                    placeholderTextColor={COLORS.outline}
-                    value={inputText}
-                    onChangeText={setInputText}
-                    onSubmitEditing={() => handleSend(inputText)}
-                    returnKeyType="send"
-                    onFocus={() => {
-                      setTimeout(() => {
-                        flatListRef.current?.scrollToEnd({ animated: true });
-                      }, 50);
-                    }}
-                  />
-                </View>
-                <TouchableOpacity
-                  style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-                  onPress={() => handleSend(inputText)}
-                  disabled={!inputText.trim()}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name="arrow-up"
-                    size={20}
-                    color={inputText.trim() ? COLORS.onSecondary : 'rgba(0, 53, 39, 0.4)'}
-                  />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          </Animated.View>
+            <View style={styles.headerRightActions}>
+              <TouchableOpacity 
+                onPress={handleResetChat} 
+                style={styles.headerIconBtn} 
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Làm mới đoạn chat"
+              >
+                <Ionicons name="refresh" size={17} color={COLORS.outline} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleClose} 
+                style={styles.headerIconBtn} 
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Đóng"
+              >
+                <Ionicons name="close" size={20} color={COLORS.outline} />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </Modal>
 
-      {/* ── Venue Detail Overview Modal from AI recommendation ── */}
-      {selectedVenueIdForModal && (
-        <VenueDetailModal
-          visible={isVenueModalVisible}
-          venueId={selectedVenueIdForModal}
-          onClose={() => {
-            setIsVenueModalVisible(false);
-            setSelectedVenueIdForModal(null);
-          }}
-          onBookNow={(venueId: string) => {
-            setIsVenueModalVisible(false);
-            setSelectedVenueIdForModal(null);
-            handleClose();
-            router.push(`/booking/${venueId}` as any);
-          }}
-        />
-      )}
-    </>
+        {/* Smooth Keyboard-Adjusted Content */}
+        <Animated.View style={[styles.sheetContent, { paddingBottom: keyboardHeightAnim }]}>
+          {/* Chat message list */}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.messageList}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          />
+
+          {isLoading && <TypingIndicator />}
+
+          {!isLoading && <QuickPromptChips prompts={quickReplies} onSelect={handleSend} />}
+
+          {/* Input Footer */}
+          <View style={styles.inputBar}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Tìm sân trống, ghép kèo đối thủ, CLB..."
+                placeholderTextColor={COLORS.outline}
+                value={inputText}
+                onChangeText={setInputText}
+                onSubmitEditing={() => handleSend(inputText)}
+                returnKeyType="send"
+                onFocus={() => {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  }, 50);
+                }}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+              onPress={() => handleSend(inputText)}
+              disabled={!inputText.trim()}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="arrow-up"
+                size={20}
+                color={inputText.trim() ? COLORS.onSecondary : 'rgba(0, 53, 39, 0.4)'}
+              />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   modalRoot: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 99999,
     justifyContent: 'flex-end',
   },
   backdrop: {

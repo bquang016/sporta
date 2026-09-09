@@ -277,13 +277,23 @@ export function ScoreInputScreen() {
             (!isDevUser(currentUser) && room.status !== 'SCORE_PENDING' && !isMatchTimeStarted(room.booking.date, room.booking.startTime)) ? (
               <View style={styles.cardInfo}>
                 <Ionicons name="time-outline" size={24} color="#D97706" />
-                <Text style={styles.cardInfoTitle}>Chưa đến giờ thi đấu</Text>
+                <Text style={styles.cardInfoTitle}>Chưa đến ngày/giờ thi đấu</Text>
                 <Text style={styles.cardInfoSub}>
-                  Trận đấu diễn ra lúc {room.booking.date} ({room.booking.startTime}). Bạn có thể cập nhật tỷ số sau khi trận đấu bắt đầu.
+                  Trận đấu diễn ra lúc {room.booking.startTime} - {room.booking.endTime} ({room.booking.date}). Bạn có thể cập nhật tỷ số sau khi trận đấu bắt đầu.
                 </Text>
               </View>
             ) : (room.permissions?.canEnterScore || isDevUser(currentUser)) ? (
-              <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} loading={submitting} />
+              <View style={{ gap: 12 }}>
+                {!isMatchTimeStarted(room.booking.date, room.booking.startTime) && isDevUser(currentUser) && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.md, alignSelf: 'center', borderWidth: 1, borderColor: '#FDE68A' }}>
+                    <Ionicons name="construct" size={14} color="#92400E" />
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#92400E' }}>
+                      [Tài khoản Dev/Tester: Cho phép nhập tỷ số trước giờ thi đấu]
+                    </Text>
+                  </View>
+                )}
+                <ScoreInputForm room={room} onSubmitScore={handleSubmitScore} loading={submitting} />
+              </View>
             ) : (
               <View style={styles.cardInfo}>
                 <Ionicons name="hourglass-outline" size={24} color="#0284C7" />
