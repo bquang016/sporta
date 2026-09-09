@@ -839,20 +839,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             expJson = "[]";
         }
 
-        com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                .match(match)
-                .outcome(submission.getOutcome())
-                .finalScoreText(scoreText)
-                .hostCrpBefore(crpRes.getHostCrpBefore())
-                .hostCrpDelta(crpRes.getHostCrpDelta())
-                .hostCrpAfter(crpRes.getHostCrpAfter())
-                .guestCrpBefore(crpRes.getGuestCrpBefore())
-                .guestCrpDelta(crpRes.getGuestCrpDelta())
-                .guestCrpAfter(crpRes.getGuestCrpAfter())
-                .isRankedEligible(crpRes.isRankedEligible())
-                .explanationJson(expJson)
-                .confirmedAt(LocalDateTime.now())
-                .build();
+        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+        result.setOutcome(submission.getOutcome());
+        result.setFinalScoreText(scoreText);
+        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+        result.setIsRankedEligible(crpRes.isRankedEligible());
+        result.setExplanationJson(expJson);
+        result.setConfirmedAt(LocalDateTime.now());
 
         matchResultRepository.save(result);
 
@@ -1066,19 +1066,20 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             expJson = "[\"Kết quả Hòa theo đồng thuận\"]";
         }
 
-        com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                .match(match)
-                .outcome(NormalizedOutcome.DRAW)
-                .finalScoreText("Hòa (Đồng thuận)")
-                .hostCrpBefore(crpRes.getHostCrpBefore())
-                .hostCrpDelta(crpRes.getHostCrpDelta())
-                .hostCrpAfter(crpRes.getHostCrpAfter())
-                .guestCrpBefore(crpRes.getGuestCrpBefore())
-                .guestCrpDelta(crpRes.getGuestCrpDelta())
-                .guestCrpAfter(crpRes.getGuestCrpAfter())
-                .isRankedEligible(crpRes.isRankedEligible())
-                .explanationJson(expJson)
-                .build();
+        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+        result.setOutcome(NormalizedOutcome.DRAW);
+        result.setFinalScoreText("Hòa (Đồng thuận)");
+        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+        result.setIsRankedEligible(crpRes.isRankedEligible());
+        result.setExplanationJson(expJson);
+        result.setConfirmedAt(LocalDateTime.now());
 
         matchResultRepository.save(result);
 

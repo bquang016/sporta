@@ -224,20 +224,20 @@ public class AdminDisputeController {
             expJson = "[]";
         }
 
-        com.backend.sporta.entity.MatchResult result = com.backend.sporta.entity.MatchResult.builder()
-                .match(match)
-                .outcome(outcome)
-                .finalScoreText(scoreText)
-                .hostCrpBefore(crpRes.getHostCrpBefore())
-                .hostCrpDelta(crpRes.getHostCrpDelta())
-                .hostCrpAfter(crpRes.getHostCrpAfter())
-                .guestCrpBefore(crpRes.getGuestCrpBefore())
-                .guestCrpDelta(crpRes.getGuestCrpDelta())
-                .guestCrpAfter(crpRes.getGuestCrpAfter())
-                .isRankedEligible(crpRes.isRankedEligible())
-                .explanationJson(expJson)
-                .confirmedAt(LocalDateTime.now())
-                .build();
+        com.backend.sporta.entity.MatchResult result = matchResultRepository.findByMatchId(match.getId())
+                .orElseGet(() -> com.backend.sporta.entity.MatchResult.builder().match(match).build());
+
+        result.setOutcome(outcome);
+        result.setFinalScoreText(scoreText);
+        result.setHostCrpBefore(crpRes.getHostCrpBefore());
+        result.setHostCrpDelta(crpRes.getHostCrpDelta());
+        result.setHostCrpAfter(crpRes.getHostCrpAfter());
+        result.setGuestCrpBefore(crpRes.getGuestCrpBefore());
+        result.setGuestCrpDelta(crpRes.getGuestCrpDelta());
+        result.setGuestCrpAfter(crpRes.getGuestCrpAfter());
+        result.setIsRankedEligible(crpRes.isRankedEligible());
+        result.setExplanationJson(expJson);
+        result.setConfirmedAt(LocalDateTime.now());
 
         matchResultRepository.save(result);
 
@@ -415,6 +415,45 @@ public class AdminDisputeController {
                         NotificationType.MATCH_DISPUTE_RESOLVED,
                         roomIdStr
                 ));
+            }
+        } catch (Exception ignored) {}
+
+        return ResponseEntity.ok(savedDispute);
+    }
+
+    @PostMapping("/{id}/close")
+    @Transactional
+    public ResponseEntity<Dispute> closeDispute(
+            @PathVariable UUID id,
+            @RequestBody(required = false) ResolveDisputeRequest request) {
+        User admin = getCurrentAdminUser();
+        Dispute dispute = disputeRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Không tìm thấy khiếu nại", 404));
+
+        String note = (request != null && request.getResolutionNote() != null && !request.getResolutionNote().isBlank())
+                ? request.getResolutionNote()
+                : "Admin đã đóng hồ sơ khiếu nại này (Khiếu nại trùng lặp hoặc đã được giải quyết trước đó).";
+
+        dispute.setStatus(DisputeStatus.RESOLVED);
+        dispute.setResolvedByAdmin(admin);
+        dispute.setResolutionNote(note);
+        dispute.setResolvedAt(LocalDateTime.now());
+        Dispute savedDispute = disputeRepository.save(dispute);
+
+        // Sync linked SupportTicket status to RESOLVED
+        try {
+            Match match = dispute.getMatch();
+            List<SupportTicket> tickets = supportTicketRepository.findByTicketType("MATCH_DISPUTE");
+            for (SupportTicket t : tickets) {
+                String searchStr = (t.getAdminNote() != null ? t.getAdminNote() : "") + " " + (t.getDescription() != null ? t.getDescription() : "");
+                if ((match != null && searchStr.contains(match.getId().toString())) || searchStr.contains(dispute.getId().toString())) {
+                    t.setStatus(SupportTicketStatus.RESOLVED);
+                    t.setAdminNote(note + "\n(DisputeId: " + dispute.getId() + ")");
+                    t.setResolvedAt(LocalDateTime.now());
+                    t.setProcessedBy(admin.getFullName() != null ? admin.getFullName() : admin.getEmail());
+                    supportTicketRepository.save(t);
+                    break;
+                }
             }
         } catch (Exception ignored) {}
 
