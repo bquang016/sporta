@@ -267,4 +267,24 @@ export const disbandLineupApi = async (lineupId: number): Promise<void> => {
   return requestApi(`/clubs/lineups/${lineupId}`, { method: 'DELETE' });
 };
 
+// ================= DEV PANEL CLUB MEMBERS API =================
+export interface DevClubCandidate {
+  id: number;
+  fullName: string;
+  email: string;
+  avatarUrl?: string;
+  role?: string;
+  elo: number;
+  isDevTester?: boolean;
+}
 
+export const getDevClubCandidatesApi = async (clubId: number): Promise<DevClubCandidate[]> => {
+  return requestApi(`/clubs/${clubId}/dev-candidates`, { method: 'GET' });
+};
+
+export const devAssignClubMembersApi = async (clubId: number, userIds: number[]): Promise<any> => {
+  return requestApi(`/clubs/${clubId}/dev-assign-members`, {
+    method: 'POST',
+    body: JSON.stringify({ userIds }),
+  });
+};

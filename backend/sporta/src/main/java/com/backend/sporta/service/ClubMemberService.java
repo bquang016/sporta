@@ -21,4 +21,8 @@ public interface ClubMemberService {
     void assignSubLeader(Long clubId, Long userId, String userEmail);
 
     void demoteSubLeader(Long clubId, Long userId, String userEmail);
+
+    List<com.backend.sporta.dto.DevClubCandidateResponse> getDevCandidateUsers(Long clubId, String userEmail);
+
+    java.util.Map<String, Object> devAssignMembers(Long clubId, com.backend.sporta.dto.DevAssignClubMembersRequest request, String userEmail);
 }

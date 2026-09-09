@@ -16,6 +16,7 @@ import { ClubInfoModal } from './components/ClubInfoModal';
 import { EditClubModal } from './components/EditClubModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { PollCard } from './components/PollCard';
+import { DevClubMembersModal } from './components/DevClubMembersModal';
 import { MatchPollVM } from '../../../entities/match/model/match.types';
 import {
   getClubByIdApi,
@@ -49,6 +50,7 @@ export function ClubDetailJoinedScreen() {
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
   const [isDeleteLeaveMode, setIsDeleteLeaveMode] = useState(false);
   const [isMembersModalVisible, setIsMembersModalVisible] = useState(false);
+  const [isDevAssignModalVisible, setIsDevAssignModalVisible] = useState(false);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
   const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
   const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
@@ -589,6 +591,19 @@ export function ClubDetailJoinedScreen() {
                       <Text style={styles.pendingDotText}>+{pendingMembers.length} chờ</Text>
                     </View>
                   )}
+                  {hasDevPrivileges && (
+                    <TouchableOpacity
+                      style={styles.subCardDevBadge}
+                      activeOpacity={0.8}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setIsDevAssignModalVisible(true);
+                      }}
+                    >
+                      <Ionicons name="construct" size={10} color="#7C3AED" />
+                      <Text style={styles.subCardDevBadgeText}>DEV: Gán TV</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={styles.navCardSub}>
                   {approvedMembers.length} / {club.maxMembers || 50} thành viên chính thức
@@ -698,6 +713,9 @@ export function ClubDetailJoinedScreen() {
         members={members}
         currentUserRole={currentUserRole}
         currentUserId={currentUserId}
+        clubId={club.id}
+        clubName={club.name}
+        isDevUser={hasDevPrivileges}
         onClose={() => setIsMembersModalVisible(false)}
         onTransferLeadership={handleTransferLeadership}
         onAssignSubLeader={handleAssignSubLeader}
@@ -707,6 +725,19 @@ export function ClubDetailJoinedScreen() {
         onRejectMember={handleRejectMember}
         onRefreshMembers={fetchMembers}
         onLeavePress={handleLeavePress}
+      />
+
+      <DevClubMembersModal
+        visible={isDevAssignModalVisible}
+        onClose={() => setIsDevAssignModalVisible(false)}
+        clubId={club.id}
+        clubName={club.name}
+        onSuccess={(count) => {
+          showAlert('Thành công', `Đã gán ${count} thành viên vào CLB thành công!`);
+          fetchMembers();
+          fetchClubDetails();
+          refreshClubs();
+        }}
       />
 
       <MatchHistoryModal 
@@ -940,6 +971,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#B45309',
+  },
+  subCardDevBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    gap: 3,
+    marginLeft: 2,
+  },
+  subCardDevBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#7C3AED',
   },
   navCardSub: {
     fontSize: 11.5,

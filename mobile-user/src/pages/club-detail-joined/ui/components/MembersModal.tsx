@@ -11,9 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../../shared/config/theme';
 import { Avatar } from '../../../../shared/ui';
+import { DevClubMembersModal } from './DevClubMembersModal';
 
 export interface MemberItem {
   id: string | number;
@@ -33,6 +34,9 @@ export interface MembersModalProps {
   onLeavePress: () => void;
   currentUserRole?: string;
   currentUserId?: number;
+  clubId?: number;
+  clubName?: string;
+  isDevUser?: boolean;
   onTransferLeadership?: (member: MemberItem) => Promise<void> | void;
   onAssignSubLeader?: (member: MemberItem) => Promise<void> | void;
   onDemoteSubLeader?: (member: MemberItem) => Promise<void> | void;
@@ -62,6 +66,9 @@ export function MembersModal({
   onLeavePress,
   currentUserRole,
   currentUserId,
+  clubId,
+  clubName,
+  isDevUser,
   onTransferLeadership,
   onAssignSubLeader,
   onDemoteSubLeader,
@@ -77,6 +84,7 @@ export function MembersModal({
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isDevAssignModalVisible, setIsDevAssignModalVisible] = useState(false);
 
   const approvedMembers = useMemo(
     () => members.filter((m) => m.status === 'APPROVED' || !m.status),
@@ -274,17 +282,29 @@ export function MembersModal({
                 </Text>
               </View>
 
-              {onRefreshMembers ? (
-                <TouchableOpacity
-                  style={styles.refreshBtn}
-                  activeOpacity={0.7}
-                  onPress={onRefreshMembers}
-                >
-                  <MaterialIcons name="refresh" size={22} color={COLORS.primary} />
-                </TouchableOpacity>
-              ) : (
-                <View style={{ width: 40 }} />
-              )}
+              <View style={styles.headerRightActions}>
+                {isDevUser && !!clubId && (
+                  <TouchableOpacity
+                    style={styles.devHeaderBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setIsDevAssignModalVisible(true)}
+                  >
+                    <Ionicons name="construct" size={12} color="#7C3AED" />
+                    <Text style={styles.devHeaderBtnText}>DEV: Gán TV</Text>
+                  </TouchableOpacity>
+                )}
+                {onRefreshMembers ? (
+                  <TouchableOpacity
+                    style={styles.refreshBtn}
+                    activeOpacity={0.7}
+                    onPress={onRefreshMembers}
+                  >
+                    <MaterialIcons name="refresh" size={22} color={COLORS.primary} />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ width: 10 }} />
+                )}
+              </View>
             </View>
 
             {/* Leadership / SubLeader Segmented Tabs */}
@@ -821,6 +841,25 @@ export function MembersModal({
               </View>
             </View>
           )}
+          {/* DEV Assign Members Modal */}
+          {!!clubId && (
+            <DevClubMembersModal
+              visible={isDevAssignModalVisible}
+              onClose={() => setIsDevAssignModalVisible(false)}
+              clubId={clubId}
+              clubName={clubName}
+              onSuccess={(count) => {
+                setToastMessage({
+                  type: 'success',
+                  text: `Đã gán thành công ${count} thành viên vào CLB!`,
+                });
+                setTimeout(() => setToastMessage(null), 3500);
+                if (onRefreshMembers) {
+                  onRefreshMembers();
+                }
+              }}
+            />
+          )}
         </View>
       </SafeAreaProvider>
     </Modal>
@@ -866,6 +905,27 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '400',
     marginTop: 1,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  devHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    gap: 4,
+  },
+  devHeaderBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7C3AED',
   },
   refreshBtn: {
     width: 38,

@@ -147,6 +147,18 @@ public class ClubController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}/dev-candidates")
+    public ResponseEntity<List<DevClubCandidateResponse>> getDevCandidateUsers(@PathVariable Long id) {
+        return ResponseEntity.ok(clubMemberService.getDevCandidateUsers(id, getCurrentUserEmail()));
+    }
+
+    @PostMapping("/{id}/dev-assign-members")
+    public ResponseEntity<java.util.Map<String, Object>> devAssignMembers(
+            @PathVariable Long id,
+            @Valid @RequestBody DevAssignClubMembersRequest request) {
+        return ResponseEntity.ok(clubMemberService.devAssignMembers(id, request, getCurrentUserEmail()));
+    }
+
     // 3. Club Polls
     @GetMapping("/{id}/polls/active")
     public ResponseEntity<ClubPollResponse> getActivePoll(@PathVariable Long id) {
