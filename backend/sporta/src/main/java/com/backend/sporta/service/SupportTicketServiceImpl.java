@@ -4,11 +4,17 @@ import com.backend.sporta.dto.CreateSupportTicketRequest;
 import com.backend.sporta.dto.ProcessSupportTicketRequest;
 import com.backend.sporta.dto.RespondSupportTicketRequest;
 import com.backend.sporta.dto.SupportTicketResponse;
+import com.backend.sporta.entity.Dispute;
+import com.backend.sporta.entity.Match;
 import com.backend.sporta.entity.SupportTicket;
 import com.backend.sporta.entity.User;
-import com.backend.sporta.enums.SupportTicketStatus;
-import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.DisputeStatus;
+import com.backend.sporta.enums.MatchStatus;
 import com.backend.sporta.enums.NotificationType;
+import com.backend.sporta.enums.Role;
+import com.backend.sporta.enums.SupportTicketStatus;
+import com.backend.sporta.repository.DisputeRepository;
+import com.backend.sporta.repository.MatchRepository;
 import com.backend.sporta.repository.SupportTicketRepository;
 import com.backend.sporta.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +33,8 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     private final SupportTicketRepository supportTicketRepository;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
+    private final DisputeRepository disputeRepository;
+    private final MatchRepository matchRepository;
 
     @Override
     @Transactional
@@ -73,13 +81,68 @@ public class SupportTicketServiceImpl implements SupportTicketService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SupportTicketResponse> getAllTickets(SupportTicketStatus status, String search) {
         List<SupportTicket> list;
         if (status != null) {
             list = supportTicketRepository.findByStatusOrderByCreatedAtDesc(status);
         } else {
             list = supportTicketRepository.findAllByOrderByCreatedAtDesc();
+        }
+
+        // Auto-heal / sync any MATCH_DISPUTE tickets whose dispute was already resolved or match is final
+        for (SupportTicket t : list) {
+            if ("MATCH_DISPUTE".equalsIgnoreCase(t.getTicketType()) &&
+                    (t.getStatus() == SupportTicketStatus.NEW || t.getStatus() == SupportTicketStatus.IN_PROGRESS)) {
+                String searchStr = (t.getAdminNote() != null ? t.getAdminNote() : "") + " " + (t.getDescription() != null ? t.getDescription() : "");
+                UUID dispId = null;
+                UUID matchId = null;
+                if (searchStr.contains("DisputeId:")) {
+                    try {
+                        String part = searchStr.split("DisputeId:")[1].trim().split("[\\s|\\n\\)\\.\"]+")[0].trim();
+                        dispId = UUID.fromString(part.replaceAll("[^a-zA-Z0-9-]", ""));
+                    } catch (Exception ignored) {}
+                }
+                if (searchStr.contains("MatchId:")) {
+                    try {
+                        String part = searchStr.split("MatchId:")[1].trim().split("[\\s|\\n\\)\\.\"]+")[0].trim();
+                        matchId = UUID.fromString(part.replaceAll("[^a-zA-Z0-9-]", ""));
+                    } catch (Exception ignored) {}
+                }
+                if (searchStr.contains("Mã trận:")) {
+                    try {
+                        String part = searchStr.split("Mã trận:")[1].trim().split("[\\s|\\n\\)\\.\"]+")[0].trim();
+                        matchId = UUID.fromString(part.replaceAll("[^a-zA-Z0-9-]", ""));
+                    } catch (Exception ignored) {}
+                }
+
+                boolean isResolved = false;
+                if (dispId != null) {
+                    Dispute d = disputeRepository.findById(dispId).orElse(null);
+                    if (d != null && d.getStatus() == DisputeStatus.RESOLVED) {
+                        isResolved = true;
+                    }
+                }
+                if (!isResolved && matchId != null) {
+                    Match m = matchRepository.findById(matchId).orElse(null);
+                    if (m != null && m.getStatus() == MatchStatus.RESULT_FINAL) {
+                        isResolved = true;
+                    }
+                }
+
+                if (isResolved) {
+                    t.setStatus(SupportTicketStatus.RESOLVED);
+                    if (t.getResolvedAt() == null) {
+                        t.setResolvedAt(LocalDateTime.now());
+                    }
+                    supportTicketRepository.save(t);
+                }
+            }
+        }
+
+        // Re-filter by status if status was provided and auto-heal updated records
+        if (status != null) {
+            list = list.stream().filter(t -> t.getStatus() == status).collect(Collectors.toList());
         }
 
         if (search != null && !search.trim().isEmpty()) {
