@@ -7,6 +7,24 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    // Tự động chuyển tiếp access_token về Mobile App hoặc Web Opener
+    (function() {
+      var hash = window.location.hash;
+      if (hash && (hash.indexOf('access_token=') !== -1 || hash.indexOf('code=') !== -1)) {
+        // 1. Nếu mở từ Web popup (window.opener)
+        if (window.opener) {
+          try {
+            window.opener.postMessage({ type: 'facebook_token', url: window.location.href, hash: hash }, '*');
+            setTimeout(function() { window.close(); }, 300);
+            return;
+          } catch(e) { console.log(e); }
+        }
+        // 2. Nếu mở từ Mobile App Native
+        window.location.href = 'sporta://' + hash;
+      }
+    })();
+  </script>
   <style>
     :root {
       --primary: #10B981;
