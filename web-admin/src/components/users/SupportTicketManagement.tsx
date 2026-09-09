@@ -336,14 +336,18 @@ export const SupportTicketManagement: React.FC = () => {
   };
 
   // 1-Click Ruling Handler for Match Disputes
-  const handleRuling = async (ruling: 'WIN_A' | 'WIN_B') => {
+  const handleRuling = async (ruling: 'WIN_A' | 'WIN_B' | 'DRAW') => {
     if (!disputeDetail) return;
     setIsRuling(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const note = adminNoteInput.trim() || (ruling === 'WIN_A'
-        ? 'Admin phán quyết: Bên A (Host) thắng 3-0. Phạt Bên B -10 CRP do khiếu nại sai.'
-        : 'Admin phán quyết: Bên B (Guest) thắng 0-3. Phạt Bên A -10 CRP do khai báo sai tỷ số.');
+      const note = adminNoteInput.trim() || (
+        ruling === 'WIN_A'
+          ? 'Admin xử lý: Bên A (Host) thắng 3-0. Phạt bên B -10 CRP do khiếu nại sai.'
+          : ruling === 'WIN_B'
+          ? 'Admin xử lý: Bên B (Guest) thắng 0-3. Phạt bên A -10 CRP do khai báo sai tỷ số.'
+          : 'Admin xử lý: Kết quả hòa 0-0. Cập nhật điểm xếp hạng theo kết quả thi đấu.'
+      );
 
       const response = await fetch(`${API_BASE_URL}/admin/disputes/${disputeDetail.disputeId}/resolve`, {
         method: 'POST',
@@ -359,14 +363,19 @@ export const SupportTicketManagement: React.FC = () => {
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.message || 'Phán quyết tranh chấp thất bại.');
+        throw new Error(errData.message || 'Xử lý tranh chấp thất bại.');
       }
 
-      showToast('success', `🏆 Đã xử ${ruling === 'WIN_A' ? 'Bên A (Host)' : 'Bên B (Guest)'} Thắng thành công! Điểm CRP và kết quả trận đã được chốt.`);
+      showToast(
+        'success',
+        ruling === 'DRAW'
+          ? 'Đã xử kết quả hòa (0 - 0) thành công! Điểm CRP và kết quả trận đã được chốt.'
+          : `Đã xử ${ruling === 'WIN_A' ? 'bên A (Host)' : 'bên B (Guest)'} thắng thành công! Điểm CRP và kết quả trận đã được chốt.`
+      );
       handleCloseModal();
       fetchTickets();
     } catch (err: any) {
-      showToast('error', err.message || 'Có lỗi xảy ra khi xử lý phán quyết.');
+      showToast('error', err.message || 'Có lỗi xảy ra khi xử lý tranh chấp.');
     } finally {
       setIsRuling(false);
     }
@@ -397,7 +406,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 1: Total */}
         <div className="bg-surface-container-lowest border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-brand-emerald/30 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tổng Yêu Cầu</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tổng yêu cầu</span>
             <p className="text-2xl font-black text-on-surface tracking-tight">{metrics.total}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-surface-container flex items-center justify-center text-primary">
@@ -410,7 +419,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 2: New Queue */}
         <div className="bg-surface-container-lowest border border-sky-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-sky-300 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Mới Tiếp Nhận</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Mới tiếp nhận</span>
             <p className="text-2xl font-black text-sky-900 tracking-tight">{metrics.newCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-sky-100/80 flex items-center justify-center text-sky-700">
@@ -423,7 +432,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 3: In Progress / Pending */}
         <div className="bg-surface-container-lowest border border-amber-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-amber-300 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Đang Xử Lý</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Đang xử lý</span>
             <p className="text-2xl font-black text-amber-950 tracking-tight">{metrics.inProgressCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-secondary-container/60 flex items-center justify-center text-secondary">
@@ -436,7 +445,7 @@ export const SupportTicketManagement: React.FC = () => {
         {/* Card 4: Resolved */}
         <div className="bg-surface-container-lowest border border-emerald-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between hover:border-emerald-300 transition-all">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Đã Hoàn Tất</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Đã hoàn tất</span>
             <p className="text-2xl font-black text-emerald-950 tracking-tight">{metrics.resolvedCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-emerald-100/80 flex items-center justify-center text-brand-emerald">
@@ -541,13 +550,13 @@ export const SupportTicketManagement: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-surface-container-low/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
                 <tr>
-                  <th className="px-6 py-3.5">Mã Ticket</th>
-                  <th className="px-6 py-3.5">Người Gửi</th>
-                  <th className="px-6 py-3.5">Phân Loại & Đơn Đặt</th>
-                  <th className="px-6 py-3.5">Tiêu Đề / Mô Tả</th>
-                  <th className="px-6 py-3.5">Thời Gian Gửi</th>
-                  <th className="px-6 py-3.5">Trạng Thái</th>
-                  <th className="px-6 py-3.5 text-center">Thao Tác</th>
+                  <th className="px-6 py-3.5">Mã ticket</th>
+                  <th className="px-6 py-3.5">Người gửi</th>
+                  <th className="px-6 py-3.5">Phân loại & đơn đặt</th>
+                  <th className="px-6 py-3.5">Tiêu đề / mô tả</th>
+                  <th className="px-6 py-3.5">Thời gian gửi</th>
+                  <th className="px-6 py-3.5">Trạng thái</th>
+                  <th className="px-6 py-3.5 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700 font-normal">
@@ -581,7 +590,7 @@ export const SupportTicketManagement: React.FC = () => {
                               ? 'bg-rose-50 text-rose-700 border-rose-200' 
                               : 'bg-surface-container text-primary border-brand-emerald/15'
                           }`}>
-                            {isDispute ? '⚔️ Tranh Chấp Kèo' : t.ticketType}
+                            {isDispute ? 'Tranh chấp kèo' : t.ticketType}
                           </span>
                           {t.bookingCode && (
                             <span className="text-[11px] font-mono text-slate-500 font-semibold">
@@ -622,7 +631,7 @@ export const SupportTicketManagement: React.FC = () => {
                               : 'border-slate-200 hover:border-brand-emerald'
                           }`}
                         >
-                          {isDispute ? '⚖️ Phân Xử Kèo' : t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / Xử lý'}
+                          {isDispute ? 'Xử lý kèo' : t.status === 'NEW' ? 'Tiếp nhận' : t.status === 'CLOSED' ? 'Xem chi tiết' : 'Chi tiết / xử lý'}
                         </Button>
                       </td>
                     </tr>
@@ -648,17 +657,17 @@ export const SupportTicketManagement: React.FC = () => {
                   <h3 className="font-extrabold text-slate-800 text-sm tracking-tight flex items-center gap-2">
                     {isMatchDisputeTicket(selectedTicket) ? (
                       <>
-                        <span>⚖️ Phân Xử Tranh Chấp Tỷ Số Trận Đấu</span>
+                        <span>Xử lý tranh chấp tỷ số trận đấu</span>
                         {disputeDetail?.status === 'RESOLVED' ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[11px] px-2.5 py-0.5 rounded-full font-bold">Đã Phán Quyết</span>
+                          <span className="bg-emerald-100 text-emerald-800 text-[11px] px-2.5 py-0.5 rounded-full font-bold">Đã xử lý</span>
                         ) : (
-                          <span className="bg-rose-100 text-rose-800 text-[11px] px-2.5 py-0.5 rounded-full font-bold animate-pulse">Chờ Admin Phán Quyết</span>
+                          <span className="bg-rose-100 text-rose-800 text-[11px] px-2.5 py-0.5 rounded-full font-bold animate-pulse">Chờ Admin xử lý</span>
                         )}
                       </>
                     ) : selectedTicket.status === 'CLOSED' ? (
-                      'Chi Tiết Yêu Cầu (Đã Đóng)'
+                      'Chi tiết yêu cầu (đã đóng)'
                     ) : (
-                      'Chi Tiết Yêu Cầu Hỗ Trợ'
+                      'Chi tiết yêu cầu hỗ trợ'
                     )}
                   </h3>
                 </div>
@@ -680,7 +689,7 @@ export const SupportTicketManagement: React.FC = () => {
                   isDisputeLoading ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-3">
                       <LoadingSpinner size="lg" />
-                      <p className="text-slate-500 font-medium">Đang tải hồ sơ tranh chấp & bằng chứng 2 đội...</p>
+                      <p className="text-slate-500 font-medium">Đang tải hồ sơ tranh chấp & bằng chứng hai đội...</p>
                     </div>
                   ) : disputeDetail ? (
                     <div className="space-y-4">
@@ -712,21 +721,21 @@ export const SupportTicketManagement: React.FC = () => {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Đội Nhà (Bên A)</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Đội nhà (Bên A)</span>
                               <p className="font-black text-sm text-white truncate">{disputeDetail.hostClubName}</p>
                             </div>
                           </div>
 
                           {/* Submitted Score Badge */}
                           <div className="text-center bg-white/10 rounded-xl py-2 px-3 border border-white/10">
-                            <span className="text-[10px] uppercase font-bold text-amber-300 block mb-0.5">Tỷ số Bên A khai báo</span>
+                            <span className="text-[10px] uppercase font-bold text-amber-300 block mb-0.5">Tỷ số bên A khai báo</span>
                             <p className="text-lg font-black tracking-widest text-white">{disputeDetail.hostSubmittedScore || 'Chưa rõ'}</p>
                           </div>
 
                           {/* Guest Club (Side B) */}
                           <div className="flex items-center justify-end gap-3 text-right">
                             <div className="min-w-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Đội Khách (Bên B)</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Đội khách (Bên B)</span>
                               <p className="font-black text-sm text-white truncate">{disputeDetail.guestClubName}</p>
                             </div>
                             <div className="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-400/40 text-sky-300 font-black flex items-center justify-center text-sm shrink-0 overflow-hidden">
@@ -747,7 +756,7 @@ export const SupportTicketManagement: React.FC = () => {
                           <div className="space-y-2.5">
                             <div className="flex items-center justify-between">
                               <span className="font-black text-xs text-rose-800 uppercase flex items-center gap-1.5">
-                                <span>🚨</span> Khiếu nại từ Bên B (Đội Khách)
+                                Khiếu nại từ bên B (Đội khách)
                               </span>
                               <span className="bg-rose-100 text-rose-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-rose-200">
                                 {DISPUTE_REASON_LABELS[disputeDetail.reasonCode] || disputeDetail.reasonCode || 'Khiếu nại'}
@@ -803,12 +812,12 @@ export const SupportTicketManagement: React.FC = () => {
                           <div className="space-y-2.5">
                             <div className="flex items-center justify-between">
                               <span className="font-black text-xs text-slate-800 uppercase flex items-center gap-1.5">
-                                <span>🛡️</span> Đối chất từ Bên A (Đội Nhà)
+                                Đối chất từ bên A (Đội nhà)
                               </span>
                               <span className={`font-bold text-[10px] px-2 py-0.5 rounded-full border ${
                                 disputeDetail.hostHasSubmittedEvidence 
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                                  : 'bg-amber-100 text-amber-800 border-amber-200'
+                                   ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                                   : 'bg-amber-100 text-amber-800 border-amber-200'
                               }`}>
                                 {disputeDetail.hostHasSubmittedEvidence ? 'Đã gửi bằng chứng' : 'Chưa gửi đối chất'}
                               </span>
@@ -852,15 +861,14 @@ export const SupportTicketManagement: React.FC = () => {
                             ) : (
                               <div className="bg-white p-4 rounded-xl border border-amber-200 space-y-2">
                                 <div className="flex items-center gap-2 text-amber-700 font-bold">
-                                  <span>⏳</span>
-                                  <span>Đội Nhà chưa cung cấp bằng chứng đối chất.</span>
+                                  <span>Đội nhà chưa cung cấp bằng chứng đối chất.</span>
                                 </div>
                                 <p className="text-slate-600 text-[11px] leading-relaxed">
-                                  Hệ thống cho phép Đội Nhà tối đa 24 giờ kể từ lúc có khiếu nại để bổ sung bằng chứng đối chất.
+                                  Hệ thống cho phép Đội nhà tối đa 24 giờ kể từ lúc có khiếu nại để bổ sung bằng chứng đối chất.
                                 </p>
                                 {disputeDetail.isDeadlineExpired ? (
                                   <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 font-bold text-[11px] flex items-center gap-1.5">
-                                    <span>⚠️</span> ĐÃ QUÁ HẠN 24H (Tự động xử Bên B thắng 0-3 theo quy định)
+                                    Đã quá hạn 24 giờ (Tự động xử bên B thắng 0-3 theo quy định)
                                   </div>
                                 ) : (
                                   <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 font-medium text-[11px]">
@@ -884,7 +892,7 @@ export const SupportTicketManagement: React.FC = () => {
                         <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl space-y-1.5">
                           <div className="flex items-center justify-between">
                             <span className="font-black text-emerald-800 text-xs flex items-center gap-1.5">
-                              🏆 KẾT QUẢ ĐÃ ĐƯỢC ADMIN PHÂN XỬ
+                              Kết quả đã được Admin xử lý
                             </span>
                             <span className="text-[11px] text-emerald-700 font-medium">{formatDate(disputeDetail.resolvedAt)}</span>
                           </div>
@@ -894,18 +902,18 @@ export const SupportTicketManagement: React.FC = () => {
                         <div className="pt-2 space-y-3">
                           <div>
                             <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                              Ghi Chú Phán Quyết Của Admin (Tùy chọn):
+                              Ghi chú xử lý của Admin (tùy chọn):
                             </label>
                             <input
                               type="text"
                               value={adminNoteInput}
                               onChange={(e) => setAdminNoteInput(e.target.value)}
-                              placeholder="Nhập ghi chú hoặc lý do phán quyết để thông báo cho cả 2 đội..."
+                              placeholder="Nhập ghi chú hoặc lý do xử lý để thông báo cho cả hai đội..."
                               className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-emerald focus:ring-2 focus:ring-brand-emerald/10 shadow-2xs"
                             />
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                             {/* Option 1: Rule for Side A */}
                             <button
                               type="button"
@@ -915,14 +923,14 @@ export const SupportTicketManagement: React.FC = () => {
                             >
                               <div>
                                 <p className="font-black text-sm flex items-center gap-1.5">
-                                  <span>🏆</span> Xử Bên A Thắng (3 - 0)
+                                  Xử bên A thắng (3 - 0)
                                 </p>
                                 <p className="text-[11px] text-emerald-100 font-medium mt-0.5">
-                                  Phạt Bên B -10 CRP do khiếu nại sai
+                                  Phạt bên B -10 CRP do khiếu nại sai
                                 </p>
                               </div>
-                              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 ml-2">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
                               </div>
@@ -937,14 +945,36 @@ export const SupportTicketManagement: React.FC = () => {
                             >
                               <div>
                                 <p className="font-black text-sm flex items-center gap-1.5">
-                                  <span>🏆</span> Xử Bên B Thắng (0 - 3)
+                                  Xử bên B thắng (0 - 3)
                                 </p>
                                 <p className="text-[11px] text-rose-100 font-medium mt-0.5">
-                                  Phạt Bên A -10 CRP do khai gian tỷ số
+                                  Phạt bên A -10 CRP do khai gian tỷ số
                                 </p>
                               </div>
-                              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 ml-2">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            </button>
+
+                            {/* Option 3: Rule for Draw */}
+                            <button
+                              type="button"
+                              onClick={() => handleRuling('DRAW')}
+                              disabled={isRuling}
+                              className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-left shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-between disabled:opacity-50"
+                            >
+                              <div>
+                                <p className="font-black text-sm flex items-center gap-1.5">
+                                  Xử kết quả hòa (0 - 0)
+                                </p>
+                                <p className="text-[11px] text-blue-100 font-medium mt-0.5">
+                                  Tính điểm hòa, không phạt CRP
+                                </p>
+                              </div>
+                              <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 ml-2">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
                               </div>
@@ -1034,7 +1064,7 @@ export const SupportTicketManagement: React.FC = () => {
                       <div className="pt-4 border-t border-slate-200/80 space-y-3.5">
                         <div>
                           <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                            Cập Nhật Trạng Thái Ticket:
+                            Cập nhật trạng thái ticket:
                           </label>
                           <select
                             value={targetStatusInput}
@@ -1045,14 +1075,14 @@ export const SupportTicketManagement: React.FC = () => {
                             <option value="IN_PROGRESS">2. Đang xử lý</option>
                             <option value="PENDING_CUSTOMER">3. Chờ phản hồi từ khách hàng</option>
                             <option value="RESOLVED">4. Đã giải quyết</option>
-                            <option value="CLOSED">5. Đóng Ticket</option>
+                            <option value="CLOSED">5. Đóng ticket</option>
                             <option value="REJECTED">6. Từ chối / Hủy</option>
                           </select>
                         </div>
 
                         <div>
                           <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
-                            Ghi Chú Phản Hồi / Lý Do Xử Lý:
+                            Ghi chú phản hồi / lý do xử lý:
                           </label>
                           <textarea
                             rows={3}
@@ -1094,7 +1124,7 @@ export const SupportTicketManagement: React.FC = () => {
                     disabled={isProcessing}
                     className="bg-brand-emerald hover:bg-brand-emerald/90 text-white font-bold rounded-xl px-5 py-2 shadow-sm transition-all cursor-pointer"
                   >
-                    {isProcessing ? 'Đang lưu...' : 'Cập Nhật Trạng Thái'}
+                    {isProcessing ? 'Đang lưu...' : 'Cập nhật trạng thái'}
                   </Button>
                 )}
               </div>

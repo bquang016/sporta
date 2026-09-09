@@ -987,7 +987,7 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                         match.getHostClub().getCreator().getId(),
                         Role.PLAYER,
                         "Đối thủ đã khiếu nại tỷ số trận đấu",
-                        "CLB " + guestName + " đã báo sai tỷ số trận đấu. Điểm số tạm thời đóng băng. Vui lòng gửi ảnh bằng chứng đối chất trong 24 giờ để Admin phân xử.",
+                        "CLB " + guestName + " đã báo sai tỷ số trận đấu. Điểm số tạm thời đóng băng. Vui lòng gửi ảnh bằng chứng đối chất trong 24 giờ để Admin xử lý.",
                         NotificationType.MATCH_DISPUTE_OPENED,
                         room != null ? room.getId().toString() : match.getId().toString()
                 ));

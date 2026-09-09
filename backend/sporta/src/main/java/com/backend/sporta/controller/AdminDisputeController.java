@@ -166,15 +166,19 @@ public class AdminDisputeController {
         if ("WIN_A".equalsIgnoreCase(ruling)) {
             effectiveHostScore = "3";
             effectiveGuestScore = "0";
-            effectiveRaw = "Admin phán quyết: Bên A (Host) thắng 3-0";
+            effectiveRaw = "Admin xử lý: Bên A (Host) thắng 3-0";
         } else if ("WIN_B".equalsIgnoreCase(ruling)) {
             effectiveHostScore = "0";
             effectiveGuestScore = "3";
-            effectiveRaw = "Admin phán quyết: Bên B (Guest) thắng 3-0";
+            effectiveRaw = "Admin xử lý: Bên B (Guest) thắng 3-0";
+        } else if ("DRAW".equalsIgnoreCase(ruling) || "TIE".equalsIgnoreCase(ruling)) {
+            effectiveHostScore = "0";
+            effectiveGuestScore = "0";
+            effectiveRaw = "Admin xử lý: Kết quả hòa 0-0";
         }
 
         if (effectiveHostScore == null || effectiveGuestScore == null) {
-            throw new CustomException("Tỷ số phân xử hoặc quyết định phán quyết (WIN_A / WIN_B) là bắt buộc", 400);
+            throw new CustomException("Tỷ số xử lý hoặc quyết định phán quyết (WIN_A / WIN_B / DRAW) là bắt buộc", 400);
         }
 
         Sport sport = hostClub.getSport();
@@ -183,7 +187,7 @@ public class AdminDisputeController {
 
         ScoreAdapter.ValidationResult val = adapter.validate(effectiveHostScore, effectiveGuestScore, effectiveRaw);
         if (!val.isValid()) {
-            throw new CustomException("Tỷ số phân xử không hợp lệ: " + val.getErrorMessage(), 400);
+            throw new CustomException("Tỷ số xử lý không hợp lệ: " + val.getErrorMessage(), 400);
         }
 
         NormalizedOutcome outcome = adapter.normalize(effectiveHostScore, effectiveGuestScore, effectiveRaw);
@@ -221,7 +225,7 @@ public class AdminDisputeController {
 
         matchResultRepository.save(result);
 
-        // Record standard CRP & apply CRP penalty (-10 CRP) to the losing/violating club
+        // Record standard CRP & apply CRP penalty (-10 CRP) to the losing/violating club (if WIN_A or WIN_B)
         int penaltyCrp = 10;
         if (crpRes.isRankedEligible() && crpLedgerRepository.findByMatchIdAndClubId(match.getId(), hostClub.getId()).isEmpty()) {
             // Standard Match CRP Entry for Host
@@ -231,7 +235,7 @@ public class AdminDisputeController {
                     .beforeCrp(crpRes.getHostCrpBefore())
                     .deltaCrp(crpRes.getHostCrpDelta())
                     .afterCrp(crpRes.getHostCrpAfter())
-                    .reason("Admin Phân xử Tranh chấp trận " + match.getId())
+                    .reason("Admin xử lý tranh chấp trận " + match.getId())
                     .algorithmVersion(config.getAlgorithmVersion())
                     .build();
             crpLedgerRepository.save(hostLedger);
@@ -243,7 +247,7 @@ public class AdminDisputeController {
                     .beforeCrp(crpRes.getGuestCrpBefore())
                     .deltaCrp(crpRes.getGuestCrpDelta())
                     .afterCrp(crpRes.getGuestCrpAfter())
-                    .reason("Admin Phân xử Tranh chấp trận " + match.getId())
+                    .reason("Admin xử lý tranh chấp trận " + match.getId())
                     .algorithmVersion(config.getAlgorithmVersion())
                     .build();
             crpLedgerRepository.save(guestLedger);
@@ -254,8 +258,8 @@ public class AdminDisputeController {
             int currentGuestCrp = guestClub.getCrp() != null ? guestClub.getCrp() : 0;
             int newGuestCrp = Math.max(0, currentGuestCrp + crpRes.getGuestCrpDelta());
 
-            // Apply -10 CRP Penalty to the violating party
-            if ("WIN_A".equalsIgnoreCase(ruling) || outcome == NormalizedOutcome.WIN_HOST) {
+            // Apply -10 CRP Penalty to the violating party only when WIN_A or WIN_B (not for DRAW)
+            if ("WIN_A".equalsIgnoreCase(ruling) || (outcome == NormalizedOutcome.WIN_HOST && !"DRAW".equalsIgnoreCase(ruling))) {
                 // Guest club was in the wrong -> -10 CRP penalty
                 int afterPenalty = Math.max(0, newGuestCrp - penaltyCrp);
                 CRPLedger penaltyLedger = CRPLedger.builder()
@@ -264,12 +268,12 @@ public class AdminDisputeController {
                         .beforeCrp(newGuestCrp)
                         .deltaCrp(-penaltyCrp)
                         .afterCrp(afterPenalty)
-                        .reason("Phạt vi phạm: Tố cáo sai / Khiếu nại không hợp lệ (Tranh chấp trận " + match.getId() + ")")
+                        .reason("Phạt vi phạm: Khiếu nại không hợp lệ (Tranh chấp trận " + match.getId() + ")")
                         .algorithmVersion(config.getAlgorithmVersion())
                         .build();
                 crpLedgerRepository.save(penaltyLedger);
                 newGuestCrp = afterPenalty;
-            } else if ("WIN_B".equalsIgnoreCase(ruling) || outcome == NormalizedOutcome.WIN_GUEST) {
+            } else if ("WIN_B".equalsIgnoreCase(ruling) || (outcome == NormalizedOutcome.WIN_GUEST && !"DRAW".equalsIgnoreCase(ruling))) {
                 // Host club was in the wrong -> -10 CRP penalty
                 int afterPenalty = Math.max(0, newHostCrp - penaltyCrp);
                 CRPLedger penaltyLedger = CRPLedger.builder()
@@ -313,7 +317,7 @@ public class AdminDisputeController {
 
         String note = (request.getResolutionNote() != null && !request.getResolutionNote().isBlank())
                 ? request.getResolutionNote()
-                : ("Admin phân xử kết quả: " + scoreText);
+                : ("Admin xử lý kết quả: " + scoreText);
 
         dispute.setStatus(DisputeStatus.RESOLVED);
         dispute.setResolvedByAdmin(admin);
@@ -341,16 +345,20 @@ public class AdminDisputeController {
         try {
             String roomIdStr = room != null ? room.getId().toString() : match.getId().toString();
             if (hostClub.getCreator() != null) {
-                boolean isHostWinner = (outcome == NormalizedOutcome.WIN_HOST);
-                String msg = isHostWinner
-                        ? ("Admin đã phân xử: CLB " + hostClub.getName() + " THẮNG (" + scoreText + "). Điểm CRP và xếp hạng đã được cập nhật.")
-                        : ("Admin đã phân xử: CLB " + hostClub.getName() + " THUA (" + scoreText + ") và bị trừ 10 điểm CRP vi phạm khai báo sai.");
+                String msg;
+                if (outcome == NormalizedOutcome.DRAW) {
+                    msg = "Admin đã xử lý kết quả: Hòa (" + scoreText + "). Điểm CRP và xếp hạng đã được cập nhật theo kết quả thi đấu.";
+                } else if (outcome == NormalizedOutcome.WIN_HOST) {
+                    msg = "Admin đã xử lý: CLB " + hostClub.getName() + " thắng (" + scoreText + "). Điểm CRP và xếp hạng đã được cập nhật.";
+                } else {
+                    msg = "Admin đã xử lý: CLB " + hostClub.getName() + " thua (" + scoreText + ") và bị trừ 10 điểm CRP do khai báo sai.";
+                }
 
                 eventPublisher.publishEvent(new NotificationEvent(
                         this,
                         hostClub.getCreator().getId(),
                         Role.PLAYER,
-                        "Kết quả phân xử tranh chấp trận đấu",
+                        "Kết quả xử lý tranh chấp trận đấu",
                         msg,
                         NotificationType.MATCH_DISPUTE_RESOLVED,
                         roomIdStr
@@ -358,16 +366,20 @@ public class AdminDisputeController {
             }
 
             if (guestClub.getCreator() != null) {
-                boolean isGuestWinner = (outcome == NormalizedOutcome.WIN_GUEST);
-                String msg = isGuestWinner
-                        ? ("Admin đã phân xử: CLB " + guestClub.getName() + " THẮNG (" + scoreText + "). Điểm CRP và xếp hạng đã được cập nhật.")
-                        : ("Admin đã phân xử: CLB " + guestClub.getName() + " THUA (" + scoreText + ") và bị trừ 10 điểm CRP vì khiếu nại không hợp lệ.");
+                String msg;
+                if (outcome == NormalizedOutcome.DRAW) {
+                    msg = "Admin đã xử lý kết quả: Hòa (" + scoreText + "). Điểm CRP và xếp hạng đã được cập nhật theo kết quả thi đấu.";
+                } else if (outcome == NormalizedOutcome.WIN_GUEST) {
+                    msg = "Admin đã xử lý: CLB " + guestClub.getName() + " thắng (" + scoreText + "). Điểm CRP và xếp hạng đã được cập nhật.";
+                } else {
+                    msg = "Admin đã xử lý: CLB " + guestClub.getName() + " thua (" + scoreText + ") và bị trừ 10 điểm CRP do khiếu nại không hợp lệ.";
+                }
 
                 eventPublisher.publishEvent(new NotificationEvent(
                         this,
                         guestClub.getCreator().getId(),
                         Role.PLAYER,
-                        "Kết quả phân xử tranh chấp trận đấu",
+                        "Kết quả xử lý tranh chấp trận đấu",
                         msg,
                         NotificationType.MATCH_DISPUTE_RESOLVED,
                         roomIdStr

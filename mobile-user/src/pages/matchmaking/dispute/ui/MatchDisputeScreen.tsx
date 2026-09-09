@@ -219,7 +219,7 @@ export function MatchDisputeScreen() {
 
       showAlert(
         'Đã gửi bằng chứng đối chất',
-        'Bằng chứng của bạn đã được ghi nhận và gửi tới Ban Quản Trị để đối chiếu phân xử.',
+        'Bằng chứng của bạn đã được ghi nhận và gửi tới Ban Quản Trị để đối chiếu xử lý.',
         'success',
         () => {
           refetchRoom();
@@ -289,7 +289,7 @@ export function MatchDisputeScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Khiếu nại & Phân xử tỷ số</Text>
+        <Text style={styles.headerTitle}>Khiếu nại & xử lý tỷ số</Text>
         <TouchableOpacity onPress={() => { refetchRoom(); fetchDispute(); }} style={styles.headerIconBtn} activeOpacity={0.7}>
           <Ionicons name="refresh-outline" size={18} color="#0F172A" />
         </TouchableOpacity>
@@ -307,7 +307,7 @@ export function MatchDisputeScreen() {
                 </View>
                 <View style={[styles.statusBadge, isDisputed ? styles.statusDisputed : styles.statusConfirming]}>
                   <Text style={[styles.statusBadgeText, isDisputed ? styles.statusDisputedText : styles.statusConfirmingText]}>
-                    {isDisputed ? 'Đang phân xử' : 'Chờ xác nhận'}
+                    {isDisputed ? 'Đang xử lý tranh chấp' : 'Chờ xác nhận'}
                   </Text>
                 </View>
               </View>
@@ -341,7 +341,7 @@ export function MatchDisputeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.freezeNoticeTitle}>Đóng băng điểm số an toàn</Text>
                 <Text style={styles.freezeNoticeSub}>
-                  Khi trận đấu có khiếu nại, điểm ELO và CRP được đóng băng cho đến khi Ban Quản Trị kiểm tra và ra phán quyết chính thức.
+                  Khi trận đấu có khiếu nại, điểm ELO và CRP được đóng băng cho đến khi Ban Quản Trị kiểm tra và ra quyết định chính thức.
                 </Text>
               </View>
             </View>
@@ -391,7 +391,7 @@ export function MatchDisputeScreen() {
                         <Text style={styles.deadlineTitle}>Thời hạn gửi bằng chứng đối chất:</Text>
                         <Text style={styles.deadlineTimer}>{getRemainingHours()}</Text>
                         <Text style={styles.deadlineSub}>
-                          Nếu quá 24h Chủ nhà không gửi bằng chứng đối chất, Bên B sẽ được mặc định xử thắng 3-0 và Bên A bị trừ 10 CRP.
+                          Nếu quá 24h Chủ nhà không gửi bằng chứng đối chất, bên B sẽ được mặc định xử thắng 3-0 và bên A bị trừ 10 CRP.
                         </Text>
                       </View>
                     </View>
@@ -413,13 +413,13 @@ export function MatchDisputeScreen() {
                           <Image source={{ uri: disputeDetail.hostEvidenceImageUrl }} style={styles.evidenceImagePreview} resizeMode="cover" />
                         ) : null}
                         <Text style={styles.submittedEvidenceSub}>
-                          Cả hai bên đã cung cấp đầy đủ thông tin. Ban Quản Trị đang tiến hành đối chiếu phân xử tại hệ thống Admin.
+                          Cả hai bên đã cung cấp đầy đủ thông tin. Ban Quản Trị đang tiến hành đối chiếu xử lý tại hệ thống Admin.
                         </Text>
                       </View>
                     ) : isHost ? (
                       /* Host Counter Evidence Form (STRICTLY ONLY FOR HOST A) */
                       <View style={styles.counterFormBox}>
-                        <Text style={styles.formHeading}>Gửi bằng chứng đối chất (Dành cho Chủ nhà A)</Text>
+                        <Text style={styles.formHeading}>Gửi bằng chứng đối chất (dành cho chủ nhà A)</Text>
                         <Text style={styles.formSubText}>
                           Nhập giải trình và đính kèm ảnh minh chứng để bảo vệ kết quả của bạn:
                         </Text>
@@ -481,7 +481,7 @@ export function MatchDisputeScreen() {
                               </Text>
                             </View>
                           ) : (
-                            <Text style={styles.submitBtnText}>Gửi Bằng Chứng Đối Chất</Text>
+                            <Text style={styles.submitBtnText}>Gửi bằng chứng đối chất</Text>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -490,9 +490,9 @@ export function MatchDisputeScreen() {
                       <View style={styles.waitingForHostBadge}>
                         <Ionicons name="hourglass-outline" size={20} color="#D97706" />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.waitingForHostTitle}>Đang chờ Chủ nhà (Bên A) phản hồi</Text>
+                          <Text style={styles.waitingForHostTitle}>Đang chờ chủ nhà (Bên A) phản hồi</Text>
                           <Text style={styles.waitingForHostSub}>
-                            Chủ nhà (Bên A) có tối đa 24 giờ để gửi bằng chứng đối chất. Nếu Bên A không phản hồi, hệ thống sẽ tự động xử Bên B thắng 3-0 và trừ 10 điểm CRP của Bên A.
+                            Chủ nhà (Bên A) có tối đa 24 giờ để gửi bằng chứng đối chất. Nếu bên A không phản hồi, hệ thống sẽ tự động xử bên B thắng 3-0 và trừ 10 điểm CRP của bên A.
                           </Text>
                         </View>
                       </View>
@@ -505,9 +505,9 @@ export function MatchDisputeScreen() {
                   <View style={styles.resolvedBox}>
                     <Ionicons name="ribbon" size={24} color="#059669" />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.resolvedTitle}>Đã có phán quyết từ Admin</Text>
+                      <Text style={styles.resolvedTitle}>Đã có kết quả xử lý từ Admin</Text>
                       <Text style={styles.resolvedScore}>{disputeDetail.resolvedResultJson || '3 - 0'}</Text>
-                      <Text style={styles.resolvedNote}>{disputeDetail.resolutionNote || 'Trận đấu đã hoàn tất phân xử.'}</Text>
+                      <Text style={styles.resolvedNote}>{disputeDetail.resolutionNote || 'Trận đấu đã hoàn tất xử lý.'}</Text>
                     </View>
                   </View>
                 )}
@@ -529,9 +529,9 @@ export function MatchDisputeScreen() {
             ) : (
               /* CASE 2B: FILING A NEW DISPUTE (Guest B) */
               <View style={styles.card}>
-                <Text style={styles.cardHeading}>Báo sai tỷ số & Khiếu nại trận đấu</Text>
+                <Text style={styles.cardHeading}>Báo sai tỷ số & khiếu nại trận đấu</Text>
                 <Text style={styles.cardSubtitle}>
-                  Chọn lý do khiếu nại và cung cấp ảnh chụp bằng chứng để Admin phân xử công tâm:
+                  Chọn lý do khiếu nại và cung cấp ảnh chụp bằng chứng để Admin xử lý công tâm:
                 </Text>
 
                 {/* Reason Selection */}
@@ -632,7 +632,7 @@ export function MatchDisputeScreen() {
                       </Text>
                     </View>
                   ) : (
-                    <Text style={styles.submitBtnText}>Gửi Khiếu Nại Lên Admin</Text>
+                    <Text style={styles.submitBtnText}>Gửi khiếu nại lên Admin</Text>
                   )}
                 </TouchableOpacity>
               </View>
