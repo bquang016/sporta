@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { TicketSession, TicketFilterState } from './ticket.types';
 import { fetchAvailableSessions } from '../api/ticketApi';
 
-export function useTicketSessions(initialFilters: TicketFilterState = {}) {
+const DEFAULT_TICKET_FILTERS: TicketFilterState = {};
+
+export function useTicketSessions(initialFilters: TicketFilterState = DEFAULT_TICKET_FILTERS) {
   const [sessions, setSessions] = useState<TicketSession[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

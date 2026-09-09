@@ -25,7 +25,7 @@ public class GeminiService {
     private final InMemoryCache cache;
     private final ObjectMapper objectMapper;
 
-    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent}")
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent}")
     private String apiUrl;
 
     private static final int MAX_ITERATIONS = 5;

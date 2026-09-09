@@ -507,6 +507,20 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
             const hours = Math.floor(durationMins / 60);
             const mins = durationMins % 60;
             const durationStr = hours > 0 ? `${hours}h${mins > 0 ? mins : ''}` : `${mins} phút`;
+            
+            const parseTimeToMinutesLocal = (t: string): number => {
+              const [h, m] = t.split(':').map(Number);
+              return h * 60 + m;
+            };
+            const formatMinutesToTime = (min: number) => {
+              const h = Math.floor(min / 60) % 24;
+              const m = min % 60;
+              return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            };
+            const startMin = parseTimeToMinutesLocal(block.startTime);
+            const actualEndMin = startMin + durationMins;
+            const actualEndTime = formatMinutesToTime(actualEndMin);
+
             const totalPrice = block.status === 'matchmaking' 
               ? (block.pricePerTicket || 0)
               : (block.facilityPrice * (durationMins / 60));
@@ -543,7 +557,7 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
                   <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-400 font-semibold">Khung giờ</span>
-                      <span className="text-brand-emerald font-black">{block.startTime} – {block.endTime}</span>
+                      <span className="text-brand-emerald font-black">{block.startTime} – {actualEndTime}</span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-400 font-semibold">Thời lượng</span>
@@ -561,9 +575,11 @@ export const BookingCardView: React.FC<BookingCardViewProps> = ({
                     {block.status !== 'maintenance' && (
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-400 font-semibold">
-                          {block.status === 'matchmaking' ? 'Giá vé' : 'Thành tiền'}
+                          {block.status === 'matchmaking' ? 'Giá vé / người' : 'Thành tiền'}
                         </span>
-                        <span className="text-slate-800 font-black">{formatPrice(totalPrice)}</span>
+                        <span className="text-slate-800 font-black">
+                          {formatPrice(totalPrice)}{block.status === 'matchmaking' ? '/vé' : ''}
+                        </span>
                       </div>
                     )}
                   </div>

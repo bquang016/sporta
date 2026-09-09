@@ -12,6 +12,8 @@ export interface AlertModalProps {
 }
 
 export function AlertModal({ visible, title, message, buttonText = 'Đóng', onConfirm }: AlertModalProps) {
+  if (!visible) return null;
+
   return (
     <Modal
       transparent

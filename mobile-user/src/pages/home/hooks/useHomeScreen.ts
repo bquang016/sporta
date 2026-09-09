@@ -73,14 +73,14 @@ export function useHomeScreen() {
     refetch: refetchTicketSessions,
   } = useTicketSessions();
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const session = await loadNativeUserSessionAsync();
 
       if (session.isAuthenticated && session.accessToken) {
         setIsAuthenticated(true);
-        setUserName(session.userName || 'Thành viên');
-        setUserAvatar(session.userAvatar || null);
+        if (session.userName) setUserName(session.userName);
+        if (session.userAvatar !== undefined) setUserAvatar(session.userAvatar);
 
         try {
           const response = await fetch(`${getBaseUrl()}/auth/ping`, {
@@ -114,15 +114,22 @@ export function useHomeScreen() {
             if (profile) {
               const freshName = profile.fullName || session.userName || 'Thành viên';
               const freshAvatar = profile.avatarUrl || null;
+              const freshEmail = profile.email || session.userEmail || null;
               
-              setUserName(freshName);
-              setUserAvatar(freshAvatar);
-              
-              await saveUserSession({
-                userName: freshName,
-                userAvatar: freshAvatar,
-                userEmail: profile.email || session.userEmail,
-              });
+              if (
+                freshName !== session.userName ||
+                freshAvatar !== session.userAvatar ||
+                freshEmail !== session.userEmail
+              ) {
+                setUserName(freshName);
+                setUserAvatar(freshAvatar);
+                
+                await saveUserSession({
+                  userName: freshName,
+                  userAvatar: freshAvatar,
+                  userEmail: freshEmail,
+                });
+              }
             }
           } catch (profileErr) {
             console.log('Profile sync on Home warning:', profileErr);
@@ -140,14 +147,15 @@ export function useHomeScreen() {
       setUserName('Khách');
       setUserAvatar(null);
     }
-  };
+  }, [showAlert]);
 
   useFocusEffect(
     useCallback(() => {
       checkAuth();
+      refetchFacilities();
       refetchTicketSessions();
       fetchRecommendations();
-    }, [refetchTicketSessions, fetchRecommendations])
+    }, [checkAuth, refetchFacilities, refetchTicketSessions, fetchRecommendations])
   );
 
   const onRefresh = async () => {

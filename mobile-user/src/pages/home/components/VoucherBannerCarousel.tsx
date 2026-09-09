@@ -230,9 +230,7 @@ export function VoucherBannerCarousel({ onVoucherPress }: VoucherBannerCarouselP
       >
         {displayItems.map((item, index) => {
           const isVoucher = !('isFallback' in item);
-          const bannerImage = isVoucher
-            ? item.bannerImageUrl || ''
-            : item.imageUrl;
+          const bannerImage = (isVoucher ? item.bannerImageUrl : item.imageUrl) || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80';
 
           const title = isVoucher ? item.name : item.title;
           const subtitle = isVoucher
@@ -410,7 +408,10 @@ export function VoucherBannerCarousel({ onVoucherPress }: VoucherBannerCarouselP
       {/* Voucher Detail Modal */}
       <VoucherDetailModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedVoucher(null);
+        }}
         voucher={selectedVoucher}
         isAuthenticated={isLoggedIn}
         isAlreadyCollected={isSelectedVoucherCollected}

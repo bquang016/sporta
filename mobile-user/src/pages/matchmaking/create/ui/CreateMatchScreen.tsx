@@ -211,7 +211,7 @@ export function CreateMatchScreen() {
               onSelectLineup={setSelectedLineup}
               onNavigateToClub={() => {
                 if (selectedClub?.id) {
-                  router.push(`/club/${selectedClub.id}` as any);
+                  router.push(`/club-detail-joined/${selectedClub.id}` as any);
                 }
               }}
             />

@@ -22,7 +22,7 @@ public class GeminiConfig {
     public RestTemplate geminiRestTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(20000);
-        factory.setReadTimeout(30000);
+        factory.setReadTimeout(60000);
         
         RestTemplate restTemplate = new RestTemplate(factory);
         restTemplate.getInterceptors().add((request, body, execution) -> {

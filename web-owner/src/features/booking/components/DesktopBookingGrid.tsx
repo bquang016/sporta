@@ -367,13 +367,20 @@ export const DesktopBookingGrid: React.FC<DesktopBookingGridProps> = ({ venueId,
                             )}
                             <span className="text-xs font-black truncate uppercase tracking-wide">
                               {status === 'matchmaking' 
-                                ? `🎫 XÉ VÉ (${slot?.bookedSlots}/${slot?.maxSlots})`
+                                ? `🎫 XÉ VÉ (${slot?.bookedSlots || 0}/${slot?.maxSlots || 10})`
                                 : (slot?.customerName || (status === 'maintenance' ? 'BẢO TRÌ' : ''))}
                             </span>
                           </div>
-                          <span className="text-[9px] font-extrabold opacity-75 whitespace-nowrap bg-black/10 px-1.5 py-0.5 rounded">
-                            {span * shiftMinutes}p
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {status === 'matchmaking' && (
+                              <span className="text-[9px] font-black bg-white/20 text-white px-1.5 py-0.5 rounded shadow-2xs">
+                                {formatPrice(slot?.pricePerTicket || 0)}/vé
+                              </span>
+                            )}
+                            <span className="text-[9px] font-extrabold opacity-75 whitespace-nowrap bg-black/10 px-1.5 py-0.5 rounded">
+                              {span * shiftMinutes}p
+                            </span>
+                          </div>
                         </div>
                       )}
                     </td>

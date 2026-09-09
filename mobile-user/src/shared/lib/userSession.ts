@@ -73,6 +73,17 @@ export const getCachedUserSession = (): UserSessionData => {
   return memorySession;
 };
 
+const isSessionEqual = (a: UserSessionData, b: UserSessionData) => {
+  return (
+    a.isAuthenticated === b.isAuthenticated &&
+    a.accessToken === b.accessToken &&
+    a.userEmail === b.userEmail &&
+    a.userName === b.userName &&
+    a.userAvatar === b.userAvatar &&
+    a.userRole === b.userRole
+  );
+};
+
 export const loadNativeUserSessionAsync = async (): Promise<UserSessionData> => {
   if (Platform.OS === 'web') {
     return getCachedUserSession();
@@ -85,7 +96,7 @@ export const loadNativeUserSessionAsync = async (): Promise<UserSessionData> => 
     const avatar = await SecureStore.getItemAsync('userAvatar');
     const role = await SecureStore.getItemAsync('userRole');
 
-    memorySession = {
+    const newSession: UserSessionData = {
       isAuthenticated: !!token,
       accessToken: token || null,
       userEmail: email || null,
@@ -93,7 +104,12 @@ export const loadNativeUserSessionAsync = async (): Promise<UserSessionData> => 
       userAvatar: avatar || null,
       userRole: role || null,
     };
-    notifyListeners();
+
+    const changed = !isSessionEqual(memorySession, newSession);
+    memorySession = newSession;
+    if (changed) {
+      notifyListeners();
+    }
     return memorySession;
   } catch {
     return memorySession;
@@ -118,6 +134,7 @@ export const saveUserSession = async (data: {
     userRole: data.userRole !== undefined ? data.userRole : current.userRole,
   };
 
+  const changed = !isSessionEqual(memorySession, updated);
   memorySession = updated;
 
   if (Platform.OS === 'web') {
@@ -159,11 +176,14 @@ export const saveUserSession = async (data: {
       console.log('SecureStore sync error:', e);
     }
   }
-  notifyListeners();
+
+  if (changed) {
+    notifyListeners();
+  }
 };
 
 export const clearUserSession = async (): Promise<void> => {
-  memorySession = {
+  const emptySession: UserSessionData = {
     isAuthenticated: false,
     accessToken: null,
     userEmail: null,
@@ -171,6 +191,9 @@ export const clearUserSession = async (): Promise<void> => {
     userAvatar: null,
     userRole: null,
   };
+
+  const changed = !isSessionEqual(memorySession, emptySession);
+  memorySession = emptySession;
 
   if (Platform.OS === 'web') {
     try {
@@ -189,5 +212,8 @@ export const clearUserSession = async (): Promise<void> => {
       await SecureStore.deleteItemAsync('userRole');
     } catch (e) { }
   }
-  notifyListeners();
+
+  if (changed) {
+    notifyListeners();
+  }
 };
