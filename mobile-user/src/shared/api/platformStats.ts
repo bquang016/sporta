@@ -10,5 +10,5 @@ export interface PlatformStatsDto {
 }
 
 export const getPlatformStatsApi = async (): Promise<PlatformStatsDto> => {
-  return apiFetch<PlatformStatsDto>('/api/v1/public/venues/stats', { method: 'GET' }, false);
+  return apiFetch<PlatformStatsDto>('/public/venues/stats', { method: 'GET' }, false);
 };

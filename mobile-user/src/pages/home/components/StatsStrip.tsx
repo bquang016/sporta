@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../../shared/config/theme';
 import { getPlatformStatsApi, PlatformStatsDto } from '../../../shared/api/platformStats';
 
 interface StatConfig {
@@ -10,7 +9,7 @@ interface StatConfig {
   label: string;
   iconColor: string;
   iconBg: string;
-  getValue: (stats: PlatformStatsDto | null) => string;
+  getValue: (stats: PlatformStatsDto | null, loading: boolean) => string;
 }
 
 const STAT_CONFIGS: StatConfig[] = [
@@ -20,8 +19,9 @@ const STAT_CONFIGS: StatConfig[] = [
     label: 'Sân xác thực',
     iconColor: '#059669',
     iconBg: '#ECFDF5',
-    getValue: (stats) => {
-      if (!stats) return '100+';
+    getValue: (stats, loading) => {
+      if (loading && !stats) return '--';
+      if (!stats) return '0';
       if (stats.verifiedVenuesDisplay) return stats.verifiedVenuesDisplay;
       const count = stats.verifiedVenues ?? 0;
       return count >= 10 ? `${count}+` : `${count}`;
@@ -33,8 +33,9 @@ const STAT_CONFIGS: StatConfig[] = [
     label: 'Kèo chờ ghép',
     iconColor: '#0284C7',
     iconBg: '#F0F9FF',
-    getValue: (stats) => {
-      if (!stats) return '1.500+';
+    getValue: (stats, loading) => {
+      if (loading && !stats) return '--';
+      if (!stats) return '0';
       if (stats.openMatchRoomsDisplay) return stats.openMatchRoomsDisplay;
       const count = stats.openMatchRooms ?? 0;
       return count >= 1000 ? `${(count / 1000).toFixed(1)}k+` : count >= 10 ? `${count}+` : `${count}`;
@@ -46,8 +47,9 @@ const STAT_CONFIGS: StatConfig[] = [
     label: 'Vé hôm nay',
     iconColor: '#D97706',
     iconBg: '#FFFBEB',
-    getValue: (stats) => {
-      if (!stats) return '350+';
+    getValue: (stats, loading) => {
+      if (loading && !stats) return '--';
+      if (!stats) return '0';
       if (stats.todayTicketsDisplay) return stats.todayTicketsDisplay;
       const count = stats.todayTickets ?? 0;
       return count >= 10 ? `${count}+` : `${count}`;
@@ -57,6 +59,7 @@ const STAT_CONFIGS: StatConfig[] = [
 
 export function StatsStrip() {
   const [stats, setStats] = useState<PlatformStatsDto | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -66,8 +69,13 @@ export function StatsStrip() {
           setStats(res);
         }
       })
-      .catch(() => {
-        // Fallback gracefully to default metrics
+      .catch((err) => {
+        console.warn('[StatsStrip] Error fetching stats:', err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -85,7 +93,7 @@ export function StatsStrip() {
             </View>
             <View style={styles.textBox}>
               <Text style={styles.statValue} numberOfLines={1}>
-                {config.getValue(stats)}
+                {config.getValue(stats, loading)}
               </Text>
               <Text style={styles.statLabel} numberOfLines={1}>
                 {config.label}

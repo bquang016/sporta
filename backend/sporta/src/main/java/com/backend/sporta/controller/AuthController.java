@@ -10,6 +10,8 @@ import com.backend.sporta.dto.VerifyOtpRequest;
 import com.backend.sporta.dto.VerifyOtpResponse;
 import com.backend.sporta.dto.GoogleLoginRequest;
 import com.backend.sporta.dto.GoogleLoginResponse;
+import com.backend.sporta.dto.FacebookLoginRequest;
+import com.backend.sporta.dto.FacebookLoginResponse;
 import com.backend.sporta.dto.RegisterOwnerResponse;
 import com.backend.sporta.dto.ForgotPasswordSendOtpRequest;
 import com.backend.sporta.dto.ForgotPasswordVerifyOtpRequest;
@@ -138,6 +140,12 @@ public class AuthController {
     @PostMapping("/google-login")
     public ResponseEntity<GoogleLoginResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         GoogleLoginResponse response = authService.googleLogin(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/facebook-login")
+    public ResponseEntity<FacebookLoginResponse> facebookLogin(@Valid @RequestBody FacebookLoginRequest request) {
+        FacebookLoginResponse response = authService.facebookLogin(request);
         return ResponseEntity.ok(response);
     }
 

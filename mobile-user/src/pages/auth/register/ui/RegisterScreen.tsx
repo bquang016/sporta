@@ -239,6 +239,7 @@ export function RegisterScreen() {
     setIsFocusedConfirm,
     handleRegister,
     handleGoogleRegister,
+    handleFacebookRegister,
     router,
   } = useRegister();
 
@@ -428,7 +429,7 @@ export function RegisterScreen() {
 
           <TouchableOpacity
             style={styles.dockSocialPill}
-            onPress={handleGoogleRegister}
+            onPress={handleFacebookRegister}
             activeOpacity={0.85}
           >
             <FacebookLogo size={18} />
@@ -663,7 +664,7 @@ export function RegisterScreen() {
 
               <TouchableOpacity
                 style={styles.socialPillButton}
-                onPress={handleGoogleRegister}
+                onPress={handleFacebookRegister}
                 activeOpacity={0.8}
               >
                 <FacebookLogo size={18} />
