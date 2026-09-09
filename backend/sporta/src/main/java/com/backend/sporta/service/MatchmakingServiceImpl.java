@@ -704,12 +704,18 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             throw new CustomException("Không tìm thấy thông tin trận đấu", 404);
         }
 
-        if (!isClubAdmin(match.getHostClub().getId(), user.getId())) {
+        if (!isClubAdmin(match.getHostClub().getId(), user.getId())
+                && !Boolean.TRUE.equals(user.getIsDevTester())
+                && user.getRole() != Role.ADMIN
+                && user.getRole() != Role.SUPER_ADMIN) {
             throw new CustomException("Chỉ chủ/quản lý CLB Host mới được nhập tỷ số", 403);
         }
 
         LocalDateTime startTime = getBookingStartTime(match.getBooking());
-        if (startTime != null && LocalDateTime.now().isBefore(startTime)) {
+        if (startTime != null && LocalDateTime.now().isBefore(startTime)
+                && !Boolean.TRUE.equals(user.getIsDevTester())
+                && user.getRole() != Role.ADMIN
+                && user.getRole() != Role.SUPER_ADMIN) {
             throw new CustomException("Chưa đến giờ thi đấu của trận đấu. Vui lòng đợi đến giờ đá để cập nhật tỷ số.", 400);
         }
 
@@ -768,7 +774,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
             throw new CustomException("Không tìm thấy trận đấu", 404);
         }
 
-        if (!isClubAdmin(match.getGuestClub().getId(), user.getId())) {
+        if (!isClubAdmin(match.getGuestClub().getId(), user.getId())
+                && !Boolean.TRUE.equals(user.getIsDevTester())
+                && user.getRole() != Role.ADMIN
+                && user.getRole() != Role.SUPER_ADMIN) {
             throw new CustomException("Chỉ chủ/quản lý CLB Guest mới được xác nhận tỷ số", 403);
         }
 
@@ -882,7 +891,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy trận đấu", 404));
 
         if (!isClubAdmin(match.getGuestClub().getId(), user.getId())
-                && !isClubAdmin(match.getHostClub().getId(), user.getId())) {
+                && !isClubAdmin(match.getHostClub().getId(), user.getId())
+                && !Boolean.TRUE.equals(user.getIsDevTester())
+                && user.getRole() != Role.ADMIN
+                && user.getRole() != Role.SUPER_ADMIN) {
             throw new CustomException("Chỉ chủ/quản lý CLB mới được từ chối tỷ số/khiếu nại", 403);
         }
 
@@ -1304,6 +1316,10 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                     .build();
         }
 
+        boolean isDevOrAdmin = Boolean.TRUE.equals(currentUser.getIsDevTester())
+                || currentUser.getRole() == Role.ADMIN
+                || currentUser.getRole() == Role.SUPER_ADMIN;
+
         boolean isHostAdmin = isClubAdmin(room.getHostClub().getId(), currentUser.getId());
         boolean isGuestAdmin = room.getGuestClub() != null
                 && isClubAdmin(room.getGuestClub().getId(), currentUser.getId());
@@ -1318,13 +1334,13 @@ public class MatchmakingServiceImpl implements MatchmakingService {
                 .canManageApplicants(isHostAdmin && status == MatchStatus.OPEN)
                 .canEditRoom(isHostAdmin && status == MatchStatus.OPEN)
                 .canCancelRoom(isHostAdmin && status == MatchStatus.OPEN)
-                .canEnterScore(isHostAdmin && (status == MatchStatus.MATCHED || status == MatchStatus.UPCOMING
+                .canEnterScore((isHostAdmin || isDevOrAdmin) && (status == MatchStatus.MATCHED || status == MatchStatus.UPCOMING
                         || status == MatchStatus.SCORE_PENDING || status == MatchStatus.RESULT_OVERDUE))
-                .canConfirmScore(isGuestAdmin
+                .canConfirmScore((isGuestAdmin || isDevOrAdmin)
                         && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))
-                .canReport((isHostAdmin || isGuestAdmin)
-                        && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE))
-                .canProposeDraw((isHostAdmin || isGuestAdmin)
+                .canReport((isHostAdmin || isGuestAdmin || isDevOrAdmin)
+                        && (status == MatchStatus.SCORE_CONFIRMING || status == MatchStatus.RESULT_OVERDUE || status == MatchStatus.DISPUTED))
+                .canProposeDraw((isHostAdmin || isGuestAdmin || isDevOrAdmin)
                         && (status == MatchStatus.RESULT_OVERDUE || status == MatchStatus.SCORE_PENDING))
                 .build();
     }
@@ -1871,5 +1887,143 @@ public class MatchmakingServiceImpl implements MatchmakingService {
         matchRoomRepository.save(room);
 
         return mapToRoomResponse(room, match, user);
+    }
+
+    @Override
+    @Transactional
+    public MatchRoomResponse devEndMatch(UUID roomId, DevEndMatchRequest request, String userEmail) {
+        User user = getUserByEmail(userEmail);
+        if (!Boolean.TRUE.equals(user.getIsDevTester()) && user.getRole() != Role.ADMIN && user.getRole() != Role.SUPER_ADMIN) {
+            throw new CustomException("Chỉ tài khoản DEV Tester hoặc Admin mới được sử dụng tính năng này", 403);
+        }
+
+        MatchRoom room = matchRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy phòng ghép trận", 404));
+
+        if (room.getHostClub() == null || room.getGuestClub() == null) {
+            throw new CustomException("Phòng chưa có đủ 2 CLB tham gia. Vui lòng gán đủ 2 CLB trước.", 400);
+        }
+
+        Match match = matchRepository.findByRoomId(room.getId()).orElseGet(() -> {
+            int hostElo = clubEloService.getClubElo(room.getHostClub());
+            int guestElo = clubEloService.getClubElo(room.getGuestClub());
+            return matchRepository.save(Match.builder()
+                    .room(room)
+                    .booking(room.getBooking())
+                    .hostClub(room.getHostClub())
+                    .guestClub(room.getGuestClub())
+                    .matchType(room.getMatchType() != null ? room.getMatchType() : MatchType.RANKED)
+                    .status(MatchStatus.MATCHED)
+                    .hostSharePercent(room.getHostSharePercent())
+                    .guestSharePercent(room.getGuestSharePercent())
+                    .guestShareAmount(room.getGuestShareAmount())
+                    .hostClubEloSnapshot(hostElo)
+                    .guestClubEloSnapshot(guestElo)
+                    .hostLevelSnapshot(clubEloService.getLevelLabel(hostElo))
+                    .guestLevelSnapshot(clubEloService.getLevelLabel(guestElo))
+                    .hostCrpBeforeSnapshot(room.getHostClub().getCrp() != null ? room.getHostClub().getCrp() : 0)
+                    .guestCrpBeforeSnapshot(room.getGuestClub().getCrp() != null ? room.getGuestClub().getCrp() : 0)
+                    .build());
+        });
+
+        // 1. Link selected lineups or record DEV lineups
+        if (request != null && request.getHostLineupId() != null) {
+            matchLineupRepository.findById(request.getHostLineupId()).ifPresent(lineup -> {
+                lineup.setMatchRoom(room);
+                lineup.setTeamSide(com.backend.sporta.enums.TeamSide.HOST);
+                lineup.setStatus(com.backend.sporta.enums.LineupStatus.IN_MATCH);
+                matchLineupRepository.save(lineup);
+
+                List<com.backend.sporta.entity.LineupMember> lms = lineupMemberRepository.findByLineupId(lineup.getId());
+                List<Long> uids = lms.stream().filter(lm -> lm.getUser() != null).map(lm -> lm.getUser().getId()).toList();
+                if (!uids.isEmpty()) {
+                    syncDevPoll(match, match.getHostClub(), uids);
+                }
+            });
+        } else if (request != null && request.getHostPlayerUserIds() != null && !request.getHostPlayerUserIds().isEmpty()) {
+            recordDevLineup(match, match.getHostClub(), request.getHostPlayerUserIds());
+        }
+
+        if (request != null && request.getGuestLineupId() != null) {
+            matchLineupRepository.findById(request.getGuestLineupId()).ifPresent(lineup -> {
+                lineup.setMatchRoom(room);
+                lineup.setTeamSide(com.backend.sporta.enums.TeamSide.GUEST);
+                lineup.setStatus(com.backend.sporta.enums.LineupStatus.IN_MATCH);
+                matchLineupRepository.save(lineup);
+
+                List<com.backend.sporta.entity.LineupMember> lms = lineupMemberRepository.findByLineupId(lineup.getId());
+                List<Long> uids = lms.stream().filter(lm -> lm.getUser() != null).map(lm -> lm.getUser().getId()).toList();
+                if (!uids.isEmpty()) {
+                    syncDevPoll(match, match.getGuestClub(), uids);
+                }
+            });
+        } else if (request != null && request.getGuestPlayerUserIds() != null && !request.getGuestPlayerUserIds().isEmpty()) {
+            recordDevLineup(match, match.getGuestClub(), request.getGuestPlayerUserIds());
+        }
+
+        // 2. Refresh match snapshots with the Lineup's Average Elo
+        var hostLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), com.backend.sporta.enums.TeamSide.HOST);
+        var guestLineupOpt = matchLineupRepository.findByMatchRoomIdAndTeamSide(room.getId(), com.backend.sporta.enums.TeamSide.GUEST);
+        if (hostLineupOpt.isPresent() && hostLineupOpt.get().getEloAvg() != null && hostLineupOpt.get().getEloAvg() > 0) {
+            match.setHostClubEloSnapshot(hostLineupOpt.get().getEloAvg());
+            match.setHostLevelSnapshot(clubEloService.getLevelLabel(hostLineupOpt.get().getEloAvg()));
+        }
+        if (guestLineupOpt.isPresent() && guestLineupOpt.get().getEloAvg() != null && guestLineupOpt.get().getEloAvg() > 0) {
+            match.setGuestClubEloSnapshot(guestLineupOpt.get().getEloAvg());
+            match.setGuestLevelSnapshot(clubEloService.getLevelLabel(guestLineupOpt.get().getEloAvg()));
+        }
+        match.setMatchType(room.getMatchType() != null ? room.getMatchType() : MatchType.RANKED);
+
+        // 3. Clean up any previous final results/ledgers if re-testing
+        matchResultRepository.findByMatchId(match.getId()).ifPresent(matchResultRepository::delete);
+        crpLedgerRepository.findByMatchIdAndClubId(match.getId(), match.getHostClub().getId()).ifPresent(crpLedgerRepository::delete);
+        crpLedgerRepository.findByMatchIdAndClubId(match.getId(), match.getGuestClub().getId()).ifPresent(crpLedgerRepository::delete);
+
+        boolean hasScores = request != null
+                && request.getHostScore() != null && !request.getHostScore().trim().isEmpty()
+                && request.getGuestScore() != null && !request.getGuestScore().trim().isEmpty();
+
+        if (hasScores) {
+            Sport sport = match.getHostClub().getSport();
+            String sportName = sport != null ? sport.getName() : "Bóng đá";
+            ScoreAdapter adapter = scoreAdapterRegistry.getAdapter(sportName);
+
+            NormalizedOutcome outcome = adapter.normalize(request.getHostScore(), request.getGuestScore(),
+                    request.getRawScoreDetails());
+            double gFactor = adapter.calculateG(request.getHostScore(), request.getGuestScore(),
+                    request.getRawScoreDetails());
+
+            Optional<ScoreSubmission> lastSub = scoreSubmissionRepository
+                    .findFirstByMatchIdOrderByVersionDesc(match.getId());
+            int version = lastSub.map(s -> s.getVersion() + 1).orElse(1);
+
+            ScoreSubmission submission = ScoreSubmission.builder()
+                    .match(match)
+                    .submittedByClub(match.getHostClub())
+                    .version(version)
+                    .hostScore(request.getHostScore().trim())
+                    .guestScore(request.getGuestScore().trim())
+                    .rawScoreDetails(request.getRawScoreDetails())
+                    .outcome(outcome)
+                    .gFactor(gFactor)
+                    .build();
+            scoreSubmissionRepository.save(submission);
+
+            match.setStatus(MatchStatus.SCORE_CONFIRMING);
+            room.setStatus(MatchStatus.SCORE_CONFIRMING);
+        } else {
+            // Clean up old submissions when resetting/ending match without score
+            List<ScoreSubmission> existingSubs = scoreSubmissionRepository.findByMatchIdOrderByVersionDesc(match.getId());
+            if (existingSubs != null && !existingSubs.isEmpty()) {
+                scoreSubmissionRepository.deleteAll(existingSubs);
+            }
+            match.setStatus(MatchStatus.SCORE_PENDING);
+            room.setStatus(MatchStatus.SCORE_PENDING);
+        }
+
+        matchRepository.save(match);
+        MatchRoom savedRoom = matchRoomRepository.save(room);
+
+        return mapToRoomResponse(savedRoom, match, user);
     }
 }

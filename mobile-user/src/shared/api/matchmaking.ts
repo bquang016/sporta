@@ -365,7 +365,40 @@ export class MatchmakingApiRepository {
   }
 
   /**
-   * [DEV] Tự nhập tỉ số và kết thúc kèo đấu ngay lập tức
+   * [DEV] Kết thúc trận đấu nhưng không chốt kết quả ngay (chờ nhập tỉ số hoặc gửi tỉ số chờ Bên B duyệt/tranh chấp)
+   */
+  static async devEndMatch(
+    roomId: string,
+    params?: {
+      hostScore?: number | string;
+      guestScore?: number | string;
+      rawScoreDetails?: string;
+      hostLineupId?: number;
+      guestLineupId?: number;
+      hostPlayerUserIds?: number[];
+      guestPlayerUserIds?: number[];
+    }
+  ): Promise<MatchRoomVM> {
+    return apiFetch<MatchRoomVM>(
+      `/matchmaking/rooms/${roomId}/dev/end-match`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          hostScore: params?.hostScore !== undefined ? String(params.hostScore) : undefined,
+          guestScore: params?.guestScore !== undefined ? String(params.guestScore) : undefined,
+          rawScoreDetails: params?.rawScoreDetails,
+          hostLineupId: params?.hostLineupId,
+          guestLineupId: params?.guestLineupId,
+          hostPlayerUserIds: params?.hostPlayerUserIds,
+          guestPlayerUserIds: params?.guestPlayerUserIds,
+        }),
+      },
+      true
+    );
+  }
+
+  /**
+   * [DEV] Tự nhập tỉ số và kết thúc kèo đấu ngay lập tức (Chốt RESULT_FINAL)
    */
   static async devForceFinishMatch(
     roomId: string,

@@ -142,6 +142,13 @@ public class MatchmakingController {
         return ResponseEntity.ok(matchmakingService.devAssignClubs(roomId, request, getCurrentUserEmail()));
     }
 
+    @PostMapping({"/rooms/{roomId}/dev/end-match", "/matches/{roomId}/dev/end-match"})
+    public ResponseEntity<MatchRoomResponse> devEndMatch(
+            @PathVariable UUID roomId,
+            @RequestBody(required = false) DevEndMatchRequest request) {
+        return ResponseEntity.ok(matchmakingService.devEndMatch(roomId, request != null ? request : new DevEndMatchRequest(), getCurrentUserEmail()));
+    }
+
     @PostMapping({"/rooms/{roomId}/dev/force-finish", "/matches/{roomId}/dev/force-finish"})
     public ResponseEntity<MatchRoomResponse> devForceFinishMatch(
             @PathVariable UUID roomId,

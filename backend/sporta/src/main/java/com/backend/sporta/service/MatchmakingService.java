@@ -48,5 +48,7 @@ public interface MatchmakingService {
 
     MatchRoomResponse devAssignClubs(UUID roomId, DevAssignClubsRequest request, String userEmail);
 
+    MatchRoomResponse devEndMatch(UUID roomId, DevEndMatchRequest request, String userEmail);
+
     MatchRoomResponse devForceFinishMatch(UUID roomId, DevForceFinishMatchRequest request, String userEmail);
 }

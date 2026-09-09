@@ -169,6 +169,99 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
   const selectedHostLineup = hostLineups.find((l) => l.id === selectedHostLineupId);
   const selectedGuestLineup = guestLineups.find((l) => l.id === selectedGuestLineupId);
 
+  const handleEndMatchWithoutScore = async () => {
+    if (!room.hostClub || !room.guestClub) {
+      Alert.alert('Lỗi DEV', 'Vui lòng gán đủ cả 2 CLB (Side A và Side B) trước khi kết thúc trận đấu.');
+      return;
+    }
+
+    const hostMemberIds = selectedHostLineup?.members?.map((m: any) => m.userId || m.id) || [];
+    const guestMemberIds = selectedGuestLineup?.members?.map((m: any) => m.userId || m.id) || [];
+
+    try {
+      setLoadingAction(true);
+      await MatchmakingApiRepository.devEndMatch(room.id, {
+        hostLineupId: selectedHostLineupId || undefined,
+        guestLineupId: selectedGuestLineupId || undefined,
+        hostPlayerUserIds: hostMemberIds.length > 0 ? hostMemberIds : undefined,
+        guestPlayerUserIds: guestMemberIds.length > 0 ? guestMemberIds : undefined,
+      });
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      Alert.alert(
+        '⚡ DEV: Đã Kết Thúc Giờ Thi Đấu!',
+        'Trận đấu hiện đã chuyển sang trạng thái "Chờ nhập tỷ số" (SCORE_PENDING / MATCHED).\n\nBạn có thể vào màn hình "Nhập tỷ số" để:\n1. Bên A (Chủ nhà) tự nhập và gửi tỷ số.\n2. Bên B (Đội khách) duyệt hoặc Báo sai tỷ số (Tranh chấp).',
+        [
+          {
+            text: 'Vào Nhập Tỷ Số Ngay',
+            onPress: () => {
+              router.push(`/matchmaking/${room.id}/score` as any);
+            },
+          },
+          {
+            text: 'Ở lại',
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Lỗi DEV', err.message || 'Không thể kết thúc trận đấu');
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleSendScoreForReview = async () => {
+    if (!room.hostClub || !room.guestClub) {
+      Alert.alert('Lỗi DEV', 'Vui lòng gán đủ cả 2 CLB (Side A và Side B) trước khi gửi tỷ số.');
+      return;
+    }
+
+    const hostMemberIds = selectedHostLineup?.members?.map((m: any) => m.userId || m.id) || [];
+    const guestMemberIds = selectedGuestLineup?.members?.map((m: any) => m.userId || m.id) || [];
+
+    try {
+      setLoadingAction(true);
+      await MatchmakingApiRepository.devEndMatch(room.id, {
+        hostScore,
+        guestScore,
+        rawScoreDetails: scoreDetails || undefined,
+        hostLineupId: selectedHostLineupId || undefined,
+        guestLineupId: selectedGuestLineupId || undefined,
+        hostPlayerUserIds: hostMemberIds.length > 0 ? hostMemberIds : undefined,
+        guestPlayerUserIds: guestMemberIds.length > 0 ? guestMemberIds : undefined,
+      });
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      Alert.alert(
+        '📤 DEV: Đã Gửi Tỷ Số Chờ Duyệt!',
+        `Tỷ số (${hostScore} - ${guestScore}) đã được gửi và trận đấu đang ở trạng thái Chờ Bên B duyệt (SCORE_CONFIRMING).\n\nBên B (hoặc tài khoản DEV) hiện có thể vào màn hình để test:\n• Nút "Xác nhận kết quả" -> Chốt FINAL & tính CRP/Elo\n• Nút "Báo sai tỷ số" -> Mở modal tranh chấp (DISPUTED)`,
+        [
+          {
+            text: 'Vào Duyệt / Tranh Chấp',
+            onPress: () => {
+              router.push(`/matchmaking/${room.id}/score` as any);
+            },
+          },
+          {
+            text: 'Ở lại',
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Lỗi DEV', err.message || 'Không thể gửi tỷ số');
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
   const handleForceFinish = async () => {
     if (!room.hostClub || !room.guestClub) {
       Alert.alert('Lỗi DEV', 'Vui lòng gán đủ cả 2 CLB (Side A và Side B) trước khi kết thúc trận đấu.');
@@ -484,8 +577,10 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
             </View>
           )}
 
-          {/* Section 3: Input Score & Force Finish */}
-          <Text style={[styles.sectionLabel, { marginTop: 10 }]}>3. NHẬP TỶ SỐ & KẾT THÚC TRẬN ĐẤU</Text>
+          {/* Section 3: Input Score & Actions */}
+          <Text style={[styles.sectionLabel, { marginTop: 10 }]}>
+            3. KẾT THÚC TRẬN & TEST TỶ SỐ / TRANH CHẤP
+          </Text>
 
           {/* Quick Score Chips */}
           <View style={styles.quickScoreRow}>
@@ -545,24 +640,68 @@ export function DevMatchTestPanel({ room, onRefresh }: DevMatchTestPanelProps) {
             </View>
           </View>
 
-          {/* Force Finish Button */}
-          <TouchableOpacity
-            style={[styles.forceFinishBtn, loadingAction && { opacity: 0.6 }]}
-            onPress={handleForceFinish}
-            disabled={loadingAction}
-            activeOpacity={0.85}
-          >
-            {loadingAction ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <Ionicons name="flash" size={16} color="#FFFFFF" />
-                <Text style={styles.forceFinishBtnText}>
-                  KẾT THÚC TRẬN ĐẤU & TÍNH ĐIỂM ELO / CRP NGAY
+          {/* DEV Action Buttons */}
+          <View style={styles.actionButtonGroupDev}>
+            {/* OPTION 1: End Match without Score (Test score declaration & dispute flow) */}
+            <TouchableOpacity
+              style={[styles.endMatchPendingBtn, loadingAction && { opacity: 0.6 }]}
+              onPress={handleEndMatchWithoutScore}
+              disabled={loadingAction}
+              activeOpacity={0.85}
+            >
+              <View style={styles.devBtnIconWrapBlue}>
+                <Ionicons name="hourglass-outline" size={18} color="#0284C7" />
+              </View>
+              <View style={styles.devBtnTextWrap}>
+                <Text style={styles.endMatchPendingBtnTitle}>
+                  ⚡ KẾT THÚC TRẬN (KHÔNG NHẬP TỶ SỐ)
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
+                <Text style={styles.devBtnSubtitle}>
+                  Chờ Side A tự nhập tỷ số và Side B duyệt / báo sai (tranh chấp)
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* OPTION 2: Send Score for Review (SCORE_CONFIRMING state) */}
+            <TouchableOpacity
+              style={[styles.sendScoreReviewBtn, loadingAction && { opacity: 0.6 }]}
+              onPress={handleSendScoreForReview}
+              disabled={loadingAction}
+              activeOpacity={0.85}
+            >
+              <View style={styles.devBtnIconWrapAmber}>
+                <Ionicons name="paper-plane-outline" size={18} color="#D97706" />
+              </View>
+              <View style={styles.devBtnTextWrap}>
+                <Text style={styles.sendScoreReviewBtnTitle}>
+                  📤 GỬI TỶ SỐ ({hostScore} - {guestScore}) CHỜ DUYỆT
+                </Text>
+                <Text style={styles.devBtnSubtitle}>
+                  Chuyển sang SCORE_CONFIRMING để Side B test Xác nhận / Báo sai tỷ số
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* OPTION 3: Force Finish & Calculate CRP immediately (RESULT_FINAL) */}
+            <TouchableOpacity
+              style={[styles.forceFinishBtn, loadingAction && { opacity: 0.6 }]}
+              onPress={handleForceFinish}
+              disabled={loadingAction}
+              activeOpacity={0.85}
+            >
+              <View style={styles.devBtnIconWrapPurple}>
+                <Ionicons name="flash" size={18} color="#7C3AED" />
+              </View>
+              <View style={styles.devBtnTextWrap}>
+                <Text style={styles.forceFinishBtnTitle}>
+                  🏆 KẾT THÚC & CHỐT ĐIỂM CRP / ELO NGAY
+                </Text>
+                <Text style={styles.devBtnSubtitle}>
+                  Chốt kết quả FINAL và tính toán cập nhật điểm rank/CRP ngay lập tức
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -973,23 +1112,90 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 18,
   },
+  actionButtonGroupDev: {
+    gap: 8,
+    marginTop: 10,
+  },
+  endMatchPendingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  devBtnIconWrapBlue: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endMatchPendingBtnTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  sendScoreReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  devBtnIconWrapAmber: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendScoreReviewBtnTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#B45309',
+  },
   forceFinishBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#7C3AED',
+    gap: 10,
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1.5,
+    borderColor: '#E9D5FF',
     borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  forceFinishBtnText: {
-    fontSize: 11,
+  devBtnIconWrapPurple: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F3E8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forceFinishBtnTitle: {
+    fontSize: 11.5,
     fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+    color: '#7C3AED',
+  },
+  devBtnTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  devBtnSubtitle: {
+    fontSize: 9.5,
+    color: '#64748B',
+    lineHeight: 13,
   },
   modalBackdrop: {
     flex: 1,

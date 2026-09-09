@@ -278,9 +278,9 @@ export function ScoreInputScreen() {
             </View>
           </View>
 
-          {/* STATE A: MATCHED & Not Submitted Yet */}
-          {room.status === 'MATCHED' && !submission && (
-            (!isDevUser(currentUser) && !isMatchTimeStarted(room.booking.date, room.booking.startTime)) ? (
+          {/* STATE A: MATCHED / SCORE_PENDING & Not Submitted Yet */}
+          {(room.status === 'MATCHED' || room.status === 'SCORE_PENDING' || room.status === 'UPCOMING') && !submission && (
+            (!isDevUser(currentUser) && room.status !== 'SCORE_PENDING' && !isMatchTimeStarted(room.booking.date, room.booking.startTime)) ? (
               <View style={styles.cardInfo}>
                 <Ionicons name="time-outline" size={24} color="#D97706" />
                 <Text style={styles.cardInfoTitle}>Chưa đến giờ thi đấu</Text>
